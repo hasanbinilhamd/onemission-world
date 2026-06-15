@@ -80,6 +80,88 @@ const fmtShort = (n) => {
   return 'Rp ' + n;
 };
 
+// Numeric input with Indonesian-style thousand separator (titik) and smart leading-zero handling
+function NumberInput({ value, onChange, decimal = false, max, min, placeholder, className, ...rest }) {
+  const formatId = (n) => {
+    if (n === '' || n === null || n === undefined) return '';
+    const num = Number(n);
+    if (isNaN(num)) return '';
+    if (decimal) {
+      // Keep up to 2 decimals, comma as decimal separator (id-ID)
+      return num.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+    }
+    return Math.trunc(num).toLocaleString('id-ID');
+  };
+  const [display, setDisplay] = useState(() => formatId(value));
+  // Sync when external value changes (modal open, reset, etc.)
+  useEffect(() => { setDisplay(formatId(value)); /* eslint-disable-next-line */ }, [value]);
+
+  const handle = (e) => {
+    let raw = e.target.value;
+    if (decimal) {
+      // Allow only digits, dot, comma
+      raw = raw.replace(/[^\d.,]/g, '');
+      // Normalize: dots are thousand separators in id-ID, comma is decimal
+      // Strip all dots first, then convert comma to a decimal point for parsing
+      const withoutThousands = raw.replace(/\./g, '');
+      const normalized = withoutThousands.replace(/,/g, '.');
+      // Keep only the first decimal point
+      const parts = normalized.split('.');
+      let cleaned = parts.shift().replace(/^0+(?=\d)/, '') || (parts.length ? '0' : '');
+      if (parts.length) cleaned += '.' + parts.join('').slice(0, 2);
+      if (cleaned === '' || cleaned === '.') { setDisplay(''); onChange(0); return; }
+      let num = Number(cleaned);
+      if (isNaN(num)) num = 0;
+      if (typeof max === 'number' && num > max) num = max;
+      if (typeof min === 'number' && num < min) num = min;
+      // Display: integer part with dots, decimal part with comma
+      const [ip, dp] = String(num).split('.');
+      const formatted = Number(ip).toLocaleString('id-ID') + (dp ? ',' + dp : (raw.endsWith(',') || raw.endsWith('.') ? ',' : ''));
+      setDisplay(formatted);
+      onChange(num);
+      return;
+    }
+    // Integer mode: strip all non-digits, drop leading zeros
+    const digits = raw.replace(/[^\d]/g, '');
+    const cleaned = digits.replace(/^0+(?=\d)/, '');
+    if (cleaned === '') { setDisplay(''); onChange(0); return; }
+    let num = Number(cleaned);
+    if (typeof max === 'number' && num > max) num = max;
+    if (typeof min === 'number' && num < min) num = min;
+    setDisplay(num.toLocaleString('id-ID'));
+    onChange(num);
+  };
+
+  const handleFocus = (e) => {
+    // If current value is exactly 0, clear on focus so user can type fresh
+    if (Number(value) === 0) {
+      setDisplay('');
+    }
+    e.target.select?.();
+  };
+
+  const handleBlur = () => {
+    if (display === '' || display === null) {
+      setDisplay(formatId(0));
+      onChange(0);
+    }
+  };
+
+  return (
+    <Input
+      inputMode={decimal ? 'decimal' : 'numeric'}
+      type="text"
+      value={display}
+      onChange={handle}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className={className}
+      {...rest}
+    />
+  );
+}
+
 const api = {
   async login(email, password) {
     const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
@@ -622,8 +704,8 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
               <SelectContent>{PRODUCT_STATUS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-2"><Label>Cost Price (IDR)</Label><Input type="number" value={form.costPrice||0} onChange={e=>update('costPrice', Number(e.target.value))} /></div>
-          <div className="space-y-2"><Label>Selling Price (IDR)</Label><Input type="number" value={form.sellingPrice||0} onChange={e=>update('sellingPrice', Number(e.target.value))} /></div>
+          <div className="space-y-2"><Label>Cost Price (IDR)</Label><NumberInput value={form.costPrice||0} onChange={v=>update('costPrice', v)} /></div>
+          <div className="space-y-2"><Label>Selling Price (IDR)</Label><NumberInput value={form.sellingPrice||0} onChange={v=>update('sellingPrice', v)} /></div>
           <div className="col-span-2 space-y-2"><Label>Description</Label><Textarea value={form.description||''} onChange={e=>update('description', e.target.value)} /></div>
           <div className="space-y-2"><Label>Colors (comma)</Label><Input value={(form.colors||[]).join(', ')} onChange={e=>update('colors', e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} /></div>
           <div className="space-y-2"><Label>Sizes (comma)</Label><Input value={(form.sizes||[]).join(', ')} onChange={e=>update('sizes', e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} /></div>
@@ -855,7 +937,7 @@ function PlanModal({ open, onOpenChange, initial, onSave }) {
             <div className="space-y-2"><Label>Owner</Label><Input value={form.owner||''} onChange={e=>update('owner',e.target.value)} /></div>
             <div className="space-y-2"><Label>Due date</Label><Input type="date" value={form.dueDate||''} onChange={e=>update('dueDate',e.target.value)} /></div>
           </div>
-          <div className="space-y-2"><Label>Progress %</Label><Input type="number" min={0} max={100} value={form.progress||0} onChange={e=>update('progress', Number(e.target.value))} /></div>
+          <div className="space-y-2"><Label>Progress %</Label><NumberInput max={100} value={form.progress||0} onChange={v=>update('progress', v)} /></div>
           <div className="space-y-2"><Label>Key Results (one per line)</Label><Textarea value={(form.keyResults||[]).join('\n')} onChange={e=>update('keyResults', e.target.value.split('\n').filter(Boolean))} rows={3} /></div>
           <div className="space-y-2"><Label>Action Items (one per line)</Label><Textarea value={(form.actionItems||[]).join('\n')} onChange={e=>update('actionItems', e.target.value.split('\n').filter(Boolean))} rows={3} /></div>
         </div>
@@ -1117,13 +1199,13 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
               <SelectContent>{CREATOR_STATUS.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-2"><Label>Followers</Label><Input type="number" value={form.followers||0} onChange={e=>update('followers', Number(e.target.value))} /></div>
-          <div className="space-y-2"><Label>Engagement Rate (%)</Label><Input type="number" step="0.1" value={form.engagement||0} onChange={e=>update('engagement', Number(e.target.value))} /></div>
+          <div className="space-y-2"><Label>Followers</Label><NumberInput value={form.followers||0} onChange={v=>update('followers', v)} /></div>
+          <div className="space-y-2"><Label>Engagement Rate (%)</Label><NumberInput decimal value={form.engagement||0} onChange={v=>update('engagement', v)} /></div>
           <div className="col-span-2 space-y-2"><Label>Niche</Label><Input value={form.niche||''} onChange={e=>update('niche',e.target.value)} placeholder="Athletic & Lifestyle" /></div>
-          <div className="space-y-2"><Label>Audience Fit (0-100)</Label><Input type="number" min={0} max={100} value={form.audienceFit||0} onChange={e=>update('audienceFit', Number(e.target.value))} /></div>
-          <div className="space-y-2"><Label>Islamic Values Score (0-100)</Label><Input type="number" min={0} max={100} value={form.valuesScore||0} onChange={e=>update('valuesScore', Number(e.target.value))} /></div>
+          <div className="space-y-2"><Label>Audience Fit (0-100)</Label><NumberInput max={100} value={form.audienceFit||0} onChange={v=>update('audienceFit', v)} /></div>
+          <div className="space-y-2"><Label>Islamic Values Score (0-100)</Label><NumberInput max={100} value={form.valuesScore||0} onChange={v=>update('valuesScore', v)} /></div>
           <div className="space-y-2"><Label>Contact (email/phone)</Label><Input value={form.contact||''} onChange={e=>update('contact',e.target.value)} /></div>
-          <div className="space-y-2"><Label>Estimated Fee (IDR)</Label><Input type="number" value={form.fee||0} onChange={e=>update('fee', Number(e.target.value))} /></div>
+          <div className="space-y-2"><Label>Estimated Fee (IDR)</Label><NumberInput value={form.fee||0} onChange={v=>update('fee', v)} /></div>
           <div className="col-span-2 space-y-2"><Label>Notes</Label><Textarea value={form.notes||''} onChange={e=>update('notes',e.target.value)} rows={3} /></div>
         </div>
         <DialogFooter>
@@ -1265,7 +1347,7 @@ function SchoolModal({ open, onOpenChange, initial, onSave }) {
               <SelectContent>{SCHOOL_STATUS.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="col-span-2 space-y-2"><Label>Opportunity Value (IDR)</Label><Input type="number" value={form.value||0} onChange={e=>update('value', Number(e.target.value))} /></div>
+          <div className="col-span-2 space-y-2"><Label>Opportunity Value (IDR)</Label><NumberInput value={form.value||0} onChange={v=>update('value', v)} /></div>
           <div className="col-span-2 space-y-2"><Label>Notes</Label><Textarea value={form.notes||''} onChange={e=>update('notes',e.target.value)} rows={3} /></div>
         </div>
         <DialogFooter>
@@ -1638,8 +1720,8 @@ function SettingsModule({ user }) {
           </CardContent></Card>
           <Card className="border-border/60"><CardHeader><CardTitle className="text-base">Stock Thresholds</CardTitle></CardHeader><CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Critical threshold (units)</Label><Input type="number" defaultValue={15} /></div>
-              <div className="space-y-2"><Label>Warning threshold (units)</Label><Input type="number" defaultValue={30} /></div>
+              <div className="space-y-2"><Label>Critical threshold (units)</Label><NumberInput value={15} onChange={()=>{}} /></div>
+              <div className="space-y-2"><Label>Warning threshold (units)</Label><NumberInput value={30} onChange={()=>{}} /></div>
             </div>
             <Button>Save</Button>
           </CardContent></Card>
