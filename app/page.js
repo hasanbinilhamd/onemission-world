@@ -947,16 +947,30 @@ const CREATOR_STATUS = ['Not Contacted','DM Sent','Negotiation','Deal','Complete
 function CreatorCRM() {
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('all');
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
   const load = async () => setItems(await api.get('creators'));
   useEffect(()=>{ load(); }, []);
   const updateStatus = async (item, status) => { await api.put('creators/'+item.id, { ...item, status }); setItems(arr=>arr.map(i=>i.id===item.id?{...i,status}:i)); };
+
+  const empty = { name:'', username:'', platform:'Instagram', followers:0, engagement:0, niche:'', audienceFit:80, valuesScore:90, contact:'', fee:0, status:'Not Contacted', notes:'' };
+  const save = async (data) => {
+    if (editing?.id) { await api.put('creators/'+editing.id, data); toast.success('Creator updated'); }
+    else { await api.post('creators', data); toast.success('Creator added'); }
+    setOpen(false); setEditing(null); load();
+  };
+  const del = async (id) => { await api.del('creators/'+id); load(); toast.success('Creator deleted'); };
+
   const filtered = status==='all'?items:items.filter(i=>i.status===status);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Creator CRM</h2>
-        <p className="text-sm text-muted-foreground mt-1">Manage influencer collaborations with Islamic values alignment</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Creator CRM</h2>
+          <p className="text-sm text-muted-foreground mt-1">Manage influencer collaborations with Islamic values alignment</p>
+        </div>
+        <Button onClick={()=>{ setEditing(null); setOpen(true); }} className="gap-2"><Plus className="h-4 w-4" /> New creator</Button>
       </div>
       <Tabs value={status} onValueChange={setStatus}>
         <TabsList><TabsTrigger value="all">All</TabsTrigger>{CREATOR_STATUS.map(s=><TabsTrigger key={s} value={s}>{s}</TabsTrigger>)}</TabsList>
@@ -973,6 +987,7 @@ function CreatorCRM() {
               <th className="px-4 py-3 font-medium text-right">Values</th>
               <th className="px-4 py-3 font-medium text-right">Fee</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium"></th>
             </tr>
           </thead>
           <tbody>
@@ -986,12 +1001,70 @@ function CreatorCRM() {
                 <td className="px-4 py-3 text-right"><span className={`font-medium ${c.valuesScore>=90?'text-emerald-400':c.valuesScore>=80?'text-amber-400':'text-rose-400'}`}>{c.valuesScore}</span></td>
                 <td className="px-4 py-3 text-right text-muted-foreground">{fmtShort(c.fee)}</td>
                 <td className="px-4 py-3"><Select value={c.status} onValueChange={v=>updateStatus(c,v)}><SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue/></SelectTrigger><SelectContent>{CREATOR_STATUS.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
+                <td className="px-4 py-3">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={()=>{ setEditing(c); setOpen(true); }}><Edit3 className="h-4 w-4 mr-2"/>Edit</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={()=>del(c.id)} className="text-rose-400"><Trash2 className="h-4 w-4 mr-2"/>Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </td>
               </tr>
             ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={9} className="p-12 text-center text-muted-foreground"><Users2 className="h-8 w-8 mx-auto mb-3 opacity-50" />No creators yet. Click "New creator" to add one.</td></tr>
+            )}
           </tbody>
         </table>
       </Card>
+      <CreatorModal open={open} onOpenChange={setOpen} initial={editing || empty} onSave={save} />
     </div>
+  );
+}
+
+function CreatorModal({ open, onOpenChange, initial, onSave }) {
+  const [form, setForm] = useState(initial);
+  useEffect(()=>setForm(initial),[initial, open]);
+  const update = (k,v)=>setForm(f=>({...f,[k]:v}));
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{initial?.id?'Edit creator':'New creator'}</DialogTitle>
+          <DialogDescription>Add a creator or influencer to the CRM</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
+          <div className="space-y-2"><Label>Name</Label><Input value={form.name||''} onChange={e=>update('name',e.target.value)} placeholder="Ahmad Fauzan" /></div>
+          <div className="space-y-2"><Label>Username</Label><Input value={form.username||''} onChange={e=>update('username',e.target.value)} placeholder="@ahmadfauzan" /></div>
+          <div className="space-y-2"><Label>Platform</Label>
+            <Select value={form.platform} onValueChange={v=>update('platform',v)}>
+              <SelectTrigger><SelectValue/></SelectTrigger>
+              <SelectContent>{PLATFORMS.map(p=><SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2"><Label>Status</Label>
+            <Select value={form.status} onValueChange={v=>update('status',v)}>
+              <SelectTrigger><SelectValue/></SelectTrigger>
+              <SelectContent>{CREATOR_STATUS.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2"><Label>Followers</Label><Input type="number" value={form.followers||0} onChange={e=>update('followers', Number(e.target.value))} /></div>
+          <div className="space-y-2"><Label>Engagement Rate (%)</Label><Input type="number" step="0.1" value={form.engagement||0} onChange={e=>update('engagement', Number(e.target.value))} /></div>
+          <div className="col-span-2 space-y-2"><Label>Niche</Label><Input value={form.niche||''} onChange={e=>update('niche',e.target.value)} placeholder="Athletic & Lifestyle" /></div>
+          <div className="space-y-2"><Label>Audience Fit (0-100)</Label><Input type="number" min={0} max={100} value={form.audienceFit||0} onChange={e=>update('audienceFit', Number(e.target.value))} /></div>
+          <div className="space-y-2"><Label>Islamic Values Score (0-100)</Label><Input type="number" min={0} max={100} value={form.valuesScore||0} onChange={e=>update('valuesScore', Number(e.target.value))} /></div>
+          <div className="space-y-2"><Label>Contact (email/phone)</Label><Input value={form.contact||''} onChange={e=>update('contact',e.target.value)} /></div>
+          <div className="space-y-2"><Label>Estimated Fee (IDR)</Label><Input type="number" value={form.fee||0} onChange={e=>update('fee', Number(e.target.value))} /></div>
+          <div className="col-span-2 space-y-2"><Label>Notes</Label><Textarea value={form.notes||''} onChange={e=>update('notes',e.target.value)} rows={3} /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={()=>onOpenChange(false)}>Cancel</Button>
+          <Button onClick={()=>onSave(form)}>{initial?.id?'Save changes':'Add creator'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
