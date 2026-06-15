@@ -7,8 +7,18 @@ import {
   Wallet, PartyPopper, FileBarChart2, Bell, Settings as SettingsIcon, Search,
   LogOut, Plus, Edit3, Trash2, Copy, Archive, Download, AlertTriangle, TrendingUp,
   TrendingDown, DollarSign, ShoppingBag, CheckCircle2, Circle, MoreHorizontal,
-  ChevronRight, Sparkles, Globe, Loader2, ExternalLink
+  ChevronRight, Sparkles, Globe, Loader2, ExternalLink, MessageCircle, Mail, Phone
 } from 'lucide-react';
+
+// Normalize Indonesian phone number for wa.me link
+function whatsappUrl(phone) {
+  if (!phone) return null;
+  let digits = String(phone).replace(/[^\d]/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('0')) digits = '62' + digits.slice(1);
+  if (digits.startsWith('620')) digits = '62' + digits.slice(3);
+  return `https://wa.me/${digits}`;
+}
 
 // Build a profile URL from a username/handle/URL based on platform
 function creatorProfileUrl(username, platform) {
@@ -1130,20 +1140,33 @@ const SCHOOL_STATUS = ['Prospect','Contacted','Meeting','Negotiation','Deal','Co
 
 function SchoolCRM() {
   const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
   const load = async () => setItems(await api.get('schools'));
   useEffect(()=>{ load(); }, []);
   const updateStatus = async (item, status) => { await api.put('schools/'+item.id, { ...item, status }); setItems(arr=>arr.map(i=>i.id===item.id?{...i,status}:i)); };
 
+  const empty = { name:'', city:'', province:'', contactPerson:'', phone:'', email:'', segment:'Premium Islamic School', value:0, status:'Prospect', notes:'' };
+  const save = async (data) => {
+    if (editing?.id) { await api.put('schools/'+editing.id, data); toast.success('School updated'); }
+    else { await api.post('schools', data); toast.success('School added'); }
+    setOpen(false); setEditing(null); load();
+  };
+  const del = async (id) => { await api.del('schools/'+id); load(); toast.success('School deleted'); };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">School CRM</h2>
-        <p className="text-sm text-muted-foreground mt-1">Islamic school partnerships pipeline</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">School CRM</h2>
+          <p className="text-sm text-muted-foreground mt-1">Islamic school partnerships pipeline</p>
+        </div>
+        <Button onClick={()=>{ setEditing(null); setOpen(true); }} className="gap-2"><Plus className="h-4 w-4" /> New school</Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {SCHOOL_STATUS.map(s => {
           const col = items.filter(i=>i.status===s);
-          const val = col.reduce((a,b)=>a+b.value,0);
+          const val = col.reduce((a,b)=>a+(b.value||0),0);
           return (
             <div key={s} className="space-y-2">
               <div className="flex items-center justify-between px-1">
@@ -1152,28 +1175,105 @@ function SchoolCRM() {
               </div>
               <p className="text-xs text-muted-foreground px-1">{fmtShort(val)}</p>
               <div className="space-y-2 min-h-[200px]">
-                {col.map(item => (
-                  <Card key={item.id} className="border-border/60">
-                    <CardContent className="p-3 space-y-2">
-                      <p className="text-sm font-medium leading-tight">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.city}, {item.province}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-emerald-400">{fmtShort(item.value)}</span>
-                        <Badge variant="outline" className="text-[10px]">{item.segment}</Badge>
-                      </div>
-                      <Select value={item.status} onValueChange={v=>updateStatus(item,v)}>
-                        <SelectTrigger className="h-7 text-xs"><SelectValue/></SelectTrigger>
-                        <SelectContent>{SCHOOL_STATUS.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </CardContent>
-                  </Card>
-                ))}
+                {col.map(item => {
+                  const wa = whatsappUrl(item.phone);
+                  return (
+                    <Card key={item.id} className="border-border/60 group">
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium leading-tight flex-1">{item.name}</p>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition"><MoreHorizontal className="h-3 w-3"/></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={()=>{ setEditing(item); setOpen(true); }}><Edit3 className="h-4 w-4 mr-2"/>Edit</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={()=>del(item.id)} className="text-rose-400"><Trash2 className="h-4 w-4 mr-2"/>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{item.city}{item.province?`, ${item.province}`:''}</p>
+                        {item.contactPerson && <p className="text-xs text-foreground/80">👤 {item.contactPerson}</p>}
+                        {wa && (
+                          <a
+                            href={wa}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 hover:text-emerald-300 px-2.5 py-1 text-xs font-medium transition w-fit max-w-full"
+                            title={`WhatsApp ${item.phone}`}
+                          >
+                            <MessageCircle className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{item.phone}</span>
+                          </a>
+                        )}
+                        {item.email && (
+                          <a href={`mailto:${item.email}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-blue-400 hover:underline truncate w-full">
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{item.email}</span>
+                          </a>
+                        )}
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-xs font-medium text-emerald-400">{fmtShort(item.value)}</span>
+                          <Badge variant="outline" className="text-[10px]">{item.segment}</Badge>
+                        </div>
+                        <Select value={item.status} onValueChange={v=>updateStatus(item,v)}>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue/></SelectTrigger>
+                          <SelectContent>{SCHOOL_STATUS.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           );
         })}
       </div>
+      <SchoolModal open={open} onOpenChange={setOpen} initial={editing || empty} onSave={save} />
     </div>
+  );
+}
+
+const SCHOOL_SEGMENTS = ['Premium Islamic School','Modern Islamic','Pesantren','Pondok Modern','Madrasah','Other'];
+
+function SchoolModal({ open, onOpenChange, initial, onSave }) {
+  const [form, setForm] = useState(initial);
+  useEffect(()=>setForm(initial),[initial, open]);
+  const update = (k,v)=>setForm(f=>({...f,[k]:v}));
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{initial?.id?'Edit school':'New school'}</DialogTitle>
+          <DialogDescription>Add an Islamic school to the partnership pipeline</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
+          <div className="col-span-2 space-y-2"><Label>School name</Label><Input value={form.name||''} onChange={e=>update('name',e.target.value)} placeholder="SMA Al-Azhar Jakarta" /></div>
+          <div className="space-y-2"><Label>City</Label><Input value={form.city||''} onChange={e=>update('city',e.target.value)} placeholder="Jakarta" /></div>
+          <div className="space-y-2"><Label>Province</Label><Input value={form.province||''} onChange={e=>update('province',e.target.value)} placeholder="DKI Jakarta" /></div>
+          <div className="space-y-2"><Label>Contact person</Label><Input value={form.contactPerson||''} onChange={e=>update('contactPerson',e.target.value)} placeholder="Ustaz Hamzah" /></div>
+          <div className="space-y-2"><Label>WhatsApp number</Label><Input value={form.phone||''} onChange={e=>update('phone',e.target.value)} placeholder="+62 812 3456 7890" /></div>
+          <div className="col-span-2 space-y-2"><Label>Email</Label><Input type="email" value={form.email||''} onChange={e=>update('email',e.target.value)} placeholder="contact@school.id" /></div>
+          <div className="space-y-2"><Label>Segment</Label>
+            <Select value={form.segment} onValueChange={v=>update('segment',v)}>
+              <SelectTrigger><SelectValue/></SelectTrigger>
+              <SelectContent>{SCHOOL_SEGMENTS.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2"><Label>Status</Label>
+            <Select value={form.status} onValueChange={v=>update('status',v)}>
+              <SelectTrigger><SelectValue/></SelectTrigger>
+              <SelectContent>{SCHOOL_STATUS.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="col-span-2 space-y-2"><Label>Opportunity Value (IDR)</Label><Input type="number" value={form.value||0} onChange={e=>update('value', Number(e.target.value))} /></div>
+          <div className="col-span-2 space-y-2"><Label>Notes</Label><Textarea value={form.notes||''} onChange={e=>update('notes',e.target.value)} rows={3} /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={()=>onOpenChange(false)}>Cancel</Button>
+          <Button onClick={()=>onSave(form)}>{initial?.id?'Save changes':'Add school'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
