@@ -7,7 +7,7 @@ import {
   Wallet, PartyPopper, FileBarChart2, Bell, Settings as SettingsIcon, Search,
   LogOut, Plus, Edit3, Trash2, Copy, Archive, Download, AlertTriangle, TrendingUp,
   TrendingDown, DollarSign, ShoppingBag, CheckCircle2, Circle, MoreHorizontal,
-  ChevronRight, Sparkles, Globe, Loader2, ExternalLink, MessageCircle, Mail, Phone
+  ChevronRight, Sparkles, Globe, Loader2, ExternalLink, MessageCircle, Mail, Phone, Menu, X
 } from 'lucide-react';
 
 // Normalize Indonesian phone number for wa.me link
@@ -606,7 +606,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
           <DialogTitle>{initial?.id ? 'Edit product' : 'New product'}</DialogTitle>
           <DialogDescription>Define product details for the catalog</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
           <div className="col-span-2 space-y-2"><Label>Product name</Label><Input value={form.name||''} onChange={e=>update('name', e.target.value)} /></div>
           <div className="space-y-2"><Label>SKU</Label><Input value={form.sku||''} onChange={e=>update('sku', e.target.value)} /></div>
           <div className="space-y-2"><Label>Brand</Label><Input value={form.brand||''} onChange={e=>update('brand', e.target.value)} /></div>
@@ -841,7 +841,7 @@ function PlanModal({ open, onOpenChange, initial, onSave }) {
       <DialogContent className="max-w-xl">
         <DialogHeader><DialogTitle>{initial?.id?'Edit plan':'New plan'}</DialogTitle></DialogHeader>
         <div className="space-y-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2"><Label>Level</Label>
               <Select value={form.level} onValueChange={v=>update('level',v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{PLAN_LEVELS.map(l=><SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent></Select>
             </div>
@@ -851,7 +851,7 @@ function PlanModal({ open, onOpenChange, initial, onSave }) {
           </div>
           <div className="space-y-2"><Label>Title</Label><Input value={form.title||''} onChange={e=>update('title',e.target.value)} /></div>
           <div className="space-y-2"><Label>Objective</Label><Textarea value={form.objective||''} onChange={e=>update('objective',e.target.value)} /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2"><Label>Owner</Label><Input value={form.owner||''} onChange={e=>update('owner',e.target.value)} /></div>
             <div className="space-y-2"><Label>Due date</Label><Input type="date" value={form.dueDate||''} onChange={e=>update('dueDate',e.target.value)} /></div>
           </div>
@@ -975,16 +975,16 @@ function ContentModal({ open, onOpenChange, initial, onSave }) {
         <DialogHeader><DialogTitle>{initial?.id?'Edit content':'New content'}</DialogTitle></DialogHeader>
         <div className="space-y-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
           <div className="space-y-2"><Label>Title</Label><Input value={form.title||''} onChange={e=>update('title',e.target.value)} /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2"><Label>Platform</Label><Select value={form.platform} onValueChange={v=>update('platform',v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{PLATFORMS.map(p=><SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>
             <div className="space-y-2"><Label>Format</Label><Input value={form.format||''} onChange={e=>update('format',e.target.value)} /></div>
           </div>
           <div className="space-y-2"><Label>Caption</Label><Textarea value={form.caption||''} onChange={e=>update('caption',e.target.value)} /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2"><Label>Objective</Label><Input value={form.objective||''} onChange={e=>update('objective',e.target.value)} /></div>
             <div className="space-y-2"><Label>CTA</Label><Input value={form.cta||''} onChange={e=>update('cta',e.target.value)} /></div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-2"><Label>Owner</Label><Input value={form.owner||''} onChange={e=>update('owner',e.target.value)} /></div>
             <div className="space-y-2"><Label>Deadline</Label><Input type="date" value={form.deadline||''} onChange={e=>update('deadline',e.target.value)} /></div>
             <div className="space-y-2"><Label>Status</Label><Select value={form.status} onValueChange={v=>update('status',v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{CONTENT_STATUS.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
@@ -1102,7 +1102,7 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
           <DialogTitle>{initial?.id?'Edit creator':'New creator'}</DialogTitle>
           <DialogDescription>Add a creator or influencer to the CRM</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
           <div className="space-y-2"><Label>Name</Label><Input value={form.name||''} onChange={e=>update('name',e.target.value)} placeholder="Ahmad Fauzan" /></div>
           <div className="space-y-2"><Label>Username</Label><Input value={form.username||''} onChange={e=>update('username',e.target.value)} placeholder="@ahmadfauzan" /></div>
           <div className="space-y-2"><Label>Platform</Label>
@@ -1246,7 +1246,7 @@ function SchoolModal({ open, onOpenChange, initial, onSave }) {
           <DialogTitle>{initial?.id?'Edit school':'New school'}</DialogTitle>
           <DialogDescription>Add an Islamic school to the partnership pipeline</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
           <div className="col-span-2 space-y-2"><Label>School name</Label><Input value={form.name||''} onChange={e=>update('name',e.target.value)} placeholder="SMA Al-Azhar Jakarta" /></div>
           <div className="space-y-2"><Label>City</Label><Input value={form.city||''} onChange={e=>update('city',e.target.value)} placeholder="Jakarta" /></div>
           <div className="space-y-2"><Label>Province</Label><Input value={form.province||''} onChange={e=>update('province',e.target.value)} placeholder="DKI Jakarta" /></div>
@@ -1606,7 +1606,7 @@ function SettingsModule({ user }) {
         </TabsList>
         <TabsContent value="company" className="space-y-4 mt-4">
           <Card className="border-border/60"><CardHeader><CardTitle className="text-base">Company Information</CardTitle></CardHeader><CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2"><Label>Company Name</Label><Input defaultValue="ONEMISSION" /></div>
               <div className="space-y-2"><Label>Tagline</Label><Input defaultValue="VALUES MATTER" /></div>
             </div>
@@ -1637,7 +1637,7 @@ function SettingsModule({ user }) {
             ))}
           </CardContent></Card>
           <Card className="border-border/60"><CardHeader><CardTitle className="text-base">Stock Thresholds</CardTitle></CardHeader><CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2"><Label>Critical threshold (units)</Label><Input type="number" defaultValue={15} /></div>
               <div className="space-y-2"><Label>Warning threshold (units)</Label><Input type="number" defaultValue={30} /></div>
             </div>
@@ -1672,6 +1672,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [active, setActive] = useState('dashboard');
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [bootChecked, setBootChecked] = useState(false);
 
@@ -1680,6 +1681,9 @@ function App() {
     if (u) setUser(JSON.parse(u));
     setBootChecked(true);
   }, []);
+
+  // Close mobile drawer when changing module
+  useEffect(() => { setMobileOpen(false); }, [active]);
 
   if (!bootChecked) return <div className="min-h-screen bg-background" />;
   if (!user) return <Login onLogin={setUser} />;
@@ -1695,80 +1699,114 @@ function App() {
 
   const logout = () => { localStorage.removeItem('om_user'); setUser(null); };
 
-  return (
-    <div className="min-h-screen bg-background text-foreground flex">
-      <aside className={`${collapsed ? 'w-[64px]' : 'w-[240px]'} shrink-0 border-r border-border bg-sidebar transition-all duration-200 flex flex-col h-screen sticky top-0`}>
-        <div className="p-4 border-b border-border flex items-center gap-3">
+  const SidebarBody = (
+    <>
+      <div className="p-4 border-b border-border flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-sm shrink-0">OM</div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-sm font-semibold tracking-tight">ONEMISSION HQ</p>
+              <p className="text-sm font-semibold tracking-tight truncate">ONEMISSION HQ</p>
               <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Values Matter</p>
             </div>
           )}
         </div>
-        <div className="p-3">
-          {!collapsed && (
-            <div className="relative">
-              <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search..." className="pl-8 h-8 text-xs" value={query} onChange={e=>setQuery(e.target.value)} />
-            </div>
-          )}
-        </div>
-        <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto scrollbar-thin">
-          {filteredNav.map(item => {
-            const Icon = item.icon;
-            const isActive = active === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={()=>setActive(item.id)}
-                className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'}`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span className="truncate">{item.label}</span>}
-              </button>
-            );
-          })}
-        </nav>
-        <div className="p-3 border-t border-border">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-sidebar-accent transition-colors">
-                <Avatar className="h-7 w-7"><AvatarFallback className="text-xs">{user.avatar}</AvatarFallback></Avatar>
-                {!collapsed && (
-                  <div className="text-left min-w-0 flex-1">
-                    <p className="text-xs font-medium truncate">{user.name}</p>
-                    <p className="text-[10px] text-muted-foreground truncate">{user.role}</p>
-                  </div>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={()=>setCollapsed(!collapsed)}>{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</DropdownMenuItem>
-              <DropdownMenuItem onClick={()=>setActive('settings')}><SettingsIcon className="h-4 w-4 mr-2" />Settings</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="text-rose-400"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <Button variant="ghost" size="icon" className="md:hidden h-8 w-8" onClick={()=>setMobileOpen(false)}><X className="h-4 w-4" /></Button>
+      </div>
+      <div className="p-3">
+        {!collapsed && (
+          <div className="relative">
+            <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search..." className="pl-8 h-8 text-xs" value={query} onChange={e=>setQuery(e.target.value)} />
+          </div>
+        )}
+      </div>
+      <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto scrollbar-thin">
+        {filteredNav.map(item => {
+          const Icon = item.icon;
+          const isActive = active === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={()=>setActive(item.id)}
+              className={`w-full flex items-center gap-3 px-2.5 py-2.5 md:py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'}`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {!collapsed && <span className="truncate">{item.label}</span>}
+            </button>
+          );
+        })}
+      </nav>
+      <div className="p-3 border-t border-border">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-sidebar-accent transition-colors">
+              <Avatar className="h-7 w-7"><AvatarFallback className="text-xs">{user.avatar}</AvatarFallback></Avatar>
+              {!collapsed && (
+                <div className="text-left min-w-0 flex-1">
+                  <p className="text-xs font-medium truncate">{user.name}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{user.role}</p>
+                </div>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="hidden md:flex" onClick={()=>setCollapsed(!collapsed)}>{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</DropdownMenuItem>
+            <DropdownMenuItem onClick={()=>setActive('settings')}><SettingsIcon className="h-4 w-4 mr-2" />Settings</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={logout} className="text-rose-400"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-background text-foreground flex">
+      {/* Desktop sidebar */}
+      <aside className={`hidden md:flex ${collapsed ? 'w-[64px]' : 'w-[240px]'} shrink-0 border-r border-border bg-sidebar transition-all duration-200 flex-col h-screen sticky top-0`}>
+        {SidebarBody}
       </aside>
 
-      <main className="flex-1 min-w-0">
-        <div className="sticky top-0 z-10 glass border-b border-border px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">ONEMISSION HQ</span>
-            <ChevronRight className="h-3 w-3 text-muted-foreground" />
-            <span className="font-medium capitalize">{NAV.find(n=>n.id===active)?.label}</span>
+      {/* Mobile drawer */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+              onClick={()=>setMobileOpen(false)}
+            />
+            <motion.aside
+              initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }}
+              transition={{ type: 'tween', duration: 0.2 }}
+              className="fixed top-0 left-0 z-50 h-screen w-[260px] border-r border-border bg-sidebar flex flex-col md:hidden"
+            >
+              {SidebarBody}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Main */}
+      <main className="flex-1 min-w-0 w-full">
+        <div className="sticky top-0 z-30 glass border-b border-border px-4 md:px-6 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 shrink-0" onClick={()=>setMobileOpen(true)}><Menu className="h-5 w-5" /></Button>
+            <div className="flex items-center gap-2 text-sm min-w-0">
+              <span className="text-muted-foreground hidden sm:inline">ONEMISSION HQ</span>
+              <ChevronRight className="h-3 w-3 text-muted-foreground hidden sm:inline" />
+              <span className="font-medium capitalize truncate">{NAV.find(n=>n.id===active)?.label}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={()=>setActive('notifications')}><Bell className="h-4 w-4" /></Button>
-            <Badge variant="outline" className="gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Online</Badge>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={()=>setActive('notifications')}><Bell className="h-4 w-4" /></Button>
+            <Badge variant="outline" className="gap-1.5 hidden sm:inline-flex"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Online</Badge>
           </div>
         </div>
-        <div className="p-6 max-w-[1600px]">
+        <div className="p-4 md:p-6 max-w-[1600px]">
           <AnimatePresence mode="wait">
             <motion.div key={active} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
               {Component}
