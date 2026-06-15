@@ -7,8 +7,41 @@ import {
   Wallet, PartyPopper, FileBarChart2, Bell, Settings as SettingsIcon, Search,
   LogOut, Plus, Edit3, Trash2, Copy, Archive, Download, AlertTriangle, TrendingUp,
   TrendingDown, DollarSign, ShoppingBag, CheckCircle2, Circle, MoreHorizontal,
-  ChevronRight, Sparkles, Globe, Loader2
+  ChevronRight, Sparkles, Globe, Loader2, ExternalLink
 } from 'lucide-react';
+
+// Build a profile URL from a username/handle/URL based on platform
+function creatorProfileUrl(username, platform) {
+  if (!username) return null;
+  const u = String(username).trim();
+  // Already a full URL
+  if (/^https?:\/\//i.test(u)) return u;
+  // Strip leading @ and any leading slashes
+  const handle = u.replace(/^@+/, '').replace(/^\/+/, '');
+  if (!handle) return null;
+  switch ((platform||'').toLowerCase()) {
+    case 'instagram': return `https://www.instagram.com/${handle}/`;
+    case 'tiktok':    return `https://www.tiktok.com/@${handle}`;
+    case 'youtube':   return `https://www.youtube.com/@${handle}`;
+    case 'threads':   return `https://www.threads.net/@${handle}`;
+    default:          return `https://www.instagram.com/${handle}/`;
+  }
+}
+
+// Short display label for a username/URL
+function creatorHandleLabel(username, platform) {
+  if (!username) return '';
+  const u = String(username).trim();
+  if (/^https?:\/\//i.test(u)) {
+    try {
+      const url = new URL(u);
+      const path = url.pathname.replace(/\/+$/,'').replace(/^\/+/,'');
+      const handle = path.split('/').pop() || url.hostname;
+      return '@' + handle.replace(/^@+/, '');
+    } catch { return u; }
+  }
+  return u.startsWith('@') ? u : '@' + u;
+}
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -371,7 +404,19 @@ function Dashboard() {
                 <Avatar className="h-8 w-8"><AvatarFallback className="text-xs">{c.name.split(' ').map(n=>n[0]).slice(0,2).join('')}</AvatarFallback></Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{c.name}</p>
-                  <p className="text-xs text-muted-foreground">{c.username} · {(c.followers/1000).toFixed(0)}K · {c.platform}</p>
+                  {c.username ? (
+                    <a
+                      href={creatorProfileUrl(c.username, c.platform)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-muted-foreground hover:text-blue-400 hover:underline inline-flex items-center gap-1 truncate"
+                    >
+                      <span className="truncate">{creatorHandleLabel(c.username, c.platform)}</span>
+                      <span className="text-muted-foreground">· {(c.followers/1000).toFixed(0)}K · {c.platform}</span>
+                    </a>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">{(c.followers/1000).toFixed(0)}K · {c.platform}</p>
+                  )}
                 </div>
                 <Badge variant="outline">{c.status}</Badge>
               </div>
@@ -993,7 +1038,19 @@ function CreatorCRM() {
           <tbody>
             {filtered.map(c => (
               <tr key={c.id} className="border-b border-border/60 hover:bg-secondary/30">
-                <td className="px-4 py-3"><div className="flex items-center gap-3"><Avatar className="h-8 w-8"><AvatarFallback className="text-xs">{c.name.split(' ').map(n=>n[0]).slice(0,2).join('')}</AvatarFallback></Avatar><div><p className="font-medium">{c.name}</p><p className="text-xs text-muted-foreground">{c.username}</p></div></div></td>
+                <td className="px-4 py-3"><div className="flex items-center gap-3"><Avatar className="h-8 w-8"><AvatarFallback className="text-xs">{c.name.split(' ').map(n=>n[0]).slice(0,2).join('')}</AvatarFallback></Avatar><div className="min-w-0"><p className="font-medium">{c.name}</p>{c.username ? (
+                  <a
+                    href={creatorProfileUrl(c.username, c.platform)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e)=>e.stopPropagation()}
+                    className="text-xs text-muted-foreground hover:text-blue-400 hover:underline inline-flex items-center gap-1 max-w-[220px] truncate"
+                    title={creatorProfileUrl(c.username, c.platform)}
+                  >
+                    <span className="truncate">{creatorHandleLabel(c.username, c.platform)}</span>
+                    <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                  </a>
+                ) : <p className="text-xs text-muted-foreground">—</p>}</div></div></td>
                 <td className="px-4 py-3"><Badge variant="outline">{c.platform}</Badge></td>
                 <td className="px-4 py-3 text-right font-medium">{(c.followers/1000).toFixed(0)}K</td>
                 <td className="px-4 py-3 text-right text-muted-foreground">{c.engagement}%</td>
