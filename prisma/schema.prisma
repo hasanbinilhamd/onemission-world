@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String @id
+  email    String @unique
+  password String
+  name     String
+  role     String
+  avatar   String
+}
+
+model Product {
+  id           String      @id
+  name         String
+  sku          String
+  category     String
+  brand        String
+  status       String
+  costPrice    Float
+  sellingPrice Float
+  description  String
+  tags         String[]
+  colors       String[]
+  sizes        String[]
+  notes        String      @default("")
+  inventory    Inventory[]
+}
+
+model Inventory {
+  id        String  @id
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  color     String
+  size      String
+  quantity  Int
+  threshold Int
+  incoming  Int
+}
+
+model Plan {
+  id           String   @id
+  level        String
+  title        String
+  objective    String
+  progress     Int
+  status       String
+  owner        String
+  dueDate      String
+  notes        String   @default("")
+  keyResults   String[]
+  actionItems  String[]
+}
+
+model Content {
+  id        String @id
+  title     String
+  platform  String
+  format    String
+  caption   String
+  objective String
+  cta       String
+  owner     String
+  deadline  String
+  status    String
+}
+
+model Creator {
+  id          String @id
+  name        String
+  username    String
+  platform    String
+  followers   Int
+  engagement  Float
+  niche       String
+  audienceFit Int
+  valuesScore Int
+  contact     String
+  fee         Float
+  status      String
+  notes       String @default("")
+}
+
+model School {
+  id            String @id
+  name          String
+  city          String
+  province      String
+  contactPerson String
+  phone         String
+  email         String
+  segment       String
+  value         Float
+  status        String
+  notes         String @default("")
+}
+
+model Timeline {
+  id          String @id
+  year        Int
+  name        String
+  description String
+  startDate   String
+  endDate     String
+  owner       String
+  status      String
+  priority    String
+  budget      Float
+}
+
+model Finance {
+  id                String @id
+  month             String
+  year              Int
+  revenue           Float
+  expenses          Float
+  profit            Float
+  cashflow          Float
+  categoryBreakdown Json
+}
+
+model Event {
+  id           String   @id
+  name         String
+  venue        String
+  date         String
+  budget       Float
+  sponsors     String[]
+  participants Int
+  status       String
+  checklist    Json
+}
+
+model Notification {
+  id        String  @id
+  type      String
+  title     String
+  message   String
+  createdAt String
+  read      Boolean
+  severity  String
+}
