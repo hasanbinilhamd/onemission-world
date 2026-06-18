@@ -13,6 +13,7 @@ const COLLECTION_MODELS = {
   finance: 'finance',
   events: 'event',
   notifications: 'notification',
+  rawmaterials: 'rawMaterial',
 };
 
 async function readJson(request) {
@@ -75,6 +76,15 @@ async function handle(request, { params }) {
         creatorDeals: creators.filter((c) => c.status === 'Deal').length,
         schoolsInPipeline: schools.filter((s) => ['Negotiation', 'Meeting', 'Deal'].includes(s.status)).length,
       });
+    }
+
+    // ---------- RAW MATERIALS STATS ----------
+    if (segs[0] === 'rawmaterials' && segs[1] === 'stats' && method === 'GET') {
+      const items = await prisma.rawMaterial.findMany();
+      const total = items.length;
+      const totalWeight = items.reduce((s, i) => s + (i.weight || 0), 0);
+      const uniqueColors = new Set(items.map(i => i.color.toLowerCase().trim())).size;
+      return NextResponse.json({ total, totalWeight, uniqueColors });
     }
 
     // Generic CRUD
