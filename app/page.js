@@ -7,7 +7,8 @@ import {
   Wallet, PartyPopper, FileBarChart2, Bell, Settings as SettingsIcon, Search,
   LogOut, Plus, Edit3, Trash2, Copy, Archive, Download, AlertTriangle, TrendingUp,
   TrendingDown, DollarSign, ShoppingBag, CheckCircle2, Circle, MoreHorizontal,
-  ChevronRight, Sparkles, Globe, Loader2, ExternalLink, MessageCircle, Mail, Phone, Menu, X
+  ChevronRight, Sparkles, Globe, Loader2, ExternalLink, MessageCircle, Mail, Phone, Menu, X,
+  Layers
 } from 'lucide-react';
 
 // Normalize Indonesian phone number for wa.me link
@@ -178,6 +179,7 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'products', label: 'Product Catalog', icon: Package },
   { id: 'inventory', label: 'Inventory', icon: Boxes },
+  { id: 'rawmaterials', label: 'Bahan Baku Mentah', icon: Layers },
   { id: 'planning', label: 'Strategic Planning', icon: Target },
   { id: 'content', label: 'Content Planner', icon: CalendarDays },
   { id: 'creators', label: 'Creator CRM', icon: Users2 },
@@ -1749,6 +1751,163 @@ function SettingsModule({ user }) {
   );
 }
 
+// =========== BAHAN BAKU MENTAH ===========
+function RawMaterialModule() {
+  const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [search, setSearch] = useState('');
+  const load = async () => setItems(await api.get('rawmaterials'));
+  useEffect(() => { load(); }, []);
+
+  const empty = { name: '', color: '', weight: 0, photo: '' };
+  const save = async (data) => {
+    const body = { name: data.name, color: data.color, weight: Number(data.weight), photo: data.photo || null };
+    if (editing?.id) {
+      await api.put('rawmaterials/' + editing.id, body);
+      toast.success('Bahan baku berhasil diperbarui');
+    } else {
+      await api.post('rawmaterials', body);
+      toast.success('Bahan baku berhasil ditambahkan');
+    }
+    setOpen(false); setEditing(null); load();
+  };
+  const del = async (id) => { await api.del('rawmaterials/' + id); load(); toast.success('Bahan baku berhasil dihapus'); };
+
+  const filtered = items.filter(item =>
+    !search || item.name.toLowerCase().includes(search.toLowerCase()) || item.color.toLowerCase().includes(search.toLowerCase())
+  );
+  const totalWeight = items.reduce((s, i) => s + (i.weight || 0), 0);
+  const uniqueColors = new Set(items.map(i => i.color.toLowerCase().trim())).size;
+  const fmtDate = (dt) => {
+    if (!dt) return '—';
+    return new Date(dt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Bahan Baku Mentah</h2>
+          <p className="text-sm text-muted-foreground mt-1">Manajemen inventaris bahan baku produksi</p>
+        </div>
+        <Button onClick={() => { setEditing(null); setOpen(true); }} className="gap-2"><Plus className="h-4 w-4" /> Tambah Bahan Baku</Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="border-border/60">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Total Bahan Baku</p>
+            <p className="text-2xl font-bold">{items.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Total Berat</p>
+            <p className="text-2xl font-bold">{totalWeight.toLocaleString('id-ID', { maximumFractionDigits: 2 })} kg</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Warna Unik</p>
+            <p className="text-2xl font-bold">{uniqueColors}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input placeholder="Cari nama atau warna..." className="pl-8 h-9 text-sm" value={search} onChange={e => setSearch(e.target.value)} />
+      </div>
+
+      <Card className="border-border/60 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/60 bg-muted/30">
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Foto</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Nama</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Warna</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Berat</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Tanggal Dibuat</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(item => (
+                <tr key={item.id} className="border-b border-border/60 hover:bg-muted/20 transition-colors">
+                  <td className="px-4 py-3">
+                    {item.photo ? (
+                      <img src={item.photo} alt={item.name} className="w-10 h-10 object-cover rounded-md border border-border/60" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-md border border-border/60 bg-muted/50 flex items-center justify-center text-muted-foreground">
+                        <Package className="h-4 w-4" />
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-medium">{item.name}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full border border-border/60 shrink-0" style={{ backgroundColor: item.color }} />
+                      <span className="text-muted-foreground">{item.color}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium">{Number(item.weight).toLocaleString('id-ID', { maximumFractionDigits: 2 })} kg</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">{fmtDate(item.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => { setEditing(item); setOpen(true); }}><Edit3 className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => del(item.id)} className="text-rose-400"><Trash2 className="h-4 w-4 mr-2" />Hapus</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">Belum ada bahan baku. Klik "Tambah Bahan Baku" untuk mulai.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      <RawMaterialModal open={open} onOpenChange={setOpen} initial={editing || empty} onSave={save} />
+    </div>
+  );
+}
+
+function RawMaterialModal({ open, onOpenChange, initial, onSave }) {
+  const [form, setForm] = useState(initial);
+  useEffect(() => setForm(initial), [initial, open]);
+  const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{initial?.id ? 'Edit bahan baku' : 'Tambah bahan baku'}</DialogTitle>
+          <DialogDescription>Kelola data bahan baku mentah produksi</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-1 gap-4">
+          <div className="space-y-2"><Label>Nama</Label><Input value={form.name || ''} onChange={e => update('name', e.target.value)} placeholder="Nama bahan baku" /></div>
+          <div className="space-y-2"><Label>Warna</Label><Input value={form.color || ''} onChange={e => update('color', e.target.value)} placeholder="Contoh: Putih, Biru Navy, #FF0000" /></div>
+          <div className="space-y-2"><Label>Berat (kg)</Label><NumberInput decimal value={form.weight || 0} onChange={v => update('weight', v)} placeholder="0,00" /></div>
+          <div className="space-y-2">
+            <Label>URL Foto (opsional)</Label>
+            <Input value={form.photo || ''} onChange={e => update('photo', e.target.value)} placeholder="https://..." />
+            {form.photo && <img src={form.photo} alt="Preview" className="w-full max-h-32 object-cover rounded-md border border-border/60 mt-2" onError={e => { e.target.style.display = 'none'; }} />}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Batal</Button>
+          <Button onClick={() => onSave(form)}>{initial?.id ? 'Simpan perubahan' : 'Tambah bahan baku'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // =========== MAIN APP ===========
 function App() {
   const [user, setUser] = useState(null);
@@ -1773,6 +1932,7 @@ function App() {
   const filteredNav = NAV.filter(n => !query || n.label.toLowerCase().includes(query.toLowerCase()));
   const Component = {
     dashboard: <Dashboard />, products: <ProductsModule />, inventory: <InventoryModule />,
+    rawmaterials: <RawMaterialModule />,
     planning: <PlanningModule />, content: <ContentModule />, creators: <CreatorCRM />,
     schools: <SchoolCRM />, timeline: <TimelineModule />, finance: <FinanceModule />,
     events: <EventsModule />, reports: <ReportsModule />, notifications: <NotificationsModule />,
