@@ -146,3 +146,13 @@ model Notification {
   read      Boolean
   severity  String
 }
+
+model RawMaterial {
+  id        String   @id
+  name      String
+  color     String
+  weight    Float
+  photo     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
