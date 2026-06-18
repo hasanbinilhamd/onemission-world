@@ -320,8 +320,8 @@ const NAV = [
 
 // =========== LOGIN ===========
 function Login({ onLogin }) {
-  const [email, setEmail] = useState("admin@onemission.id");
-  const [password, setPassword] = useState("admin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
@@ -347,7 +347,11 @@ function Login({ onLogin }) {
       >
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground text-background mb-4 font-bold text-2xl tracking-tight">
-            OM
+            <img
+              src="https://ik.imagekit.io/edyl3oplm/Onemission/logos/LOGO_ONEMISSION_3D.png"
+              alt="Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">
             ONEMISSION HQ
@@ -376,6 +380,7 @@ function Login({ onLogin }) {
               <div className="space-y-2">
                 <Label>Password</Label>
                 <Input
+                  placeholder="••••••••"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -389,13 +394,6 @@ function Login({ onLogin }) {
                 )}
               </Button>
             </form>
-            <div className="mt-6 text-xs text-muted-foreground space-y-1.5 border-t border-border pt-4">
-              <p className="font-medium text-foreground/80">Demo accounts</p>
-              <p>admin@onemission.id / admin (Super Admin)</p>
-              <p>finance@onemission.id / finance</p>
-              <p>content@onemission.id / content</p>
-              <p>ops@onemission.id / ops</p>
-            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -4139,7 +4137,11 @@ function App() {
       <div className="p-4 border-b border-border flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-sm shrink-0">
-            OM
+            <img
+              src="https://ik.imagekit.io/edyl3oplm/Onemission/logos/LOGO_ONEMISSION_3D.png"
+              alt="Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           {!collapsed && (
             <div className="min-w-0">
