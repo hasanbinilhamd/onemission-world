@@ -1157,11 +1157,17 @@ function ProductsModule() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((p) => {
               const margin = p.sellingPrice
-                ? (((p.sellingPrice - p.costPrice) / p.sellingPrice) * 100).toFixed(0)
+                ? (
+                    ((p.sellingPrice - p.costPrice) / p.sellingPrice) *
+                    100
+                  ).toFixed(0)
                 : 0;
               return (
-                <Card key={p.id} className="border-border/60 overflow-hidden flex flex-col hover:border-border transition-colors">
-                  <div className="relative aspect-[4/3] bg-secondary/40 shrink-0">
+                <Card
+                  key={p.id}
+                  className="border-border/60 overflow-hidden flex flex-col hover:border-border transition-colors"
+                >
+                  <div className="relative aspect-[4/3] h-80 bg-white/85 shrink-0">
                     {p.imageUrl ? (
                       <img
                         src={p.imageUrl}
@@ -1181,7 +1187,13 @@ function ProductsModule() {
                     </div>
                     <div className="absolute top-2 right-2">
                       <Badge
-                        variant={p.status === "Active" ? "default" : p.status === "Draft" ? "secondary" : "outline"}
+                        variant={
+                          p.status === "Active"
+                            ? "default"
+                            : p.status === "Draft"
+                              ? "secondary"
+                              : "outline"
+                        }
                         className="font-normal text-xs"
                       >
                         {p.status}
@@ -1191,17 +1203,30 @@ function ProductsModule() {
                   <CardContent className="p-4 flex flex-col flex-1 gap-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-semibold leading-tight truncate">{p.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{p.brand}</p>
+                        <p className="font-semibold leading-tight truncate">
+                          {p.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {p.brand}
+                        </p>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 -mr-1 -mt-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 -mr-1 -mt-0.5"
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setEditing(p); setOpen(true); }}>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditing(p);
+                              setOpen(true);
+                            }}
+                          >
                             <Edit3 className="h-4 w-4 mr-2" /> Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => duplicate(p)}>
@@ -1211,31 +1236,46 @@ function ProductsModule() {
                             <Archive className="h-4 w-4 mr-2" /> Archive
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => del(p.id)} className="text-rose-400 focus:text-rose-400">
+                          <DropdownMenuItem
+                            onClick={() => del(p.id)}
+                            className="text-rose-400 focus:text-rose-400"
+                          >
                             <Trash2 className="h-4 w-4 mr-2" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="font-normal text-xs">{p.category}</Badge>
-                      <span className="font-mono text-xs text-muted-foreground">{p.sku}</span>
+                      <Badge variant="outline" className="font-normal text-xs">
+                        {p.category}
+                      </Badge>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {p.sku}
+                      </span>
                     </div>
                     {p.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {p.description}
+                      </p>
                     )}
                     <div className="mt-auto pt-3 border-t border-border/60 grid grid-cols-3 gap-2 text-xs">
                       <div>
                         <p className="text-muted-foreground">Cost</p>
-                        <p className="font-medium mt-0.5">{fmtShort(p.costPrice)}</p>
+                        <p className="font-medium mt-0.5">
+                          {fmtShort(p.costPrice)}
+                        </p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Selling</p>
-                        <p className="font-medium mt-0.5">{fmtShort(p.sellingPrice)}</p>
+                        <p className="font-medium mt-0.5">
+                          {fmtShort(p.sellingPrice)}
+                        </p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Margin</p>
-                        <p className={`font-medium mt-0.5 ${margin >= 60 ? "text-emerald-400" : margin >= 40 ? "text-amber-400" : "text-rose-400"}`}>
+                        <p
+                          className={`font-medium mt-0.5 ${margin >= 60 ? "text-emerald-400" : margin >= 40 ? "text-amber-400" : "text-rose-400"}`}
+                        >
                           {margin}%
                         </p>
                       </div>
@@ -1243,10 +1283,20 @@ function ProductsModule() {
                     {(p.colors?.length > 0 || p.sizes?.length > 0) && (
                       <div className="flex flex-wrap gap-1 pt-1">
                         {p.colors?.slice(0, 3).map((c) => (
-                          <span key={c} className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground">{c}</span>
+                          <span
+                            key={c}
+                            className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground"
+                          >
+                            {c}
+                          </span>
                         ))}
                         {p.sizes?.slice(0, 4).map((s) => (
-                          <span key={s} className="text-[10px] px-1.5 py-0.5 rounded-full border border-border text-muted-foreground">{s}</span>
+                          <span
+                            key={s}
+                            className="text-[10px] px-1.5 py-0.5 rounded-full border border-border text-muted-foreground"
+                          >
+                            {s}
+                          </span>
                         ))}
                       </div>
                     )}
@@ -1275,10 +1325,16 @@ function ProductsModule() {
               <tbody>
                 {filtered.map((p) => {
                   const margin = p.sellingPrice
-                    ? (((p.sellingPrice - p.costPrice) / p.sellingPrice) * 100).toFixed(0)
+                    ? (
+                        ((p.sellingPrice - p.costPrice) / p.sellingPrice) *
+                        100
+                      ).toFixed(0)
                     : 0;
                   return (
-                    <tr key={p.id} className="border-b border-border/60 hover:bg-secondary/30 transition-colors">
+                    <tr
+                      key={p.id}
+                      className="border-b border-border/60 hover:bg-secondary/30 transition-colors"
+                    >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           {p.imageUrl ? (
@@ -1292,43 +1348,72 @@ function ProductsModule() {
                               }}
                             />
                           ) : null}
-                          <div className={`w-9 h-9 rounded-lg bg-gradient-to-br from-secondary to-accent items-center justify-center text-xs font-medium shrink-0 ${p.imageUrl ? "hidden" : "flex"}`}>
+                          <div
+                            className={`w-9 h-9 rounded-lg bg-gradient-to-br from-secondary to-accent items-center justify-center text-xs font-medium shrink-0 ${p.imageUrl ? "hidden" : "flex"}`}
+                          >
                             {p.name.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
                             <p className="font-medium">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">{p.brand}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {p.brand}
+                            </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.sku}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                        {p.sku}
+                      </td>
                       <td className="px-4 py-3">
-                        <Badge variant="outline" className="font-normal">{p.category}</Badge>
+                        <Badge variant="outline" className="font-normal">
+                          {p.category}
+                        </Badge>
                       </td>
                       <td className="px-4 py-3">
                         <Badge
-                          variant={p.status === "Active" ? "default" : p.status === "Draft" ? "secondary" : "outline"}
+                          variant={
+                            p.status === "Active"
+                              ? "default"
+                              : p.status === "Draft"
+                                ? "secondary"
+                                : "outline"
+                          }
                           className="font-normal"
                         >
                           {p.status}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-right text-muted-foreground">{fmt(p.costPrice)}</td>
-                      <td className="px-4 py-3 text-right font-medium">{fmt(p.sellingPrice)}</td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">
+                        {fmt(p.costPrice)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium">
+                        {fmt(p.sellingPrice)}
+                      </td>
                       <td className="px-4 py-3 text-right">
-                        <span className={`text-xs font-medium ${margin >= 60 ? "text-emerald-400" : margin >= 40 ? "text-amber-400" : "text-rose-400"}`}>
+                        <span
+                          className={`text-xs font-medium ${margin >= 60 ? "text-emerald-400" : margin >= 40 ? "text-amber-400" : "text-rose-400"}`}
+                        >
                           {margin}%
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => { setEditing(p); setOpen(true); }}>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setEditing(p);
+                                setOpen(true);
+                              }}
+                            >
                               <Edit3 className="h-4 w-4 mr-2" /> Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => duplicate(p)}>
@@ -1338,7 +1423,10 @@ function ProductsModule() {
                               <Archive className="h-4 w-4 mr-2" /> Archive
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => del(p.id)} className="text-rose-400 focus:text-rose-400">
+                            <DropdownMenuItem
+                              onClick={() => del(p.id)}
+                              className="text-rose-400 focus:text-rose-400"
+                            >
                               <Trash2 className="h-4 w-4 mr-2" /> Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -1349,7 +1437,10 @@ function ProductsModule() {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="p-12 text-center text-muted-foreground">
+                    <td
+                      colSpan={8}
+                      className="p-12 text-center text-muted-foreground"
+                    >
                       <Package className="h-8 w-8 mx-auto mb-3 opacity-50" />
                       No products found
                     </td>
@@ -1524,7 +1615,9 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                 src={form.imageUrl}
                 alt="Preview"
                 className="w-full max-h-36 object-cover rounded-md border border-border/60 mt-2"
-                onError={(e) => { e.target.style.display = "none"; }}
+                onError={(e) => {
+                  e.target.style.display = "none";
+                }}
               />
             )}
           </div>
@@ -4320,7 +4413,7 @@ function App() {
           return g.label.toLowerCase().includes(query.toLowerCase()) ? g : null;
         }
         const children = g.children.filter((c) =>
-          c.label.toLowerCase().includes(query.toLowerCase())
+          c.label.toLowerCase().includes(query.toLowerCase()),
         );
         return children.length ? { ...g, children } : null;
       }).filter(Boolean)
@@ -4414,14 +4507,20 @@ function App() {
           return (
             <div key={group.id}>
               <button
-                onClick={() => { if (!collapsed) toggleGroup(group.id); }}
+                onClick={() => {
+                  if (!collapsed) toggleGroup(group.id);
+                }}
                 className={`w-full flex items-center gap-3 px-2.5 py-2.5 md:py-2 rounded-lg text-sm transition-colors ${hasActiveChild ? "text-sidebar-foreground font-medium" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && (
                   <>
-                    <span className="truncate flex-1 text-left">{group.label}</span>
-                    <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-sidebar-foreground/40 ${isOpen ? "rotate-90" : ""}`} />
+                    <span className="truncate flex-1 text-left">
+                      {group.label}
+                    </span>
+                    <ChevronRight
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-sidebar-foreground/40 ${isOpen ? "rotate-90" : ""}`}
+                    />
                   </>
                 )}
               </button>
