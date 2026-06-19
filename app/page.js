@@ -1161,12 +1161,12 @@ function ProductsModule() {
                 : 0;
               return (
                 <Card key={p.id} className="border-border/60 overflow-hidden flex flex-col hover:border-border transition-colors">
-                  <div className="relative h-52 bg-secondary/40 shrink-0 overflow-hidden">
+                  <div className="relative aspect-[4/3] bg-secondary/40 shrink-0">
                     {p.imageUrl ? (
                       <img
                         src={p.imageUrl}
                         alt={p.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                         onError={(e) => {
                           e.target.style.display = "none";
                           e.target.nextSibling.style.display = "flex";
