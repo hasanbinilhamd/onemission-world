@@ -44,6 +44,7 @@ dump.rdb
 # System files
 .DS_Store
 *.pem
+.env
 
 # Python
 __pycache__/
