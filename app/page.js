@@ -1161,7 +1161,7 @@ function ProductsModule() {
                 : 0;
               return (
                 <Card key={p.id} className="border-border/60 overflow-hidden flex flex-col hover:border-border transition-colors">
-                  <div className="relative aspect-[4/3] bg-secondary/40 shrink-0">
+                  <div className="relative h-52 bg-secondary/40 shrink-0 overflow-hidden">
                     {p.imageUrl ? (
                       <img
                         src={p.imageUrl}
