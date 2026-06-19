@@ -43,6 +43,9 @@ import {
   Menu,
   X,
   Layers,
+  LayoutGrid,
+  List,
+  ImageOff,
 } from "lucide-react";
 
 // Normalize Indonesian phone number for wa.me link
@@ -310,7 +313,7 @@ const NAV_GROUPS = [
   },
   {
     id: "catalog",
-    label: "Product & Inventory",
+    label: "Produk & Inventori",
     icon: Package,
     children: [
       { id: "products", label: "Product Catalog", icon: Package },
@@ -320,7 +323,7 @@ const NAV_GROUPS = [
   },
   {
     id: "marketing",
-    label: "Marketing & Community",
+    label: "Marketing & Komunitas",
     icon: Users2,
     children: [
       { id: "content", label: "Content Planner", icon: CalendarDays },
@@ -331,7 +334,7 @@ const NAV_GROUPS = [
   },
   {
     id: "operations",
-    label: "Strategy & Operations",
+    label: "Strategi & Operasi",
     icon: Target,
     children: [
       { id: "planning", label: "Strategic Planning", icon: Target },
@@ -340,7 +343,7 @@ const NAV_GROUPS = [
   },
   {
     id: "financial",
-    label: "Financial & Reports",
+    label: "Finansial & Laporan",
     icon: Wallet,
     children: [
       { id: "finance", label: "Finance", icon: Wallet },
@@ -349,7 +352,7 @@ const NAV_GROUPS = [
   },
   {
     id: "system",
-    label: "System",
+    label: "Sistem",
     icon: SettingsIcon,
     children: [
       { id: "notifications", label: "Notifications", icon: Bell },
@@ -1013,6 +1016,7 @@ function ProductsModule() {
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("");
   const [category, setCategory] = useState("all");
+  const [viewMode, setViewMode] = useState("card");
 
   const load = async () => setItems(await api.get("products"));
   useEffect(() => {
@@ -1032,6 +1036,7 @@ function ProductsModule() {
     colors: ["Black"],
     sizes: ["M", "L", "XL"],
     notes: "",
+    imageUrl: "",
   };
 
   const save = async (data) => {
@@ -1097,7 +1102,7 @@ function ProductsModule() {
         </Button>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -1120,102 +1125,83 @@ function ProductsModule() {
             ))}
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-1 border border-border rounded-lg p-1 shrink-0">
+          <Button
+            variant={viewMode === "card" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setViewMode("card")}
+            title="Card View"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "table" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setViewMode("table")}
+            title="Table View"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      <Card className="border-border/60">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-secondary/30">
-              <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
-                <th className="px-4 py-3 font-medium">Product</th>
-                <th className="px-4 py-3 font-medium">SKU</th>
-                <th className="px-4 py-3 font-medium">Category</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium text-right">Cost</th>
-                <th className="px-4 py-3 font-medium text-right">Selling</th>
-                <th className="px-4 py-3 font-medium text-right">Margin</th>
-                <th className="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p) => {
-                const margin = p.sellingPrice
-                  ? (
-                      ((p.sellingPrice - p.costPrice) / p.sellingPrice) *
-                      100
-                    ).toFixed(0)
-                  : 0;
-                return (
-                  <tr
-                    key={p.id}
-                    className="border-b border-border/60 hover:bg-secondary/30 transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-secondary to-accent flex items-center justify-center text-xs font-medium">
-                          {p.name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-medium">{p.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {p.brand}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                      {p.sku}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant="outline" className="font-normal">
-                        {p.category}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
+      {viewMode === "card" ? (
+        filtered.length === 0 ? (
+          <div className="py-20 text-center text-muted-foreground">
+            <Package className="h-8 w-8 mx-auto mb-3 opacity-50" />
+            No products found
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filtered.map((p) => {
+              const margin = p.sellingPrice
+                ? (((p.sellingPrice - p.costPrice) / p.sellingPrice) * 100).toFixed(0)
+                : 0;
+              return (
+                <Card key={p.id} className="border-border/60 overflow-hidden flex flex-col hover:border-border transition-colors">
+                  <div className="relative aspect-[4/3] bg-secondary/40 shrink-0">
+                    {p.imageUrl ? (
+                      <img
+                        src={p.imageUrl}
+                        alt={p.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                          e.target.nextSibling.style.display = "flex";
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground ${p.imageUrl ? "hidden" : "flex"}`}
+                    >
+                      <ImageOff className="h-8 w-8 opacity-40" />
+                      <span className="text-xs opacity-60">No image</span>
+                    </div>
+                    <div className="absolute top-2 right-2">
                       <Badge
-                        variant={
-                          p.status === "Active"
-                            ? "default"
-                            : p.status === "Draft"
-                              ? "secondary"
-                              : "outline"
-                        }
-                        className="font-normal"
+                        variant={p.status === "Active" ? "default" : p.status === "Draft" ? "secondary" : "outline"}
+                        className="font-normal text-xs"
                       >
                         {p.status}
                       </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">
-                      {fmt(p.costPrice)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium">
-                      {fmt(p.sellingPrice)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span
-                        className={`text-xs font-medium ${margin >= 60 ? "text-emerald-400" : margin >= 40 ? "text-amber-400" : "text-rose-400"}`}
-                      >
-                        {margin}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
+                    </div>
+                  </div>
+                  <CardContent className="p-4 flex flex-col flex-1 gap-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold leading-tight truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{p.brand}</p>
+                      </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 -mr-1 -mt-0.5">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setEditing(p);
-                              setOpen(true);
-                            }}
-                          >
+                          <DropdownMenuItem onClick={() => { setEditing(p); setOpen(true); }}>
                             <Edit3 className="h-4 w-4 mr-2" /> Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => duplicate(p)}>
@@ -1225,33 +1211,155 @@ function ProductsModule() {
                             <Archive className="h-4 w-4 mr-2" /> Archive
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => del(p.id)}
-                            className="text-rose-400 focus:text-rose-400"
-                          >
+                          <DropdownMenuItem onClick={() => del(p.id)} className="text-rose-400 focus:text-rose-400">
                             <Trash2 className="h-4 w-4 mr-2" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="font-normal text-xs">{p.category}</Badge>
+                      <span className="font-mono text-xs text-muted-foreground">{p.sku}</span>
+                    </div>
+                    {p.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>
+                    )}
+                    <div className="mt-auto pt-3 border-t border-border/60 grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Cost</p>
+                        <p className="font-medium mt-0.5">{fmtShort(p.costPrice)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Selling</p>
+                        <p className="font-medium mt-0.5">{fmtShort(p.sellingPrice)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Margin</p>
+                        <p className={`font-medium mt-0.5 ${margin >= 60 ? "text-emerald-400" : margin >= 40 ? "text-amber-400" : "text-rose-400"}`}>
+                          {margin}%
+                        </p>
+                      </div>
+                    </div>
+                    {(p.colors?.length > 0 || p.sizes?.length > 0) && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {p.colors?.slice(0, 3).map((c) => (
+                          <span key={c} className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground">{c}</span>
+                        ))}
+                        {p.sizes?.slice(0, 4).map((s) => (
+                          <span key={s} className="text-[10px] px-1.5 py-0.5 rounded-full border border-border text-muted-foreground">{s}</span>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        <Card className="border-border/60">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-border bg-secondary/30">
+                <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
+                  <th className="px-4 py-3 font-medium">Product</th>
+                  <th className="px-4 py-3 font-medium">SKU</th>
+                  <th className="px-4 py-3 font-medium">Category</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium text-right">Cost</th>
+                  <th className="px-4 py-3 font-medium text-right">Selling</th>
+                  <th className="px-4 py-3 font-medium text-right">Margin</th>
+                  <th className="px-4 py-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p) => {
+                  const margin = p.sellingPrice
+                    ? (((p.sellingPrice - p.costPrice) / p.sellingPrice) * 100).toFixed(0)
+                    : 0;
+                  return (
+                    <tr key={p.id} className="border-b border-border/60 hover:bg-secondary/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {p.imageUrl ? (
+                            <img
+                              src={p.imageUrl}
+                              alt={p.name}
+                              className="w-9 h-9 rounded-lg object-cover shrink-0"
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                                e.target.nextSibling.style.display = "flex";
+                              }}
+                            />
+                          ) : null}
+                          <div className={`w-9 h-9 rounded-lg bg-gradient-to-br from-secondary to-accent items-center justify-center text-xs font-medium shrink-0 ${p.imageUrl ? "hidden" : "flex"}`}>
+                            {p.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">{p.brand}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.sku}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="font-normal">{p.category}</Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          variant={p.status === "Active" ? "default" : p.status === "Draft" ? "secondary" : "outline"}
+                          className="font-normal"
+                        >
+                          {p.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">{fmt(p.costPrice)}</td>
+                      <td className="px-4 py-3 text-right font-medium">{fmt(p.sellingPrice)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`text-xs font-medium ${margin >= 60 ? "text-emerald-400" : margin >= 40 ? "text-amber-400" : "text-rose-400"}`}>
+                          {margin}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => { setEditing(p); setOpen(true); }}>
+                              <Edit3 className="h-4 w-4 mr-2" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => duplicate(p)}>
+                              <Copy className="h-4 w-4 mr-2" /> Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => archive(p)}>
+                              <Archive className="h-4 w-4 mr-2" /> Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => del(p.id)} className="text-rose-400 focus:text-rose-400">
+                              <Trash2 className="h-4 w-4 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="p-12 text-center text-muted-foreground">
+                      <Package className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                      No products found
                     </td>
                   </tr>
-                );
-              })}
-              {filtered.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="p-12 text-center text-muted-foreground"
-                  >
-                    <Package className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                    No products found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <ProductModal
         open={open}
@@ -1403,6 +1511,22 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                 )
               }
             />
+          </div>
+          <div className="col-span-2 space-y-2">
+            <Label>Photo URL (optional)</Label>
+            <Input
+              value={form.imageUrl || ""}
+              onChange={(e) => update("imageUrl", e.target.value)}
+              placeholder="https://..."
+            />
+            {form.imageUrl && (
+              <img
+                src={form.imageUrl}
+                alt="Preview"
+                className="w-full max-h-36 object-cover rounded-md border border-border/60 mt-2"
+                onError={(e) => { e.target.style.display = "none"; }}
+              />
+            )}
           </div>
           <div className="col-span-2 space-y-2">
             <Label>Notes</Label>
@@ -4196,7 +4320,7 @@ function App() {
           return g.label.toLowerCase().includes(query.toLowerCase()) ? g : null;
         }
         const children = g.children.filter((c) =>
-          c.label.toLowerCase().includes(query.toLowerCase()),
+          c.label.toLowerCase().includes(query.toLowerCase())
         );
         return children.length ? { ...g, children } : null;
       }).filter(Boolean)
@@ -4290,20 +4414,14 @@ function App() {
           return (
             <div key={group.id}>
               <button
-                onClick={() => {
-                  if (!collapsed) toggleGroup(group.id);
-                }}
+                onClick={() => { if (!collapsed) toggleGroup(group.id); }}
                 className={`w-full flex items-center gap-3 px-2.5 py-2.5 md:py-2 rounded-lg text-sm transition-colors ${hasActiveChild ? "text-sidebar-foreground font-medium" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && (
                   <>
-                    <span className="truncate flex-1 text-left">
-                      {group.label}
-                    </span>
-                    <ChevronRight
-                      className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-sidebar-foreground/40 ${isOpen ? "rotate-90" : ""}`}
-                    />
+                    <span className="truncate flex-1 text-left">{group.label}</span>
+                    <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-sidebar-foreground/40 ${isOpen ? "rotate-90" : ""}`} />
                   </>
                 )}
               </button>
