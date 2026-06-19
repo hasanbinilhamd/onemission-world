@@ -4301,23 +4301,36 @@ function App() {
                   </>
                 )}
               </button>
-              {!collapsed && isOpen && (
-                <div className="ml-3 pl-3 border-l border-border mt-0.5 mb-0.5 space-y-0.5">
-                  {group.children?.map((item) => {
-                    const ItemIcon = item.icon;
-                    const isActive = active === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleNavClick(item.id)}
-                        className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors ${isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
-                      >
-                        <ItemIcon className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+              {!collapsed && (
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      key="submenu"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.18, ease: "easeInOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="ml-3 pl-3 border-l border-border mt-0.5 mb-0.5 space-y-0.5">
+                        {group.children?.map((item) => {
+                          const ItemIcon = item.icon;
+                          const isActive = active === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => handleNavClick(item.id)}
+                              className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors ${isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
+                            >
+                              <ItemIcon className="h-3.5 w-3.5 shrink-0" />
+                              <span className="truncate">{item.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               )}
             </div>
           );
