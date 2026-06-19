@@ -301,22 +301,82 @@ const api = {
   },
 };
 
-const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "products", label: "Product Catalog", icon: Package },
-  { id: "inventory", label: "Inventory", icon: Boxes },
-  { id: "rawmaterials", label: "Raw Materials", icon: Layers },
-  { id: "planning", label: "Strategic Planning", icon: Target },
-  { id: "content", label: "Content Planner", icon: CalendarDays },
-  { id: "creators", label: "Creator CRM", icon: Users2 },
-  { id: "schools", label: "School CRM", icon: School },
-  { id: "timeline", label: "Timeline", icon: Route },
-  { id: "finance", label: "Finance", icon: Wallet },
-  { id: "events", label: "Events", icon: PartyPopper },
-  { id: "reports", label: "Reports", icon: FileBarChart2 },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "settings", label: "Settings", icon: SettingsIcon },
+const NAV_GROUPS = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    single: true,
+  },
+  {
+    id: "catalog",
+    label: "Produk & Inventori",
+    icon: Package,
+    children: [
+      { id: "products", label: "Product Catalog", icon: Package },
+      { id: "inventory", label: "Inventory", icon: Boxes },
+      { id: "rawmaterials", label: "Raw Materials", icon: Layers },
+    ],
+  },
+  {
+    id: "marketing",
+    label: "Marketing & Komunitas",
+    icon: Users2,
+    children: [
+      { id: "content", label: "Content Planner", icon: CalendarDays },
+      { id: "creators", label: "Creator CRM", icon: Users2 },
+      { id: "schools", label: "School CRM", icon: School },
+      { id: "events", label: "Events", icon: PartyPopper },
+    ],
+  },
+  {
+    id: "operations",
+    label: "Strategi & Operasi",
+    icon: Target,
+    children: [
+      { id: "planning", label: "Strategic Planning", icon: Target },
+      { id: "timeline", label: "Timeline", icon: Route },
+    ],
+  },
+  {
+    id: "financial",
+    label: "Finansial & Laporan",
+    icon: Wallet,
+    children: [
+      { id: "finance", label: "Finance", icon: Wallet },
+      { id: "reports", label: "Reports", icon: FileBarChart2 },
+    ],
+  },
+  {
+    id: "system",
+    label: "Sistem",
+    icon: SettingsIcon,
+    children: [
+      { id: "notifications", label: "Notifications", icon: Bell },
+      { id: "settings", label: "Settings", icon: SettingsIcon },
+    ],
+  },
 ];
+
+// Helper: get flat label for any nav id
+function getNavLabel(id) {
+  for (const g of NAV_GROUPS) {
+    if (g.single && g.id === id) return g.label;
+    if (g.children) {
+      const child = g.children.find((c) => c.id === id);
+      if (child) return child.label;
+    }
+  }
+  return id;
+}
+
+// Helper: get parent group id for an active child
+function getParentGroup(id) {
+  for (const g of NAV_GROUPS) {
+    if (g.children?.some((c) => c.id === id)) return g.id;
+  }
+  return null;
+}
 
 // =========== LOGIN ===========
 function Login({ onLogin }) {
@@ -4092,6 +4152,28 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [bootChecked, setBootChecked] = useState(false);
+  const [openGroups, setOpenGroups] = useState(() => {
+    const g = getParentGroup("dashboard");
+    return g ? new Set([g]) : new Set();
+  });
+
+  const toggleGroup = (id) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleNavClick = (id) => {
+    setActive(id);
+    // Auto-open the parent group when an item is navigated to
+    const parent = getParentGroup(id);
+    if (parent) {
+      setOpenGroups((prev) => new Set([...prev, parent]));
+    }
+  };
 
   useEffect(() => {
     const u = localStorage.getItem("om_user");
@@ -4107,9 +4189,19 @@ function App() {
   if (!bootChecked) return <div className="min-h-screen bg-background" />;
   if (!user) return <Login onLogin={setUser} />;
 
-  const filteredNav = NAV.filter(
-    (n) => !query || n.label.toLowerCase().includes(query.toLowerCase()),
-  );
+  // Filter logic: find matching items across all groups
+  const filteredGroups = query
+    ? NAV_GROUPS.map((g) => {
+        if (g.single) {
+          return g.label.toLowerCase().includes(query.toLowerCase()) ? g : null;
+        }
+        const children = g.children.filter((c) =>
+          c.label.toLowerCase().includes(query.toLowerCase())
+        );
+        return children.length ? { ...g, children } : null;
+      }).filter(Boolean)
+    : NAV_GROUPS;
+
   const Component = {
     dashboard: <Dashboard />,
     products: <ProductsModule />,
@@ -4176,19 +4268,58 @@ function App() {
           </div>
         )}
       </div>
-      <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto scrollbar-thin">
-        {filteredNav.map((item) => {
-          const Icon = item.icon;
-          const isActive = active === item.id;
+      <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto scrollbar-thin py-1">
+        {filteredGroups.map((group) => {
+          if (group.single) {
+            const Icon = group.icon;
+            const isActive = active === group.id;
+            return (
+              <button
+                key={group.id}
+                onClick={() => handleNavClick(group.id)}
+                className={`w-full flex items-center gap-3 px-2.5 py-2.5 md:py-2 rounded-lg text-sm transition-colors ${isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span className="truncate">{group.label}</span>}
+              </button>
+            );
+          }
+          const isOpen = openGroups.has(group.id) || !!query;
+          const Icon = group.icon;
+          const hasActiveChild = group.children?.some((c) => c.id === active);
           return (
-            <button
-              key={item.id}
-              onClick={() => setActive(item.id)}
-              className={`w-full flex items-center gap-3 px-2.5 py-2.5 md:py-2 rounded-lg text-sm transition-colors ${isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-            </button>
+            <div key={group.id}>
+              <button
+                onClick={() => { if (!collapsed) toggleGroup(group.id); }}
+                className={`w-full flex items-center gap-3 px-2.5 py-2.5 md:py-2 rounded-lg text-sm transition-colors ${hasActiveChild ? "text-sidebar-foreground font-medium" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {!collapsed && (
+                  <>
+                    <span className="truncate flex-1 text-left">{group.label}</span>
+                    <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-sidebar-foreground/40 ${isOpen ? "rotate-90" : ""}`} />
+                  </>
+                )}
+              </button>
+              {!collapsed && isOpen && (
+                <div className="ml-3 pl-3 border-l border-border mt-0.5 mb-0.5 space-y-0.5">
+                  {group.children?.map((item) => {
+                    const ItemIcon = item.icon;
+                    const isActive = active === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleNavClick(item.id)}
+                        className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors ${isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
+                      >
+                        <ItemIcon className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>
@@ -4285,7 +4416,7 @@ function App() {
               </span>
               <ChevronRight className="h-3 w-3 text-muted-foreground hidden sm:inline" />
               <span className="font-medium capitalize truncate">
-                {NAV.find((n) => n.id === active)?.label}
+                {getNavLabel(active)}
               </span>
             </div>
           </div>
