@@ -310,7 +310,7 @@ const NAV_GROUPS = [
   },
   {
     id: "catalog",
-    label: "Produk & Inventori",
+    label: "Product & Inventory",
     icon: Package,
     children: [
       { id: "products", label: "Product Catalog", icon: Package },
@@ -320,7 +320,7 @@ const NAV_GROUPS = [
   },
   {
     id: "marketing",
-    label: "Marketing & Komunitas",
+    label: "Marketing & Community",
     icon: Users2,
     children: [
       { id: "content", label: "Content Planner", icon: CalendarDays },
@@ -331,7 +331,7 @@ const NAV_GROUPS = [
   },
   {
     id: "operations",
-    label: "Strategi & Operasi",
+    label: "Strategy & Operations",
     icon: Target,
     children: [
       { id: "planning", label: "Strategic Planning", icon: Target },
@@ -340,7 +340,7 @@ const NAV_GROUPS = [
   },
   {
     id: "financial",
-    label: "Finansial & Laporan",
+    label: "Financial & Reports",
     icon: Wallet,
     children: [
       { id: "finance", label: "Finance", icon: Wallet },
@@ -349,7 +349,7 @@ const NAV_GROUPS = [
   },
   {
     id: "system",
-    label: "Sistem",
+    label: "System",
     icon: SettingsIcon,
     children: [
       { id: "notifications", label: "Notifications", icon: Bell },
@@ -4196,7 +4196,7 @@ function App() {
           return g.label.toLowerCase().includes(query.toLowerCase()) ? g : null;
         }
         const children = g.children.filter((c) =>
-          c.label.toLowerCase().includes(query.toLowerCase())
+          c.label.toLowerCase().includes(query.toLowerCase()),
         );
         return children.length ? { ...g, children } : null;
       }).filter(Boolean)
@@ -4290,14 +4290,20 @@ function App() {
           return (
             <div key={group.id}>
               <button
-                onClick={() => { if (!collapsed) toggleGroup(group.id); }}
+                onClick={() => {
+                  if (!collapsed) toggleGroup(group.id);
+                }}
                 className={`w-full flex items-center gap-3 px-2.5 py-2.5 md:py-2 rounded-lg text-sm transition-colors ${hasActiveChild ? "text-sidebar-foreground font-medium" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && (
                   <>
-                    <span className="truncate flex-1 text-left">{group.label}</span>
-                    <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-sidebar-foreground/40 ${isOpen ? "rotate-90" : ""}`} />
+                    <span className="truncate flex-1 text-left">
+                      {group.label}
+                    </span>
+                    <ChevronRight
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-sidebar-foreground/40 ${isOpen ? "rotate-90" : ""}`}
+                    />
                   </>
                 )}
               </button>
