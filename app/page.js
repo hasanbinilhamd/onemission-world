@@ -1041,15 +1041,16 @@ function ProductsModule() {
 
   const save = async (data) => {
     if (editing?.id) {
-      await api.put("products/" + editing.id, data);
+      const updated = await api.put("products/" + editing.id, data);
+      setItems((arr) => [updated, ...arr.filter((p) => p.id !== editing.id)]);
       toast.success("Product updated");
     } else {
-      await api.post("products", data);
+      const created = await api.post("products", data);
+      setItems((arr) => [created, ...arr]);
       toast.success("Product created");
     }
     setOpen(false);
     setEditing(null);
-    load();
   };
   const del = async (id) => {
     await api.del("products/" + id);
