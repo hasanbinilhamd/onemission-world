@@ -14,6 +14,7 @@ const COLLECTION_MODELS = {
   events: 'event',
   notifications: 'notification',
   rawmaterials: 'rawMaterial',
+  chartofaccounts: 'chartOfAccount',
 };
 
 async function readJson(request) {
@@ -87,12 +88,23 @@ async function handle(request, { params }) {
       return NextResponse.json({ total, totalWeight, uniqueColors });
     }
 
+    // ---------- CHART OF ACCOUNTS — check code uniqueness ----------
+    if (segs[0] === 'chartofaccounts' && segs[1] === 'check-code' && method === 'GET') {
+      const url = new URL(request.url);
+      const code = url.searchParams.get('code');
+      const excludeId = url.searchParams.get('excludeId');
+      const where = { accountCode: code };
+      if (excludeId) where.id = { not: excludeId };
+      const existing = await prisma.chartOfAccount.findFirst({ where });
+      return NextResponse.json({ exists: !!existing });
+    }
+
     // Generic CRUD
     const modelName = COLLECTION_MODELS[segs[0]];
     if (modelName) {
       const model = prisma[modelName];
       if (method === 'GET' && segs.length === 1) {
-        const docs = await model.findMany();
+        const docs = await model.findMany({ orderBy: { accountCode: 'asc' } }).catch(() => model.findMany());
         return NextResponse.json(docs);
       }
       if (method === 'POST' && segs.length === 1) {
@@ -108,6 +120,11 @@ async function handle(request, { params }) {
       }
       if (method === 'DELETE' && segs.length === 2) {
         const id = segs[1];
+        // Chart of Accounts: soft delete by setting isActive = false
+        if (modelName === 'chartOfAccount') {
+          const updated = await model.update({ where: { id }, data: { isActive: false } });
+          return NextResponse.json(updated);
+        }
         if (modelName === 'product') {
           await prisma.inventory.deleteMany({ where: { productId: id } });
         }

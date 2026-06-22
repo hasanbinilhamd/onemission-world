@@ -46,6 +46,8 @@ import {
   LayoutGrid,
   List,
   ImageOff,
+  BookOpen,
+  ChevronLeft,
 } from "lucide-react";
 
 // Normalize Indonesian phone number for wa.me link
@@ -138,6 +140,16 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -347,6 +359,7 @@ const NAV_GROUPS = [
     icon: Wallet,
     children: [
       { id: "finance", label: "Finance", icon: Wallet },
+      { id: "chartofaccounts", label: "Chart of Accounts", icon: BookOpen },
       { id: "reports", label: "Reports", icon: FileBarChart2 },
     ],
   },
@@ -4151,7 +4164,636 @@ function SettingsModule({ user }) {
   );
 }
 
-// =========== BAHAN BAKU MENTAH ===========
+// =========== CHART OF ACCOUNTS ===========
+const ACCOUNT_TYPES = ["Asset", "Liability", "Equity", "Revenue", "Expense"];
+const NORMAL_BALANCES = ["Debit", "Credit"];
+const PAGE_SIZE_COA = 15;
+
+const ACCOUNT_TYPE_COLORS = {
+  Asset: "text-blue-400 bg-blue-400/10 border-blue-400/20",
+  Liability: "text-rose-400 bg-rose-400/10 border-rose-400/20",
+  Equity: "text-purple-400 bg-purple-400/10 border-purple-400/20",
+  Revenue: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
+  Expense: "text-amber-400 bg-amber-400/10 border-amber-400/20",
+};
+
+function ChartOfAccountsModule() {
+  const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [filterActive, setFilterActive] = useState("all");
+  const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const load = async () => {
+    const data = await api.get("chartofaccounts");
+    setItems(Array.isArray(data) ? data : []);
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const emptyForm = {
+    accountCode: "",
+    accountName: "",
+    accountType: "Asset",
+    normalBalance: "Debit",
+    description: "",
+    isActive: true,
+    allowTransaction: true,
+    parentId: null,
+  };
+
+  const save = async (data) => {
+    if (editing?.id) {
+      await api.put("chartofaccounts/" + editing.id, data);
+      toast.success("Account updated");
+    } else {
+      await api.post("chartofaccounts", data);
+      toast.success("Account created");
+    }
+    setOpen(false);
+    setEditing(null);
+    load();
+  };
+
+  const confirmDeactivate = async () => {
+    if (!deleteTarget) return;
+    await api.del("chartofaccounts/" + deleteTarget.id);
+    toast.success("Account deactivated");
+    setDeleteTarget(null);
+    load();
+  };
+
+  const filtered = items.filter((a) => {
+    const matchSearch =
+      !search ||
+      a.accountCode.toLowerCase().includes(search.toLowerCase()) ||
+      a.accountName.toLowerCase().includes(search.toLowerCase());
+    const matchType = filterType === "all" || a.accountType === filterType;
+    const matchActive =
+      filterActive === "all" ||
+      (filterActive === "active" && a.isActive) ||
+      (filterActive === "inactive" && !a.isActive);
+    return matchSearch && matchType && matchActive;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE_COA));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice(
+    (safePage - 1) * PAGE_SIZE_COA,
+    safePage * PAGE_SIZE_COA
+  );
+
+  const getParentName = (parentId) => {
+    if (!parentId) return null;
+    const p = items.find((a) => a.id === parentId);
+    return p ? `${p.accountCode} — ${p.accountName}` : null;
+  };
+
+  const counts = ACCOUNT_TYPES.reduce((acc, t) => {
+    acc[t] = items.filter((a) => a.accountType === t && a.isActive).length;
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Chart of Accounts
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Master account structure for financial reporting
+          </p>
+        </div>
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" /> New Account
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {ACCOUNT_TYPES.map((t) => (
+          <Card
+            key={t}
+            className={`border-border/60 cursor-pointer transition-colors ${filterType === t ? "border-border ring-1 ring-border" : "hover:border-border"}`}
+            onClick={() => {
+              setFilterType(filterType === t ? "all" : t);
+              setPage(1);
+            }}
+          >
+            <CardContent className="p-3">
+              <p className="text-xs text-muted-foreground">{t}</p>
+              <p className="text-xl font-semibold mt-1">{counts[t] || 0}</p>
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium mt-1 inline-block ${ACCOUNT_TYPE_COLORS[t]}`}
+              >
+                active
+              </span>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search code or name..."
+            className="pl-9"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+        <Select
+          value={filterType}
+          onValueChange={(v) => {
+            setFilterType(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Account Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {ACCOUNT_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filterActive}
+          onValueChange={(v) => {
+            setFilterActive(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Card className="border-border/60 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/60 bg-muted/30">
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground w-28">
+                  Code
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Account Name
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Type
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Normal Balance
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden lg:table-cell">
+                  Parent Account
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">
+                  Transaction
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Status
+                </th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map((a) => {
+                const parentName = getParentName(a.parentId);
+                const typeColor =
+                  ACCOUNT_TYPE_COLORS[a.accountType] ||
+                  "text-muted-foreground bg-secondary border-border";
+                return (
+                  <tr
+                    key={a.id}
+                    className={`border-b border-border/60 hover:bg-muted/20 transition-colors ${!a.isActive ? "opacity-50" : ""}`}
+                  >
+                    <td className="px-4 py-3 font-mono text-xs font-medium">
+                      {a.accountCode}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div
+                        className={`font-medium ${a.parentId ? "pl-3 border-l-2 border-border/40" : ""}`}
+                      >
+                        {a.accountName}
+                      </div>
+                      {a.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                          {a.description}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full border font-medium ${typeColor}`}
+                      >
+                        {a.accountType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      {a.normalBalance}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">
+                      {parentName || (
+                        <span className="italic opacity-50">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <Badge
+                        variant={a.allowTransaction ? "default" : "outline"}
+                        className="font-normal text-xs"
+                      >
+                        {a.allowTransaction ? "Allowed" : "Header"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant={a.isActive ? "default" : "secondary"}
+                        className="font-normal text-xs"
+                      >
+                        {a.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditing(a);
+                              setOpen(true);
+                            }}
+                          >
+                            <Edit3 className="h-4 w-4 mr-2" /> Edit
+                          </DropdownMenuItem>
+                          {a.isActive && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => setDeleteTarget(a)}
+                                className="text-rose-400 focus:text-rose-400"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Deactivate
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                );
+              })}
+              {paginated.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="p-12 text-center text-muted-foreground"
+                  >
+                    <BookOpen className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                    No accounts found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border/60">
+            <p className="text-xs text-muted-foreground">
+              Showing {(safePage - 1) * PAGE_SIZE_COA + 1}–
+              {Math.min(safePage * PAGE_SIZE_COA, filtered.length)} of{" "}
+              {filtered.length} accounts
+            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={safePage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-xs text-muted-foreground px-2">
+                {safePage} / {totalPages}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <ChartOfAccountModal
+        open={open}
+        onOpenChange={setOpen}
+        initial={editing || emptyForm}
+        accounts={items}
+        onSave={save}
+      />
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to deactivate{" "}
+              <strong>
+                {deleteTarget?.accountCode} — {deleteTarget?.accountName}
+              </strong>
+              ? The account will be hidden from active lists but the data will
+              be preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeactivate}
+              className="bg-rose-500 hover:bg-rose-600"
+            >
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function ChartOfAccountModal({ open, onOpenChange, initial, accounts, onSave }) {
+  const [form, setForm] = useState(initial);
+  const [errors, setErrors] = useState({});
+  const [checkingCode, setCheckingCode] = useState(false);
+
+  useEffect(() => {
+    setForm(initial);
+    setErrors({});
+  }, [initial, open]);
+
+  const update = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    if (errors[k]) setErrors((e) => ({ ...e, [k]: null }));
+  };
+
+  const validate = async () => {
+    const errs = {};
+    if (!form.accountCode?.trim()) errs.accountCode = "Account code is required";
+    if (!form.accountName?.trim()) errs.accountName = "Account name is required";
+    if (!form.accountType) errs.accountType = "Account type is required";
+    if (!form.normalBalance) errs.normalBalance = "Normal balance is required";
+
+    if (form.accountCode?.trim() && !errs.accountCode) {
+      setCheckingCode(true);
+      try {
+        const res = await api.get(
+          `chartofaccounts/check-code?code=${encodeURIComponent(form.accountCode.trim())}${initial?.id ? `&excludeId=${initial.id}` : ""}`
+        );
+        if (res.exists) errs.accountCode = "Account code already exists";
+      } catch {}
+      setCheckingCode(false);
+    }
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSave = async () => {
+    const valid = await validate();
+    if (!valid) return;
+    const payload = {
+      accountCode: form.accountCode.trim(),
+      accountName: form.accountName.trim(),
+      accountType: form.accountType,
+      normalBalance: form.normalBalance,
+      description: form.description?.trim() || "",
+      isActive: form.isActive ?? true,
+      allowTransaction: form.allowTransaction ?? true,
+      parentId: form.parentId || null,
+    };
+    onSave(payload);
+  };
+
+  const parentOptions = accounts.filter(
+    (a) => a.id !== initial?.id && a.isActive
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {initial?.id ? "Edit Account" : "New Account"}
+          </DialogTitle>
+          <DialogDescription>
+            {initial?.id
+              ? "Update the chart of accounts entry"
+              : "Add a new account to the chart of accounts"}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>
+                Account Code <span className="text-rose-400">*</span>
+              </Label>
+              <Input
+                value={form.accountCode || ""}
+                onChange={(e) => update("accountCode", e.target.value)}
+                placeholder="e.g. 1100"
+                className={errors.accountCode ? "border-rose-500" : ""}
+              />
+              {errors.accountCode && (
+                <p className="text-xs text-rose-400">{errors.accountCode}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>
+                Account Type <span className="text-rose-400">*</span>
+              </Label>
+              <Select
+                value={form.accountType || "Asset"}
+                onValueChange={(v) => update("accountType", v)}
+              >
+                <SelectTrigger
+                  className={errors.accountType ? "border-rose-500" : ""}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACCOUNT_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.accountType && (
+                <p className="text-xs text-rose-400">{errors.accountType}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>
+              Account Name <span className="text-rose-400">*</span>
+            </Label>
+            <Input
+              value={form.accountName || ""}
+              onChange={(e) => update("accountName", e.target.value)}
+              placeholder="e.g. Cash on Hand"
+              className={errors.accountName ? "border-rose-500" : ""}
+            />
+            {errors.accountName && (
+              <p className="text-xs text-rose-400">{errors.accountName}</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>
+              Normal Balance <span className="text-rose-400">*</span>
+            </Label>
+            <Select
+              value={form.normalBalance || "Debit"}
+              onValueChange={(v) => update("normalBalance", v)}
+            >
+              <SelectTrigger
+                className={errors.normalBalance ? "border-rose-500" : ""}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {NORMAL_BALANCES.map((b) => (
+                  <SelectItem key={b} value={b}>
+                    {b}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.normalBalance && (
+              <p className="text-xs text-rose-400">{errors.normalBalance}</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Parent Account</Label>
+            <Select
+              value={form.parentId || "__none__"}
+              onValueChange={(v) =>
+                update("parentId", v === "__none__" ? null : v)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="None (top-level account)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None (top-level account)</SelectItem>
+                {parentOptions.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.accountCode} — {a.accountName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Textarea
+              value={form.description || ""}
+              onChange={(e) => update("description", e.target.value)}
+              placeholder="Optional description..."
+              rows={2}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 pt-1">
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+              <div>
+                <p className="text-sm font-medium">Allow Transaction</p>
+                <p className="text-xs text-muted-foreground">
+                  Can be used in journal entries
+                </p>
+              </div>
+              <Switch
+                checked={form.allowTransaction ?? true}
+                onCheckedChange={(v) => update("allowTransaction", v)}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+              <div>
+                <p className="text-sm font-medium">Is Active</p>
+                <p className="text-xs text-muted-foreground">
+                  Account is available for use
+                </p>
+              </div>
+              <Switch
+                checked={form.isActive ?? true}
+                onCheckedChange={(v) => update("isActive", v)}
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={checkingCode}>
+            {checkingCode ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : null}
+            {initial?.id ? "Save Changes" : "Create Account"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function RawMaterialModule() {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
@@ -4523,6 +5165,7 @@ function App() {
     schools: <SchoolCRM />,
     timeline: <TimelineModule />,
     finance: <FinanceModule />,
+    chartofaccounts: <ChartOfAccountsModule />,
     events: <EventsModule />,
     reports: <ReportsModule />,
     notifications: <NotificationsModule />,

@@ -157,3 +157,19 @@ model RawMaterial {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model ChartOfAccount {
+  id               String           @id
+  accountCode      String           @unique
+  accountName      String
+  accountType      String
+  normalBalance    String
+  description      String           @default("")
+  isActive         Boolean          @default(true)
+  allowTransaction Boolean          @default(true)
+  parentId         String?
+  parent           ChartOfAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children         ChartOfAccount[] @relation("AccountHierarchy")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}

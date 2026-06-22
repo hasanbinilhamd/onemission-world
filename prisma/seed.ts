@@ -12,6 +12,7 @@ import {
   SEED_FINANCE,
   SEED_EVENTS,
   SEED_NOTIFICATIONS,
+  SEED_COA,
 } from '../lib/seed-data';
 
 const prisma = new PrismaClient();
@@ -40,6 +41,10 @@ async function main() {
   await prisma.product.deleteMany();
   await prisma.user.deleteMany();
 
+  // Delete child COA records first (those with a parentId), then parents
+  await prisma.chartOfAccount.deleteMany({ where: { parentId: { not: null } } });
+  await prisma.chartOfAccount.deleteMany();
+
   const users = [SUPER_ADMIN, ...SEED_USERS];
   await prisma.user.createMany({ data: users });
 
@@ -56,6 +61,12 @@ async function main() {
   await prisma.finance.createMany({ data: SEED_FINANCE });
   await prisma.event.createMany({ data: SEED_EVENTS });
   await prisma.notification.createMany({ data: SEED_NOTIFICATIONS });
+
+  // Seed COA: insert parents first, then children
+  const parents = SEED_COA.filter((a) => !a.parentId);
+  const children = SEED_COA.filter((a) => !!a.parentId);
+  await prisma.chartOfAccount.createMany({ data: parents });
+  await prisma.chartOfAccount.createMany({ data: children });
 
   console.log('Seed completed successfully.');
   console.log(`Super Admin: ${SUPER_ADMIN.email}`);
