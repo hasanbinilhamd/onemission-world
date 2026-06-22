@@ -1885,7 +1885,7 @@ function InventoryModule() {
                                   +10
                                 </Button>
                               </div>
-                              <input
+                              <Input
                                 type="number"
                                 min="0"
                                 placeholder="Set qty…"
@@ -1925,7 +1925,7 @@ function InventoryModule() {
                                     return n;
                                   });
                                 }}
-                                className="mt-1 w-full h-6 text-center text-[11px] rounded border border-border/40 bg-background/40 focus:outline-none focus:border-border/80 px-1 text-foreground placeholder:text-muted-foreground/40"
+                                className="mt-1.5 h-7 text-xs text-center px-2"
                               />
                             </div>
                           );
