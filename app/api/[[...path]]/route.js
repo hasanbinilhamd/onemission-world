@@ -89,6 +89,21 @@ async function handle(request, { params }) {
       return NextResponse.json({ total, totalWeight, uniqueColors });
     }
 
+    // ---------- FINANCIAL ACCOUNTS — explicit GET (fixes dropdown) + check-name ----------
+    if (segs[0] === 'financialaccounts' && segs[1] === 'check-name' && method === 'GET') {
+      const url = new URL(request.url);
+      const name = url.searchParams.get('name');
+      const excludeId = url.searchParams.get('excludeId');
+      const where = { name };
+      if (excludeId) where.id = { not: excludeId };
+      const existing = await prisma.financialAccount.findFirst({ where });
+      return NextResponse.json({ exists: !!existing });
+    }
+    if (segs[0] === 'financialaccounts' && method === 'GET' && segs.length === 1) {
+      const docs = await prisma.financialAccount.findMany({ orderBy: { name: 'asc' } });
+      return NextResponse.json(docs);
+    }
+
     // ---------- CHART OF ACCOUNTS — check code uniqueness ----------
     if (segs[0] === 'chartofaccounts' && segs[1] === 'check-code' && method === 'GET') {
       const url = new URL(request.url);

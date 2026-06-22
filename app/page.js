@@ -360,6 +360,7 @@ const NAV_GROUPS = [
     children: [
       { id: "finance", label: "Finance", icon: Wallet },
       { id: "chartofaccounts", label: "Chart of Accounts", icon: BookOpen },
+      { id: "financialaccounts", label: "Financial Accounts", icon: DollarSign },
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "reports", label: "Reports", icon: FileBarChart2 },
@@ -4166,6 +4167,545 @@ function SettingsModule({ user }) {
   );
 }
 
+// =========== FINANCIAL ACCOUNTS ===========
+const PAGE_SIZE_FA = 15;
+const FA_TYPES = ["Cash", "Bank", "E-Wallet"];
+const FA_TYPE_COLORS = {
+  Cash: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  Bank: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  "E-Wallet": "bg-purple-500/10 text-purple-600 border-purple-500/20",
+};
+
+function FinancialAccountModule() {
+  const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [filterActive, setFilterActive] = useState("all");
+  const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const load = async () => {
+    const data = await api.get("financialaccounts");
+    setItems(Array.isArray(data) ? data : []);
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const emptyForm = {
+    name: "",
+    type: "Cash",
+    accountNumber: "",
+    bankName: "",
+    openingBalance: 0,
+    description: "",
+    isActive: true,
+  };
+
+  const save = async (data) => {
+    if (editing?.id) {
+      await api.put("financialaccounts/" + editing.id, data);
+      toast.success("Financial account updated");
+    } else {
+      await api.post("financialaccounts", data);
+      toast.success("Financial account created");
+    }
+    setOpen(false);
+    setEditing(null);
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await api.del("financialaccounts/" + deleteTarget.id);
+    toast.success("Account deleted");
+    setDeleteTarget(null);
+    load();
+  };
+
+  const filtered = items.filter((a) => {
+    const matchSearch =
+      !search || a.name.toLowerCase().includes(search.toLowerCase());
+    const matchType = filterType === "all" || a.type === filterType;
+    const matchActive =
+      filterActive === "all" ||
+      (filterActive === "active" && a.isActive) ||
+      (filterActive === "inactive" && !a.isActive);
+    return matchSearch && matchType && matchActive;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE_FA));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice(
+    (safePage - 1) * PAGE_SIZE_FA,
+    safePage * PAGE_SIZE_FA
+  );
+
+  const counts = FA_TYPES.reduce((acc, t) => {
+    acc[t] = items.filter((a) => a.type === t && a.isActive).length;
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Financial Accounts
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage cash, bank, and e-wallet accounts
+          </p>
+        </div>
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" /> New Account
+        </Button>
+      </div>
+
+      {/* Type Summary Cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {FA_TYPES.map((t) => (
+          <Card
+            key={t}
+            className={`border-border/60 cursor-pointer transition-colors ${filterType === t ? "ring-1 ring-border" : "hover:border-border"}`}
+            onClick={() => {
+              setFilterType(filterType === t ? "all" : t);
+              setPage(1);
+            }}
+          >
+            <CardContent className="p-3">
+              <p className="text-xs text-muted-foreground">{t}</p>
+              <p className="text-xl font-semibold mt-1">{counts[t] || 0}</p>
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium mt-1 inline-block ${FA_TYPE_COLORS[t]}`}
+              >
+                Active
+              </span>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            placeholder="Search by account name..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+        <Select
+          value={filterType}
+          onValueChange={(v) => {
+            setFilterType(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {FA_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filterActive}
+          onValueChange={(v) => {
+            setFilterActive(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Table */}
+      <Card className="border-border/60">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Account Name
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Type
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">
+                  Account Number
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+                  Bank Name
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  Opening Balance
+                </th>
+                <th className="text-center px-4 py-3 font-medium text-muted-foreground">
+                  Status
+                </th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-4 py-12 text-center text-muted-foreground"
+                  >
+                    <DollarSign className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">No financial accounts yet</p>
+                  </td>
+                </tr>
+              ) : (
+                paginated.map((a) => (
+                  <tr
+                    key={a.id}
+                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                  >
+                    <td className="px-4 py-3 font-medium">{a.name}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${FA_TYPE_COLORS[a.type] || ""}`}
+                      >
+                        {a.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
+                      {a.accountNumber || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
+                      {a.bankName || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {fmt(a.openingBalance || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge
+                        variant="outline"
+                        className={
+                          a.isActive
+                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                            : "bg-muted text-muted-foreground"
+                        }
+                      >
+                        {a.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            setEditing(a);
+                            setOpen(true);
+                          }}
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-rose-400 hover:text-rose-500"
+                          onClick={() => setDeleteTarget(a)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              Showing {(safePage - 1) * PAGE_SIZE_FA + 1}–
+              {Math.min(safePage * PAGE_SIZE_FA, filtered.length)} of{" "}
+              {filtered.length}
+            </span>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2"
+                disabled={safePage === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2"
+                disabled={safePage === totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Modal */}
+      <FinancialAccountModal
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) setEditing(null);
+        }}
+        initial={editing || emptyForm}
+        onSave={save}
+      />
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Financial Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{deleteTarget?.name}&quot;?
+              Transactions linked to this account may be affected. This action
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-500 hover:bg-rose-600 text-white"
+              onClick={confirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function FinancialAccountModal({ open, onOpenChange, initial, onSave }) {
+  const [form, setForm] = useState(initial);
+  const [errors, setErrors] = useState({});
+  const [checkingName, setCheckingName] = useState(false);
+
+  useEffect(() => {
+    setForm(initial);
+    setErrors({});
+  }, [initial, open]);
+
+  const update = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    if (errors[k]) setErrors((e) => ({ ...e, [k]: null }));
+  };
+
+  const validate = async () => {
+    const errs = {};
+    if (!form.name?.trim()) errs.name = "Account name is required";
+    if (!form.type) errs.type = "Account type is required";
+    if (Number(form.openingBalance) < 0)
+      errs.openingBalance = "Opening balance cannot be negative";
+
+    if (form.name?.trim() && !errs.name) {
+      setCheckingName(true);
+      try {
+        const res = await api.get(
+          `financialaccounts/check-name?name=${encodeURIComponent(form.name.trim())}${initial?.id ? `&excludeId=${initial.id}` : ""}`
+        );
+        if (res.exists) errs.name = "Account name already exists";
+      } catch {}
+      setCheckingName(false);
+    }
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSave = async () => {
+    const valid = await validate();
+    if (!valid) return;
+    onSave({
+      name: form.name.trim(),
+      type: form.type,
+      accountNumber: form.accountNumber?.trim() || "",
+      bankName: form.bankName?.trim() || "",
+      openingBalance: Number(form.openingBalance) || 0,
+      description: form.description?.trim() || "",
+      isActive: form.isActive ?? true,
+    });
+  };
+
+  const isEdit = !!initial?.id;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {isEdit ? "Edit Financial Account" : "New Financial Account"}
+          </DialogTitle>
+          <DialogDescription>
+            {isEdit
+              ? "Update this financial account"
+              : "Add a new cash, bank, or e-wallet account"}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+          {/* Name */}
+          <div className="space-y-1.5">
+            <Label>
+              Account Name <span className="text-rose-400">*</span>
+            </Label>
+            <Input
+              value={form.name || ""}
+              onChange={(e) => update("name", e.target.value)}
+              placeholder="e.g. Main Cash, BCA Giro"
+              className={errors.name ? "border-rose-500" : ""}
+            />
+            {errors.name && (
+              <p className="text-xs text-rose-400">{errors.name}</p>
+            )}
+          </div>
+
+          {/* Type */}
+          <div className="space-y-1.5">
+            <Label>
+              Account Type <span className="text-rose-400">*</span>
+            </Label>
+            <Select
+              value={form.type || "Cash"}
+              onValueChange={(v) => update("type", v)}
+            >
+              <SelectTrigger className={errors.type ? "border-rose-500" : ""}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FA_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.type && (
+              <p className="text-xs text-rose-400">{errors.type}</p>
+            )}
+          </div>
+
+          {/* Account Number */}
+          <div className="space-y-1.5">
+            <Label>Account Number</Label>
+            <Input
+              value={form.accountNumber || ""}
+              onChange={(e) => update("accountNumber", e.target.value)}
+              placeholder="e.g. 1234567890"
+            />
+          </div>
+
+          {/* Bank Name */}
+          <div className="space-y-1.5">
+            <Label>Bank Name</Label>
+            <Input
+              value={form.bankName || ""}
+              onChange={(e) => update("bankName", e.target.value)}
+              placeholder="e.g. BCA, Mandiri, BNI"
+            />
+          </div>
+
+          {/* Opening Balance */}
+          <div className="space-y-1.5">
+            <Label>Opening Balance</Label>
+            <NumberInput
+              value={form.openingBalance || 0}
+              onChange={(v) => update("openingBalance", v)}
+              min={0}
+              placeholder="0"
+              className={errors.openingBalance ? "border-rose-500" : ""}
+            />
+            {errors.openingBalance && (
+              <p className="text-xs text-rose-400">{errors.openingBalance}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Initial balance when this account was set up
+            </p>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Textarea
+              value={form.description || ""}
+              onChange={(e) => update("description", e.target.value)}
+              placeholder="Add notes or description..."
+              rows={2}
+            />
+          </div>
+
+          {/* Is Active */}
+          <div className="flex items-center justify-between py-1 border-t border-border/50">
+            <div>
+              <Label>Active</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Inactive accounts cannot be used in transactions
+              </p>
+            </div>
+            <Switch
+              checked={form.isActive ?? true}
+              onCheckedChange={(v) => update("isActive", v)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={checkingName}>
+            {checkingName && (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            )}
+            {isEdit ? "Save Changes" : "Create Account"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // =========== CASH MANAGEMENT ===========
 const PAGE_SIZE_CASH = 15;
 
@@ -5835,6 +6375,7 @@ function App() {
     timeline: <TimelineModule />,
     finance: <FinanceModule />,
     chartofaccounts: <ChartOfAccountsModule />,
+    financialaccounts: <FinancialAccountModule />,
     cashin: <CashTransactionModule type="IN" />,
     cashout: <CashTransactionModule type="OUT" />,
     events: <EventsModule />,

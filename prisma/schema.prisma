@@ -177,8 +177,12 @@ model ChartOfAccount {
 
 model FinancialAccount {
   id               String            @id
-  name             String
+  name             String            @unique
   type             String
+  accountNumber    String            @default("")
+  bankName         String            @default("")
+  openingBalance   Float             @default(0)
+  description      String            @default("")
   isActive         Boolean           @default(true)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
