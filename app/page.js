@@ -1701,7 +1701,7 @@ function InventoryModule() {
   }, [filtered]);
 
   const totalStock = filtered.reduce((s, i) => s + i.quantity, 0);
-  const critical = filtered.filter((i) => i.quantity < i.threshold);
+  const critical = filtered.filter((i) => i.quantity <= 5);
 
   const colorSwatch = {
     Black: "#0a0a0a",
@@ -1840,7 +1840,7 @@ function InventoryModule() {
                               </div>
                             );
                           }
-                          const crit = item.quantity < item.threshold;
+                          const crit = item.quantity <= 5;
                           return (
                             <div
                               key={size}
