@@ -107,7 +107,11 @@ async function handle(request, { params }) {
         return NextResponse.json(updated);
       }
       if (method === 'DELETE' && segs.length === 2) {
-        await model.delete({ where: { id: segs[1] } });
+        const id = segs[1];
+        if (modelName === 'product') {
+          await prisma.inventory.deleteMany({ where: { productId: id } });
+        }
+        await model.delete({ where: { id } });
         return NextResponse.json({ ok: true });
       }
     }
