@@ -15,6 +15,7 @@ const COLLECTION_MODELS = {
   notifications: 'notification',
   rawmaterials: 'rawMaterial',
   chartofaccounts: 'chartOfAccount',
+  financialaccounts: 'financialAccount',
 };
 
 async function readJson(request) {
@@ -97,6 +98,80 @@ async function handle(request, { params }) {
       if (excludeId) where.id = { not: excludeId };
       const existing = await prisma.chartOfAccount.findFirst({ where });
       return NextResponse.json({ exists: !!existing });
+    }
+
+    // ---------- CASH TRANSACTIONS ----------
+    if (segs[0] === 'cashtransactions') {
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const type = url.searchParams.get('type');
+        const where = type ? { transactionType: type } : {};
+        const docs = await prisma.cashTransaction.findMany({
+          where,
+          include: { financialAccount: true, chartOfAccount: true },
+          orderBy: { transactionDate: 'desc' },
+        });
+        return NextResponse.json(docs);
+      }
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+        if (!body.transactionDate)
+          return NextResponse.json({ error: 'transactionDate is required' }, { status: 400 });
+        if (!body.financialAccountId)
+          return NextResponse.json({ error: 'financialAccount is required' }, { status: 400 });
+        if (!body.chartOfAccountId)
+          return NextResponse.json({ error: 'chartOfAccount is required' }, { status: 400 });
+        if (!body.amount || Number(body.amount) <= 0)
+          return NextResponse.json({ error: 'amount must be greater than 0' }, { status: 400 });
+        const coa = await prisma.chartOfAccount.findUnique({ where: { id: body.chartOfAccountId } });
+        if (!coa || !coa.allowTransaction)
+          return NextResponse.json({ error: 'Selected account does not allow transactions' }, { status: 400 });
+        const doc = await prisma.cashTransaction.create({
+          data: {
+            id: uuid(),
+            transactionDate: body.transactionDate,
+            transactionType: body.transactionType,
+            financialAccountId: body.financialAccountId,
+            chartOfAccountId: body.chartOfAccountId,
+            amount: Number(body.amount),
+            referenceNumber: body.referenceNumber || '',
+            description: body.description || '',
+            attachment: body.attachment || '',
+            createdBy: body.createdBy || '',
+          },
+          include: { financialAccount: true, chartOfAccount: true },
+        });
+        return NextResponse.json(doc);
+      }
+      if (method === 'PUT' && segs.length === 2) {
+        const body = await readJson(request);
+        if (body.amount !== undefined && Number(body.amount) <= 0)
+          return NextResponse.json({ error: 'amount must be greater than 0' }, { status: 400 });
+        if (body.chartOfAccountId) {
+          const coa = await prisma.chartOfAccount.findUnique({ where: { id: body.chartOfAccountId } });
+          if (!coa || !coa.allowTransaction)
+            return NextResponse.json({ error: 'Selected account does not allow transactions' }, { status: 400 });
+        }
+        const updateData = {};
+        if (body.transactionDate !== undefined) updateData.transactionDate = body.transactionDate;
+        if (body.financialAccountId !== undefined) updateData.financialAccountId = body.financialAccountId;
+        if (body.chartOfAccountId !== undefined) updateData.chartOfAccountId = body.chartOfAccountId;
+        if (body.amount !== undefined) updateData.amount = Number(body.amount);
+        if (body.referenceNumber !== undefined) updateData.referenceNumber = body.referenceNumber;
+        if (body.description !== undefined) updateData.description = body.description;
+        if (body.attachment !== undefined) updateData.attachment = body.attachment;
+        if (body.createdBy !== undefined) updateData.createdBy = body.createdBy;
+        const doc = await prisma.cashTransaction.update({
+          where: { id: segs[1] },
+          data: updateData,
+          include: { financialAccount: true, chartOfAccount: true },
+        });
+        return NextResponse.json(doc);
+      }
+      if (method === 'DELETE' && segs.length === 2) {
+        await prisma.cashTransaction.delete({ where: { id: segs[1] } });
+        return NextResponse.json({ ok: true });
+      }
     }
 
     // Generic CRUD

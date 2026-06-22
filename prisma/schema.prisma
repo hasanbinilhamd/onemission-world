@@ -159,17 +159,45 @@ model RawMaterial {
 }
 
 model ChartOfAccount {
-  id               String           @id
-  accountCode      String           @unique
+  id               String            @id
+  accountCode      String            @unique
   accountName      String
   accountType      String
   normalBalance    String
-  description      String           @default("")
-  isActive         Boolean          @default(true)
-  allowTransaction Boolean          @default(true)
+  description      String            @default("")
+  isActive         Boolean           @default(true)
+  allowTransaction Boolean           @default(true)
   parentId         String?
-  parent           ChartOfAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
-  children         ChartOfAccount[] @relation("AccountHierarchy")
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  parent           ChartOfAccount?   @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children         ChartOfAccount[]  @relation("AccountHierarchy")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  cashTransactions CashTransaction[]
+}
+
+model FinancialAccount {
+  id               String            @id
+  name             String
+  type             String
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  cashTransactions CashTransaction[]
+}
+
+model CashTransaction {
+  id                 String           @id
+  transactionDate    String
+  transactionType    String
+  financialAccountId String
+  financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id])
+  chartOfAccountId   String
+  chartOfAccount     ChartOfAccount   @relation(fields: [chartOfAccountId], references: [id])
+  amount             Float
+  referenceNumber    String           @default("")
+  description        String           @default("")
+  attachment         String           @default("")
+  createdBy          String           @default("")
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 }

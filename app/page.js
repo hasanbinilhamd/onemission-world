@@ -360,6 +360,8 @@ const NAV_GROUPS = [
     children: [
       { id: "finance", label: "Finance", icon: Wallet },
       { id: "chartofaccounts", label: "Chart of Accounts", icon: BookOpen },
+      { id: "cashin", label: "Cash In", icon: TrendingUp },
+      { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "reports", label: "Reports", icon: FileBarChart2 },
     ],
   },
@@ -4164,6 +4166,673 @@ function SettingsModule({ user }) {
   );
 }
 
+// =========== CASH MANAGEMENT ===========
+const PAGE_SIZE_CASH = 15;
+
+function CashTransactionModule({ type }) {
+  const label = type === "IN" ? "Cash In" : "Cash Out";
+  const [items, setItems] = useState([]);
+  const [financialAccounts, setFinancialAccounts] = useState([]);
+  const [coaAccounts, setCoaAccounts] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [viewItem, setViewItem] = useState(null);
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const load = async () => {
+    const [txns, fas, coas] = await Promise.all([
+      api.get("cashtransactions?type=" + type),
+      api.get("financialaccounts"),
+      api.get("chartofaccounts"),
+    ]);
+    setItems(Array.isArray(txns) ? txns : []);
+    setFinancialAccounts(Array.isArray(fas) ? fas.filter((f) => f.isActive) : []);
+    setCoaAccounts(Array.isArray(coas) ? coas.filter((c) => c.allowTransaction && c.isActive) : []);
+  };
+
+  useEffect(() => { load(); }, [type]);
+
+  const emptyForm = {
+    transactionDate: new Date().toISOString().split("T")[0],
+    transactionType: type,
+    financialAccountId: "",
+    chartOfAccountId: "",
+    amount: 0,
+    referenceNumber: "",
+    description: "",
+    attachment: "",
+    createdBy: "",
+  };
+
+  const save = async (data) => {
+    if (editing?.id) {
+      await api.put("cashtransactions/" + editing.id, data);
+      toast.success(label + " transaction updated");
+    } else {
+      await api.post("cashtransactions", data);
+      toast.success(label + " transaction created");
+    }
+    setOpen(false);
+    setEditing(null);
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await api.del("cashtransactions/" + deleteTarget.id);
+    toast.success("Transaction deleted");
+    setDeleteTarget(null);
+    load();
+  };
+
+  const filtered = items.filter((t) => {
+    const q = search.toLowerCase();
+    const matchSearch =
+      !search ||
+      t.referenceNumber?.toLowerCase().includes(q) ||
+      t.description?.toLowerCase().includes(q) ||
+      t.financialAccount?.name?.toLowerCase().includes(q) ||
+      t.chartOfAccount?.accountName?.toLowerCase().includes(q);
+    const matchFrom = !dateFrom || t.transactionDate >= dateFrom;
+    const matchTo = !dateTo || t.transactionDate <= dateTo;
+    return matchSearch && matchFrom && matchTo;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE_CASH));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice(
+    (safePage - 1) * PAGE_SIZE_CASH,
+    safePage * PAGE_SIZE_CASH
+  );
+
+  const totalAmount = items.reduce((s, t) => s + (t.amount || 0), 0);
+  const now = new Date();
+  const monthStr =
+    now.getFullYear() +
+    "-" +
+    String(now.getMonth() + 1).padStart(2, "0");
+  const monthAmount = items
+    .filter((t) => t.transactionDate?.startsWith(monthStr))
+    .reduce((s, t) => s + (t.amount || 0), 0);
+
+  const isIn = type === "IN";
+  const amtClass = isIn ? "text-emerald-500" : "text-rose-500";
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">{label}</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isIn
+              ? "Record incoming cash and bank receipts"
+              : "Record outgoing cash and bank payments"}
+          </p>
+        </div>
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" /> New {label}
+        </Button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <Card className="border-border/60">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Transactions</p>
+            <p className="text-2xl font-semibold mt-1">{items.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Amount</p>
+            <p className={"text-xl font-semibold mt-1 " + amtClass}>
+              {fmtShort(totalAmount)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 col-span-2 sm:col-span-1">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">This Month</p>
+            <p className={"text-xl font-semibold mt-1 " + amtClass}>
+              {fmtShort(monthAmount)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            placeholder="Search by reference, description, or account..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+        <Input
+          type="date"
+          className="w-full sm:w-36"
+          value={dateFrom}
+          onChange={(e) => {
+            setDateFrom(e.target.value);
+            setPage(1);
+          }}
+        />
+        <Input
+          type="date"
+          className="w-full sm:w-36"
+          value={dateTo}
+          onChange={(e) => {
+            setDateTo(e.target.value);
+            setPage(1);
+          }}
+        />
+        {(search || dateFrom || dateTo) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch("");
+              setDateFrom("");
+              setDateTo("");
+              setPage(1);
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </div>
+
+      {/* Table */}
+      <Card className="border-border/60">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Date
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Reference
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Financial Account
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  COA Account
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  Amount
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+                  Description
+                </th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-4 py-12 text-center text-muted-foreground"
+                  >
+                    <DollarSign className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">
+                      No {label.toLowerCase()} transactions yet
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                paginated.map((t) => (
+                  <tr
+                    key={t.id}
+                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {t.transactionDate}
+                    </td>
+                    <td className="px-4 py-3">
+                      {t.referenceNumber ? (
+                        <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                          {t.referenceNumber}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {t.financialAccount?.name || "—"}
+                      {t.financialAccount && (
+                        <span className="text-xs text-muted-foreground ml-1">
+                          ({t.financialAccount.type})
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs text-muted-foreground mr-1">
+                        {t.chartOfAccount?.accountCode}
+                      </span>
+                      {t.chartOfAccount?.accountName}
+                    </td>
+                    <td
+                      className={
+                        "px-4 py-3 text-right font-semibold whitespace-nowrap " +
+                        amtClass
+                      }
+                    >
+                      {fmt(t.amount)}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground max-w-[180px] truncate hidden md:table-cell">
+                      {t.description || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="View"
+                          onClick={() => {
+                            setViewItem(t);
+                            setViewOpen(true);
+                          }}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Edit"
+                          onClick={() => {
+                            setEditing(t);
+                            setOpen(true);
+                          }}
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-rose-400 hover:text-rose-500"
+                          title="Delete"
+                          onClick={() => setDeleteTarget(t)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              Showing {(safePage - 1) * PAGE_SIZE_CASH + 1}–
+              {Math.min(safePage * PAGE_SIZE_CASH, filtered.length)} of{" "}
+              {filtered.length}
+            </span>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2"
+                disabled={safePage === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2"
+                disabled={safePage === totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Create / Edit Modal */}
+      <CashTransactionModal
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) setEditing(null);
+        }}
+        initial={editing || emptyForm}
+        financialAccounts={financialAccounts}
+        coaAccounts={coaAccounts}
+        transactionType={type}
+        onSave={save}
+      />
+
+      {/* View Modal */}
+      <CashTransactionViewModal
+        open={viewOpen}
+        onOpenChange={setViewOpen}
+        item={viewItem}
+      />
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this{" "}
+              {label.toLowerCase()} transaction
+              {deleteTarget?.referenceNumber
+                ? " (" + deleteTarget.referenceNumber + ")"
+                : ""}
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-500 hover:bg-rose-600 text-white"
+              onClick={confirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function CashTransactionModal({
+  open,
+  onOpenChange,
+  initial,
+  financialAccounts,
+  coaAccounts,
+  transactionType,
+  onSave,
+}) {
+  const [form, setForm] = useState(initial);
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    setForm(initial);
+    setErrors({});
+  }, [initial, open]);
+
+  const update = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    if (errors[k]) setErrors((e) => ({ ...e, [k]: null }));
+  };
+
+  const validate = () => {
+    const errs = {};
+    if (!form.transactionDate) errs.transactionDate = "Date is required";
+    if (!form.financialAccountId)
+      errs.financialAccountId = "Financial account is required";
+    if (!form.chartOfAccountId)
+      errs.chartOfAccountId = "COA account is required";
+    if (!form.amount || Number(form.amount) <= 0)
+      errs.amount = "Amount must be greater than 0";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSave = () => {
+    if (!validate()) return;
+    onSave({
+      transactionDate: form.transactionDate,
+      transactionType,
+      financialAccountId: form.financialAccountId,
+      chartOfAccountId: form.chartOfAccountId,
+      amount: Number(form.amount),
+      referenceNumber: form.referenceNumber?.trim() || "",
+      description: form.description?.trim() || "",
+      attachment: form.attachment?.trim() || "",
+      createdBy: form.createdBy?.trim() || "",
+    });
+  };
+
+  const isEdit = !!initial?.id;
+  const typeLabel = transactionType === "IN" ? "Cash In" : "Cash Out";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {isEdit ? "Edit " + typeLabel : "New " + typeLabel}
+          </DialogTitle>
+          <DialogDescription>
+            {isEdit
+              ? "Update this " + typeLabel.toLowerCase() + " transaction"
+              : "Record a new " + typeLabel.toLowerCase() + " transaction"}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+          {/* Transaction Date */}
+          <div className="space-y-1.5">
+            <Label>
+              Transaction Date <span className="text-rose-400">*</span>
+            </Label>
+            <Input
+              type="date"
+              value={form.transactionDate || ""}
+              onChange={(e) => update("transactionDate", e.target.value)}
+              className={errors.transactionDate ? "border-rose-500" : ""}
+            />
+            {errors.transactionDate && (
+              <p className="text-xs text-rose-400">{errors.transactionDate}</p>
+            )}
+          </div>
+
+          {/* Financial Account */}
+          <div className="space-y-1.5">
+            <Label>
+              Financial Account <span className="text-rose-400">*</span>
+            </Label>
+            <Select
+              value={form.financialAccountId || ""}
+              onValueChange={(v) => update("financialAccountId", v)}
+            >
+              <SelectTrigger
+                className={errors.financialAccountId ? "border-rose-500" : ""}
+              >
+                <SelectValue placeholder="Select financial account" />
+              </SelectTrigger>
+              <SelectContent>
+                {financialAccounts.map((fa) => (
+                  <SelectItem key={fa.id} value={fa.id}>
+                    {fa.name}
+                    <span className="text-muted-foreground ml-1 text-xs">
+                      ({fa.type})
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.financialAccountId && (
+              <p className="text-xs text-rose-400">
+                {errors.financialAccountId}
+              </p>
+            )}
+          </div>
+
+          {/* COA Account */}
+          <div className="space-y-1.5">
+            <Label>
+              COA Account <span className="text-rose-400">*</span>
+            </Label>
+            <Select
+              value={form.chartOfAccountId || ""}
+              onValueChange={(v) => update("chartOfAccountId", v)}
+            >
+              <SelectTrigger
+                className={errors.chartOfAccountId ? "border-rose-500" : ""}
+              >
+                <SelectValue placeholder="Select account (transactional only)" />
+              </SelectTrigger>
+              <SelectContent>
+                {coaAccounts.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.accountCode} — {c.accountName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.chartOfAccountId && (
+              <p className="text-xs text-rose-400">{errors.chartOfAccountId}</p>
+            )}
+          </div>
+
+          {/* Amount */}
+          <div className="space-y-1.5">
+            <Label>
+              Amount <span className="text-rose-400">*</span>
+            </Label>
+            <NumberInput
+              value={form.amount || 0}
+              onChange={(v) => update("amount", v)}
+              min={0}
+              placeholder="0"
+              className={errors.amount ? "border-rose-500" : ""}
+            />
+            {errors.amount && (
+              <p className="text-xs text-rose-400">{errors.amount}</p>
+            )}
+          </div>
+
+          {/* Reference Number */}
+          <div className="space-y-1.5">
+            <Label>Reference Number</Label>
+            <Input
+              value={form.referenceNumber || ""}
+              onChange={(e) => update("referenceNumber", e.target.value)}
+              placeholder="e.g. INV-001, REC-2026-001"
+            />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Textarea
+              value={form.description || ""}
+              onChange={(e) => update("description", e.target.value)}
+              placeholder="Add notes or description..."
+              rows={3}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave}>
+            {isEdit ? "Save Changes" : "Create " + typeLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CashTransactionViewModal({ open, onOpenChange, item }) {
+  if (!item) return null;
+  const isIn = item.transactionType === "IN";
+  const rows = [
+    { label: "Date", value: item.transactionDate },
+    { label: "Type", value: isIn ? "Cash In" : "Cash Out" },
+    {
+      label: "Financial Account",
+      value: item.financialAccount
+        ? item.financialAccount.name + " (" + item.financialAccount.type + ")"
+        : "—",
+    },
+    {
+      label: "COA Account",
+      value: item.chartOfAccount
+        ? item.chartOfAccount.accountCode + " — " + item.chartOfAccount.accountName
+        : "—",
+    },
+    { label: "Amount", value: fmt(item.amount), highlight: true },
+    { label: "Reference", value: item.referenceNumber || "—" },
+    { label: "Description", value: item.description || "—" },
+    {
+      label: "Created",
+      value: item.createdAt
+        ? new Date(item.createdAt).toLocaleString("id-ID")
+        : "—",
+    },
+  ];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Transaction Detail</DialogTitle>
+          <DialogDescription>
+            {isIn ? "Cash In" : "Cash Out"} transaction record
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          {rows.map((r) => (
+            <div
+              key={r.label}
+              className="flex items-start justify-between gap-4 py-1 border-b border-border/40 last:border-0"
+            >
+              <span className="text-sm text-muted-foreground shrink-0 w-36">
+                {r.label}
+              </span>
+              <span
+                className={
+                  "text-sm font-medium text-right break-all " +
+                  (r.highlight
+                    ? isIn
+                      ? "text-emerald-500"
+                      : "text-rose-500"
+                    : "")
+                }
+              >
+                {r.value}
+              </span>
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // =========== CHART OF ACCOUNTS ===========
 const ACCOUNT_TYPES = ["Asset", "Liability", "Equity", "Revenue", "Expense"];
 const NORMAL_BALANCES = ["Debit", "Credit"];
@@ -5166,6 +5835,8 @@ function App() {
     timeline: <TimelineModule />,
     finance: <FinanceModule />,
     chartofaccounts: <ChartOfAccountsModule />,
+    cashin: <CashTransactionModule type="IN" />,
+    cashout: <CashTransactionModule type="OUT" />,
     events: <EventsModule />,
     reports: <ReportsModule />,
     notifications: <NotificationsModule />,

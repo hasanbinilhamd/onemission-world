@@ -12,6 +12,7 @@ import {
   SEED_FINANCE,
   SEED_EVENTS,
   SEED_NOTIFICATIONS,
+  SEED_FINANCIAL_ACCOUNTS,
   SEED_COA,
 } from '../lib/seed-data';
 
@@ -29,6 +30,7 @@ const SUPER_ADMIN = {
 async function main() {
   console.log('Seeding database...');
 
+  await prisma.cashTransaction.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.event.deleteMany();
   await prisma.finance.deleteMany();
@@ -40,6 +42,7 @@ async function main() {
   await prisma.inventory.deleteMany();
   await prisma.product.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.financialAccount.deleteMany();
 
   // Delete child COA records first (those with a parentId), then parents
   await prisma.chartOfAccount.deleteMany({ where: { parentId: { not: null } } });
@@ -61,6 +64,9 @@ async function main() {
   await prisma.finance.createMany({ data: SEED_FINANCE });
   await prisma.event.createMany({ data: SEED_EVENTS });
   await prisma.notification.createMany({ data: SEED_NOTIFICATIONS });
+
+  // Seed Financial Accounts
+  await prisma.financialAccount.createMany({ data: SEED_FINANCIAL_ACCOUNTS });
 
   // Seed COA: insert parents first, then children
   const parents = SEED_COA.filter((a) => !a.parentId);
