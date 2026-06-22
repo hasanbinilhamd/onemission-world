@@ -1662,6 +1662,30 @@ function InventoryModule() {
     setItems((arr) => arr.map((i) => (i.id === item.id ? updated : i)));
   };
 
+  const [editQty, setEditQty] = useState({});
+
+  const setStock = async (item, newQty) => {
+    const qty = Math.max(0, Math.floor(Number(newQty)));
+    if (isNaN(qty)) return;
+    const updated = { ...item, quantity: qty };
+    await api.put("inventory/" + item.id, updated);
+    setItems((arr) => arr.map((i) => (i.id === item.id ? updated : i)));
+    toast.success("Stock updated");
+  };
+
+  const createItem = async (productId, color, size) => {
+    const created = await api.post("inventory", {
+      productId,
+      color,
+      size,
+      quantity: 0,
+      threshold: 5,
+      incoming: 0,
+    });
+    setItems((arr) => [...arr, created]);
+    toast.success(`${color} / ${size} initialized`);
+  };
+
   const filtered =
     selectedProduct === "all"
       ? items
@@ -1780,7 +1804,10 @@ function InventoryModule() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {Object.entries(colors).map(([color, sizes]) => (
+                  {(product.colors?.length ? product.colors : Object.keys(colors)).map((color) => {
+                    const sizeMap = colors[color] || {};
+                    const catalogSizes = product.sizes?.length ? product.sizes : Object.keys(sizeMap);
+                    return (
                     <div key={color}>
                       <div className="flex items-center gap-2 mb-2">
                         <span
@@ -1790,7 +1817,29 @@ function InventoryModule() {
                         <p className="text-sm font-medium">{color}</p>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-                        {Object.entries(sizes).map(([size, item]) => {
+                        {catalogSizes.map((size) => {
+                          const item = sizeMap[size];
+                          if (!item) {
+                            return (
+                              <div
+                                key={size}
+                                className="rounded-lg border border-dashed border-border/30 bg-secondary/10 p-3"
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs text-muted-foreground font-medium">{size}</span>
+                                </div>
+                                <p className="text-xl font-semibold text-muted-foreground/30">—</p>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-full text-[10px] mt-2"
+                                  onClick={() => createItem(pid, color, size)}
+                                >
+                                  + Init
+                                </Button>
+                              </div>
+                            );
+                          }
                           const crit = item.quantity < item.threshold;
                           return (
                             <div
@@ -1836,12 +1885,55 @@ function InventoryModule() {
                                   +10
                                 </Button>
                               </div>
+                              <input
+                                type="number"
+                                min="0"
+                                placeholder="Set qty…"
+                                value={editQty[item.id] ?? ""}
+                                onChange={(e) =>
+                                  setEditQty((prev) => ({
+                                    ...prev,
+                                    [item.id]: e.target.value,
+                                  }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    const val = parseInt(editQty[item.id], 10);
+                                    if (!isNaN(val) && val >= 0) setStock(item, val);
+                                    setEditQty((prev) => {
+                                      const n = { ...prev };
+                                      delete n[item.id];
+                                      return n;
+                                    });
+                                  }
+                                  if (e.key === "Escape") {
+                                    setEditQty((prev) => {
+                                      const n = { ...prev };
+                                      delete n[item.id];
+                                      return n;
+                                    });
+                                  }
+                                }}
+                                onBlur={() => {
+                                  if (editQty[item.id] !== undefined && editQty[item.id] !== "") {
+                                    const val = parseInt(editQty[item.id], 10);
+                                    if (!isNaN(val) && val >= 0) setStock(item, val);
+                                  }
+                                  setEditQty((prev) => {
+                                    const n = { ...prev };
+                                    delete n[item.id];
+                                    return n;
+                                  });
+                                }}
+                                className="mt-1 w-full h-6 text-center text-[11px] rounded border border-border/40 bg-background/40 focus:outline-none focus:border-border/80 px-1 text-foreground placeholder:text-muted-foreground/40"
+                              />
                             </div>
                           );
                         })}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
