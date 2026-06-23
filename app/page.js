@@ -53,6 +53,7 @@ import {
   Send,
   Scale,
   BarChart2,
+  Landmark,
 } from "lucide-react";
 import {
   TableSkeleton,
@@ -382,6 +383,7 @@ const NAV_GROUPS = [
       { id: "generalledger", label: "General Ledger", icon: BookOpen },
       { id: "trialbalance", label: "Trial Balance", icon: Scale },
       { id: "profitloss", label: "Profit & Loss", icon: BarChart2 },
+      { id: "balancesheet", label: "Balance Sheet", icon: Landmark },
       { id: "reports", label: "Reports", icon: FileBarChart2 },
     ],
   },
@@ -8152,6 +8154,279 @@ function ProfitLossModule({ onNavigateToLedger }) {
   );
 }
 
+// =========== BALANCE SHEET ===========
+function BalanceSheetModule({ onNavigateToLedger }) {
+  const today = new Date().toISOString().split("T")[0];
+  const [asOf, setAsOf] = useState(today);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ asOf });
+    const result = await api.get("balancesheet?" + params.toString());
+    setData(result?.error ? null : result);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+  }, [asOf]);
+
+  const SectionTable = ({ rows, emptyLabel, balanceColor }) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border bg-muted/30">
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+              Account Code
+            </th>
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+              Account Name
+            </th>
+            <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+              Balance
+            </th>
+            <th className="px-4 py-3 w-10" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                {emptyLabel}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={row.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                    {row.accountCode}
+                  </span>
+                </td>
+                <td className="px-4 py-3 font-medium">{row.accountName}</td>
+                <td className={`px-4 py-3 text-right font-medium ${balanceColor}`}>
+                  {fmt(row.balance)}
+                </td>
+                <td className="px-4 py-3">
+                  {onNavigateToLedger && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title="View in General Ledger"
+                      onClick={() => onNavigateToLedger(row.id)}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Balance Sheet</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Financial position report based on posted journal entries
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled title="Export PDF (coming soon)">
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export PDF
+          </Button>
+          <Button variant="outline" size="sm" disabled title="Export Excel (coming soon)">
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export Excel
+          </Button>
+        </div>
+      </div>
+
+      {/* Filter */}
+      <Card className="border-border/60">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <Label>As Of Date</Label>
+              <Input
+                type="date"
+                value={asOf}
+                onChange={(e) => setAsOf(e.target.value)}
+                className="w-44"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 text-xs"
+              onClick={() => setAsOf(today)}
+            >
+              Reset to Today
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Accounting equation warning */}
+      {data && !data.isBalanced && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-rose-500/40 bg-rose-500/10 text-rose-400">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold text-sm">Balance Sheet Out of Balance</p>
+            <p className="text-xs mt-0.5 text-rose-400/80">
+              Assets ≠ Liabilities + Equity · Difference: {fmt(data.difference)}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Summary Cards */}
+      {data && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card className="border-border/60">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Assets</p>
+              <p className="text-xl font-semibold text-blue-400 mt-1">{fmt(data.totalAssets)}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/60">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Liabilities</p>
+              <p className="text-xl font-semibold text-rose-400 mt-1">{fmt(data.totalLiabilities)}</p>
+            </CardContent>
+          </Card>
+          <Card className={`border-border/60 ${data.isBalanced ? "" : "border-rose-500/40"}`}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Equity</p>
+              <p className="text-xl font-semibold text-emerald-500 mt-1">{fmt(data.totalEquity)}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16 gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Generating balance sheet...</span>
+        </div>
+      ) : data ? (
+        <div className="space-y-4">
+          {/* Assets */}
+          <Card className="border-border/60">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Landmark className="h-4 w-4 text-blue-400" />
+                  Assets
+                </CardTitle>
+                <span className="text-sm font-semibold text-blue-400">{fmt(data.totalAssets)}</span>
+              </div>
+            </CardHeader>
+            <SectionTable
+              rows={data.assetRows}
+              emptyLabel="No asset accounts configured"
+              balanceColor="text-blue-400"
+            />
+            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+              <span className="text-muted-foreground">Total Assets</span>
+              <span className="text-blue-400">{fmt(data.totalAssets)}</span>
+            </div>
+          </Card>
+
+          {/* Liabilities */}
+          <Card className="border-border/60">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingDown className="h-4 w-4 text-rose-400" />
+                  Liabilities
+                </CardTitle>
+                <span className="text-sm font-semibold text-rose-400">{fmt(data.totalLiabilities)}</span>
+              </div>
+            </CardHeader>
+            <SectionTable
+              rows={data.liabilityRows}
+              emptyLabel="No liability accounts configured"
+              balanceColor="text-rose-400"
+            />
+            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+              <span className="text-muted-foreground">Total Liabilities</span>
+              <span className="text-rose-400">{fmt(data.totalLiabilities)}</span>
+            </div>
+          </Card>
+
+          {/* Equity */}
+          <Card className="border-border/60">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  Equity
+                </CardTitle>
+                <span className="text-sm font-semibold text-emerald-500">{fmt(data.totalEquity)}</span>
+              </div>
+            </CardHeader>
+            <SectionTable
+              rows={data.equityRows}
+              emptyLabel="No equity accounts configured"
+              balanceColor="text-emerald-500"
+            />
+            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+              <span className="text-muted-foreground">Total Equity</span>
+              <span className="text-emerald-500">{fmt(data.totalEquity)}</span>
+            </div>
+          </Card>
+
+          {/* Accounting Equation Summary */}
+          <Card className={`border-2 ${data.isBalanced ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}>
+            <CardContent className="p-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                    Accounting Equation
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Assets = Liabilities + Equity
+                  </p>
+                </div>
+                <div className="flex items-center gap-6 text-sm">
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground mb-0.5">Assets</p>
+                    <p className="font-semibold text-blue-400">{fmt(data.totalAssets)}</p>
+                  </div>
+                  <span className="text-muted-foreground font-medium">=</span>
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground mb-0.5">Liabilities + Equity</p>
+                    <p className="font-semibold">{fmt(data.totalLiabilities + data.totalEquity)}</p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={data.isBalanced
+                      ? "border-emerald-500/40 text-emerald-500"
+                      : "border-rose-500/40 text-rose-400"}
+                  >
+                    {data.isBalanced ? "Balanced" : "Out of Balance"}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // =========== MAIN APP ===========
 function App() {
   const [user, setUser] = useState(null);
@@ -8230,6 +8505,7 @@ function App() {
     generalledger: <GeneralLedgerModule initialAccountId={glInitialAccount} onAccountConsumed={() => setGlInitialAccount(null)} />,
     trialbalance: <TrialBalanceModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
     profitloss: <ProfitLossModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
+    balancesheet: <BalanceSheetModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
     events: <EventsModule />,
     reports: <ReportsModule />,
     notifications: <NotificationsModule />,
