@@ -367,6 +367,7 @@ const NAV_GROUPS = [
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "journalentries", label: "Journal Entries", icon: ClipboardList },
+      { id: "generalledger", label: "General Ledger", icon: BookOpen },
       { id: "reports", label: "Reports", icon: FileBarChart2 },
     ],
   },
@@ -7111,6 +7112,384 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
   );
 }
 
+// =========== GENERAL LEDGER ===========
+function GeneralLedgerModule() {
+  const [coaAccounts, setCoaAccounts] = useState([]);
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
+  const [ledgerData, setLedgerData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [viewJournal, setViewJournal] = useState(null);
+  const [viewOpen, setViewOpen] = useState(false);
+
+  useEffect(() => {
+    api.get("chartofaccounts").then((data) => {
+      setCoaAccounts(
+        Array.isArray(data)
+          ? data.filter((c) => c.allowTransaction && c.isActive)
+          : []
+      );
+    });
+  }, []);
+
+  const loadLedger = async () => {
+    if (!selectedAccountId) return;
+    setLoading(true);
+    const params = new URLSearchParams({ accountId: selectedAccountId });
+    if (dateFrom) params.append("from", dateFrom);
+    if (dateTo) params.append("to", dateTo);
+    if (search.trim()) params.append("search", search.trim());
+    const data = await api.get("generalledger?" + params.toString());
+    setLedgerData(data?.error ? null : data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (selectedAccountId) {
+      loadLedger();
+    } else {
+      setLedgerData(null);
+    }
+  }, [selectedAccountId, dateFrom, dateTo, search]);
+
+  const viewJournalEntry = async (journalEntryId) => {
+    const data = await api.get("journalentries/" + journalEntryId);
+    if (!data?.error) {
+      setViewJournal(data);
+      setViewOpen(true);
+    } else {
+      toast.error("Could not load journal entry");
+    }
+  };
+
+  const selectedAccount = coaAccounts.find((c) => c.id === selectedAccountId);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">General Ledger</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Account-level transaction history from posted journal entries
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card className="border-border/60">
+        <CardContent className="p-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="space-y-1.5 lg:col-span-1">
+              <Label>
+                Account <span className="text-rose-400">*</span>
+              </Label>
+              <Select
+                value={selectedAccountId}
+                onValueChange={setSelectedAccountId}
+              >
+                <SelectTrigger
+                  className={!selectedAccountId ? "border-amber-500/50" : ""}
+                >
+                  <SelectValue placeholder="Select an account..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {coaAccounts.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.accountCode} — {c.accountName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>From Date</Label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>To Date</Label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Search</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-8"
+                  placeholder="Description or journal no."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          {!selectedAccountId && (
+            <p className="text-xs text-amber-500 flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5" /> Select an account to
+              load ledger data
+            </p>
+          )}
+          {(dateFrom || dateTo || search) && selectedAccountId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+                setSearch("");
+              }}
+            >
+              Clear filters
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Summary Cards */}
+      {ledgerData && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            {
+              label: "Opening Balance",
+              value: fmt(ledgerData.openingBalance),
+              cls: "text-foreground",
+            },
+            {
+              label: "Total Debit",
+              value: fmt(ledgerData.totalDebit),
+              cls: "text-blue-400",
+            },
+            {
+              label: "Total Credit",
+              value: fmt(ledgerData.totalCredit),
+              cls: "text-orange-400",
+            },
+            {
+              label: "Closing Balance",
+              value: fmt(Math.abs(ledgerData.closingBalance)),
+              cls:
+                ledgerData.closingBalance >= 0
+                  ? "text-emerald-500"
+                  : "text-rose-400",
+              suffix:
+                ledgerData.closingBalance < 0
+                  ? " (Cr)"
+                  : "",
+            },
+          ].map((s) => (
+            <Card key={s.label} className="border-border/60">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <p className={`text-xl font-semibold mt-1 ${s.cls}`}>
+                  {s.value}
+                  {s.suffix && (
+                    <span className="text-xs ml-1 font-normal text-muted-foreground">
+                      {s.suffix}
+                    </span>
+                  )}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Account Info Banner */}
+      {selectedAccount && ledgerData && (
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-lg border border-border/60 bg-muted/20 text-sm">
+          <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="font-medium">
+            {selectedAccount.accountCode} — {selectedAccount.accountName}
+          </span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-muted-foreground">
+            {selectedAccount.accountType}
+          </span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-muted-foreground">
+            Normal Balance: {selectedAccount.normalBalance}
+          </span>
+          <span className="ml-auto text-xs text-muted-foreground">
+            {ledgerData.lines.length} transaction
+            {ledgerData.lines.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
+
+      {/* Ledger Table / States */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16 gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            Loading ledger...
+          </span>
+        </div>
+      ) : !selectedAccountId ? (
+        <Card className="border-border/60">
+          <div className="py-20 text-center text-muted-foreground">
+            <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-20" />
+            <p className="text-sm">
+              Select an account to view the general ledger
+            </p>
+          </div>
+        </Card>
+      ) : ledgerData && ledgerData.lines.length === 0 ? (
+        <Card className="border-border/60">
+          <div className="py-16 text-center text-muted-foreground">
+            <ClipboardList className="h-8 w-8 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">
+              No posted transactions for this account
+              {(dateFrom || dateTo || search) && " in the selected range"}
+            </p>
+          </div>
+        </Card>
+      ) : ledgerData ? (
+        <Card className="border-border/60">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Date
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Journal No.
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell whitespace-nowrap">
+                    Source
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell whitespace-nowrap">
+                    Reference
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    Description
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Debit
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Credit
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Balance
+                  </th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {ledgerData.lines.map((line) => (
+                  <tr
+                    key={line.id}
+                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {line.journalDate}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                        {line.journalNumber}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <Badge
+                        variant="outline"
+                        className="font-normal text-xs"
+                      >
+                        {line.journalSource}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell text-xs">
+                      {line.referenceNumber || "—"}
+                    </td>
+                    <td className="px-4 py-3 max-w-[180px]">
+                      <p className="truncate">{line.description}</p>
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-blue-400">
+                      {line.debitAmount > 0 ? fmt(line.debitAmount) : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-orange-400">
+                      {line.creditAmount > 0 ? fmt(line.creditAmount) : "—"}
+                    </td>
+                    <td
+                      className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${
+                        line.runningBalance >= 0
+                          ? ""
+                          : "text-rose-400"
+                      }`}
+                    >
+                      {fmt(Math.abs(line.runningBalance))}
+                      {line.runningBalance < 0 && (
+                        <span className="text-xs text-rose-400 ml-1">Cr</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        title="View Journal Entry"
+                        onClick={() => viewJournalEntry(line.journalEntryId)}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/20 font-semibold">
+                  <td
+                    colSpan={5}
+                    className="px-4 py-3 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell"
+                  >
+                    Totals
+                  </td>
+                  <td className="px-4 py-3 text-right text-blue-400">
+                    {fmt(ledgerData.totalDebit)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-orange-400">
+                    {fmt(ledgerData.totalCredit)}
+                  </td>
+                  <td
+                    className={`px-4 py-3 text-right whitespace-nowrap ${
+                      ledgerData.closingBalance >= 0
+                        ? "text-emerald-500"
+                        : "text-rose-400"
+                    }`}
+                  >
+                    {fmt(Math.abs(ledgerData.closingBalance))}
+                    {ledgerData.closingBalance < 0 && (
+                      <span className="text-xs ml-1">Cr</span>
+                    )}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
+      ) : null}
+
+      {/* Journal Entry View Modal */}
+      <JournalEntryViewModal
+        open={viewOpen}
+        onOpenChange={setViewOpen}
+        item={viewJournal}
+      />
+    </div>
+  );
+}
+
 // =========== MAIN APP ===========
 function App() {
   const [user, setUser] = useState(null);
@@ -7185,6 +7564,7 @@ function App() {
     cashin: <CashTransactionModule type="IN" />,
     cashout: <CashTransactionModule type="OUT" />,
     journalentries: <JournalEntriesModule />,
+    generalledger: <GeneralLedgerModule />,
     events: <EventsModule />,
     reports: <ReportsModule />,
     notifications: <NotificationsModule />,

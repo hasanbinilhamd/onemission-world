@@ -532,6 +532,99 @@ async function handle(request, { params }) {
       }
     }
 
+    // ---------- GENERAL LEDGER ----------
+    if (segs[0] === 'generalledger' && method === 'GET') {
+      const url = new URL(request.url);
+      const accountId = url.searchParams.get('accountId');
+      const from = url.searchParams.get('from');
+      const to = url.searchParams.get('to');
+      const search = url.searchParams.get('search');
+
+      if (!accountId) return NextResponse.json({ error: 'accountId is required' }, { status: 400 });
+
+      const account = await prisma.chartOfAccount.findUnique({ where: { id: accountId } });
+      if (!account) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+
+      // Build journal entry filter
+      const journalFilter = { AND: [{ status: 'Posted' }] };
+      if (from) journalFilter.AND.push({ journalDate: { gte: from } });
+      if (to) journalFilter.AND.push({ journalDate: { lte: to } });
+      if (search) {
+        journalFilter.AND.push({
+          OR: [
+            { description: { contains: search, mode: 'insensitive' } },
+            { journalNumber: { contains: search, mode: 'insensitive' } },
+            { referenceNumber: { contains: search, mode: 'insensitive' } },
+          ],
+        });
+      }
+
+      const journalLines = await prisma.journalEntryLine.findMany({
+        where: {
+          chartOfAccountId: accountId,
+          journalEntry: journalFilter,
+        },
+        include: {
+          journalEntry: {
+            select: {
+              id: true,
+              journalNumber: true,
+              journalDate: true,
+              journalSource: true,
+              journalType: true,
+              referenceNumber: true,
+              description: true,
+            },
+          },
+        },
+        orderBy: [
+          { journalEntry: { journalDate: 'asc' } },
+          { journalEntry: { journalNumber: 'asc' } },
+        ],
+      });
+
+      // Calculate running balance
+      const normalBalance = account.normalBalance; // 'Debit' or 'Credit'
+      const openingBalance = 0;
+      let runningBalance = openingBalance;
+      let totalDebit = 0;
+      let totalCredit = 0;
+
+      const lines = journalLines.map((line) => {
+        const debit = line.debitAmount || 0;
+        const credit = line.creditAmount || 0;
+        totalDebit += debit;
+        totalCredit += credit;
+        if (normalBalance === 'Debit') {
+          runningBalance += debit - credit;
+        } else {
+          runningBalance += credit - debit;
+        }
+        return {
+          id: line.id,
+          journalEntryId: line.journalEntry.id,
+          journalNumber: line.journalEntry.journalNumber,
+          journalDate: line.journalEntry.journalDate,
+          journalSource: line.journalEntry.journalSource,
+          journalType: line.journalEntry.journalType,
+          referenceNumber: line.journalEntry.referenceNumber,
+          description: line.description?.trim() || line.journalEntry.description,
+          debitAmount: debit,
+          creditAmount: credit,
+          runningBalance,
+        };
+      });
+
+      return NextResponse.json({
+        account,
+        openingBalance,
+        totalDebit,
+        totalCredit,
+        closingBalance: runningBalance,
+        lines,
+      });
+    }
+
     // Generic CRUD
     const modelName = COLLECTION_MODELS[segs[0]];
     if (modelName) {
