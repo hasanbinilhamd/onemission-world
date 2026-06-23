@@ -765,22 +765,15 @@ async function handle(request, { params }) {
       const journalFilter = { AND: [{ status: 'Posted' }] };
       if (asOf) journalFilter.AND.push({ journalDate: { lte: asOf } });
 
+      // Fetch balance-sheet accounts AND income-statement accounts together
       const accounts = await prisma.chartOfAccount.findMany({
         where: {
           isActive: true,
           allowTransaction: true,
-          accountType: { in: ['Asset', 'Liability', 'Equity'] },
+          accountType: { in: ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'] },
         },
         orderBy: { accountCode: 'asc' },
       });
-
-      if (!accounts.length) {
-        return NextResponse.json({
-          assetRows: [], liabilityRows: [], equityRows: [],
-          totalAssets: 0, totalLiabilities: 0, totalEquity: 0,
-          isBalanced: true, difference: 0,
-        });
-      }
 
       const lines = await prisma.journalEntryLine.findMany({
         where: {
@@ -802,28 +795,40 @@ async function handle(request, { params }) {
       const assetRows = [];
       const liabilityRows = [];
       const equityRows = [];
+      let totalRevenue = 0;
+      let totalExpenses = 0;
 
       for (const a of accounts) {
         const agg = aggMap[a.id] || { totalDebit: 0, totalCredit: 0 };
-        // Asset: normal balance Debit  → balance = debit - credit
-        // Liability/Equity: normal balance Credit → balance = credit - debit
-        const balance = a.accountType === 'Asset'
-          ? agg.totalDebit - agg.totalCredit
-          : agg.totalCredit - agg.totalDebit;
-        const row = { id: a.id, accountCode: a.accountCode, accountName: a.accountName, accountType: a.accountType, balance };
-        if (a.accountType === 'Asset') assetRows.push(row);
-        else if (a.accountType === 'Liability') liabilityRows.push(row);
-        else equityRows.push(row);
+        if (a.accountType === 'Asset') {
+          const balance = agg.totalDebit - agg.totalCredit;
+          assetRows.push({ id: a.id, accountCode: a.accountCode, accountName: a.accountName, accountType: a.accountType, balance });
+        } else if (a.accountType === 'Liability') {
+          const balance = agg.totalCredit - agg.totalDebit;
+          liabilityRows.push({ id: a.id, accountCode: a.accountCode, accountName: a.accountName, accountType: a.accountType, balance });
+        } else if (a.accountType === 'Equity') {
+          const balance = agg.totalCredit - agg.totalDebit;
+          equityRows.push({ id: a.id, accountCode: a.accountCode, accountName: a.accountName, accountType: a.accountType, balance });
+        } else if (a.accountType === 'Revenue') {
+          // Revenue: credit - debit
+          totalRevenue += agg.totalCredit - agg.totalDebit;
+        } else if (a.accountType === 'Expense') {
+          // Expense: debit - credit
+          totalExpenses += agg.totalDebit - agg.totalCredit;
+        }
       }
 
+      const currentYearEarnings = totalRevenue - totalExpenses;
       const totalAssets = assetRows.reduce((s, r) => s + r.balance, 0);
       const totalLiabilities = liabilityRows.reduce((s, r) => s + r.balance, 0);
-      const totalEquity = equityRows.reduce((s, r) => s + r.balance, 0);
+      const equityBase = equityRows.reduce((s, r) => s + r.balance, 0);
+      const totalEquity = equityBase + currentYearEarnings;
       const difference = Math.abs(totalAssets - (totalLiabilities + totalEquity));
 
       return NextResponse.json({
         assetRows, liabilityRows, equityRows,
         totalAssets, totalLiabilities, totalEquity,
+        currentYearEarnings,
         isBalanced: difference < 0.01,
         difference,
       });
