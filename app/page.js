@@ -22,6 +22,7 @@ import {
   Edit3,
   Trash2,
   Copy,
+  Gauge,
   Archive,
   Download,
   AlertTriangle,
@@ -341,7 +342,7 @@ const NAV_GROUPS = [
   },
   {
     id: "catalog",
-    label: "Produk & Inventori",
+    label: "Product & Inventory",
     icon: Package,
     children: [
       { id: "products", label: "Product Catalog", icon: Package },
@@ -351,7 +352,7 @@ const NAV_GROUPS = [
   },
   {
     id: "marketing",
-    label: "Marketing & Komunitas",
+    label: "Marketing & Community",
     icon: Users2,
     children: [
       { id: "content", label: "Content Planner", icon: CalendarDays },
@@ -362,7 +363,7 @@ const NAV_GROUPS = [
   },
   {
     id: "operations",
-    label: "Strategi & Operasi",
+    label: "Strategic & Operations",
     icon: Target,
     children: [
       { id: "planning", label: "Strategic Planning", icon: Target },
@@ -371,12 +372,16 @@ const NAV_GROUPS = [
   },
   {
     id: "financial",
-    label: "Finansial & Laporan",
+    label: "Financial & Reports",
     icon: Wallet,
     children: [
-      { id: "finance", label: "Finance", icon: Wallet },
+      { id: "finance", label: "Overview", icon: Gauge },
       { id: "chartofaccounts", label: "Chart of Accounts", icon: BookOpen },
-      { id: "financialaccounts", label: "Financial Accounts", icon: DollarSign },
+      {
+        id: "financialaccounts",
+        label: "Financial Accounts",
+        icon: DollarSign,
+      },
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "journalentries", label: "Journal Entries", icon: ClipboardList },
@@ -389,7 +394,7 @@ const NAV_GROUPS = [
   },
   {
     id: "system",
-    label: "Sistem",
+    label: "System",
     icon: SettingsIcon,
     children: [
       { id: "notifications", label: "Notifications", icon: Bell },
@@ -1056,7 +1061,11 @@ function ProductsModule() {
   const [category, setCategory] = useState("all");
   const [viewMode, setViewMode] = useState("card");
 
-  const load = async () => { setLoading(true); setItems(await api.get("products")); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    setItems(await api.get("products"));
+    setLoading(false);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -1119,15 +1128,16 @@ function ProductsModule() {
         p.sku.toLowerCase().includes(filter.toLowerCase())),
   );
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <ProductGridSkeleton count={8} />
       </div>
-      <ProductGridSkeleton count={8} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -1763,15 +1773,16 @@ function InventoryModule() {
     Burgundy: "#7a1f30",
   };
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-32 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-56 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-32 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-56 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <InventorySkeleton />
       </div>
-      <InventorySkeleton />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -1865,134 +1876,154 @@ function InventoryModule() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {(product.colors?.length ? product.colors : Object.keys(colors)).map((color) => {
+                  {(product.colors?.length
+                    ? product.colors
+                    : Object.keys(colors)
+                  ).map((color) => {
                     const sizeMap = colors[color] || {};
-                    const catalogSizes = product.sizes?.length ? product.sizes : Object.keys(sizeMap);
+                    const catalogSizes = product.sizes?.length
+                      ? product.sizes
+                      : Object.keys(sizeMap);
                     return (
-                    <div key={color}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span
-                          className="w-3 h-3 rounded-full border border-border"
-                          style={{ background: colorSwatch[color] || "#999" }}
-                        />
-                        <p className="text-sm font-medium">{color}</p>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-                        {catalogSizes.map((size) => {
-                          const item = sizeMap[size];
-                          if (!item) {
+                      <div key={color}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span
+                            className="w-3 h-3 rounded-full border border-border"
+                            style={{ background: colorSwatch[color] || "#999" }}
+                          />
+                          <p className="text-sm font-medium">{color}</p>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                          {catalogSizes.map((size) => {
+                            const item = sizeMap[size];
+                            if (!item) {
+                              return (
+                                <div
+                                  key={size}
+                                  className="rounded-lg border border-dashed border-border/30 bg-secondary/10 p-3"
+                                >
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs text-muted-foreground font-medium">
+                                      {size}
+                                    </span>
+                                  </div>
+                                  <p className="text-xl font-semibold text-muted-foreground/30">
+                                    —
+                                  </p>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-full text-[10px] mt-2"
+                                    onClick={() => createItem(pid, color, size)}
+                                  >
+                                    + Init
+                                  </Button>
+                                </div>
+                              );
+                            }
+                            const crit = item.quantity <= 5;
                             return (
                               <div
                                 key={size}
-                                className="rounded-lg border border-dashed border-border/30 bg-secondary/10 p-3"
+                                className={`rounded-lg border p-3 ${crit ? "border-rose-500/40 bg-rose-500/5" : "border-border bg-secondary/30"}`}
                               >
                                 <div className="flex items-center justify-between mb-1">
-                                  <span className="text-xs text-muted-foreground font-medium">{size}</span>
+                                  <span className="text-xs text-muted-foreground font-medium">
+                                    {size}
+                                  </span>
+                                  {crit && (
+                                    <AlertTriangle className="h-3 w-3 text-rose-400" />
+                                  )}
                                 </div>
-                                <p className="text-xl font-semibold text-muted-foreground/30">—</p>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-full text-[10px] mt-2"
-                                  onClick={() => createItem(pid, color, size)}
+                                <p
+                                  className={`text-xl font-semibold ${crit ? "text-rose-400" : ""}`}
                                 >
-                                  + Init
-                                </Button>
+                                  {item.quantity}
+                                </p>
+                                <div className="flex gap-1 mt-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 text-xs"
+                                    onClick={() => adjust(item, -1)}
+                                  >
+                                    -
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 text-xs"
+                                    onClick={() => adjust(item, 1)}
+                                  >
+                                    +
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 flex-1 px-1 text-[10px]"
+                                    onClick={() => adjust(item, 10)}
+                                  >
+                                    +10
+                                  </Button>
+                                </div>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  placeholder="Set qty…"
+                                  value={editQty[item.id] ?? ""}
+                                  onChange={(e) =>
+                                    setEditQty((prev) => ({
+                                      ...prev,
+                                      [item.id]: e.target.value,
+                                    }))
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      const val = parseInt(
+                                        editQty[item.id],
+                                        10,
+                                      );
+                                      if (!isNaN(val) && val >= 0)
+                                        setStock(item, val);
+                                      setEditQty((prev) => {
+                                        const n = { ...prev };
+                                        delete n[item.id];
+                                        return n;
+                                      });
+                                    }
+                                    if (e.key === "Escape") {
+                                      setEditQty((prev) => {
+                                        const n = { ...prev };
+                                        delete n[item.id];
+                                        return n;
+                                      });
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    if (
+                                      editQty[item.id] !== undefined &&
+                                      editQty[item.id] !== ""
+                                    ) {
+                                      const val = parseInt(
+                                        editQty[item.id],
+                                        10,
+                                      );
+                                      if (!isNaN(val) && val >= 0)
+                                        setStock(item, val);
+                                    }
+                                    setEditQty((prev) => {
+                                      const n = { ...prev };
+                                      delete n[item.id];
+                                      return n;
+                                    });
+                                  }}
+                                  className="mt-1.5 h-7 text-xs text-center px-2"
+                                />
                               </div>
                             );
-                          }
-                          const crit = item.quantity <= 5;
-                          return (
-                            <div
-                              key={size}
-                              className={`rounded-lg border p-3 ${crit ? "border-rose-500/40 bg-rose-500/5" : "border-border bg-secondary/30"}`}
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs text-muted-foreground font-medium">
-                                  {size}
-                                </span>
-                                {crit && (
-                                  <AlertTriangle className="h-3 w-3 text-rose-400" />
-                                )}
-                              </div>
-                              <p
-                                className={`text-xl font-semibold ${crit ? "text-rose-400" : ""}`}
-                              >
-                                {item.quantity}
-                              </p>
-                              <div className="flex gap-1 mt-2">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0 text-xs"
-                                  onClick={() => adjust(item, -1)}
-                                >
-                                  -
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0 text-xs"
-                                  onClick={() => adjust(item, 1)}
-                                >
-                                  +
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 flex-1 px-1 text-[10px]"
-                                  onClick={() => adjust(item, 10)}
-                                >
-                                  +10
-                                </Button>
-                              </div>
-                              <Input
-                                type="number"
-                                min="0"
-                                placeholder="Set qty…"
-                                value={editQty[item.id] ?? ""}
-                                onChange={(e) =>
-                                  setEditQty((prev) => ({
-                                    ...prev,
-                                    [item.id]: e.target.value,
-                                  }))
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    const val = parseInt(editQty[item.id], 10);
-                                    if (!isNaN(val) && val >= 0) setStock(item, val);
-                                    setEditQty((prev) => {
-                                      const n = { ...prev };
-                                      delete n[item.id];
-                                      return n;
-                                    });
-                                  }
-                                  if (e.key === "Escape") {
-                                    setEditQty((prev) => {
-                                      const n = { ...prev };
-                                      delete n[item.id];
-                                      return n;
-                                    });
-                                  }
-                                }}
-                                onBlur={() => {
-                                  if (editQty[item.id] !== undefined && editQty[item.id] !== "") {
-                                    const val = parseInt(editQty[item.id], 10);
-                                    if (!isNaN(val) && val >= 0) setStock(item, val);
-                                  }
-                                  setEditQty((prev) => {
-                                    const n = { ...prev };
-                                    delete n[item.id];
-                                    return n;
-                                  });
-                                }}
-                                className="mt-1.5 h-7 text-xs text-center px-2"
-                              />
-                            </div>
-                          );
-                        })}
+                          })}
+                        </div>
                       </div>
-                    </div>
                     );
                   })}
                 </div>
@@ -2015,7 +2046,11 @@ function PlanningModule() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [level, setLevel] = useState("all");
-  const load = async () => { setLoading(true); setItems(await api.get("plans")); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    setItems(await api.get("plans"));
+    setLoading(false);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -2049,15 +2084,19 @@ function PlanningModule() {
   const filtered =
     level === "all" ? items : items.filter((p) => p.level === level);
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <CardSkeleton
+          count={6}
+          cols="grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+        />
       </div>
-      <CardSkeleton count={6} cols="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -2334,7 +2373,11 @@ function ContentModule() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [view, setView] = useState("kanban");
-  const load = async () => { setLoading(true); setItems(await api.get("content")); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    setItems(await api.get("content"));
+    setLoading(false);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -2370,15 +2413,16 @@ function ContentModule() {
     );
   };
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-56 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-56 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <KanbanSkeleton columns={4} />
       </div>
-      <KanbanSkeleton columns={4} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -2684,7 +2728,11 @@ function CreatorCRM() {
   const [status, setStatus] = useState("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const load = async () => { setLoading(true); setItems(await api.get("creators")); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    setItems(await api.get("creators"));
+    setLoading(false);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -2730,15 +2778,19 @@ function CreatorCRM() {
   const filtered =
     status === "all" ? items : items.filter((i) => i.status === status);
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-36 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-72 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-36 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-72 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <CardSkeleton
+          count={6}
+          cols="grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+        />
       </div>
-      <CardSkeleton count={6} cols="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -3074,7 +3126,11 @@ function SchoolCRM() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const load = async () => { setLoading(true); setItems(await api.get("schools")); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    setItems(await api.get("schools"));
+    setLoading(false);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -3115,15 +3171,16 @@ function SchoolCRM() {
     toast.success("School deleted");
   };
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-32 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-60 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-32 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-60 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <TableSkeleton rows={6} cols={5} />
       </div>
-      <TableSkeleton rows={6} cols={5} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -3417,7 +3474,11 @@ function SchoolModal({ open, onOpenChange, initial, onSave }) {
 function TimelineModule() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const load = async () => { setLoading(true); setItems(await api.get("timeline")); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    setItems(await api.get("timeline"));
+    setLoading(false);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -3435,15 +3496,16 @@ function TimelineModule() {
     Low: "bg-emerald-500",
   };
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-40 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-40 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <TimelineSkeleton years={3} items={4} />
       </div>
-      <TimelineSkeleton years={3} items={4} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -3533,7 +3595,11 @@ function FinanceModule() {
   const [loading, setLoading] = useState(true);
   const [scenario, setScenario] = useState("Normal");
   useEffect(() => {
-    (async () => { setLoading(true); setFinance(await api.get("finance")); setLoading(false); })();
+    (async () => {
+      setLoading(true);
+      setFinance(await api.get("finance"));
+      setLoading(false);
+    })();
   }, []);
 
   const scenarioMultiplier = {
@@ -3551,15 +3617,16 @@ function FinanceModule() {
   const totalExp = finance.reduce((s, f) => s + f.expenses, 0);
   const totalProfit = totalRev - totalExp;
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <StatsSkeleton stats={4} showChart={true} />
       </div>
-      <StatsSkeleton stats={4} showChart={true} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -3768,7 +3835,11 @@ function FinanceModule() {
 function EventsModule() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const load = async () => { setLoading(true); setItems(await api.get("events")); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    setItems(await api.get("events"));
+    setLoading(false);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -3784,15 +3855,19 @@ function EventsModule() {
     );
   };
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-52 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-52 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <CardSkeleton
+          count={6}
+          cols="grid-cols-1 lg:grid-cols-2 xl:grid-cols-3"
+        />
       </div>
-      <CardSkeleton count={6} cols="grid-cols-1 lg:grid-cols-2 xl:grid-cols-3" />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -4029,7 +4104,11 @@ function ReportsModule() {
 function NotificationsModule() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const load = async () => { setLoading(true); setItems(await api.get("notifications")); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    setItems(await api.get("notifications"));
+    setLoading(false);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -4044,15 +4123,16 @@ function NotificationsModule() {
     success: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
   };
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <ListSkeleton count={7} />
       </div>
-      <ListSkeleton count={7} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -4384,7 +4464,7 @@ function FinancialAccountModule() {
   const safePage = Math.min(page, totalPages);
   const paginated = filtered.slice(
     (safePage - 1) * PAGE_SIZE_FA,
-    safePage * PAGE_SIZE_FA
+    safePage * PAGE_SIZE_FA,
   );
 
   const counts = FA_TYPES.reduce((acc, t) => {
@@ -4392,16 +4472,17 @@ function FinancialAccountModule() {
     return acc;
   }, {});
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-60 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-60 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <StatsSkeleton stats={3} showChart={false} />
+        <TableSkeleton rows={6} cols={5} />
       </div>
-      <StatsSkeleton stats={3} showChart={false} />
-      <TableSkeleton rows={6} cols={5} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -4548,11 +4629,13 @@ function FinancialAccountModule() {
                       <p className="font-medium">{a.name}</p>
                       {a.linkedCoa ? (
                         <p className="text-[10px] text-emerald-500 mt-0.5">
-                          COA: {a.linkedCoa.accountCode} — {a.linkedCoa.accountName}
+                          COA: {a.linkedCoa.accountCode} —{" "}
+                          {a.linkedCoa.accountName}
                         </p>
                       ) : (
                         <p className="text-[10px] text-amber-500 mt-0.5 flex items-center gap-0.5">
-                          <AlertTriangle className="h-2.5 w-2.5 inline" /> No linked COA
+                          <AlertTriangle className="h-2.5 w-2.5 inline" /> No
+                          linked COA
                         </p>
                       )}
                     </td>
@@ -4685,7 +4768,13 @@ function FinancialAccountModule() {
   );
 }
 
-function FinancialAccountModal({ open, onOpenChange, initial, coaAccounts = [], onSave }) {
+function FinancialAccountModal({
+  open,
+  onOpenChange,
+  initial,
+  coaAccounts = [],
+  onSave,
+}) {
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const [checkingName, setCheckingName] = useState(false);
@@ -4711,7 +4800,7 @@ function FinancialAccountModal({ open, onOpenChange, initial, coaAccounts = [], 
       setCheckingName(true);
       try {
         const res = await api.get(
-          `financialaccounts/check-name?name=${encodeURIComponent(form.name.trim())}${initial?.id ? `&excludeId=${initial.id}` : ""}`
+          `financialaccounts/check-name?name=${encodeURIComponent(form.name.trim())}${initial?.id ? `&excludeId=${initial.id}` : ""}`,
         );
         if (res.exists) errs.name = "Account name already exists";
       } catch {}
@@ -4848,7 +4937,9 @@ function FinancialAccountModal({ open, onOpenChange, initial, coaAccounts = [], 
             <Label>Linked COA Account</Label>
             <Select
               value={form.linkedCoaId || "none"}
-              onValueChange={(v) => update("linkedCoaId", v === "none" ? "" : v)}
+              onValueChange={(v) =>
+                update("linkedCoaId", v === "none" ? "" : v)
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Link to Chart of Accounts..." />
@@ -4863,7 +4954,8 @@ function FinancialAccountModal({ open, onOpenChange, initial, coaAccounts = [], 
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Required for automatic journal entry generation in Cash In / Cash Out
+              Required for automatic journal entry generation in Cash In / Cash
+              Out
             </p>
           </div>
 
@@ -4886,9 +4978,7 @@ function FinancialAccountModal({ open, onOpenChange, initial, coaAccounts = [], 
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={checkingName}>
-            {checkingName && (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            )}
+            {checkingName && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {isEdit ? "Save Changes" : "Create Account"}
           </Button>
         </DialogFooter>
@@ -4924,12 +5014,20 @@ function CashTransactionModule({ type }) {
       api.get("chartofaccounts"),
     ]);
     setItems(Array.isArray(txns) ? txns : []);
-    setFinancialAccounts(Array.isArray(fas) ? fas.filter((f) => f.isActive) : []);
-    setCoaAccounts(Array.isArray(coas) ? coas.filter((c) => c.allowTransaction && c.isActive) : []);
+    setFinancialAccounts(
+      Array.isArray(fas) ? fas.filter((f) => f.isActive) : [],
+    );
+    setCoaAccounts(
+      Array.isArray(coas)
+        ? coas.filter((c) => c.allowTransaction && c.isActive)
+        : [],
+    );
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [type]);
+  useEffect(() => {
+    load();
+  }, [type]);
 
   const emptyForm = {
     transactionDate: new Date().toISOString().split("T")[0],
@@ -4954,7 +5052,11 @@ function CashTransactionModule({ type }) {
       toast.error(result.error);
       return;
     }
-    toast.success(editing?.id ? label + " transaction updated" : label + " transaction created");
+    toast.success(
+      editing?.id
+        ? label + " transaction updated"
+        : label + " transaction created",
+    );
     setOpen(false);
     setEditing(null);
     load();
@@ -4985,15 +5087,13 @@ function CashTransactionModule({ type }) {
   const safePage = Math.min(page, totalPages);
   const paginated = filtered.slice(
     (safePage - 1) * PAGE_SIZE_CASH,
-    safePage * PAGE_SIZE_CASH
+    safePage * PAGE_SIZE_CASH,
   );
 
   const totalAmount = items.reduce((s, t) => s + (t.amount || 0), 0);
   const now = new Date();
   const monthStr =
-    now.getFullYear() +
-    "-" +
-    String(now.getMonth() + 1).padStart(2, "0");
+    now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
   const monthAmount = items
     .filter((t) => t.transactionDate?.startsWith(monthStr))
     .reduce((s, t) => s + (t.amount || 0), 0);
@@ -5001,16 +5101,17 @@ function CashTransactionModule({ type }) {
   const isIn = type === "IN";
   const amtClass = isIn ? "text-emerald-500" : "text-rose-500";
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-32 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-32 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <StatsSkeleton stats={3} showChart={false} />
+        <TableSkeleton rows={8} cols={6} />
       </div>
-      <StatsSkeleton stats={3} showChart={false} />
-      <TableSkeleton rows={8} cols={6} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -5295,8 +5396,8 @@ function CashTransactionModule({ type }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this{" "}
-              {label.toLowerCase()} transaction
+              Are you sure you want to delete this {label.toLowerCase()}{" "}
+              transaction
               {deleteTarget?.referenceNumber
                 ? " (" + deleteTarget.referenceNumber + ")"
                 : ""}
@@ -5526,7 +5627,9 @@ function CashTransactionViewModal({ open, onOpenChange, item }) {
     {
       label: "COA Account",
       value: item.chartOfAccount
-        ? item.chartOfAccount.accountCode + " — " + item.chartOfAccount.accountName
+        ? item.chartOfAccount.accountCode +
+          " — " +
+          item.chartOfAccount.accountName
         : "—",
     },
     { label: "Amount", value: fmt(item.amount), highlight: true },
@@ -5666,7 +5769,7 @@ function ChartOfAccountsModule() {
   const safePage = Math.min(page, totalPages);
   const paginated = filtered.slice(
     (safePage - 1) * PAGE_SIZE_COA,
-    safePage * PAGE_SIZE_COA
+    safePage * PAGE_SIZE_COA,
   );
 
   const getParentName = (parentId) => {
@@ -5680,16 +5783,17 @@ function ChartOfAccountsModule() {
     return acc;
   }, {});
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-60 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-60 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <StatsSkeleton stats={4} showChart={false} />
+        <TableSkeleton rows={8} cols={6} />
       </div>
-      <StatsSkeleton stats={4} showChart={false} />
-      <TableSkeleton rows={8} cols={6} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -5997,7 +6101,13 @@ function ChartOfAccountsModule() {
   );
 }
 
-function ChartOfAccountModal({ open, onOpenChange, initial, accounts, onSave }) {
+function ChartOfAccountModal({
+  open,
+  onOpenChange,
+  initial,
+  accounts,
+  onSave,
+}) {
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const [checkingCode, setCheckingCode] = useState(false);
@@ -6014,8 +6124,10 @@ function ChartOfAccountModal({ open, onOpenChange, initial, accounts, onSave }) 
 
   const validate = async () => {
     const errs = {};
-    if (!form.accountCode?.trim()) errs.accountCode = "Account code is required";
-    if (!form.accountName?.trim()) errs.accountName = "Account name is required";
+    if (!form.accountCode?.trim())
+      errs.accountCode = "Account code is required";
+    if (!form.accountName?.trim())
+      errs.accountName = "Account name is required";
     if (!form.accountType) errs.accountType = "Account type is required";
     if (!form.normalBalance) errs.normalBalance = "Normal balance is required";
 
@@ -6023,7 +6135,7 @@ function ChartOfAccountModal({ open, onOpenChange, initial, accounts, onSave }) 
       setCheckingCode(true);
       try {
         const res = await api.get(
-          `chartofaccounts/check-code?code=${encodeURIComponent(form.accountCode.trim())}${initial?.id ? `&excludeId=${initial.id}` : ""}`
+          `chartofaccounts/check-code?code=${encodeURIComponent(form.accountCode.trim())}${initial?.id ? `&excludeId=${initial.id}` : ""}`,
         );
         if (res.exists) errs.accountCode = "Account code already exists";
       } catch {}
@@ -6051,7 +6163,7 @@ function ChartOfAccountModal({ open, onOpenChange, initial, accounts, onSave }) 
   };
 
   const parentOptions = accounts.filter(
-    (a) => a.id !== initial?.id && a.isActive
+    (a) => a.id !== initial?.id && a.isActive,
   );
 
   return (
@@ -6163,7 +6275,9 @@ function ChartOfAccountModal({ open, onOpenChange, initial, accounts, onSave }) 
                 <SelectValue placeholder="None (top-level account)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">None (top-level account)</SelectItem>
+                <SelectItem value="__none__">
+                  None (top-level account)
+                </SelectItem>
                 {parentOptions.map((a) => (
                   <SelectItem key={a.id} value={a.id}>
                     {a.accountCode} — {a.accountName}
@@ -6232,7 +6346,11 @@ function RawMaterialModule() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState("");
-  const load = async () => { setLoading(true); setItems(await api.get("rawmaterials")); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    setItems(await api.get("rawmaterials"));
+    setLoading(false);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -6280,16 +6398,17 @@ function RawMaterialModule() {
     });
   };
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <StatsSkeleton stats={3} showChart={false} />
+        <TableSkeleton rows={6} cols={5} />
       </div>
-      <StatsSkeleton stats={3} showChart={false} />
-      <TableSkeleton rows={6} cols={5} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
@@ -6541,7 +6660,15 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave }) {
 }
 
 // =========== JOURNAL ENTRIES ===========
-const JOURNAL_SOURCES = ["Manual", "Cash In", "Cash Out", "Inventory", "Purchasing", "Sales", "Adjustment"];
+const JOURNAL_SOURCES = [
+  "Manual",
+  "Cash In",
+  "Cash Out",
+  "Inventory",
+  "Purchasing",
+  "Sales",
+  "Adjustment",
+];
 const PAGE_SIZE_JE = 15;
 
 function JournalEntriesModule() {
@@ -6568,11 +6695,17 @@ function JournalEntriesModule() {
       api.get("chartofaccounts"),
     ]);
     setItems(Array.isArray(journals) ? journals : []);
-    setCoaAccounts(Array.isArray(coas) ? coas.filter((c) => c.allowTransaction && c.isActive) : []);
+    setCoaAccounts(
+      Array.isArray(coas)
+        ? coas.filter((c) => c.allowTransaction && c.isActive)
+        : [],
+    );
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const save = async (data) => {
     let result;
@@ -6585,7 +6718,9 @@ function JournalEntriesModule() {
       toast.error(result.error);
       return;
     }
-    toast.success(editing?.id ? "Journal entry updated" : "Journal entry created");
+    toast.success(
+      editing?.id ? "Journal entry updated" : "Journal entry created",
+    );
     setOpen(false);
     setEditing(null);
     load();
@@ -6593,7 +6728,10 @@ function JournalEntriesModule() {
 
   const confirmPost = async () => {
     if (!postTarget) return;
-    const result = await api.post("journalentries/" + postTarget.id + "/post", {});
+    const result = await api.post(
+      "journalentries/" + postTarget.id + "/post",
+      {},
+    );
     if (result?.error) {
       toast.error(result.error);
     } else {
@@ -6626,13 +6764,17 @@ function JournalEntriesModule() {
     const matchFrom = !dateFrom || j.journalDate >= dateFrom;
     const matchTo = !dateTo || j.journalDate <= dateTo;
     const matchStatus = statusFilter === "all" || j.status === statusFilter;
-    const matchSource = sourceFilter === "all" || j.journalSource === sourceFilter;
+    const matchSource =
+      sourceFilter === "all" || j.journalSource === sourceFilter;
     return matchSearch && matchFrom && matchTo && matchStatus && matchSource;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE_JE));
   const safePage = Math.min(page, totalPages);
-  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE_JE, safePage * PAGE_SIZE_JE);
+  const paginated = filtered.slice(
+    (safePage - 1) * PAGE_SIZE_JE,
+    safePage * PAGE_SIZE_JE,
+  );
 
   const totalJournals = items.length;
   const draftCount = items.filter((j) => j.status === "Draft").length;
@@ -6645,33 +6787,49 @@ function JournalEntriesModule() {
     journalSource: "Manual",
     sourceId: "",
     lines: [
-      { chartOfAccountId: "", description: "", debitAmount: 0, creditAmount: 0 },
-      { chartOfAccountId: "", description: "", debitAmount: 0, creditAmount: 0 },
+      {
+        chartOfAccountId: "",
+        description: "",
+        debitAmount: 0,
+        creditAmount: 0,
+      },
+      {
+        chartOfAccountId: "",
+        description: "",
+        debitAmount: 0,
+        creditAmount: 0,
+      },
     ],
   };
 
-  if (loading) return (
-    <div className="space-y-6">
-      <div>
-        <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
-        <div className="h-4 w-72 bg-muted/40 rounded animate-pulse" />
+  if (loading)
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-72 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <StatsSkeleton stats={3} showChart={false} />
+        <TableSkeleton rows={8} cols={7} />
       </div>
-      <StatsSkeleton stats={3} showChart={false} />
-      <TableSkeleton rows={8} cols={7} />
-    </div>
-  );
+    );
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Journal Entries</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Journal Entries
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
             Accounting journal entries — the backbone of financial records
           </p>
         </div>
         <Button
-          onClick={() => { setEditing(null); setOpen(true); }}
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
           className="gap-2"
         >
           <Plus className="h-4 w-4" /> New Journal Entry
@@ -6689,13 +6847,17 @@ function JournalEntriesModule() {
         <Card className="border-border/60">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Draft</p>
-            <p className="text-2xl font-semibold mt-1 text-amber-500">{draftCount}</p>
+            <p className="text-2xl font-semibold mt-1 text-amber-500">
+              {draftCount}
+            </p>
           </CardContent>
         </Card>
         <Card className="border-border/60">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Posted</p>
-            <p className="text-2xl font-semibold mt-1 text-emerald-500">{postedCount}</p>
+            <p className="text-2xl font-semibold mt-1 text-emerald-500">
+              {postedCount}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -6708,22 +6870,37 @@ function JournalEntriesModule() {
             className="pl-8"
             placeholder="Search by journal number, description..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
         <Input
           type="date"
           className="w-full sm:w-36"
           value={dateFrom}
-          onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setDateFrom(e.target.value);
+            setPage(1);
+          }}
         />
         <Input
           type="date"
           className="w-full sm:w-36"
           value={dateTo}
-          onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setDateTo(e.target.value);
+            setPage(1);
+          }}
         />
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-full sm:w-[140px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -6733,22 +6910,42 @@ function JournalEntriesModule() {
             <SelectItem value="Posted">Posted</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setPage(1); }}>
+        <Select
+          value={sourceFilter}
+          onValueChange={(v) => {
+            setSourceFilter(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="Source" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Sources</SelectItem>
             {JOURNAL_SOURCES.map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {(search || dateFrom || dateTo || statusFilter !== "all" || sourceFilter !== "all") && (
-          <Button variant="ghost" size="sm" onClick={() => {
-            setSearch(""); setDateFrom(""); setDateTo("");
-            setStatusFilter("all"); setSourceFilter("all"); setPage(1);
-          }}>
+        {(search ||
+          dateFrom ||
+          dateTo ||
+          statusFilter !== "all" ||
+          sourceFilter !== "all") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch("");
+              setDateFrom("");
+              setDateTo("");
+              setStatusFilter("all");
+              setSourceFilter("all");
+              setPage(1);
+            }}
+          >
             Clear
           </Button>
         )}
@@ -6760,42 +6957,70 @@ function JournalEntriesModule() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Journal No.</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Source</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xl:table-cell">Type</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Debit</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Credit</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Journal No.
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Date
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Description
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+                  Source
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xl:table-cell">
+                  Type
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Status
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">
+                  Debit
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">
+                  Credit
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                  <td
+                    colSpan={9}
+                    className="px-4 py-12 text-center text-muted-foreground"
+                  >
                     <ClipboardList className="h-8 w-8 mx-auto mb-3 opacity-30" />
                     <p className="text-sm">No journal entries found</p>
                   </td>
                 </tr>
               ) : (
                 paginated.map((j) => (
-                  <tr key={j.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                  <tr
+                    key={j.id}
+                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                  >
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
                         {j.journalNumber}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">{j.journalDate}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {j.journalDate}
+                    </td>
                     <td className="px-4 py-3 max-w-[200px]">
                       <p className="truncate">{j.description}</p>
                       {j.referenceNumber && (
-                        <p className="text-xs text-muted-foreground">{j.referenceNumber}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {j.referenceNumber}
+                        </p>
                       )}
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <Badge variant="outline" className="font-normal text-xs">{j.journalSource}</Badge>
+                      <Badge variant="outline" className="font-normal text-xs">
+                        {j.journalSource}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 hidden xl:table-cell">
                       <Badge
@@ -6807,10 +7032,14 @@ function JournalEntriesModule() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge
-                        variant={j.status === "Posted" ? "default" : "secondary"}
+                        variant={
+                          j.status === "Posted" ? "default" : "secondary"
+                        }
                         className={`font-normal text-xs ${j.status === "Posted" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}
                       >
-                        {j.status === "Posted" ? <Lock className="h-3 w-3 mr-1 inline" /> : null}
+                        {j.status === "Posted" ? (
+                          <Lock className="h-3 w-3 mr-1 inline" />
+                        ) : null}
                         {j.status}
                       </Badge>
                     </td>
@@ -6823,28 +7052,44 @@ function JournalEntriesModule() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
                         <Button
-                          variant="ghost" size="icon" className="h-7 w-7" title="View"
-                          onClick={() => { setViewItem(j); setViewOpen(true); }}
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="View"
+                          onClick={() => {
+                            setViewItem(j);
+                            setViewOpen(true);
+                          }}
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Button>
                         {j.status === "Draft" && j.journalType !== "System" && (
                           <>
                             <Button
-                              variant="ghost" size="icon" className="h-7 w-7" title="Edit"
-                              onClick={() => { setEditing(j); setOpen(true); }}
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Edit"
+                              onClick={() => {
+                                setEditing(j);
+                                setOpen(true);
+                              }}
                             >
                               <Edit3 className="h-3.5 w-3.5" />
                             </Button>
                             <Button
-                              variant="ghost" size="icon" className="h-7 w-7 text-emerald-500 hover:text-emerald-600"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-emerald-500 hover:text-emerald-600"
                               title="Post Journal"
                               onClick={() => setPostTarget(j)}
                             >
                               <Send className="h-3.5 w-3.5" />
                             </Button>
                             <Button
-                              variant="ghost" size="icon" className="h-7 w-7 text-rose-400 hover:text-rose-500"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-rose-400 hover:text-rose-500"
                               title="Delete"
                               onClick={() => setDeleteTarget(j)}
                             >
@@ -6863,13 +7108,27 @@ function JournalEntriesModule() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
             <span className="text-xs text-muted-foreground">
-              Showing {(safePage - 1) * PAGE_SIZE_JE + 1}–{Math.min(safePage * PAGE_SIZE_JE, filtered.length)} of {filtered.length}
+              Showing {(safePage - 1) * PAGE_SIZE_JE + 1}–
+              {Math.min(safePage * PAGE_SIZE_JE, filtered.length)} of{" "}
+              {filtered.length}
             </span>
             <div className="flex gap-1">
-              <Button variant="outline" size="sm" className="h-7 px-2" disabled={safePage === 1} onClick={() => setPage((p) => p - 1)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2"
+                disabled={safePage === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="outline" size="sm" className="h-7 px-2" disabled={safePage === totalPages} onClick={() => setPage((p) => p + 1)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2"
+                disabled={safePage === totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -6880,28 +7139,42 @@ function JournalEntriesModule() {
       {/* Create / Edit Modal */}
       <JournalEntryModal
         open={open}
-        onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) setEditing(null);
+        }}
         initial={editing || emptyForm}
         coaAccounts={coaAccounts}
         onSave={save}
       />
 
       {/* View Modal */}
-      <JournalEntryViewModal open={viewOpen} onOpenChange={setViewOpen} item={viewItem} />
+      <JournalEntryViewModal
+        open={viewOpen}
+        onOpenChange={setViewOpen}
+        item={viewItem}
+      />
 
       {/* Post Confirmation */}
-      <AlertDialog open={!!postTarget} onOpenChange={(v) => !v && setPostTarget(null)}>
+      <AlertDialog
+        open={!!postTarget}
+        onOpenChange={(v) => !v && setPostTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Post Journal Entry</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to post <strong>{postTarget?.journalNumber}</strong>?
-              Once posted, this entry will be locked and cannot be edited or deleted.
+              Are you sure you want to post{" "}
+              <strong>{postTarget?.journalNumber}</strong>? Once posted, this
+              entry will be locked and cannot be edited or deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-emerald-600 hover:bg-emerald-700" onClick={confirmPost}>
+            <AlertDialogAction
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={confirmPost}
+            >
               Post Journal
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -6909,18 +7182,25 @@ function JournalEntriesModule() {
       </AlertDialog>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Journal Entry</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{deleteTarget?.journalNumber}</strong>?
-              This action cannot be undone.
+              Are you sure you want to delete{" "}
+              <strong>{deleteTarget?.journalNumber}</strong>? This action cannot
+              be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-rose-500 hover:bg-rose-600" onClick={confirmDelete}>
+            <AlertDialogAction
+              className="bg-rose-500 hover:bg-rose-600"
+              onClick={confirmDelete}
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -6930,7 +7210,13 @@ function JournalEntriesModule() {
   );
 }
 
-function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave }) {
+function JournalEntryModal({
+  open,
+  onOpenChange,
+  initial,
+  coaAccounts,
+  onSave,
+}) {
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -6954,13 +7240,22 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
       if (k === "creditAmount" && Number(v) > 0) lines[idx].debitAmount = 0;
       return { ...f, lines };
     });
-    if (errors[`line_${idx}`]) setErrors((e) => ({ ...e, [`line_${idx}`]: null }));
+    if (errors[`line_${idx}`])
+      setErrors((e) => ({ ...e, [`line_${idx}`]: null }));
   };
 
   const addLine = () => {
     setForm((f) => ({
       ...f,
-      lines: [...f.lines, { chartOfAccountId: "", description: "", debitAmount: 0, creditAmount: 0 }],
+      lines: [
+        ...f.lines,
+        {
+          chartOfAccountId: "",
+          description: "",
+          debitAmount: 0,
+          creditAmount: 0,
+        },
+      ],
     }));
   };
 
@@ -6969,9 +7264,16 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
     setForm((f) => ({ ...f, lines: f.lines.filter((_, i) => i !== idx) }));
   };
 
-  const totalDebit = (form.lines || []).reduce((s, l) => s + (Number(l.debitAmount) || 0), 0);
-  const totalCredit = (form.lines || []).reduce((s, l) => s + (Number(l.creditAmount) || 0), 0);
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
+  const totalDebit = (form.lines || []).reduce(
+    (s, l) => s + (Number(l.debitAmount) || 0),
+    0,
+  );
+  const totalCredit = (form.lines || []).reduce(
+    (s, l) => s + (Number(l.creditAmount) || 0),
+    0,
+  );
+  const isBalanced =
+    Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
 
   const validate = () => {
     const errs = {};
@@ -6982,7 +7284,8 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
     (form.lines || []).forEach((l, i) => {
       if (!l.chartOfAccountId) errs[`line_${i}`] = "Account is required";
     });
-    if (!isBalanced && totalDebit > 0) errs.balance = "Total debit must equal total credit";
+    if (!isBalanced && totalDebit > 0)
+      errs.balance = "Total debit must equal total credit";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -7012,42 +7315,63 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Journal Entry" : "New Journal Entry"}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit Journal Entry" : "New Journal Entry"}
+          </DialogTitle>
           <DialogDescription>
-            {isEdit ? "Update this draft journal entry" : "Create a new accounting journal entry"}
+            {isEdit
+              ? "Update this draft journal entry"
+              : "Create a new accounting journal entry"}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           {/* Header Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Journal Date <span className="text-rose-400">*</span></Label>
+              <Label>
+                Journal Date <span className="text-rose-400">*</span>
+              </Label>
               <Input
                 type="date"
                 value={form.journalDate || ""}
                 onChange={(e) => updateHeader("journalDate", e.target.value)}
                 className={errors.journalDate ? "border-rose-500" : ""}
               />
-              {errors.journalDate && <p className="text-xs text-rose-400">{errors.journalDate}</p>}
+              {errors.journalDate && (
+                <p className="text-xs text-rose-400">{errors.journalDate}</p>
+              )}
             </div>
             <div className="space-y-1.5">
-              <Label>Journal Source <span className="text-rose-400">*</span></Label>
-              <Select value={form.journalSource || "Manual"} onValueChange={(v) => updateHeader("journalSource", v)}>
-                <SelectTrigger className={errors.journalSource ? "border-rose-500" : ""}>
+              <Label>
+                Journal Source <span className="text-rose-400">*</span>
+              </Label>
+              <Select
+                value={form.journalSource || "Manual"}
+                onValueChange={(v) => updateHeader("journalSource", v)}
+              >
+                <SelectTrigger
+                  className={errors.journalSource ? "border-rose-500" : ""}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {JOURNAL_SOURCES.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.journalSource && <p className="text-xs text-rose-400">{errors.journalSource}</p>}
+              {errors.journalSource && (
+                <p className="text-xs text-rose-400">{errors.journalSource}</p>
+              )}
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Description <span className="text-rose-400">*</span></Label>
+            <Label>
+              Description <span className="text-rose-400">*</span>
+            </Label>
             <Textarea
               value={form.description || ""}
               onChange={(e) => updateHeader("description", e.target.value)}
@@ -7055,7 +7379,9 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
               rows={2}
               className={errors.description ? "border-rose-500" : ""}
             />
-            {errors.description && <p className="text-xs text-rose-400">{errors.description}</p>}
+            {errors.description && (
+              <p className="text-xs text-rose-400">{errors.description}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -7063,7 +7389,9 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
               <Label>Reference Number</Label>
               <Input
                 value={form.referenceNumber || ""}
-                onChange={(e) => updateHeader("referenceNumber", e.target.value)}
+                onChange={(e) =>
+                  updateHeader("referenceNumber", e.target.value)
+                }
                 placeholder="e.g. INV-001 (optional)"
               />
             </div>
@@ -7080,12 +7408,21 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
           {/* Lines */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Journal Lines <span className="text-rose-400">*</span></Label>
-              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addLine}>
+              <Label>
+                Journal Lines <span className="text-rose-400">*</span>
+              </Label>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={addLine}
+              >
                 <Plus className="h-3 w-3" /> Add Line
               </Button>
             </div>
-            {errors.lines && <p className="text-xs text-rose-400">{errors.lines}</p>}
+            {errors.lines && (
+              <p className="text-xs text-rose-400">{errors.lines}</p>
+            )}
             {errors.balance && (
               <div className="flex items-center gap-2 p-2 rounded-md bg-rose-500/10 border border-rose-500/30">
                 <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
@@ -7098,41 +7435,64 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">Account <span className="text-rose-400">*</span></th>
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground hidden sm:table-cell">Description</th>
-                      <th className="px-3 py-2 text-right font-medium text-muted-foreground w-32">Debit</th>
-                      <th className="px-3 py-2 text-right font-medium text-muted-foreground w-32">Credit</th>
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">
+                        Account <span className="text-rose-400">*</span>
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground hidden sm:table-cell">
+                        Description
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground w-32">
+                        Debit
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground w-32">
+                        Credit
+                      </th>
                       <th className="px-3 py-2 w-8" />
                     </tr>
                   </thead>
                   <tbody>
                     {(form.lines || []).map((line, idx) => (
-                      <tr key={idx} className="border-b border-border/50 last:border-0">
+                      <tr
+                        key={idx}
+                        className="border-b border-border/50 last:border-0"
+                      >
                         <td className="px-3 py-2 min-w-[180px]">
                           <Select
                             value={line.chartOfAccountId || ""}
-                            onValueChange={(v) => updateLine(idx, "chartOfAccountId", v)}
+                            onValueChange={(v) =>
+                              updateLine(idx, "chartOfAccountId", v)
+                            }
                           >
-                            <SelectTrigger className={`h-8 text-xs ${errors[`line_${idx}`] ? "border-rose-500" : ""}`}>
+                            <SelectTrigger
+                              className={`h-8 text-xs ${errors[`line_${idx}`] ? "border-rose-500" : ""}`}
+                            >
                               <SelectValue placeholder="Select account..." />
                             </SelectTrigger>
                             <SelectContent>
                               {coaAccounts.map((c) => (
-                                <SelectItem key={c.id} value={c.id} className="text-xs">
+                                <SelectItem
+                                  key={c.id}
+                                  value={c.id}
+                                  className="text-xs"
+                                >
                                   {c.accountCode} — {c.accountName}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                           {errors[`line_${idx}`] && (
-                            <p className="text-[10px] text-rose-400 mt-0.5">{errors[`line_${idx}`]}</p>
+                            <p className="text-[10px] text-rose-400 mt-0.5">
+                              {errors[`line_${idx}`]}
+                            </p>
                           )}
                         </td>
                         <td className="px-3 py-2 hidden sm:table-cell">
                           <Input
                             className="h-8 text-xs"
                             value={line.description || ""}
-                            onChange={(e) => updateLine(idx, "description", e.target.value)}
+                            onChange={(e) =>
+                              updateLine(idx, "description", e.target.value)
+                            }
                             placeholder="Optional note"
                           />
                         </td>
@@ -7156,7 +7516,9 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
                         </td>
                         <td className="px-3 py-2">
                           <Button
-                            variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-400"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-rose-400"
                             disabled={form.lines.length <= 2}
                             onClick={() => removeLine(idx)}
                           >
@@ -7168,16 +7530,23 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-border bg-muted/20">
-                      <td colSpan={2} className="px-3 py-2 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell">
+                      <td
+                        colSpan={2}
+                        className="px-3 py-2 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell"
+                      >
                         Total
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <span className={`text-sm font-semibold ${totalDebit > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                        <span
+                          className={`text-sm font-semibold ${totalDebit > 0 ? "text-foreground" : "text-muted-foreground"}`}
+                        >
                           {fmt(totalDebit)}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <span className={`text-sm font-semibold ${totalCredit > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                        <span
+                          className={`text-sm font-semibold ${totalCredit > 0 ? "text-foreground" : "text-muted-foreground"}`}
+                        >
                           {fmt(totalCredit)}
                         </span>
                       </td>
@@ -7196,7 +7565,9 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
             </div>
 
             {totalDebit > 0 && (
-              <p className={`text-xs ${isBalanced ? "text-emerald-500" : "text-rose-400"}`}>
+              <p
+                className={`text-xs ${isBalanced ? "text-emerald-500" : "text-rose-400"}`}
+              >
                 {isBalanced
                   ? "Balanced — debit equals credit"
                   : `Difference: ${fmt(Math.abs(totalDebit - totalCredit))}`}
@@ -7205,7 +7576,9 @@ function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave })
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {isEdit ? "Save Changes" : "Create Journal Entry"}
@@ -7234,17 +7607,26 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
               { label: "Journal Number", value: item.journalNumber },
               { label: "Journal Date", value: item.journalDate },
               { label: "Source", value: item.journalSource },
-              { label: "Journal Type", value: item.journalType === "System" ? "System Generated" : "Manual" },
+              {
+                label: "Journal Type",
+                value:
+                  item.journalType === "System" ? "System Generated" : "Manual",
+              },
               { label: "Status", value: item.status },
               { label: "Reference Number", value: item.referenceNumber || "—" },
               { label: "Source ID", value: item.sourceId || "—" },
               { label: "Created By", value: item.createdBy || "—" },
               {
                 label: "Created At",
-                value: item.createdAt ? new Date(item.createdAt).toLocaleString("id-ID") : "—",
+                value: item.createdAt
+                  ? new Date(item.createdAt).toLocaleString("id-ID")
+                  : "—",
               },
             ].map((r) => (
-              <div key={r.label} className="py-1 border-b border-border/40 last:border-0">
+              <div
+                key={r.label}
+                className="py-1 border-b border-border/40 last:border-0"
+              >
                 <p className="text-xs text-muted-foreground">{r.label}</p>
                 <p className="font-medium mt-0.5">{r.value}</p>
               </div>
@@ -7263,17 +7645,30 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Account</th>
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground hidden sm:table-cell">Description</th>
-                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Debit</th>
-                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Credit</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">
+                      Account
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground hidden sm:table-cell">
+                      Description
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      Debit
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      Credit
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {(item.lines || []).map((line, idx) => (
-                    <tr key={idx} className="border-b border-border/50 last:border-0">
+                    <tr
+                      key={idx}
+                      className="border-b border-border/50 last:border-0"
+                    >
                       <td className="px-3 py-2">
-                        <p className="text-xs text-muted-foreground">{line.chartOfAccount?.accountCode}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {line.chartOfAccount?.accountCode}
+                        </p>
                         <p>{line.chartOfAccount?.accountName}</p>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">
@@ -7290,11 +7685,18 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-border bg-muted/20">
-                    <td colSpan={2} className="px-3 py-2 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell">
+                    <td
+                      colSpan={2}
+                      className="px-3 py-2 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell"
+                    >
                       Total
                     </td>
-                    <td className="px-3 py-2 text-right font-semibold">{fmt(item.totalDebit)}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{fmt(item.totalCredit)}</td>
+                    <td className="px-3 py-2 text-right font-semibold">
+                      {fmt(item.totalDebit)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold">
+                      {fmt(item.totalCredit)}
+                    </td>
                   </tr>
                 </tfoot>
               </table>
@@ -7302,7 +7704,9 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -7312,7 +7716,9 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
 // =========== GENERAL LEDGER ===========
 function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
   const [coaAccounts, setCoaAccounts] = useState([]);
-  const [selectedAccountId, setSelectedAccountId] = useState(initialAccountId || "");
+  const [selectedAccountId, setSelectedAccountId] = useState(
+    initialAccountId || "",
+  );
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
@@ -7326,7 +7732,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
       setCoaAccounts(
         Array.isArray(data)
           ? data.filter((c) => c.allowTransaction && c.isActive)
-          : []
+          : [],
       );
     });
   }, []);
@@ -7374,7 +7780,9 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">General Ledger</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            General Ledger
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
             Account-level transaction history from posted journal entries
           </p>
@@ -7485,10 +7893,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
                 ledgerData.closingBalance >= 0
                   ? "text-emerald-500"
                   : "text-rose-400",
-              suffix:
-                ledgerData.closingBalance < 0
-                  ? " (Cr)"
-                  : "",
+              suffix: ledgerData.closingBalance < 0 ? " (Cr)" : "",
             },
           ].map((s) => (
             <Card key={s.label} className="border-border/60">
@@ -7605,10 +8010,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
                       </span>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <Badge
-                        variant="outline"
-                        className="font-normal text-xs"
-                      >
+                      <Badge variant="outline" className="font-normal text-xs">
                         {line.journalSource}
                       </Badge>
                     </td>
@@ -7626,9 +8028,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
                     </td>
                     <td
                       className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${
-                        line.runningBalance >= 0
-                          ? ""
-                          : "text-rose-400"
+                        line.runningBalance >= 0 ? "" : "text-rose-400"
                       }`}
                     >
                       {fmt(Math.abs(line.runningBalance))}
@@ -7725,17 +8125,29 @@ function TrialBalanceModule({ onNavigateToLedger }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Trial Balance</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Trial Balance
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
             Summarized debit and credit balances from posted journal entries
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled title="Export PDF (coming soon)">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Export PDF (coming soon)"
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export PDF
           </Button>
-          <Button variant="outline" size="sm" disabled title="Export Excel (coming soon)">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Export Excel (coming soon)"
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export Excel
           </Button>
@@ -7784,9 +8196,12 @@ function TrialBalanceModule({ onNavigateToLedger }) {
         <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-rose-500/40 bg-rose-500/10 text-rose-400">
           <AlertTriangle className="h-5 w-5 shrink-0" />
           <div>
-            <p className="font-semibold text-sm">Trial Balance Out of Balance</p>
+            <p className="font-semibold text-sm">
+              Trial Balance Out of Balance
+            </p>
             <p className="text-xs mt-0.5 text-rose-400/80">
-              Difference of {fmt(data.difference)} detected. Check posted journal entries for errors.
+              Difference of {fmt(data.difference)} detected. Check posted
+              journal entries for errors.
             </p>
           </div>
         </div>
@@ -7797,20 +8212,34 @@ function TrialBalanceModule({ onNavigateToLedger }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card className="border-border/60">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Debit</p>
-              <p className="text-xl font-semibold text-blue-400 mt-1">{fmt(data.totalDebit)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Total Debit
+              </p>
+              <p className="text-xl font-semibold text-blue-400 mt-1">
+                {fmt(data.totalDebit)}
+              </p>
             </CardContent>
           </Card>
           <Card className="border-border/60">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Credit</p>
-              <p className="text-xl font-semibold text-orange-400 mt-1">{fmt(data.totalCredit)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Total Credit
+              </p>
+              <p className="text-xl font-semibold text-orange-400 mt-1">
+                {fmt(data.totalCredit)}
+              </p>
             </CardContent>
           </Card>
-          <Card className={`border-border/60 ${!data.isBalanced ? "border-rose-500/40" : ""}`}>
+          <Card
+            className={`border-border/60 ${!data.isBalanced ? "border-rose-500/40" : ""}`}
+          >
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Difference</p>
-              <p className={`text-xl font-semibold mt-1 ${data.isBalanced ? "text-emerald-500" : "text-rose-400"}`}>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Difference
+              </p>
+              <p
+                className={`text-xl font-semibold mt-1 ${data.isBalanced ? "text-emerald-500" : "text-rose-400"}`}
+              >
                 {data.isBalanced ? "Balanced" : fmt(data.difference)}
               </p>
             </CardContent>
@@ -7822,13 +8251,17 @@ function TrialBalanceModule({ onNavigateToLedger }) {
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Calculating trial balance...</span>
+          <span className="text-sm text-muted-foreground">
+            Calculating trial balance...
+          </span>
         </div>
       ) : data && data.rows.length === 0 ? (
         <Card className="border-border/60">
           <div className="py-20 text-center text-muted-foreground">
             <Scale className="h-10 w-10 mx-auto mb-3 opacity-20" />
-            <p className="text-sm">No posted journal entries found for the selected period</p>
+            <p className="text-sm">
+              No posted journal entries found for the selected period
+            </p>
           </div>
         </Card>
       ) : data ? (
@@ -7966,7 +8399,10 @@ function ProfitLossModule({ onNavigateToLedger }) {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
+              <td
+                colSpan={4}
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
                 {emptyLabel}
               </td>
             </tr>
@@ -8011,17 +8447,29 @@ function ProfitLossModule({ onNavigateToLedger }) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Profit &amp; Loss</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Profit &amp; Loss
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
             Income statement based on posted journal entries
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled title="Export PDF (coming soon)">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Export PDF (coming soon)"
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export PDF
           </Button>
-          <Button variant="outline" size="sm" disabled title="Export Excel (coming soon)">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Export Excel (coming soon)"
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export Excel
           </Button>
@@ -8070,21 +8518,36 @@ function ProfitLossModule({ onNavigateToLedger }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card className="border-border/60">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Revenue</p>
-              <p className="text-xl font-semibold text-emerald-500 mt-1">{fmt(data.totalRevenue)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Total Revenue
+              </p>
+              <p className="text-xl font-semibold text-emerald-500 mt-1">
+                {fmt(data.totalRevenue)}
+              </p>
             </CardContent>
           </Card>
           <Card className="border-border/60">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Expenses</p>
-              <p className="text-xl font-semibold text-rose-400 mt-1">{fmt(data.totalExpenses)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Total Expenses
+              </p>
+              <p className="text-xl font-semibold text-rose-400 mt-1">
+                {fmt(data.totalExpenses)}
+              </p>
             </CardContent>
           </Card>
-          <Card className={`border-border/60 ${data.netProfit < 0 ? "border-rose-500/40" : ""}`}>
+          <Card
+            className={`border-border/60 ${data.netProfit < 0 ? "border-rose-500/40" : ""}`}
+          >
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Profit</p>
-              <p className={`text-xl font-semibold mt-1 ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
-                {data.netProfit < 0 ? "-" : ""}{fmt(Math.abs(data.netProfit))}
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Net Profit
+              </p>
+              <p
+                className={`text-xl font-semibold mt-1 ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+              >
+                {data.netProfit < 0 ? "-" : ""}
+                {fmt(Math.abs(data.netProfit))}
               </p>
             </CardContent>
           </Card>
@@ -8094,7 +8557,9 @@ function ProfitLossModule({ onNavigateToLedger }) {
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Generating report...</span>
+          <span className="text-sm text-muted-foreground">
+            Generating report...
+          </span>
         </div>
       ) : data ? (
         <div className="space-y-4">
@@ -8106,10 +8571,15 @@ function ProfitLossModule({ onNavigateToLedger }) {
                   <TrendingUp className="h-4 w-4 text-emerald-500" />
                   Revenue
                 </CardTitle>
-                <span className="text-sm font-semibold text-emerald-500">{fmt(data.totalRevenue)}</span>
+                <span className="text-sm font-semibold text-emerald-500">
+                  {fmt(data.totalRevenue)}
+                </span>
               </div>
             </CardHeader>
-            <AccountTable rows={data.revenueRows} emptyLabel="No revenue accounts with posted transactions" />
+            <AccountTable
+              rows={data.revenueRows}
+              emptyLabel="No revenue accounts with posted transactions"
+            />
             <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Revenue</span>
               <span className="text-emerald-500">{fmt(data.totalRevenue)}</span>
@@ -8124,10 +8594,15 @@ function ProfitLossModule({ onNavigateToLedger }) {
                   <TrendingDown className="h-4 w-4 text-rose-400" />
                   Expenses
                 </CardTitle>
-                <span className="text-sm font-semibold text-rose-400">{fmt(data.totalExpenses)}</span>
+                <span className="text-sm font-semibold text-rose-400">
+                  {fmt(data.totalExpenses)}
+                </span>
               </div>
             </CardHeader>
-            <AccountTable rows={data.expenseRows} emptyLabel="No expense accounts with posted transactions" />
+            <AccountTable
+              rows={data.expenseRows}
+              emptyLabel="No expense accounts with posted transactions"
+            />
             <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Expenses</span>
               <span className="text-rose-400">{fmt(data.totalExpenses)}</span>
@@ -8135,15 +8610,24 @@ function ProfitLossModule({ onNavigateToLedger }) {
           </Card>
 
           {/* Net Profit Row */}
-          <Card className={`border-2 ${data.netProfit >= 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}>
+          <Card
+            className={`border-2 ${data.netProfit >= 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Net Profit / (Loss)</p>
-                  <p className="text-xs text-muted-foreground">Total Revenue − Total Expenses</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                    Net Profit / (Loss)
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Total Revenue − Total Expenses
+                  </p>
                 </div>
-                <p className={`text-2xl font-bold ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
-                  {data.netProfit < 0 ? "-" : ""}{fmt(Math.abs(data.netProfit))}
+                <p
+                  className={`text-2xl font-bold ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+                >
+                  {data.netProfit < 0 ? "-" : ""}
+                  {fmt(Math.abs(data.netProfit))}
                 </p>
               </div>
             </CardContent>
@@ -8194,21 +8678,29 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
           {rows.length === 0 ? (
             emptyLabel ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td
+                  colSpan={4}
+                  className="px-4 py-8 text-center text-sm text-muted-foreground"
+                >
                   {emptyLabel}
                 </td>
               </tr>
             ) : null
           ) : (
             rows.map((row) => (
-              <tr key={row.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+              <tr
+                key={row.id}
+                className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+              >
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
                     {row.accountCode}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-medium">{row.accountName}</td>
-                <td className={`px-4 py-3 text-right font-medium ${balanceColor}`}>
+                <td
+                  className={`px-4 py-3 text-right font-medium ${balanceColor}`}
+                >
                   {fmt(row.balance)}
                 </td>
                 <td className="px-4 py-3">
@@ -8237,17 +8729,29 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Balance Sheet</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Balance Sheet
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
             Financial position report based on posted journal entries
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled title="Export PDF (coming soon)">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Export PDF (coming soon)"
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export PDF
           </Button>
-          <Button variant="outline" size="sm" disabled title="Export Excel (coming soon)">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Export Excel (coming soon)"
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export Excel
           </Button>
@@ -8284,7 +8788,9 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
         <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-rose-500/40 bg-rose-500/10 text-rose-400">
           <AlertTriangle className="h-5 w-5 shrink-0" />
           <div>
-            <p className="font-semibold text-sm">Balance Sheet Out of Balance</p>
+            <p className="font-semibold text-sm">
+              Balance Sheet Out of Balance
+            </p>
             <p className="text-xs mt-0.5 text-rose-400/80">
               Assets ≠ Liabilities + Equity · Difference: {fmt(data.difference)}
             </p>
@@ -8297,20 +8803,34 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card className="border-border/60">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Assets</p>
-              <p className="text-xl font-semibold text-blue-400 mt-1">{fmt(data.totalAssets)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Total Assets
+              </p>
+              <p className="text-xl font-semibold text-blue-400 mt-1">
+                {fmt(data.totalAssets)}
+              </p>
             </CardContent>
           </Card>
           <Card className="border-border/60">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Liabilities</p>
-              <p className="text-xl font-semibold text-rose-400 mt-1">{fmt(data.totalLiabilities)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Total Liabilities
+              </p>
+              <p className="text-xl font-semibold text-rose-400 mt-1">
+                {fmt(data.totalLiabilities)}
+              </p>
             </CardContent>
           </Card>
-          <Card className={`border-border/60 ${data.isBalanced ? "" : "border-rose-500/40"}`}>
+          <Card
+            className={`border-border/60 ${data.isBalanced ? "" : "border-rose-500/40"}`}
+          >
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Equity</p>
-              <p className="text-xl font-semibold text-emerald-500 mt-1">{fmt(data.totalEquity)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Total Equity
+              </p>
+              <p className="text-xl font-semibold text-emerald-500 mt-1">
+                {fmt(data.totalEquity)}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -8319,7 +8839,9 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Generating balance sheet...</span>
+          <span className="text-sm text-muted-foreground">
+            Generating balance sheet...
+          </span>
         </div>
       ) : data ? (
         <div className="space-y-4">
@@ -8331,7 +8853,9 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
                   <Landmark className="h-4 w-4 text-blue-400" />
                   Assets
                 </CardTitle>
-                <span className="text-sm font-semibold text-blue-400">{fmt(data.totalAssets)}</span>
+                <span className="text-sm font-semibold text-blue-400">
+                  {fmt(data.totalAssets)}
+                </span>
               </div>
             </CardHeader>
             <SectionTable
@@ -8353,7 +8877,9 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
                   <TrendingDown className="h-4 w-4 text-rose-400" />
                   Liabilities
                 </CardTitle>
-                <span className="text-sm font-semibold text-rose-400">{fmt(data.totalLiabilities)}</span>
+                <span className="text-sm font-semibold text-rose-400">
+                  {fmt(data.totalLiabilities)}
+                </span>
               </div>
             </CardHeader>
             <SectionTable
@@ -8363,7 +8889,9 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
             />
             <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Liabilities</span>
-              <span className="text-rose-400">{fmt(data.totalLiabilities)}</span>
+              <span className="text-rose-400">
+                {fmt(data.totalLiabilities)}
+              </span>
             </div>
           </Card>
 
@@ -8375,7 +8903,9 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
                   <TrendingUp className="h-4 w-4 text-emerald-500" />
                   Equity
                 </CardTitle>
-                <span className="text-sm font-semibold text-emerald-500">{fmt(data.totalEquity)}</span>
+                <span className="text-sm font-semibold text-emerald-500">
+                  {fmt(data.totalEquity)}
+                </span>
               </div>
             </CardHeader>
             <SectionTable
@@ -8391,10 +8921,15 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
                 </span>
                 <span className="font-medium">
                   Current Year Earnings
-                  <span className="ml-2 text-xs text-muted-foreground font-normal">(Revenue − Expenses)</span>
+                  <span className="ml-2 text-xs text-muted-foreground font-normal">
+                    (Revenue − Expenses)
+                  </span>
                 </span>
-                <span className={`text-right font-medium ${data.currentYearEarnings >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
-                  {data.currentYearEarnings < 0 ? "-" : ""}{fmt(Math.abs(data.currentYearEarnings))}
+                <span
+                  className={`text-right font-medium ${data.currentYearEarnings >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+                >
+                  {data.currentYearEarnings < 0 ? "-" : ""}
+                  {fmt(Math.abs(data.currentYearEarnings))}
                 </span>
                 <span className="pl-2">
                   {onNavigateToPL && (
@@ -8418,7 +8953,9 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
           </Card>
 
           {/* Accounting Equation Summary */}
-          <Card className={`border-2 ${data.isBalanced ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}>
+          <Card
+            className={`border-2 ${data.isBalanced ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}
+          >
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
@@ -8431,19 +8968,29 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
                 </div>
                 <div className="flex items-center gap-6 text-sm">
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground mb-0.5">Assets</p>
-                    <p className="font-semibold text-blue-400">{fmt(data.totalAssets)}</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">
+                      Assets
+                    </p>
+                    <p className="font-semibold text-blue-400">
+                      {fmt(data.totalAssets)}
+                    </p>
                   </div>
                   <span className="text-muted-foreground font-medium">=</span>
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground mb-0.5">Liabilities + Equity</p>
-                    <p className="font-semibold">{fmt(data.totalLiabilities + data.totalEquity)}</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">
+                      Liabilities + Equity
+                    </p>
+                    <p className="font-semibold">
+                      {fmt(data.totalLiabilities + data.totalEquity)}
+                    </p>
                   </div>
                   <Badge
                     variant="outline"
-                    className={data.isBalanced
-                      ? "border-emerald-500/40 text-emerald-500"
-                      : "border-rose-500/40 text-rose-400"}
+                    className={
+                      data.isBalanced
+                        ? "border-emerald-500/40 text-emerald-500"
+                        : "border-rose-500/40 text-rose-400"
+                    }
                   >
                     {data.isBalanced ? "Balanced" : "Out of Balance"}
                   </Badge>
@@ -8532,10 +9079,37 @@ function App() {
     cashin: <CashTransactionModule type="IN" />,
     cashout: <CashTransactionModule type="OUT" />,
     journalentries: <JournalEntriesModule />,
-    generalledger: <GeneralLedgerModule initialAccountId={glInitialAccount} onAccountConsumed={() => setGlInitialAccount(null)} />,
-    trialbalance: <TrialBalanceModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
-    profitloss: <ProfitLossModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
-    balancesheet: <BalanceSheetModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} onNavigateToPL={() => handleNavClick("profitloss")} />,
+    generalledger: (
+      <GeneralLedgerModule
+        initialAccountId={glInitialAccount}
+        onAccountConsumed={() => setGlInitialAccount(null)}
+      />
+    ),
+    trialbalance: (
+      <TrialBalanceModule
+        onNavigateToLedger={(id) => {
+          setGlInitialAccount(id);
+          handleNavClick("generalledger");
+        }}
+      />
+    ),
+    profitloss: (
+      <ProfitLossModule
+        onNavigateToLedger={(id) => {
+          setGlInitialAccount(id);
+          handleNavClick("generalledger");
+        }}
+      />
+    ),
+    balancesheet: (
+      <BalanceSheetModule
+        onNavigateToLedger={(id) => {
+          setGlInitialAccount(id);
+          handleNavClick("generalledger");
+        }}
+        onNavigateToPL={() => handleNavClick("profitloss")}
+      />
+    ),
     events: <EventsModule />,
     reports: <ReportsModule />,
     notifications: <NotificationsModule />,
