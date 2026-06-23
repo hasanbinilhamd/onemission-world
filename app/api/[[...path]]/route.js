@@ -625,6 +625,66 @@ async function handle(request, { params }) {
       });
     }
 
+    // ---------- TRIAL BALANCE ----------
+    if (segs[0] === 'trialbalance' && method === 'GET') {
+      const url = new URL(request.url);
+      const from = url.searchParams.get('from');
+      const to = url.searchParams.get('to');
+
+      const journalFilter = { AND: [{ status: 'Posted' }] };
+      if (from) journalFilter.AND.push({ journalDate: { gte: from } });
+      if (to) journalFilter.AND.push({ journalDate: { lte: to } });
+
+      const accounts = await prisma.chartOfAccount.findMany({
+        where: { isActive: true, allowTransaction: true },
+        orderBy: { accountCode: 'asc' },
+      });
+
+      const lines = await prisma.journalEntryLine.findMany({
+        where: {
+          journalEntry: journalFilter,
+          chartOfAccountId: { in: accounts.map((a) => a.id) },
+        },
+        select: {
+          chartOfAccountId: true,
+          debitAmount: true,
+          creditAmount: true,
+        },
+      });
+
+      const aggMap = {};
+      for (const line of lines) {
+        if (!aggMap[line.chartOfAccountId]) {
+          aggMap[line.chartOfAccountId] = { totalDebit: 0, totalCredit: 0 };
+        }
+        aggMap[line.chartOfAccountId].totalDebit += line.debitAmount || 0;
+        aggMap[line.chartOfAccountId].totalCredit += line.creditAmount || 0;
+      }
+
+      const rows = accounts
+        .filter((a) => aggMap[a.id])
+        .map((a) => ({
+          id: a.id,
+          accountCode: a.accountCode,
+          accountName: a.accountName,
+          accountType: a.accountType,
+          totalDebit: aggMap[a.id]?.totalDebit || 0,
+          totalCredit: aggMap[a.id]?.totalCredit || 0,
+        }));
+
+      const totalDebit = rows.reduce((s, r) => s + r.totalDebit, 0);
+      const totalCredit = rows.reduce((s, r) => s + r.totalCredit, 0);
+      const difference = Math.abs(totalDebit - totalCredit);
+
+      return NextResponse.json({
+        rows,
+        totalDebit,
+        totalCredit,
+        difference,
+        isBalanced: difference < 0.01,
+      });
+    }
+
     // Generic CRUD
     const modelName = COLLECTION_MODELS[segs[0]];
     if (modelName) {
