@@ -8155,7 +8155,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
 }
 
 // =========== BALANCE SHEET ===========
-function BalanceSheetModule({ onNavigateToLedger }) {
+function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
   const today = new Date().toISOString().split("T")[0];
   const [asOf, setAsOf] = useState(today);
   const [data, setData] = useState(null);
@@ -8192,11 +8192,13 @@ function BalanceSheetModule({ onNavigateToLedger }) {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr>
-              <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                {emptyLabel}
-              </td>
-            </tr>
+            emptyLabel ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  {emptyLabel}
+                </td>
+              </tr>
+            ) : null
           ) : (
             rows.map((row) => (
               <tr key={row.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
@@ -8378,10 +8380,38 @@ function BalanceSheetModule({ onNavigateToLedger }) {
             </CardHeader>
             <SectionTable
               rows={data.equityRows}
-              emptyLabel="No equity accounts configured"
+              emptyLabel={null}
               balanceColor="text-emerald-500"
             />
-            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+            {/* Current Year Earnings — auto-calculated from P&L, not a journal entry */}
+            <div className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+              <div className="grid grid-cols-[auto_1fr_auto_auto] items-center px-4 py-3 gap-2 text-sm">
+                <span className="font-mono text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded whitespace-nowrap">
+                  Auto
+                </span>
+                <span className="font-medium">
+                  Current Year Earnings
+                  <span className="ml-2 text-xs text-muted-foreground font-normal">(Revenue − Expenses)</span>
+                </span>
+                <span className={`text-right font-medium ${data.currentYearEarnings >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                  {data.currentYearEarnings < 0 ? "-" : ""}{fmt(Math.abs(data.currentYearEarnings))}
+                </span>
+                <span className="pl-2">
+                  {onNavigateToPL && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title="View Profit & Loss"
+                      onClick={onNavigateToPL}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </span>
+              </div>
+            </div>
+            <div className="border-t-2 border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Equity</span>
               <span className="text-emerald-500">{fmt(data.totalEquity)}</span>
             </div>
@@ -8505,7 +8535,7 @@ function App() {
     generalledger: <GeneralLedgerModule initialAccountId={glInitialAccount} onAccountConsumed={() => setGlInitialAccount(null)} />,
     trialbalance: <TrialBalanceModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
     profitloss: <ProfitLossModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
-    balancesheet: <BalanceSheetModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
+    balancesheet: <BalanceSheetModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} onNavigateToPL={() => handleNavClick("profitloss")} />,
     events: <EventsModule />,
     reports: <ReportsModule />,
     notifications: <NotificationsModule />,
