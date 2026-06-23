@@ -49,6 +49,22 @@ async function generateJournalNumber(journalDate) {
   return `${prefix}${String(maxSeq + 1).padStart(5, '0')}`;
 }
 
+// Build journal lines for a cash transaction
+function buildCashJournalLines(txnType, faLinkedCoaId, chartOfAccountId, amount, description) {
+  const note = description?.trim() || '';
+  if (txnType === 'IN') {
+    return [
+      { chartOfAccountId: faLinkedCoaId, description: note, debitAmount: amount, creditAmount: 0 },
+      { chartOfAccountId, description: note, debitAmount: 0, creditAmount: amount },
+    ];
+  } else {
+    return [
+      { chartOfAccountId, description: note, debitAmount: amount, creditAmount: 0 },
+      { chartOfAccountId: faLinkedCoaId, description: note, debitAmount: 0, creditAmount: amount },
+    ];
+  }
+}
+
 async function handle(request, { params }) {
   const segs = params?.path || [];
   const method = request.method;
@@ -112,7 +128,7 @@ async function handle(request, { params }) {
       return NextResponse.json({ total, totalWeight, uniqueColors });
     }
 
-    // ---------- FINANCIAL ACCOUNTS — explicit GET (fixes dropdown) + check-name ----------
+    // ---------- FINANCIAL ACCOUNTS — explicit GET + check-name ----------
     if (segs[0] === 'financialaccounts' && segs[1] === 'check-name' && method === 'GET') {
       const url = new URL(request.url);
       const name = url.searchParams.get('name');
@@ -123,7 +139,10 @@ async function handle(request, { params }) {
       return NextResponse.json({ exists: !!existing });
     }
     if (segs[0] === 'financialaccounts' && method === 'GET' && segs.length === 1) {
-      const docs = await prisma.financialAccount.findMany({ orderBy: { name: 'asc' } });
+      const docs = await prisma.financialAccount.findMany({
+        orderBy: { name: 'asc' },
+        include: { linkedCoa: { select: { id: true, accountCode: true, accountName: true } } },
+      });
       return NextResponse.json(docs);
     }
 
@@ -151,6 +170,7 @@ async function handle(request, { params }) {
         });
         return NextResponse.json(docs);
       }
+
       if (method === 'POST' && segs.length === 1) {
         const body = await readJson(request);
         if (!body.transactionDate)
@@ -161,9 +181,19 @@ async function handle(request, { params }) {
           return NextResponse.json({ error: 'chartOfAccount is required' }, { status: 400 });
         if (!body.amount || Number(body.amount) <= 0)
           return NextResponse.json({ error: 'amount must be greater than 0' }, { status: 400 });
+
         const coa = await prisma.chartOfAccount.findUnique({ where: { id: body.chartOfAccountId } });
         if (!coa || !coa.allowTransaction)
           return NextResponse.json({ error: 'Selected account does not allow transactions' }, { status: 400 });
+
+        const fa = await prisma.financialAccount.findUnique({ where: { id: body.financialAccountId } });
+        if (!fa || !fa.isActive)
+          return NextResponse.json({ error: 'Financial account is inactive or not found' }, { status: 400 });
+        if (!fa.linkedCoaId)
+          return NextResponse.json({
+            error: 'Financial account has no linked COA account. Please configure it in Financial Accounts settings.',
+          }, { status: 400 });
+
         const doc = await prisma.cashTransaction.create({
           data: {
             id: uuid(),
@@ -179,17 +209,60 @@ async function handle(request, { params }) {
           },
           include: { financialAccount: true, chartOfAccount: true },
         });
+
+        // Auto-create journal entry (Posted, System)
+        const journalNumber = await generateJournalNumber(body.transactionDate);
+        const amount = Number(body.amount);
+        const txnLabel = body.transactionType === 'IN' ? 'Cash In' : 'Cash Out';
+        const journalDesc = `${txnLabel}: ${body.description?.trim() || body.referenceNumber?.trim() || fa.name}`;
+        const lines = buildCashJournalLines(
+          body.transactionType, fa.linkedCoaId, body.chartOfAccountId, amount, journalDesc
+        );
+
+        await prisma.journalEntry.create({
+          data: {
+            id: uuid(),
+            journalNumber,
+            journalDate: body.transactionDate,
+            description: journalDesc,
+            referenceNumber: body.referenceNumber || '',
+            journalSource: txnLabel,
+            sourceId: doc.id,
+            journalType: 'System',
+            status: 'Posted',
+            totalDebit: amount,
+            totalCredit: amount,
+            createdBy: body.createdBy || '',
+            lines: {
+              create: lines.map((l) => ({ id: uuid(), ...l })),
+            },
+          },
+        });
+
         return NextResponse.json(doc);
       }
+
       if (method === 'PUT' && segs.length === 2) {
         const body = await readJson(request);
         if (body.amount !== undefined && Number(body.amount) <= 0)
           return NextResponse.json({ error: 'amount must be greater than 0' }, { status: 400 });
+
         if (body.chartOfAccountId) {
           const coa = await prisma.chartOfAccount.findUnique({ where: { id: body.chartOfAccountId } });
           if (!coa || !coa.allowTransaction)
             return NextResponse.json({ error: 'Selected account does not allow transactions' }, { status: 400 });
         }
+
+        // Validate FA has linked COA
+        const existingTxn = await prisma.cashTransaction.findUnique({ where: { id: segs[1] } });
+        const faId = body.financialAccountId || existingTxn?.financialAccountId;
+        const fa = faId ? await prisma.financialAccount.findUnique({ where: { id: faId } }) : null;
+
+        if (fa && !fa.linkedCoaId)
+          return NextResponse.json({
+            error: 'Financial account has no linked COA account. Please configure it in Financial Accounts settings.',
+          }, { status: 400 });
+
         const updateData = {};
         if (body.transactionDate !== undefined) updateData.transactionDate = body.transactionDate;
         if (body.financialAccountId !== undefined) updateData.financialAccountId = body.financialAccountId;
@@ -199,14 +272,54 @@ async function handle(request, { params }) {
         if (body.description !== undefined) updateData.description = body.description;
         if (body.attachment !== undefined) updateData.attachment = body.attachment;
         if (body.createdBy !== undefined) updateData.createdBy = body.createdBy;
-        const doc = await prisma.cashTransaction.update({
+
+        const updated = await prisma.cashTransaction.update({
           where: { id: segs[1] },
           data: updateData,
           include: { financialAccount: true, chartOfAccount: true },
         });
-        return NextResponse.json(doc);
+
+        // Sync system journal if it exists
+        const journal = await prisma.journalEntry.findFirst({
+          where: { sourceId: segs[1], journalType: 'System' },
+        });
+
+        if (journal && fa?.linkedCoaId) {
+          const amount = updated.amount;
+          const txnLabel = updated.transactionType === 'IN' ? 'Cash In' : 'Cash Out';
+          const journalDesc = `${txnLabel}: ${updated.description?.trim() || updated.referenceNumber?.trim() || updated.financialAccount?.name || ''}`;
+          const newLines = buildCashJournalLines(
+            updated.transactionType, fa.linkedCoaId, updated.chartOfAccountId, amount, journalDesc
+          );
+
+          await prisma.journalEntryLine.deleteMany({ where: { journalEntryId: journal.id } });
+          await prisma.journalEntry.update({
+            where: { id: journal.id },
+            data: {
+              journalDate: updated.transactionDate,
+              description: journalDesc,
+              referenceNumber: updated.referenceNumber || '',
+              totalDebit: amount,
+              totalCredit: amount,
+              lines: {
+                create: newLines.map((l) => ({ id: uuid(), ...l })),
+              },
+            },
+          });
+        }
+
+        return NextResponse.json(updated);
       }
+
       if (method === 'DELETE' && segs.length === 2) {
+        // Remove related system journal first (cascade lines via DB)
+        const journal = await prisma.journalEntry.findFirst({
+          where: { sourceId: segs[1], journalType: 'System' },
+        });
+        if (journal) {
+          await prisma.journalEntry.delete({ where: { id: journal.id } });
+        }
+
         await prisma.cashTransaction.delete({ where: { id: segs[1] } });
         return NextResponse.json({ ok: true });
       }
@@ -228,6 +341,8 @@ async function handle(request, { params }) {
         if (!entry) return NextResponse.json({ error: 'Journal entry not found' }, { status: 404 });
         if (entry.status === 'Posted')
           return NextResponse.json({ error: 'Journal entry is already posted' }, { status: 400 });
+        if (entry.journalType === 'System')
+          return NextResponse.json({ error: 'System-generated journals cannot be manually posted' }, { status: 400 });
         const updated = await prisma.journalEntry.update({
           where: { id: segs[1] },
           data: { status: 'Posted' },
@@ -241,12 +356,14 @@ async function handle(request, { params }) {
         const url = new URL(request.url);
         const status = url.searchParams.get('status');
         const source = url.searchParams.get('source');
+        const journalType = url.searchParams.get('journalType');
         const from = url.searchParams.get('from');
         const to = url.searchParams.get('to');
 
         const where = {};
         if (status && status !== 'all') where.status = status;
         if (source && source !== 'all') where.journalSource = source;
+        if (journalType && journalType !== 'all') where.journalType = journalType;
         if (from || to) {
           where.journalDate = {};
           if (from) where.journalDate.gte = from;
@@ -271,7 +388,7 @@ async function handle(request, { params }) {
         return NextResponse.json(entry);
       }
 
-      // POST /journalentries — create
+      // POST /journalentries — create (Manual only)
       if (method === 'POST' && segs.length === 1) {
         const body = await readJson(request);
 
@@ -315,6 +432,7 @@ async function handle(request, { params }) {
             referenceNumber: body.referenceNumber?.trim() || '',
             journalSource: body.journalSource,
             sourceId: body.sourceId?.trim() || '',
+            journalType: 'Manual',
             status: 'Draft',
             totalDebit,
             totalCredit,
@@ -335,10 +453,12 @@ async function handle(request, { params }) {
         return NextResponse.json(entry);
       }
 
-      // PUT /journalentries/:id — update (Draft only)
+      // PUT /journalentries/:id — update (Manual Draft only)
       if (method === 'PUT' && segs.length === 2) {
         const existing = await prisma.journalEntry.findUnique({ where: { id: segs[1] } });
         if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        if (existing.journalType === 'System')
+          return NextResponse.json({ error: 'System-generated journal entries cannot be edited manually' }, { status: 400 });
         if (existing.status === 'Posted')
           return NextResponse.json({ error: 'Posted journal entries cannot be edited' }, { status: 400 });
 
@@ -399,10 +519,12 @@ async function handle(request, { params }) {
         return NextResponse.json(updated);
       }
 
-      // DELETE /journalentries/:id — Draft only
+      // DELETE /journalentries/:id — Manual Draft only
       if (method === 'DELETE' && segs.length === 2) {
         const existing = await prisma.journalEntry.findUnique({ where: { id: segs[1] } });
         if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        if (existing.journalType === 'System')
+          return NextResponse.json({ error: 'System-generated journal entries cannot be deleted manually' }, { status: 400 });
         if (existing.status === 'Posted')
           return NextResponse.json({ error: 'Posted journal entries cannot be deleted' }, { status: 400 });
         await prisma.journalEntry.delete({ where: { id: segs[1] } });

@@ -4182,6 +4182,7 @@ const FA_TYPE_COLORS = {
 
 function FinancialAccountModule() {
   const [items, setItems] = useState([]);
+  const [coaAccounts, setCoaAccounts] = useState([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState("");
@@ -4191,8 +4192,12 @@ function FinancialAccountModule() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = async () => {
-    const data = await api.get("financialaccounts");
+    const [data, coas] = await Promise.all([
+      api.get("financialaccounts"),
+      api.get("chartofaccounts"),
+    ]);
     setItems(Array.isArray(data) ? data : []);
+    setCoaAccounts(Array.isArray(coas) ? coas.filter((c) => c.isActive) : []);
   };
 
   useEffect(() => {
@@ -4207,6 +4212,7 @@ function FinancialAccountModule() {
     openingBalance: 0,
     description: "",
     isActive: true,
+    linkedCoaId: "",
   };
 
   const save = async (data) => {
@@ -4394,7 +4400,18 @@ function FinancialAccountModule() {
                     key={a.id}
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                   >
-                    <td className="px-4 py-3 font-medium">{a.name}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{a.name}</p>
+                      {a.linkedCoa ? (
+                        <p className="text-[10px] text-emerald-500 mt-0.5">
+                          COA: {a.linkedCoa.accountCode} — {a.linkedCoa.accountName}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-amber-500 mt-0.5 flex items-center gap-0.5">
+                          <AlertTriangle className="h-2.5 w-2.5 inline" /> No linked COA
+                        </p>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${FA_TYPE_COLORS[a.type] || ""}`}
@@ -4491,6 +4508,7 @@ function FinancialAccountModule() {
           if (!v) setEditing(null);
         }}
         initial={editing || emptyForm}
+        coaAccounts={coaAccounts}
         onSave={save}
       />
 
@@ -4523,7 +4541,7 @@ function FinancialAccountModule() {
   );
 }
 
-function FinancialAccountModal({ open, onOpenChange, initial, onSave }) {
+function FinancialAccountModal({ open, onOpenChange, initial, coaAccounts = [], onSave }) {
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const [checkingName, setCheckingName] = useState(false);
@@ -4571,6 +4589,7 @@ function FinancialAccountModal({ open, onOpenChange, initial, onSave }) {
       openingBalance: Number(form.openingBalance) || 0,
       description: form.description?.trim() || "",
       isActive: form.isActive ?? true,
+      linkedCoaId: form.linkedCoaId || null,
     });
   };
 
@@ -4680,6 +4699,30 @@ function FinancialAccountModal({ open, onOpenChange, initial, onSave }) {
             />
           </div>
 
+          {/* Linked COA Account */}
+          <div className="space-y-1.5">
+            <Label>Linked COA Account</Label>
+            <Select
+              value={form.linkedCoaId || "none"}
+              onValueChange={(v) => update("linkedCoaId", v === "none" ? "" : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Link to Chart of Accounts..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Not linked —</SelectItem>
+                {coaAccounts.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.accountCode} — {c.accountName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Required for automatic journal entry generation in Cash In / Cash Out
+            </p>
+          </div>
+
           {/* Is Active */}
           <div className="flex items-center justify-between py-1 border-t border-border/50">
             <div>
@@ -4754,13 +4797,17 @@ function CashTransactionModule({ type }) {
   };
 
   const save = async (data) => {
+    let result;
     if (editing?.id) {
-      await api.put("cashtransactions/" + editing.id, data);
-      toast.success(label + " transaction updated");
+      result = await api.put("cashtransactions/" + editing.id, data);
     } else {
-      await api.post("cashtransactions", data);
-      toast.success(label + " transaction created");
+      result = await api.post("cashtransactions", data);
     }
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(editing?.id ? label + " transaction updated" : label + " transaction created");
     setOpen(false);
     setEditing(null);
     load();
@@ -6519,6 +6566,7 @@ function JournalEntriesModule() {
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Source</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xl:table-cell">Type</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Debit</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Credit</th>
@@ -6528,7 +6576,7 @@ function JournalEntriesModule() {
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                     <ClipboardList className="h-8 w-8 mx-auto mb-3 opacity-30" />
                     <p className="text-sm">No journal entries found</p>
                   </td>
@@ -6550,6 +6598,14 @@ function JournalEntriesModule() {
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <Badge variant="outline" className="font-normal text-xs">{j.journalSource}</Badge>
+                    </td>
+                    <td className="px-4 py-3 hidden xl:table-cell">
+                      <Badge
+                        variant="outline"
+                        className={`font-normal text-xs ${j.journalType === "System" ? "bg-blue-500/10 text-blue-400 border-blue-500/30" : "bg-muted text-muted-foreground"}`}
+                      >
+                        {j.journalType === "System" ? "System" : "Manual"}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3">
                       <Badge
@@ -6574,7 +6630,7 @@ function JournalEntriesModule() {
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Button>
-                        {j.status === "Draft" && (
+                        {j.status === "Draft" && j.journalType !== "System" && (
                           <>
                             <Button
                               variant="ghost" size="icon" className="h-7 w-7" title="Edit"
@@ -6980,6 +7036,7 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
               { label: "Journal Number", value: item.journalNumber },
               { label: "Journal Date", value: item.journalDate },
               { label: "Source", value: item.journalSource },
+              { label: "Journal Type", value: item.journalType === "System" ? "System Generated" : "Manual" },
               { label: "Status", value: item.status },
               { label: "Reference Number", value: item.referenceNumber || "—" },
               { label: "Source ID", value: item.sourceId || "—" },

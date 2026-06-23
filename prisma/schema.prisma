@@ -159,21 +159,22 @@ model RawMaterial {
 }
 
 model ChartOfAccount {
-  id               String             @id
-  accountCode      String             @unique
-  accountName      String
-  accountType      String
-  normalBalance    String
-  description      String             @default("")
-  isActive         Boolean            @default(true)
-  allowTransaction Boolean            @default(true)
-  parentId         String?
-  parent           ChartOfAccount?    @relation("AccountHierarchy", fields: [parentId], references: [id])
-  children         ChartOfAccount[]   @relation("AccountHierarchy")
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  cashTransactions CashTransaction[]
-  journalLines     JournalEntryLine[]
+  id                      String             @id
+  accountCode             String             @unique
+  accountName             String
+  accountType             String
+  normalBalance           String
+  description             String             @default("")
+  isActive                Boolean            @default(true)
+  allowTransaction        Boolean            @default(true)
+  parentId                String?
+  parent                  ChartOfAccount?    @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children                ChartOfAccount[]   @relation("AccountHierarchy")
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  cashTransactions        CashTransaction[]
+  journalLines            JournalEntryLine[]
+  linkedFinancialAccounts FinancialAccount[] @relation("FALinkedCoa")
 }
 
 model FinancialAccount {
@@ -185,6 +186,8 @@ model FinancialAccount {
   openingBalance   Float             @default(0)
   description      String            @default("")
   isActive         Boolean           @default(true)
+  linkedCoaId      String?
+  linkedCoa        ChartOfAccount?   @relation("FALinkedCoa", fields: [linkedCoaId], references: [id])
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   cashTransactions CashTransaction[]
@@ -215,10 +218,12 @@ model JournalEntry {
   referenceNumber String             @default("")
   journalSource   String
   sourceId        String             @default("")
+  journalType     String             @default("Manual")
   status          String             @default("Draft")
   totalDebit      Float              @default(0)
   totalCredit     Float              @default(0)
   createdBy       String             @default("")
+  updatedBy       String             @default("")
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   lines           JournalEntryLine[]
