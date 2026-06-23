@@ -685,6 +685,78 @@ async function handle(request, { params }) {
       });
     }
 
+    // ---------- PROFIT & LOSS ----------
+    if (segs[0] === 'profitloss' && method === 'GET') {
+      const url = new URL(request.url);
+      const from = url.searchParams.get('from');
+      const to = url.searchParams.get('to');
+
+      const journalFilter = { AND: [{ status: 'Posted' }] };
+      if (from) journalFilter.AND.push({ journalDate: { gte: from } });
+      if (to) journalFilter.AND.push({ journalDate: { lte: to } });
+
+      // Get revenue and expense accounts
+      const accounts = await prisma.chartOfAccount.findMany({
+        where: {
+          isActive: true,
+          allowTransaction: true,
+          accountType: { in: ['Revenue', 'Expense'] },
+        },
+        orderBy: { accountCode: 'asc' },
+      });
+
+      if (!accounts.length) {
+        return NextResponse.json({
+          revenueRows: [], expenseRows: [],
+          totalRevenue: 0, totalExpenses: 0, netProfit: 0,
+        });
+      }
+
+      const lines = await prisma.journalEntryLine.findMany({
+        where: {
+          journalEntry: journalFilter,
+          chartOfAccountId: { in: accounts.map((a) => a.id) },
+        },
+        select: { chartOfAccountId: true, debitAmount: true, creditAmount: true },
+      });
+
+      const aggMap = {};
+      for (const line of lines) {
+        if (!aggMap[line.chartOfAccountId]) {
+          aggMap[line.chartOfAccountId] = { totalDebit: 0, totalCredit: 0 };
+        }
+        aggMap[line.chartOfAccountId].totalDebit += line.debitAmount || 0;
+        aggMap[line.chartOfAccountId].totalCredit += line.creditAmount || 0;
+      }
+
+      const revenueRows = [];
+      const expenseRows = [];
+
+      for (const a of accounts) {
+        const agg = aggMap[a.id];
+        if (!agg) continue;
+        // Revenue: normal balance is Credit → net = creditAmount - debitAmount
+        // Expense: normal balance is Debit   → net = debitAmount - creditAmount
+        const amount = a.accountType === 'Revenue'
+          ? agg.totalCredit - agg.totalDebit
+          : agg.totalDebit - agg.totalCredit;
+        const row = { id: a.id, accountCode: a.accountCode, accountName: a.accountName, accountType: a.accountType, amount };
+        if (a.accountType === 'Revenue') revenueRows.push(row);
+        else expenseRows.push(row);
+      }
+
+      const totalRevenue = revenueRows.reduce((s, r) => s + r.amount, 0);
+      const totalExpenses = expenseRows.reduce((s, r) => s + r.amount, 0);
+
+      return NextResponse.json({
+        revenueRows,
+        expenseRows,
+        totalRevenue,
+        totalExpenses,
+        netProfit: totalRevenue - totalExpenses,
+      });
+    }
+
     // Generic CRUD
     const modelName = COLLECTION_MODELS[segs[0]];
     if (modelName) {
