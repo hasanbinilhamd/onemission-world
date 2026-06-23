@@ -51,6 +51,7 @@ import {
   ClipboardList,
   Lock,
   Send,
+  Scale,
 } from "lucide-react";
 import {
   TableSkeleton,
@@ -378,6 +379,7 @@ const NAV_GROUPS = [
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "journalentries", label: "Journal Entries", icon: ClipboardList },
       { id: "generalledger", label: "General Ledger", icon: BookOpen },
+      { id: "trialbalance", label: "Trial Balance", icon: Scale },
       { id: "reports", label: "Reports", icon: FileBarChart2 },
     ],
   },
@@ -7304,9 +7306,9 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
 }
 
 // =========== GENERAL LEDGER ===========
-function GeneralLedgerModule() {
+function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
   const [coaAccounts, setCoaAccounts] = useState([]);
-  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [selectedAccountId, setSelectedAccountId] = useState(initialAccountId || "");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
@@ -7324,6 +7326,13 @@ function GeneralLedgerModule() {
       );
     });
   }, []);
+
+  useEffect(() => {
+    if (initialAccountId) {
+      setSelectedAccountId(initialAccountId);
+      if (onAccountConsumed) onAccountConsumed();
+    }
+  }, [initialAccountId]);
 
   const loadLedger = async () => {
     if (!selectedAccountId) return;
@@ -7681,6 +7690,231 @@ function GeneralLedgerModule() {
   );
 }
 
+// =========== TRIAL BALANCE ===========
+function TrialBalanceModule({ onNavigateToLedger }) {
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .split("T")[0];
+  const today = now.toISOString().split("T")[0];
+
+  const [dateFrom, setDateFrom] = useState(firstOfMonth);
+  const [dateTo, setDateTo] = useState(today);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (dateFrom) params.append("from", dateFrom);
+    if (dateTo) params.append("to", dateTo);
+    const result = await api.get("trialbalance?" + params.toString());
+    setData(result?.error ? null : result);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+  }, [dateFrom, dateTo]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Trial Balance</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Summarized debit and credit balances from posted journal entries
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled title="Export PDF (coming soon)">
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export PDF
+          </Button>
+          <Button variant="outline" size="sm" disabled title="Export Excel (coming soon)">
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export Excel
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card className="border-border/60">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <Label>Date From</Label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Date To</Label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 text-xs"
+              onClick={() => {
+                setDateFrom(firstOfMonth);
+                setDateTo(today);
+              }}
+            >
+              Reset to Current Month
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Out of Balance Warning */}
+      {data && !data.isBalanced && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-rose-500/40 bg-rose-500/10 text-rose-400">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold text-sm">Trial Balance Out of Balance</p>
+            <p className="text-xs mt-0.5 text-rose-400/80">
+              Difference of {fmt(data.difference)} detected. Check posted journal entries for errors.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Summary Cards */}
+      {data && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card className="border-border/60">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Debit</p>
+              <p className="text-xl font-semibold text-blue-400 mt-1">{fmt(data.totalDebit)}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/60">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Credit</p>
+              <p className="text-xl font-semibold text-orange-400 mt-1">{fmt(data.totalCredit)}</p>
+            </CardContent>
+          </Card>
+          <Card className={`border-border/60 ${!data.isBalanced ? "border-rose-500/40" : ""}`}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Difference</p>
+              <p className={`text-xl font-semibold mt-1 ${data.isBalanced ? "text-emerald-500" : "text-rose-400"}`}>
+                {data.isBalanced ? "Balanced" : fmt(data.difference)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Table */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16 gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Calculating trial balance...</span>
+        </div>
+      ) : data && data.rows.length === 0 ? (
+        <Card className="border-border/60">
+          <div className="py-20 text-center text-muted-foreground">
+            <Scale className="h-10 w-10 mx-auto mb-3 opacity-20" />
+            <p className="text-sm">No posted journal entries found for the selected period</p>
+          </div>
+        </Card>
+      ) : data ? (
+        <Card className="border-border/60">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Account Code
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    Account Name
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell whitespace-nowrap">
+                    Account Type
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Debit
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Credit
+                  </th>
+                  <th className="px-4 py-3 w-10" />
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                        {row.accountCode}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-medium">{row.accountName}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <Badge variant="outline" className="font-normal text-xs">
+                        {row.accountType}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-blue-400">
+                      {row.totalDebit > 0 ? fmt(row.totalDebit) : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-orange-400">
+                      {row.totalCredit > 0 ? fmt(row.totalCredit) : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {onNavigateToLedger && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="View in General Ledger"
+                          onClick={() => onNavigateToLedger(row.id)}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/20 font-semibold">
+                  <td
+                    colSpan={3}
+                    className="px-4 py-3 text-right text-xs font-medium text-muted-foreground"
+                  >
+                    Totals
+                  </td>
+                  <td className="px-4 py-3 text-right text-blue-400">
+                    {fmt(data.totalDebit)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-orange-400">
+                    {fmt(data.totalCredit)}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
 // =========== MAIN APP ===========
 function App() {
   const [user, setUser] = useState(null);
@@ -7693,6 +7927,7 @@ function App() {
     const g = getParentGroup("dashboard");
     return g ? new Set([g]) : new Set();
   });
+  const [glInitialAccount, setGlInitialAccount] = useState(null);
 
   const toggleGroup = (id) => {
     setOpenGroups((prev) => {
@@ -7755,7 +7990,8 @@ function App() {
     cashin: <CashTransactionModule type="IN" />,
     cashout: <CashTransactionModule type="OUT" />,
     journalentries: <JournalEntriesModule />,
-    generalledger: <GeneralLedgerModule />,
+    generalledger: <GeneralLedgerModule initialAccountId={glInitialAccount} onAccountConsumed={() => setGlInitialAccount(null)} />,
+    trialbalance: <TrialBalanceModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
     events: <EventsModule />,
     reports: <ReportsModule />,
     notifications: <NotificationsModule />,
