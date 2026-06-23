@@ -52,6 +52,7 @@ import {
   Lock,
   Send,
   Scale,
+  BarChart2,
 } from "lucide-react";
 import {
   TableSkeleton,
@@ -380,6 +381,7 @@ const NAV_GROUPS = [
       { id: "journalentries", label: "Journal Entries", icon: ClipboardList },
       { id: "generalledger", label: "General Ledger", icon: BookOpen },
       { id: "trialbalance", label: "Trial Balance", icon: Scale },
+      { id: "profitloss", label: "Profit & Loss", icon: BarChart2 },
       { id: "reports", label: "Reports", icon: FileBarChart2 },
     ],
   },
@@ -7915,6 +7917,241 @@ function TrialBalanceModule({ onNavigateToLedger }) {
   );
 }
 
+// =========== PROFIT & LOSS ===========
+function ProfitLossModule({ onNavigateToLedger }) {
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .split("T")[0];
+  const today = now.toISOString().split("T")[0];
+
+  const [dateFrom, setDateFrom] = useState(firstOfMonth);
+  const [dateTo, setDateTo] = useState(today);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (dateFrom) params.append("from", dateFrom);
+    if (dateTo) params.append("to", dateTo);
+    const result = await api.get("profitloss?" + params.toString());
+    setData(result?.error ? null : result);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+  }, [dateFrom, dateTo]);
+
+  const AccountTable = ({ rows, emptyLabel }) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border bg-muted/30">
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+              Account Code
+            </th>
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+              Account Name
+            </th>
+            <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+              Amount
+            </th>
+            <th className="px-4 py-3 w-10" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                {emptyLabel}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr
+                key={row.id}
+                className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+              >
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                    {row.accountCode}
+                  </span>
+                </td>
+                <td className="px-4 py-3 font-medium">{row.accountName}</td>
+                <td className="px-4 py-3 text-right font-medium">
+                  {fmt(Math.max(row.amount, 0))}
+                </td>
+                <td className="px-4 py-3">
+                  {onNavigateToLedger && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title="View in General Ledger"
+                      onClick={() => onNavigateToLedger(row.id)}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Profit &amp; Loss</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Income statement based on posted journal entries
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled title="Export PDF (coming soon)">
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export PDF
+          </Button>
+          <Button variant="outline" size="sm" disabled title="Export Excel (coming soon)">
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export Excel
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card className="border-border/60">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <Label>Date From</Label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Date To</Label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 text-xs"
+              onClick={() => {
+                setDateFrom(firstOfMonth);
+                setDateTo(today);
+              }}
+            >
+              Reset to Current Month
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary Cards */}
+      {data && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card className="border-border/60">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Revenue</p>
+              <p className="text-xl font-semibold text-emerald-500 mt-1">{fmt(data.totalRevenue)}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/60">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Expenses</p>
+              <p className="text-xl font-semibold text-rose-400 mt-1">{fmt(data.totalExpenses)}</p>
+            </CardContent>
+          </Card>
+          <Card className={`border-border/60 ${data.netProfit < 0 ? "border-rose-500/40" : ""}`}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Profit</p>
+              <p className={`text-xl font-semibold mt-1 ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                {data.netProfit < 0 ? "-" : ""}{fmt(Math.abs(data.netProfit))}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16 gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Generating report...</span>
+        </div>
+      ) : data ? (
+        <div className="space-y-4">
+          {/* Revenue Section */}
+          <Card className="border-border/60">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  Revenue
+                </CardTitle>
+                <span className="text-sm font-semibold text-emerald-500">{fmt(data.totalRevenue)}</span>
+              </div>
+            </CardHeader>
+            <AccountTable rows={data.revenueRows} emptyLabel="No revenue accounts with posted transactions" />
+            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+              <span className="text-muted-foreground">Total Revenue</span>
+              <span className="text-emerald-500">{fmt(data.totalRevenue)}</span>
+            </div>
+          </Card>
+
+          {/* Expense Section */}
+          <Card className="border-border/60">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingDown className="h-4 w-4 text-rose-400" />
+                  Expenses
+                </CardTitle>
+                <span className="text-sm font-semibold text-rose-400">{fmt(data.totalExpenses)}</span>
+              </div>
+            </CardHeader>
+            <AccountTable rows={data.expenseRows} emptyLabel="No expense accounts with posted transactions" />
+            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+              <span className="text-muted-foreground">Total Expenses</span>
+              <span className="text-rose-400">{fmt(data.totalExpenses)}</span>
+            </div>
+          </Card>
+
+          {/* Net Profit Row */}
+          <Card className={`border-2 ${data.netProfit >= 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Net Profit / (Loss)</p>
+                  <p className="text-xs text-muted-foreground">Total Revenue − Total Expenses</p>
+                </div>
+                <p className={`text-2xl font-bold ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                  {data.netProfit < 0 ? "-" : ""}{fmt(Math.abs(data.netProfit))}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // =========== MAIN APP ===========
 function App() {
   const [user, setUser] = useState(null);
@@ -7992,6 +8229,7 @@ function App() {
     journalentries: <JournalEntriesModule />,
     generalledger: <GeneralLedgerModule initialAccountId={glInitialAccount} onAccountConsumed={() => setGlInitialAccount(null)} />,
     trialbalance: <TrialBalanceModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
+    profitloss: <ProfitLossModule onNavigateToLedger={(id) => { setGlInitialAccount(id); handleNavClick("generalledger"); }} />,
     events: <EventsModule />,
     reports: <ReportsModule />,
     notifications: <NotificationsModule />,
