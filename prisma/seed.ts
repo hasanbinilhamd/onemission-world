@@ -39,8 +39,8 @@ async function main() {
   await prisma.creator.deleteMany();
   await prisma.content.deleteMany();
   await prisma.plan.deleteMany();
-  await prisma.inventory.deleteMany();
-  await prisma.product.deleteMany();
+  // await prisma.inventory.deleteMany();
+  // await prisma.product.deleteMany();
   await prisma.user.deleteMany();
   await prisma.financialAccount.deleteMany();
 
@@ -51,10 +51,10 @@ async function main() {
   const users = [SUPER_ADMIN, ...SEED_USERS];
   await prisma.user.createMany({ data: users });
 
-  await prisma.product.createMany({ data: SEED_PRODUCTS });
+  // await prisma.product.createMany({ data: SEED_PRODUCTS });
 
-  const productIds = SEED_PRODUCTS.map((p) => p.id);
-  await prisma.inventory.createMany({ data: SEED_INVENTORY(productIds) });
+  // const productIds = SEED_PRODUCTS.map((p) => p.id);
+  // await prisma.inventory.createMany({ data: SEED_INVENTORY(productIds) });
 
   await prisma.plan.createMany({ data: SEED_PLANS });
   await prisma.content.createMany({ data: SEED_CONTENT });
