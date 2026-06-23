@@ -52,6 +52,16 @@ import {
   Lock,
   Send,
 } from "lucide-react";
+import {
+  TableSkeleton,
+  CardSkeleton,
+  StatsSkeleton,
+  KanbanSkeleton,
+  TimelineSkeleton,
+  ListSkeleton,
+  ProductGridSkeleton,
+  InventorySkeleton,
+} from "@/components/onemission/skeletons";
 
 // Normalize Indonesian phone number for wa.me link
 function whatsappUrl(phone) {
@@ -1033,13 +1043,14 @@ const PRODUCT_STATUS = ["Active", "Draft", "Archived"];
 
 function ProductsModule() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("");
   const [category, setCategory] = useState("all");
   const [viewMode, setViewMode] = useState("card");
 
-  const load = async () => setItems(await api.get("products"));
+  const load = async () => { setLoading(true); setItems(await api.get("products")); setLoading(false); };
   useEffect(() => {
     load();
   }, []);
@@ -1100,6 +1111,16 @@ function ProductsModule() {
       (!filter ||
         p.name.toLowerCase().includes(filter.toLowerCase()) ||
         p.sku.toLowerCase().includes(filter.toLowerCase())),
+  );
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <ProductGridSkeleton count={8} />
+    </div>
   );
 
   return (
@@ -1669,11 +1690,14 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
 function InventoryModule() {
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState("all");
   useEffect(() => {
     (async () => {
+      setLoading(true);
       setItems(await api.get("inventory"));
       setProducts(await api.get("products"));
+      setLoading(false);
     })();
   }, []);
 
@@ -1732,6 +1756,16 @@ function InventoryModule() {
     Olive: "#65733b",
     Burgundy: "#7a1f30",
   };
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-32 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-56 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <InventorySkeleton />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -1971,10 +2005,11 @@ const PLAN_STATUS = ["Planned", "In Progress", "At Risk", "Completed"];
 
 function PlanningModule() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [level, setLevel] = useState("all");
-  const load = async () => setItems(await api.get("plans"));
+  const load = async () => { setLoading(true); setItems(await api.get("plans")); setLoading(false); };
   useEffect(() => {
     load();
   }, []);
@@ -2007,6 +2042,16 @@ function PlanningModule() {
 
   const filtered =
     level === "all" ? items : items.filter((p) => p.level === level);
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <CardSkeleton count={6} cols="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -2279,10 +2324,11 @@ const PLATFORMS = ["Instagram", "TikTok", "YouTube", "Threads"];
 
 function ContentModule() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [view, setView] = useState("kanban");
-  const load = async () => setItems(await api.get("content"));
+  const load = async () => { setLoading(true); setItems(await api.get("content")); setLoading(false); };
   useEffect(() => {
     load();
   }, []);
@@ -2317,6 +2363,16 @@ function ContentModule() {
       arr.map((i) => (i.id === item.id ? { ...i, status } : i)),
     );
   };
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-56 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <KanbanSkeleton columns={4} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -2618,10 +2674,11 @@ const CREATOR_STATUS = [
 
 function CreatorCRM() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const load = async () => setItems(await api.get("creators"));
+  const load = async () => { setLoading(true); setItems(await api.get("creators")); setLoading(false); };
   useEffect(() => {
     load();
   }, []);
@@ -2666,6 +2723,16 @@ function CreatorCRM() {
 
   const filtered =
     status === "all" ? items : items.filter((i) => i.status === status);
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-36 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-72 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <CardSkeleton count={6} cols="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -2998,9 +3065,10 @@ const SCHOOL_STATUS = [
 
 function SchoolCRM() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const load = async () => setItems(await api.get("schools"));
+  const load = async () => { setLoading(true); setItems(await api.get("schools")); setLoading(false); };
   useEffect(() => {
     load();
   }, []);
@@ -3040,6 +3108,16 @@ function SchoolCRM() {
     load();
     toast.success("School deleted");
   };
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-32 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-60 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <TableSkeleton rows={6} cols={5} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -3332,7 +3410,8 @@ function SchoolModal({ open, onOpenChange, initial, onSave }) {
 // =========== TIMELINE ===========
 function TimelineModule() {
   const [items, setItems] = useState([]);
-  const load = async () => setItems(await api.get("timeline"));
+  const [loading, setLoading] = useState(true);
+  const load = async () => { setLoading(true); setItems(await api.get("timeline")); setLoading(false); };
   useEffect(() => {
     load();
   }, []);
@@ -3349,6 +3428,16 @@ function TimelineModule() {
     Medium: "bg-blue-500",
     Low: "bg-emerald-500",
   };
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-40 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <TimelineSkeleton years={3} items={4} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -3435,9 +3524,10 @@ function TimelineModule() {
 // =========== FINANCE ===========
 function FinanceModule() {
   const [finance, setFinance] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [scenario, setScenario] = useState("Normal");
   useEffect(() => {
-    (async () => setFinance(await api.get("finance")))();
+    (async () => { setLoading(true); setFinance(await api.get("finance")); setLoading(false); })();
   }, []);
 
   const scenarioMultiplier = {
@@ -3454,6 +3544,16 @@ function FinanceModule() {
   const totalRev = adjustedFinance.reduce((s, f) => s + f.revenue, 0);
   const totalExp = finance.reduce((s, f) => s + f.expenses, 0);
   const totalProfit = totalRev - totalExp;
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <StatsSkeleton stats={4} showChart={true} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -3661,7 +3761,8 @@ function FinanceModule() {
 // =========== EVENTS ===========
 function EventsModule() {
   const [items, setItems] = useState([]);
-  const load = async () => setItems(await api.get("events"));
+  const [loading, setLoading] = useState(true);
+  const load = async () => { setLoading(true); setItems(await api.get("events")); setLoading(false); };
   useEffect(() => {
     load();
   }, []);
@@ -3676,6 +3777,16 @@ function EventsModule() {
       ),
     );
   };
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-52 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <CardSkeleton count={6} cols="grid-cols-1 lg:grid-cols-2 xl:grid-cols-3" />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -3911,7 +4022,8 @@ function ReportsModule() {
 // =========== NOTIFICATIONS ===========
 function NotificationsModule() {
   const [items, setItems] = useState([]);
-  const load = async () => setItems(await api.get("notifications"));
+  const [loading, setLoading] = useState(true);
+  const load = async () => { setLoading(true); setItems(await api.get("notifications")); setLoading(false); };
   useEffect(() => {
     load();
   }, []);
@@ -3925,6 +4037,17 @@ function NotificationsModule() {
     info: "text-blue-400 bg-blue-500/10 border-blue-500/30",
     success: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
   };
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <ListSkeleton count={7} />
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -4183,6 +4306,7 @@ const FA_TYPE_COLORS = {
 
 function FinancialAccountModule() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [coaAccounts, setCoaAccounts] = useState([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -4193,12 +4317,14 @@ function FinancialAccountModule() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = async () => {
+    setLoading(true);
     const [data, coas] = await Promise.all([
       api.get("financialaccounts"),
       api.get("chartofaccounts"),
     ]);
     setItems(Array.isArray(data) ? data : []);
     setCoaAccounts(Array.isArray(coas) ? coas.filter((c) => c.isActive) : []);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -4259,6 +4385,17 @@ function FinancialAccountModule() {
     acc[t] = items.filter((a) => a.type === t && a.isActive).length;
     return acc;
   }, {});
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-60 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <StatsSkeleton stats={3} showChart={false} />
+      <TableSkeleton rows={6} cols={5} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -4760,6 +4897,7 @@ const PAGE_SIZE_CASH = 15;
 function CashTransactionModule({ type }) {
   const label = type === "IN" ? "Cash In" : "Cash Out";
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [financialAccounts, setFinancialAccounts] = useState([]);
   const [coaAccounts, setCoaAccounts] = useState([]);
   const [open, setOpen] = useState(false);
@@ -4773,6 +4911,7 @@ function CashTransactionModule({ type }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = async () => {
+    setLoading(true);
     const [txns, fas, coas] = await Promise.all([
       api.get("cashtransactions?type=" + type),
       api.get("financialaccounts"),
@@ -4781,6 +4920,7 @@ function CashTransactionModule({ type }) {
     setItems(Array.isArray(txns) ? txns : []);
     setFinancialAccounts(Array.isArray(fas) ? fas.filter((f) => f.isActive) : []);
     setCoaAccounts(Array.isArray(coas) ? coas.filter((c) => c.allowTransaction && c.isActive) : []);
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, [type]);
@@ -4854,6 +4994,17 @@ function CashTransactionModule({ type }) {
 
   const isIn = type === "IN";
   const amtClass = isIn ? "text-emerald-500" : "text-rose-500";
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-32 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <StatsSkeleton stats={3} showChart={false} />
+      <TableSkeleton rows={8} cols={6} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -5440,6 +5591,7 @@ const ACCOUNT_TYPE_COLORS = {
 
 function ChartOfAccountsModule() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState("");
@@ -5449,8 +5601,10 @@ function ChartOfAccountsModule() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = async () => {
+    setLoading(true);
     const data = await api.get("chartofaccounts");
     setItems(Array.isArray(data) ? data : []);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -5519,6 +5673,17 @@ function ChartOfAccountsModule() {
     acc[t] = items.filter((a) => a.accountType === t && a.isActive).length;
     return acc;
   }, {});
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-60 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <StatsSkeleton stats={4} showChart={false} />
+      <TableSkeleton rows={8} cols={6} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -6057,10 +6222,11 @@ function ChartOfAccountModal({ open, onOpenChange, initial, accounts, onSave }) 
 
 function RawMaterialModule() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState("");
-  const load = async () => setItems(await api.get("rawmaterials"));
+  const load = async () => { setLoading(true); setItems(await api.get("rawmaterials")); setLoading(false); };
   useEffect(() => {
     load();
   }, []);
@@ -6107,6 +6273,17 @@ function RawMaterialModule() {
       year: "numeric",
     });
   };
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <StatsSkeleton stats={3} showChart={false} />
+      <TableSkeleton rows={6} cols={5} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -6363,6 +6540,7 @@ const PAGE_SIZE_JE = 15;
 
 function JournalEntriesModule() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [coaAccounts, setCoaAccounts] = useState([]);
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -6378,12 +6556,14 @@ function JournalEntriesModule() {
   const [page, setPage] = useState(1);
 
   const load = async () => {
+    setLoading(true);
     const [journals, coas] = await Promise.all([
       api.get("journalentries"),
       api.get("chartofaccounts"),
     ]);
     setItems(Array.isArray(journals) ? journals : []);
     setCoaAccounts(Array.isArray(coas) ? coas.filter((c) => c.allowTransaction && c.isActive) : []);
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
@@ -6463,6 +6643,17 @@ function JournalEntriesModule() {
       { chartOfAccountId: "", description: "", debitAmount: 0, creditAmount: 0 },
     ],
   };
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
+        <div className="h-4 w-72 bg-muted/40 rounded animate-pulse" />
+      </div>
+      <StatsSkeleton stats={3} showChart={false} />
+      <TableSkeleton rows={8} cols={7} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
