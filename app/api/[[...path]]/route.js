@@ -834,6 +834,76 @@ async function handle(request, { params }) {
       });
     }
 
+    // ---------- PRODUCTS — special POST: auto-create inventory rows ----------
+    if (segs[0] === 'products' && method === 'POST' && segs.length === 1) {
+      const body = await readJson(request);
+      const productId = uuid();
+      const colors = Array.isArray(body.colors) ? body.colors : [];
+      const sizes = Array.isArray(body.sizes) ? body.sizes : [];
+
+      const inventoryRecords = [];
+      for (const color of colors) {
+        for (const size of sizes) {
+          inventoryRecords.push({
+            id: uuid(),
+            productId,
+            color,
+            size,
+            quantity: 0,
+            threshold: 5,
+            incoming: 0,
+          });
+        }
+      }
+
+      const product = await prisma.$transaction(async (tx) => {
+        const created = await tx.product.create({ data: { id: productId, ...body } });
+        if (inventoryRecords.length > 0) {
+          await tx.inventory.createMany({ data: inventoryRecords });
+        }
+        return created;
+      });
+
+      return NextResponse.json(product);
+    }
+
+    // ---------- PRODUCTS — repair-inventory: create missing rows for all products ----------
+    if (segs[0] === 'products' && segs[1] === 'repair-inventory' && method === 'POST') {
+      const products = await prisma.product.findMany();
+      const existingInv = await prisma.inventory.findMany({
+        select: { productId: true, color: true, size: true },
+      });
+
+      const existingSet = new Set(existingInv.map((i) => `${i.productId}::${i.color}::${i.size}`));
+      const toCreate = [];
+
+      for (const p of products) {
+        const colors = Array.isArray(p.colors) ? p.colors : [];
+        const sizes = Array.isArray(p.sizes) ? p.sizes : [];
+        for (const color of colors) {
+          for (const size of sizes) {
+            if (!existingSet.has(`${p.id}::${color}::${size}`)) {
+              toCreate.push({
+                id: uuid(),
+                productId: p.id,
+                color,
+                size,
+                quantity: 0,
+                threshold: 5,
+                incoming: 0,
+              });
+            }
+          }
+        }
+      }
+
+      if (toCreate.length > 0) {
+        await prisma.inventory.createMany({ data: toCreate });
+      }
+
+      return NextResponse.json({ created: toCreate.length, repaired: products.length });
+    }
+
     // Generic CRUD
     const modelName = COLLECTION_MODELS[segs[0]];
     if (modelName) {
