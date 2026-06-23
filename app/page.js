@@ -1711,6 +1711,8 @@ function InventoryModule() {
   useEffect(() => {
     (async () => {
       setLoading(true);
+      // Silently repair any products that are missing inventory rows
+      await api.post("products/repair-inventory", {}).catch(() => {});
       setItems(await api.get("inventory"));
       setProducts(await api.get("products"));
       setLoading(false);
