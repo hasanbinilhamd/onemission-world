@@ -26,6 +26,29 @@ async function readJson(request) {
   }
 }
 
+// Generate journal number: JR-YYYYMM-00001
+async function generateJournalNumber(journalDate) {
+  const d = journalDate ? new Date(journalDate) : new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const prefix = `JR-${year}${month}-`;
+
+  const existing = await prisma.journalEntry.findMany({
+    where: { journalNumber: { startsWith: prefix } },
+    select: { journalNumber: true },
+    orderBy: { journalNumber: 'desc' },
+  });
+
+  let maxSeq = 0;
+  for (const e of existing) {
+    const parts = e.journalNumber.split('-');
+    const seq = parseInt(parts[parts.length - 1] || '0', 10);
+    if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+  }
+
+  return `${prefix}${String(maxSeq + 1).padStart(5, '0')}`;
+}
+
 async function handle(request, { params }) {
   const segs = params?.path || [];
   const method = request.method;
@@ -189,6 +212,204 @@ async function handle(request, { params }) {
       }
     }
 
+    // ---------- JOURNAL ENTRIES ----------
+    if (segs[0] === 'journalentries') {
+      // GET /journalentries/next-number
+      if (segs[1] === 'next-number' && method === 'GET') {
+        const url = new URL(request.url);
+        const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+        const number = await generateJournalNumber(date);
+        return NextResponse.json({ journalNumber: number });
+      }
+
+      // POST /journalentries/:id/post
+      if (segs.length === 3 && segs[2] === 'post' && method === 'POST') {
+        const entry = await prisma.journalEntry.findUnique({ where: { id: segs[1] } });
+        if (!entry) return NextResponse.json({ error: 'Journal entry not found' }, { status: 404 });
+        if (entry.status === 'Posted')
+          return NextResponse.json({ error: 'Journal entry is already posted' }, { status: 400 });
+        const updated = await prisma.journalEntry.update({
+          where: { id: segs[1] },
+          data: { status: 'Posted' },
+          include: { lines: { include: { chartOfAccount: true } } },
+        });
+        return NextResponse.json(updated);
+      }
+
+      // GET /journalentries — list
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const status = url.searchParams.get('status');
+        const source = url.searchParams.get('source');
+        const from = url.searchParams.get('from');
+        const to = url.searchParams.get('to');
+
+        const where = {};
+        if (status && status !== 'all') where.status = status;
+        if (source && source !== 'all') where.journalSource = source;
+        if (from || to) {
+          where.journalDate = {};
+          if (from) where.journalDate.gte = from;
+          if (to) where.journalDate.lte = to;
+        }
+
+        const docs = await prisma.journalEntry.findMany({
+          where,
+          include: { lines: { include: { chartOfAccount: true } } },
+          orderBy: { journalDate: 'desc' },
+        });
+        return NextResponse.json(docs);
+      }
+
+      // GET /journalentries/:id
+      if (method === 'GET' && segs.length === 2) {
+        const entry = await prisma.journalEntry.findUnique({
+          where: { id: segs[1] },
+          include: { lines: { include: { chartOfAccount: true } } },
+        });
+        if (!entry) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        return NextResponse.json(entry);
+      }
+
+      // POST /journalentries — create
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+
+        if (!body.journalDate)
+          return NextResponse.json({ error: 'Journal date is required' }, { status: 400 });
+        if (!body.description?.trim())
+          return NextResponse.json({ error: 'Description is required' }, { status: 400 });
+        if (!body.journalSource)
+          return NextResponse.json({ error: 'Journal source is required' }, { status: 400 });
+
+        const lines = body.lines || [];
+        if (lines.length < 2)
+          return NextResponse.json({ error: 'Minimum 2 journal lines are required' }, { status: 400 });
+
+        for (const line of lines) {
+          if (!line.chartOfAccountId)
+            return NextResponse.json({ error: 'Each line must have an account selected' }, { status: 400 });
+          const debit = Number(line.debitAmount) || 0;
+          const credit = Number(line.creditAmount) || 0;
+          if (debit > 0 && credit > 0)
+            return NextResponse.json({ error: 'A line cannot have both debit and credit values' }, { status: 400 });
+          const coa = await prisma.chartOfAccount.findUnique({ where: { id: line.chartOfAccountId } });
+          if (!coa || !coa.allowTransaction)
+            return NextResponse.json({ error: 'Selected account does not allow transactions' }, { status: 400 });
+        }
+
+        const totalDebit = lines.reduce((s, l) => s + (Number(l.debitAmount) || 0), 0);
+        const totalCredit = lines.reduce((s, l) => s + (Number(l.creditAmount) || 0), 0);
+
+        if (Math.abs(totalDebit - totalCredit) > 0.01)
+          return NextResponse.json({ error: 'Total debit must equal total credit' }, { status: 400 });
+
+        const journalNumber = await generateJournalNumber(body.journalDate);
+
+        const entry = await prisma.journalEntry.create({
+          data: {
+            id: uuid(),
+            journalNumber,
+            journalDate: body.journalDate,
+            description: body.description.trim(),
+            referenceNumber: body.referenceNumber?.trim() || '',
+            journalSource: body.journalSource,
+            sourceId: body.sourceId?.trim() || '',
+            status: 'Draft',
+            totalDebit,
+            totalCredit,
+            createdBy: body.createdBy?.trim() || '',
+            lines: {
+              create: lines.map((l) => ({
+                id: uuid(),
+                chartOfAccountId: l.chartOfAccountId,
+                description: l.description?.trim() || '',
+                debitAmount: Number(l.debitAmount) || 0,
+                creditAmount: Number(l.creditAmount) || 0,
+              })),
+            },
+          },
+          include: { lines: { include: { chartOfAccount: true } } },
+        });
+
+        return NextResponse.json(entry);
+      }
+
+      // PUT /journalentries/:id — update (Draft only)
+      if (method === 'PUT' && segs.length === 2) {
+        const existing = await prisma.journalEntry.findUnique({ where: { id: segs[1] } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        if (existing.status === 'Posted')
+          return NextResponse.json({ error: 'Posted journal entries cannot be edited' }, { status: 400 });
+
+        const body = await readJson(request);
+
+        if (!body.journalDate)
+          return NextResponse.json({ error: 'Journal date is required' }, { status: 400 });
+        if (!body.description?.trim())
+          return NextResponse.json({ error: 'Description is required' }, { status: 400 });
+
+        const lines = body.lines || [];
+        if (lines.length < 2)
+          return NextResponse.json({ error: 'Minimum 2 journal lines are required' }, { status: 400 });
+
+        for (const line of lines) {
+          if (!line.chartOfAccountId)
+            return NextResponse.json({ error: 'Each line must have an account selected' }, { status: 400 });
+          const debit = Number(line.debitAmount) || 0;
+          const credit = Number(line.creditAmount) || 0;
+          if (debit > 0 && credit > 0)
+            return NextResponse.json({ error: 'A line cannot have both debit and credit values' }, { status: 400 });
+          const coa = await prisma.chartOfAccount.findUnique({ where: { id: line.chartOfAccountId } });
+          if (!coa || !coa.allowTransaction)
+            return NextResponse.json({ error: 'Selected account does not allow transactions' }, { status: 400 });
+        }
+
+        const totalDebit = lines.reduce((s, l) => s + (Number(l.debitAmount) || 0), 0);
+        const totalCredit = lines.reduce((s, l) => s + (Number(l.creditAmount) || 0), 0);
+
+        if (Math.abs(totalDebit - totalCredit) > 0.01)
+          return NextResponse.json({ error: 'Total debit must equal total credit' }, { status: 400 });
+
+        await prisma.journalEntryLine.deleteMany({ where: { journalEntryId: segs[1] } });
+
+        const updated = await prisma.journalEntry.update({
+          where: { id: segs[1] },
+          data: {
+            journalDate: body.journalDate,
+            description: body.description.trim(),
+            referenceNumber: body.referenceNumber?.trim() || '',
+            journalSource: body.journalSource || existing.journalSource,
+            sourceId: body.sourceId?.trim() || '',
+            totalDebit,
+            totalCredit,
+            createdBy: body.createdBy?.trim() || existing.createdBy,
+            lines: {
+              create: lines.map((l) => ({
+                id: uuid(),
+                chartOfAccountId: l.chartOfAccountId,
+                description: l.description?.trim() || '',
+                debitAmount: Number(l.debitAmount) || 0,
+                creditAmount: Number(l.creditAmount) || 0,
+              })),
+            },
+          },
+          include: { lines: { include: { chartOfAccount: true } } },
+        });
+        return NextResponse.json(updated);
+      }
+
+      // DELETE /journalentries/:id — Draft only
+      if (method === 'DELETE' && segs.length === 2) {
+        const existing = await prisma.journalEntry.findUnique({ where: { id: segs[1] } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        if (existing.status === 'Posted')
+          return NextResponse.json({ error: 'Posted journal entries cannot be deleted' }, { status: 400 });
+        await prisma.journalEntry.delete({ where: { id: segs[1] } });
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     // Generic CRUD
     const modelName = COLLECTION_MODELS[segs[0]];
     if (modelName) {
@@ -210,7 +431,6 @@ async function handle(request, { params }) {
       }
       if (method === 'DELETE' && segs.length === 2) {
         const id = segs[1];
-        // Chart of Accounts: soft delete by setting isActive = false
         if (modelName === 'chartOfAccount') {
           const updated = await model.update({ where: { id }, data: { isActive: false } });
           return NextResponse.json(updated);
@@ -223,7 +443,7 @@ async function handle(request, { params }) {
       }
     }
 
-    // Public products endpoint (for ONEMISSION website integration)
+    // Public products endpoint
     if (segs[0] === 'public' && segs[1] === 'products' && method === 'GET') {
       const products = await prisma.product.findMany({ where: { status: 'Active' } });
       const inventory = await prisma.inventory.findMany();

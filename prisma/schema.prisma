@@ -159,20 +159,21 @@ model RawMaterial {
 }
 
 model ChartOfAccount {
-  id               String            @id
-  accountCode      String            @unique
+  id               String             @id
+  accountCode      String             @unique
   accountName      String
   accountType      String
   normalBalance    String
-  description      String            @default("")
-  isActive         Boolean           @default(true)
-  allowTransaction Boolean           @default(true)
+  description      String             @default("")
+  isActive         Boolean            @default(true)
+  allowTransaction Boolean            @default(true)
   parentId         String?
-  parent           ChartOfAccount?   @relation("AccountHierarchy", fields: [parentId], references: [id])
-  children         ChartOfAccount[]  @relation("AccountHierarchy")
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  parent           ChartOfAccount?    @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children         ChartOfAccount[]   @relation("AccountHierarchy")
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
   cashTransactions CashTransaction[]
+  journalLines     JournalEntryLine[]
 }
 
 model FinancialAccount {
@@ -204,4 +205,34 @@ model CashTransaction {
   createdBy          String           @default("")
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
+}
+
+model JournalEntry {
+  id              String             @id
+  journalNumber   String             @unique
+  journalDate     String
+  description     String
+  referenceNumber String             @default("")
+  journalSource   String
+  sourceId        String             @default("")
+  status          String             @default("Draft")
+  totalDebit      Float              @default(0)
+  totalCredit     Float              @default(0)
+  createdBy       String             @default("")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  lines           JournalEntryLine[]
+}
+
+model JournalEntryLine {
+  id               String         @id
+  journalEntryId   String
+  journalEntry     JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  chartOfAccountId String
+  chartOfAccount   ChartOfAccount @relation(fields: [chartOfAccountId], references: [id])
+  description      String         @default("")
+  debitAmount      Float          @default(0)
+  creditAmount     Float          @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 }

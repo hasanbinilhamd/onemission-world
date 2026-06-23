@@ -48,6 +48,9 @@ import {
   ImageOff,
   BookOpen,
   ChevronLeft,
+  ClipboardList,
+  Lock,
+  Send,
 } from "lucide-react";
 
 // Normalize Indonesian phone number for wa.me link
@@ -363,6 +366,7 @@ const NAV_GROUPS = [
       { id: "financialaccounts", label: "Financial Accounts", icon: DollarSign },
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
+      { id: "journalentries", label: "Journal Entries", icon: ClipboardList },
       { id: "reports", label: "Reports", icon: FileBarChart2 },
     ],
   },
@@ -6305,6 +6309,751 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave }) {
   );
 }
 
+// =========== JOURNAL ENTRIES ===========
+const JOURNAL_SOURCES = ["Manual", "Cash In", "Cash Out", "Inventory", "Purchasing", "Sales", "Adjustment"];
+const PAGE_SIZE_JE = 15;
+
+function JournalEntriesModule() {
+  const [items, setItems] = useState([]);
+  const [coaAccounts, setCoaAccounts] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [postTarget, setPostTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [viewItem, setViewItem] = useState(null);
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [page, setPage] = useState(1);
+
+  const load = async () => {
+    const [journals, coas] = await Promise.all([
+      api.get("journalentries"),
+      api.get("chartofaccounts"),
+    ]);
+    setItems(Array.isArray(journals) ? journals : []);
+    setCoaAccounts(Array.isArray(coas) ? coas.filter((c) => c.allowTransaction && c.isActive) : []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async (data) => {
+    let result;
+    if (editing?.id) {
+      result = await api.put("journalentries/" + editing.id, data);
+    } else {
+      result = await api.post("journalentries", data);
+    }
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(editing?.id ? "Journal entry updated" : "Journal entry created");
+    setOpen(false);
+    setEditing(null);
+    load();
+  };
+
+  const confirmPost = async () => {
+    if (!postTarget) return;
+    const result = await api.post("journalentries/" + postTarget.id + "/post", {});
+    if (result?.error) {
+      toast.error(result.error);
+    } else {
+      toast.success("Journal entry posted successfully");
+    }
+    setPostTarget(null);
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const result = await api.del("journalentries/" + deleteTarget.id);
+    if (result?.error) {
+      toast.error(result.error);
+    } else {
+      toast.success("Journal entry deleted");
+    }
+    setDeleteTarget(null);
+    load();
+  };
+
+  const filtered = items.filter((j) => {
+    const q = search.toLowerCase();
+    const matchSearch =
+      !search ||
+      j.journalNumber?.toLowerCase().includes(q) ||
+      j.description?.toLowerCase().includes(q) ||
+      j.referenceNumber?.toLowerCase().includes(q) ||
+      j.journalSource?.toLowerCase().includes(q);
+    const matchFrom = !dateFrom || j.journalDate >= dateFrom;
+    const matchTo = !dateTo || j.journalDate <= dateTo;
+    const matchStatus = statusFilter === "all" || j.status === statusFilter;
+    const matchSource = sourceFilter === "all" || j.journalSource === sourceFilter;
+    return matchSearch && matchFrom && matchTo && matchStatus && matchSource;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE_JE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE_JE, safePage * PAGE_SIZE_JE);
+
+  const totalJournals = items.length;
+  const draftCount = items.filter((j) => j.status === "Draft").length;
+  const postedCount = items.filter((j) => j.status === "Posted").length;
+
+  const emptyForm = {
+    journalDate: new Date().toISOString().split("T")[0],
+    description: "",
+    referenceNumber: "",
+    journalSource: "Manual",
+    sourceId: "",
+    lines: [
+      { chartOfAccountId: "", description: "", debitAmount: 0, creditAmount: 0 },
+      { chartOfAccountId: "", description: "", debitAmount: 0, creditAmount: 0 },
+    ],
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Journal Entries</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Accounting journal entries — the backbone of financial records
+          </p>
+        </div>
+        <Button
+          onClick={() => { setEditing(null); setOpen(true); }}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" /> New Journal Entry
+        </Button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="border-border/60">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Journals</p>
+            <p className="text-2xl font-semibold mt-1">{totalJournals}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Draft</p>
+            <p className="text-2xl font-semibold mt-1 text-amber-500">{draftCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Posted</p>
+            <p className="text-2xl font-semibold mt-1 text-emerald-500">{postedCount}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            placeholder="Search by journal number, description..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          />
+        </div>
+        <Input
+          type="date"
+          className="w-full sm:w-36"
+          value={dateFrom}
+          onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+        />
+        <Input
+          type="date"
+          className="w-full sm:w-36"
+          value={dateTo}
+          onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+        />
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-full sm:w-[140px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="Draft">Draft</SelectItem>
+            <SelectItem value="Posted">Posted</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue placeholder="Source" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sources</SelectItem>
+            {JOURNAL_SOURCES.map((s) => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(search || dateFrom || dateTo || statusFilter !== "all" || sourceFilter !== "all") && (
+          <Button variant="ghost" size="sm" onClick={() => {
+            setSearch(""); setDateFrom(""); setDateTo("");
+            setStatusFilter("all"); setSourceFilter("all"); setPage(1);
+          }}>
+            Clear
+          </Button>
+        )}
+      </div>
+
+      {/* Table */}
+      <Card className="border-border/60">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Journal No.</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Source</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Debit</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Credit</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                    <ClipboardList className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">No journal entries found</p>
+                  </td>
+                </tr>
+              ) : (
+                paginated.map((j) => (
+                  <tr key={j.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                        {j.journalNumber}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">{j.journalDate}</td>
+                    <td className="px-4 py-3 max-w-[200px]">
+                      <p className="truncate">{j.description}</p>
+                      {j.referenceNumber && (
+                        <p className="text-xs text-muted-foreground">{j.referenceNumber}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <Badge variant="outline" className="font-normal text-xs">{j.journalSource}</Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant={j.status === "Posted" ? "default" : "secondary"}
+                        className={`font-normal text-xs ${j.status === "Posted" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}
+                      >
+                        {j.status === "Posted" ? <Lock className="h-3 w-3 mr-1 inline" /> : null}
+                        {j.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right hidden lg:table-cell font-medium">
+                      {fmt(j.totalDebit)}
+                    </td>
+                    <td className="px-4 py-3 text-right hidden lg:table-cell font-medium">
+                      {fmt(j.totalCredit)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 justify-end">
+                        <Button
+                          variant="ghost" size="icon" className="h-7 w-7" title="View"
+                          onClick={() => { setViewItem(j); setViewOpen(true); }}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                        {j.status === "Draft" && (
+                          <>
+                            <Button
+                              variant="ghost" size="icon" className="h-7 w-7" title="Edit"
+                              onClick={() => { setEditing(j); setOpen(true); }}
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost" size="icon" className="h-7 w-7 text-emerald-500 hover:text-emerald-600"
+                              title="Post Journal"
+                              onClick={() => setPostTarget(j)}
+                            >
+                              <Send className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost" size="icon" className="h-7 w-7 text-rose-400 hover:text-rose-500"
+                              title="Delete"
+                              onClick={() => setDeleteTarget(j)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              Showing {(safePage - 1) * PAGE_SIZE_JE + 1}–{Math.min(safePage * PAGE_SIZE_JE, filtered.length)} of {filtered.length}
+            </span>
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" className="h-7 px-2" disabled={safePage === 1} onClick={() => setPage((p) => p - 1)}>
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 px-2" disabled={safePage === totalPages} onClick={() => setPage((p) => p + 1)}>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Create / Edit Modal */}
+      <JournalEntryModal
+        open={open}
+        onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}
+        initial={editing || emptyForm}
+        coaAccounts={coaAccounts}
+        onSave={save}
+      />
+
+      {/* View Modal */}
+      <JournalEntryViewModal open={viewOpen} onOpenChange={setViewOpen} item={viewItem} />
+
+      {/* Post Confirmation */}
+      <AlertDialog open={!!postTarget} onOpenChange={(v) => !v && setPostTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Post Journal Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to post <strong>{postTarget?.journalNumber}</strong>?
+              Once posted, this entry will be locked and cannot be edited or deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-emerald-600 hover:bg-emerald-700" onClick={confirmPost}>
+              Post Journal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Journal Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.journalNumber}</strong>?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-rose-500 hover:bg-rose-600" onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function JournalEntryModal({ open, onOpenChange, initial, coaAccounts, onSave }) {
+  const [form, setForm] = useState(initial);
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setForm(initial);
+    setErrors({});
+  }, [initial, open]);
+
+  const updateHeader = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    if (errors[k]) setErrors((e) => ({ ...e, [k]: null }));
+  };
+
+  const updateLine = (idx, k, v) => {
+    setForm((f) => {
+      const lines = [...f.lines];
+      lines[idx] = { ...lines[idx], [k]: v };
+      // Enforce: if debit set, clear credit; if credit set, clear debit
+      if (k === "debitAmount" && Number(v) > 0) lines[idx].creditAmount = 0;
+      if (k === "creditAmount" && Number(v) > 0) lines[idx].debitAmount = 0;
+      return { ...f, lines };
+    });
+    if (errors[`line_${idx}`]) setErrors((e) => ({ ...e, [`line_${idx}`]: null }));
+  };
+
+  const addLine = () => {
+    setForm((f) => ({
+      ...f,
+      lines: [...f.lines, { chartOfAccountId: "", description: "", debitAmount: 0, creditAmount: 0 }],
+    }));
+  };
+
+  const removeLine = (idx) => {
+    if (form.lines.length <= 2) return;
+    setForm((f) => ({ ...f, lines: f.lines.filter((_, i) => i !== idx) }));
+  };
+
+  const totalDebit = (form.lines || []).reduce((s, l) => s + (Number(l.debitAmount) || 0), 0);
+  const totalCredit = (form.lines || []).reduce((s, l) => s + (Number(l.creditAmount) || 0), 0);
+  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
+
+  const validate = () => {
+    const errs = {};
+    if (!form.journalDate) errs.journalDate = "Journal date is required";
+    if (!form.description?.trim()) errs.description = "Description is required";
+    if (!form.journalSource) errs.journalSource = "Journal source is required";
+    if ((form.lines || []).length < 2) errs.lines = "Minimum 2 lines required";
+    (form.lines || []).forEach((l, i) => {
+      if (!l.chartOfAccountId) errs[`line_${i}`] = "Account is required";
+    });
+    if (!isBalanced && totalDebit > 0) errs.balance = "Total debit must equal total credit";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!validate()) return;
+    setSaving(true);
+    await onSave({
+      journalDate: form.journalDate,
+      description: form.description.trim(),
+      referenceNumber: form.referenceNumber?.trim() || "",
+      journalSource: form.journalSource,
+      sourceId: form.sourceId?.trim() || "",
+      lines: form.lines.map((l) => ({
+        chartOfAccountId: l.chartOfAccountId,
+        description: l.description?.trim() || "",
+        debitAmount: Number(l.debitAmount) || 0,
+        creditAmount: Number(l.creditAmount) || 0,
+      })),
+    });
+    setSaving(false);
+  };
+
+  const isEdit = !!initial?.id;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Edit Journal Entry" : "New Journal Entry"}</DialogTitle>
+          <DialogDescription>
+            {isEdit ? "Update this draft journal entry" : "Create a new accounting journal entry"}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+          {/* Header Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Journal Date <span className="text-rose-400">*</span></Label>
+              <Input
+                type="date"
+                value={form.journalDate || ""}
+                onChange={(e) => updateHeader("journalDate", e.target.value)}
+                className={errors.journalDate ? "border-rose-500" : ""}
+              />
+              {errors.journalDate && <p className="text-xs text-rose-400">{errors.journalDate}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Journal Source <span className="text-rose-400">*</span></Label>
+              <Select value={form.journalSource || "Manual"} onValueChange={(v) => updateHeader("journalSource", v)}>
+                <SelectTrigger className={errors.journalSource ? "border-rose-500" : ""}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {JOURNAL_SOURCES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.journalSource && <p className="text-xs text-rose-400">{errors.journalSource}</p>}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Description <span className="text-rose-400">*</span></Label>
+            <Textarea
+              value={form.description || ""}
+              onChange={(e) => updateHeader("description", e.target.value)}
+              placeholder="e.g. Monthly salary payment, June 2026"
+              rows={2}
+              className={errors.description ? "border-rose-500" : ""}
+            />
+            {errors.description && <p className="text-xs text-rose-400">{errors.description}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Reference Number</Label>
+              <Input
+                value={form.referenceNumber || ""}
+                onChange={(e) => updateHeader("referenceNumber", e.target.value)}
+                placeholder="e.g. INV-001 (optional)"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Source ID</Label>
+              <Input
+                value={form.sourceId || ""}
+                onChange={(e) => updateHeader("sourceId", e.target.value)}
+                placeholder="System source reference (optional)"
+              />
+            </div>
+          </div>
+
+          {/* Lines */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Journal Lines <span className="text-rose-400">*</span></Label>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addLine}>
+                <Plus className="h-3 w-3" /> Add Line
+              </Button>
+            </div>
+            {errors.lines && <p className="text-xs text-rose-400">{errors.lines}</p>}
+            {errors.balance && (
+              <div className="flex items-center gap-2 p-2 rounded-md bg-rose-500/10 border border-rose-500/30">
+                <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+                <p className="text-xs text-rose-400">{errors.balance}</p>
+              </div>
+            )}
+
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">Account <span className="text-rose-400">*</span></th>
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground hidden sm:table-cell">Description</th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground w-32">Debit</th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground w-32">Credit</th>
+                      <th className="px-3 py-2 w-8" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(form.lines || []).map((line, idx) => (
+                      <tr key={idx} className="border-b border-border/50 last:border-0">
+                        <td className="px-3 py-2 min-w-[180px]">
+                          <Select
+                            value={line.chartOfAccountId || ""}
+                            onValueChange={(v) => updateLine(idx, "chartOfAccountId", v)}
+                          >
+                            <SelectTrigger className={`h-8 text-xs ${errors[`line_${idx}`] ? "border-rose-500" : ""}`}>
+                              <SelectValue placeholder="Select account..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {coaAccounts.map((c) => (
+                                <SelectItem key={c.id} value={c.id} className="text-xs">
+                                  {c.accountCode} — {c.accountName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {errors[`line_${idx}`] && (
+                            <p className="text-[10px] text-rose-400 mt-0.5">{errors[`line_${idx}`]}</p>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 hidden sm:table-cell">
+                          <Input
+                            className="h-8 text-xs"
+                            value={line.description || ""}
+                            onChange={(e) => updateLine(idx, "description", e.target.value)}
+                            placeholder="Optional note"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <NumberInput
+                            value={line.debitAmount || 0}
+                            onChange={(v) => updateLine(idx, "debitAmount", v)}
+                            min={0}
+                            className="h-8 text-xs text-right"
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <NumberInput
+                            value={line.creditAmount || 0}
+                            onChange={(v) => updateLine(idx, "creditAmount", v)}
+                            min={0}
+                            className="h-8 text-xs text-right"
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <Button
+                            variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-400"
+                            disabled={form.lines.length <= 2}
+                            onClick={() => removeLine(idx)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-border bg-muted/20">
+                      <td colSpan={2} className="px-3 py-2 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell">
+                        Total
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <span className={`text-sm font-semibold ${totalDebit > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                          {fmt(totalDebit)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <span className={`text-sm font-semibold ${totalCredit > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                          {fmt(totalCredit)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {totalDebit > 0 && isBalanced && (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500 mx-auto" />
+                        )}
+                        {totalDebit > 0 && !isBalanced && (
+                          <AlertTriangle className="h-4 w-4 text-rose-400 mx-auto" />
+                        )}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {totalDebit > 0 && (
+              <p className={`text-xs ${isBalanced ? "text-emerald-500" : "text-rose-400"}`}>
+                {isBalanced
+                  ? "Balanced — debit equals credit"
+                  : `Difference: ${fmt(Math.abs(totalDebit - totalCredit))}`}
+              </p>
+            )}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            {isEdit ? "Save Changes" : "Create Journal Entry"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function JournalEntryViewModal({ open, onOpenChange, item }) {
+  if (!item) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Journal Entry Detail</DialogTitle>
+          <DialogDescription>
+            <span className="font-mono">{item.journalNumber}</span>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+          {/* Header Info */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            {[
+              { label: "Journal Number", value: item.journalNumber },
+              { label: "Journal Date", value: item.journalDate },
+              { label: "Source", value: item.journalSource },
+              { label: "Status", value: item.status },
+              { label: "Reference Number", value: item.referenceNumber || "—" },
+              { label: "Source ID", value: item.sourceId || "—" },
+              { label: "Created By", value: item.createdBy || "—" },
+              {
+                label: "Created At",
+                value: item.createdAt ? new Date(item.createdAt).toLocaleString("id-ID") : "—",
+              },
+            ].map((r) => (
+              <div key={r.label} className="py-1 border-b border-border/40 last:border-0">
+                <p className="text-xs text-muted-foreground">{r.label}</p>
+                <p className="font-medium mt-0.5">{r.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="py-1 border-b border-border/40">
+            <p className="text-xs text-muted-foreground">Description</p>
+            <p className="font-medium mt-0.5 text-sm">{item.description}</p>
+          </div>
+
+          {/* Lines */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Journal Lines</p>
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Account</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground hidden sm:table-cell">Description</th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Debit</th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(item.lines || []).map((line, idx) => (
+                    <tr key={idx} className="border-b border-border/50 last:border-0">
+                      <td className="px-3 py-2">
+                        <p className="text-xs text-muted-foreground">{line.chartOfAccount?.accountCode}</p>
+                        <p>{line.chartOfAccount?.accountName}</p>
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">
+                        {line.description || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium">
+                        {line.debitAmount > 0 ? fmt(line.debitAmount) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium">
+                        {line.creditAmount > 0 ? fmt(line.creditAmount) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-border bg-muted/20">
+                    <td colSpan={2} className="px-3 py-2 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell">
+                      Total
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold">{fmt(item.totalDebit)}</td>
+                    <td className="px-3 py-2 text-right font-semibold">{fmt(item.totalCredit)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // =========== MAIN APP ===========
 function App() {
   const [user, setUser] = useState(null);
@@ -6378,6 +7127,7 @@ function App() {
     financialaccounts: <FinancialAccountModule />,
     cashin: <CashTransactionModule type="IN" />,
     cashout: <CashTransactionModule type="OUT" />,
+    journalentries: <JournalEntriesModule />,
     events: <EventsModule />,
     reports: <ReportsModule />,
     notifications: <NotificationsModule />,
