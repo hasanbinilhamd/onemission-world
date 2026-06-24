@@ -64,7 +64,6 @@ import {
   Users,
   PackageCheck,
   FileText,
-  PieChart,
   UserCog,
 } from "lucide-react";
 import {
@@ -412,7 +411,7 @@ const NAV_GROUPS = [
       { id: "productanalytics", label: "Product Analytics", icon: BarChart2 },
       { id: "inventoryanalytics", label: "Inventory Analytics", icon: Boxes },
       { id: "financialanalytics", label: "Financial Analytics", icon: DollarSign },
-      { id: "marketinganalytics", label: "Marketing Analytics", icon: PieChart },
+      { id: "marketinganalytics", label: "Marketing Analytics", icon: Megaphone },
       { id: "executivereports", label: "Executive Reports", icon: FileBarChart2 },
     ],
   },
