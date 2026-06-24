@@ -1061,6 +1061,7 @@ async function handle(request, { params }) {
         await prisma.stockMovement.create({
           data: {
             id: uuid(),
+            itemType: 'PRODUCT',
             inventoryId: id,
             productId: current.productId,
             movementDate: today,
@@ -1084,16 +1085,20 @@ async function handle(request, { params }) {
         const from = url.searchParams.get('from');
         const to = url.searchParams.get('to');
         const type = url.searchParams.get('type');
+        const itemType = url.searchParams.get('itemType');
         const where = {};
         if (from || to) { where.movementDate = {}; if (from) where.movementDate.gte = from; if (to) where.movementDate.lte = to; }
         if (type) where.movementType = type;
-        const movements = await prisma.stockMovement.findMany({ where, select: { movementType: true, quantity: true } });
+        if (itemType && itemType !== 'all') where.itemType = itemType;
+        const movements = await prisma.stockMovement.findMany({ where, select: { movementType: true, quantity: true, itemType: true } });
         const totalMovements = movements.length;
         const inTypes = ['ADJUSTMENT_IN', 'MANUAL_IN', 'OPENING'];
         const outTypes = ['ADJUSTMENT_OUT', 'MANUAL_OUT'];
         const totalIn = movements.filter(m => inTypes.includes(m.movementType)).reduce((s, m) => s + m.quantity, 0);
         const totalOut = movements.filter(m => outTypes.includes(m.movementType)).reduce((s, m) => s + m.quantity, 0);
-        return NextResponse.json({ totalMovements, totalIn, totalOut });
+        const productMovements = movements.filter(m => (m.itemType || 'PRODUCT') === 'PRODUCT').length;
+        const rawMaterialMovements = movements.filter(m => m.itemType === 'RAW_MATERIAL').length;
+        return NextResponse.json({ totalMovements, totalIn, totalOut, productMovements, rawMaterialMovements });
       }
 
       // List
@@ -1103,16 +1108,28 @@ async function handle(request, { params }) {
         const to = url.searchParams.get('to');
         const type = url.searchParams.get('type');
         const search = url.searchParams.get('search');
+        const itemType = url.searchParams.get('itemType');
         const where = {};
         if (from || to) { where.movementDate = {}; if (from) where.movementDate.gte = from; if (to) where.movementDate.lte = to; }
         if (type) where.movementType = type;
+        if (itemType && itemType !== 'all') where.itemType = itemType;
         const movements = await prisma.stockMovement.findMany({
           where,
-          include: { product: { select: { id: true, name: true, sku: true } }, inventory: { select: { color: true, size: true } } },
+          include: {
+            product: { select: { id: true, name: true, sku: true } },
+            inventory: { select: { color: true, size: true } },
+            rawMaterial: { select: { id: true, name: true, category: true, unit: true } },
+          },
           orderBy: [{ movementDate: 'desc' }, { createdAt: 'desc' }],
         });
         const result = search
-          ? movements.filter(m => m.product.name.toLowerCase().includes(search.toLowerCase()) || m.product.sku.toLowerCase().includes(search.toLowerCase()) || m.referenceNumber.toLowerCase().includes(search.toLowerCase()))
+          ? movements.filter(m => {
+              const s = search.toLowerCase();
+              return (m.product?.name || '').toLowerCase().includes(s)
+                || (m.product?.sku || '').toLowerCase().includes(s)
+                || (m.rawMaterial?.name || '').toLowerCase().includes(s)
+                || (m.referenceNumber || '').toLowerCase().includes(s);
+            })
           : movements;
         return NextResponse.json(result);
       }
@@ -1120,17 +1137,58 @@ async function handle(request, { params }) {
       // Manual adjustment POST
       if (method === 'POST' && segs.length === 1) {
         const body = await readJson(request);
-        if (!body.inventoryId) return NextResponse.json({ error: 'inventoryId is required' }, { status: 400 });
         if (!body.movementType) return NextResponse.json({ error: 'movementType is required' }, { status: 400 });
         const qty = Number(body.quantity);
         if (!qty || qty <= 0) return NextResponse.json({ error: 'Quantity must be greater than zero' }, { status: 400 });
+
+        const inTypes = ['MANUAL_IN', 'OPENING', 'ADJUSTMENT_IN'];
+        const outTypes = ['MANUAL_OUT', 'ADJUSTMENT_OUT'];
+        const movementDate = body.movementDate || new Date().toISOString().split('T')[0];
+        const ref = body.referenceNumber || await generateStockMovementRef(movementDate);
+
+        // ---------- RAW MATERIAL path ----------
+        if (body.rawMaterialId && !body.inventoryId) {
+          const rm = await prisma.rawMaterial.findUnique({ where: { id: body.rawMaterialId } });
+          if (!rm) return NextResponse.json({ error: 'Raw material not found' }, { status: 404 });
+
+          const prevQty = rm.currentStock || 0;
+          let newQty;
+          if (inTypes.includes(body.movementType)) {
+            newQty = prevQty + qty;
+          } else if (outTypes.includes(body.movementType)) {
+            newQty = prevQty - qty;
+            if (newQty < 0) return NextResponse.json({ error: `Insufficient stock. Current: ${prevQty}, Requested: ${qty}` }, { status: 400 });
+          } else {
+            return NextResponse.json({ error: 'Invalid movementType' }, { status: 400 });
+          }
+
+          const [movement] = await prisma.$transaction([
+            prisma.stockMovement.create({
+              data: {
+                id: uuid(),
+                itemType: 'RAW_MATERIAL',
+                rawMaterialId: body.rawMaterialId,
+                movementDate,
+                movementType: body.movementType,
+                quantity: qty,
+                previousQuantity: prevQty,
+                newQuantity: newQty,
+                notes: body.notes || '',
+                referenceNumber: ref,
+              },
+            }),
+            prisma.rawMaterial.update({ where: { id: body.rawMaterialId }, data: { currentStock: newQty } }),
+          ]);
+          return NextResponse.json(movement);
+        }
+
+        // ---------- PRODUCT INVENTORY path ----------
+        if (!body.inventoryId) return NextResponse.json({ error: 'inventoryId is required for product movements' }, { status: 400 });
 
         const inv = await prisma.inventory.findUnique({ where: { id: body.inventoryId } });
         if (!inv) return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 });
 
         const prevQty = inv.quantity;
-        const inTypes = ['MANUAL_IN', 'OPENING', 'ADJUSTMENT_IN'];
-        const outTypes = ['MANUAL_OUT', 'ADJUSTMENT_OUT'];
         let newQty;
         if (inTypes.includes(body.movementType)) {
           newQty = prevQty + qty;
@@ -1141,13 +1199,11 @@ async function handle(request, { params }) {
           return NextResponse.json({ error: 'Invalid movementType' }, { status: 400 });
         }
 
-        const movementDate = body.movementDate || new Date().toISOString().split('T')[0];
-        const ref = body.referenceNumber || await generateStockMovementRef(movementDate);
-
         const [movement] = await prisma.$transaction([
           prisma.stockMovement.create({
             data: {
               id: uuid(),
+              itemType: 'PRODUCT',
               inventoryId: body.inventoryId,
               productId: inv.productId,
               movementDate,
@@ -1163,6 +1219,40 @@ async function handle(request, { params }) {
         ]);
         return NextResponse.json(movement);
       }
+    }
+
+    // ---------- RAW MATERIALS PUT — intercept to auto-create StockMovement ----------
+    if (segs[0] === 'rawmaterials' && method === 'PUT' && segs.length === 2) {
+      const id = segs[1];
+      const body = await readJson(request);
+      const current = await prisma.rawMaterial.findUnique({ where: { id } });
+      if (!current) return NextResponse.json({ error: 'Raw material not found' }, { status: 404 });
+
+      const prevStock = current.currentStock || 0;
+      const newStock = body.currentStock !== undefined ? Number(body.currentStock) : prevStock;
+      const updated = await prisma.rawMaterial.update({ where: { id }, data: body });
+
+      if (Math.abs(newStock - prevStock) > 0.0001) {
+        const delta = newStock - prevStock;
+        const movementType = delta > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
+        const today = new Date().toISOString().split('T')[0];
+        const ref = await generateStockMovementRef(today);
+        await prisma.stockMovement.create({
+          data: {
+            id: uuid(),
+            itemType: 'RAW_MATERIAL',
+            rawMaterialId: id,
+            movementDate: today,
+            movementType,
+            quantity: Math.abs(delta),
+            previousQuantity: prevStock,
+            newQuantity: newStock,
+            notes: 'Auto-recorded from raw material stock adjustment',
+            referenceNumber: ref,
+          },
+        });
+      }
+      return NextResponse.json(updated);
     }
 
     // Generic CRUD

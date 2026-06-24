@@ -2085,23 +2085,34 @@ function isInboundType(type) {
   return ["MANUAL_IN", "ADJUSTMENT_IN", "OPENING"].includes(type);
 }
 
-function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, onSave }) {
-  const empty = { inventoryId: "", movementType: "MANUAL_IN", quantity: "", notes: "", referenceNumber: "", movementDate: new Date().toISOString().split("T")[0] };
-  const [form, setForm] = useState(empty);
+function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, rawMaterials, onSave }) {
+  const makeEmpty = () => ({
+    itemType: "PRODUCT",
+    inventoryId: "",
+    rawMaterialId: "",
+    movementType: "MANUAL_IN",
+    quantity: "",
+    notes: "",
+    referenceNumber: "",
+    movementDate: new Date().toISOString().split("T")[0],
+  });
+  const [form, setForm] = useState(makeEmpty());
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const invItem = inventory.find((i) => i.id === form.inventoryId);
-  const product = invItem ? products.find((p) => p.id === invItem.productId) : null;
+  const invItem = form.itemType === "PRODUCT" ? inventory.find((i) => i.id === form.inventoryId) : null;
+  const rawMat = form.itemType === "RAW_MATERIAL" ? rawMaterials.find((r) => r.id === form.rawMaterialId) : null;
+  const currentStock = form.itemType === "PRODUCT" ? invItem?.quantity : rawMat?.currentStock;
 
   const handleOpen = (val) => {
-    if (val) { setForm(empty); setErrors({}); }
+    if (val) { setForm(makeEmpty()); setErrors({}); }
     onOpenChange(val);
   };
 
   const validate = () => {
     const e = {};
-    if (!form.inventoryId) e.inventoryId = "Select a stock item";
+    if (form.itemType === "PRODUCT" && !form.inventoryId) e.inventoryId = "Select a stock item";
+    if (form.itemType === "RAW_MATERIAL" && !form.rawMaterialId) e.rawMaterialId = "Select a raw material";
     if (!form.movementType) e.movementType = "Select movement type";
     const qty = Number(form.quantity);
     if (!form.quantity || isNaN(qty) || qty <= 0) e.quantity = "Enter a positive quantity";
@@ -2114,14 +2125,19 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, on
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
     try {
-      await api.post("stockmovements", {
-        inventoryId: form.inventoryId,
+      const body = {
         movementType: form.movementType,
         quantity: Number(form.quantity),
         notes: form.notes,
         referenceNumber: form.referenceNumber,
         movementDate: form.movementDate,
-      });
+      };
+      if (form.itemType === "RAW_MATERIAL") {
+        body.rawMaterialId = form.rawMaterialId;
+      } else {
+        body.inventoryId = form.inventoryId;
+      }
+      await api.post("stockmovements", body);
       toast.success("Stock movement recorded");
       onSave();
       handleOpen(false);
@@ -2132,35 +2148,80 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, on
     }
   };
 
-  const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((e) => ({ ...e, [k]: undefined })); };
+  const set = (k, v) => {
+    setForm((f) => {
+      const next = { ...f, [k]: v };
+      if (k === "itemType") { next.inventoryId = ""; next.rawMaterialId = ""; }
+      return next;
+    });
+    setErrors((e) => ({ ...e, [k]: undefined }));
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Manual Stock Adjustment</DialogTitle>
-          <DialogDescription>Record a manual inbound or outbound stock movement.</DialogDescription>
+          <DialogDescription>Record a manual inbound or outbound stock movement for products or raw materials.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          {/* Item Type selector */}
           <div className="space-y-1">
-            <label className="text-sm font-medium">Stock Item (Product · Color · Size)</label>
-            <Select value={form.inventoryId} onValueChange={(v) => set("inventoryId", v)}>
-              <SelectTrigger className={errors.inventoryId ? "border-red-500" : ""}>
-                <SelectValue placeholder="Select stock item…" />
+            <label className="text-sm font-medium">Item Type</label>
+            <Select value={form.itemType} onValueChange={(v) => set("itemType", v)}>
+              <SelectTrigger>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {inventory.map((inv) => {
-                  const p = products.find((pr) => pr.id === inv.productId);
-                  return (
-                    <SelectItem key={inv.id} value={inv.id}>
-                      {p ? p.name : inv.productId} · {inv.color} · {inv.size} (stock: {inv.quantity})
-                    </SelectItem>
-                  );
-                })}
+                <SelectItem value="PRODUCT">Product (Inventory)</SelectItem>
+                <SelectItem value="RAW_MATERIAL">Raw Material</SelectItem>
               </SelectContent>
             </Select>
-            {errors.inventoryId && <p className="text-xs text-red-500">{errors.inventoryId}</p>}
           </div>
+
+          {/* Product stock item selector */}
+          {form.itemType === "PRODUCT" && (
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Stock Item (Product · Color · Size)</label>
+              <Select value={form.inventoryId} onValueChange={(v) => set("inventoryId", v)}>
+                <SelectTrigger className={errors.inventoryId ? "border-red-500" : ""}>
+                  <SelectValue placeholder="Select stock item…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {inventory.map((inv) => {
+                    const p = products.find((pr) => pr.id === inv.productId);
+                    return (
+                      <SelectItem key={inv.id} value={inv.id}>
+                        {p ? p.name : inv.productId} · {inv.color} · {inv.size} (stock: {inv.quantity})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {errors.inventoryId && <p className="text-xs text-red-500">{errors.inventoryId}</p>}
+            </div>
+          )}
+
+          {/* Raw Material selector */}
+          {form.itemType === "RAW_MATERIAL" && (
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Raw Material</label>
+              <Select value={form.rawMaterialId} onValueChange={(v) => set("rawMaterialId", v)}>
+                <SelectTrigger className={errors.rawMaterialId ? "border-red-500" : ""}>
+                  <SelectValue placeholder="Select raw material…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {rawMaterials.map((rm) => (
+                    <SelectItem key={rm.id} value={rm.id}>
+                      {rm.name}{rm.category ? ` · ${rm.category}` : ""} (stock: {rm.currentStock || 0}{rm.unit ? " " + rm.unit : ""})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.rawMaterialId && <p className="text-xs text-red-500">{errors.rawMaterialId}</p>}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-sm font-medium">Movement Type</label>
@@ -2180,23 +2241,24 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, on
               <label className="text-sm font-medium">Quantity</label>
               <Input
                 type="number"
-                min="1"
+                min="0.001"
+                step="any"
                 placeholder="0"
                 value={form.quantity}
                 onChange={(e) => set("quantity", e.target.value)}
                 className={errors.quantity ? "border-red-500" : ""}
               />
               {errors.quantity && <p className="text-xs text-red-500">{errors.quantity}</p>}
-              {invItem && (
+              {currentStock !== undefined && currentStock !== null && (
                 <p className="text-xs text-muted-foreground">
-                  Current stock: {invItem.quantity}
+                  Current stock: {currentStock}
                   {!isInboundType(form.movementType) && form.quantity && (
-                    <span className={Number(form.quantity) > invItem.quantity ? " text-red-400" : " text-emerald-400"}>
-                      {" → "}{Math.max(0, invItem.quantity - Number(form.quantity))}
+                    <span className={Number(form.quantity) > currentStock ? " text-red-400" : " text-emerald-400"}>
+                      {" → "}{Math.max(0, currentStock - Number(form.quantity))}
                     </span>
                   )}
                   {isInboundType(form.movementType) && form.quantity && (
-                    <span className=" text-emerald-400"> → {invItem.quantity + Number(form.quantity)}</span>
+                    <span className=" text-emerald-400"> → {Number((currentStock + Number(form.quantity)).toFixed(4))}</span>
                   )}
                 </p>
               )}
@@ -2240,10 +2302,12 @@ function StockMovementsModule() {
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [rawMaterials, setRawMaterials] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [itemTypeFilter, setItemTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState(firstOfMonth);
   const [dateTo, setDateTo] = useState(today);
   const [showAdjust, setShowAdjust] = useState(false);
@@ -2252,6 +2316,7 @@ function StockMovementsModule() {
     const p = new URLSearchParams();
     if (search) p.append("search", search);
     if (typeFilter !== "all") p.append("type", typeFilter);
+    if (itemTypeFilter !== "all") p.append("itemType", itemTypeFilter);
     if (dateFrom) p.append("from", dateFrom);
     if (dateTo) p.append("to", dateTo);
     return p.toString();
@@ -2260,29 +2325,33 @@ function StockMovementsModule() {
   const load = async () => {
     setLoading(true);
     const qs = buildParams();
-    const [data, statsData, prods, inv] = await Promise.all([
+    const [data, statsData, prods, inv, rms] = await Promise.all([
       api.get("stockmovements" + (qs ? "?" + qs : "")),
       api.get("stockmovements/stats" + (qs ? "?" + qs : "")),
       api.get("products"),
       api.get("inventory"),
+      api.get("rawmaterials"),
     ]);
     setItems(Array.isArray(data) ? data : []);
     setStats(statsData && !statsData.error ? statsData : null);
     setProducts(Array.isArray(prods) ? prods : []);
     setInventory(Array.isArray(inv) ? inv : []);
+    setRawMaterials(Array.isArray(rms) ? rms : []);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [search, typeFilter, dateFrom, dateTo]);
+  useEffect(() => { load(); }, [search, typeFilter, itemTypeFilter, dateFrom, dateTo]);
 
   const netChange = stats ? stats.totalIn - stats.totalOut : 0;
+
+  const fmtQty = (n) => Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 4 });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Stock Movement Ledger</h2>
-          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Immutable record of all inventory movements</p>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Unified immutable record of all product and raw material movements</p>
         </div>
         <Button onClick={() => setShowAdjust(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -2291,41 +2360,53 @@ function StockMovementsModule() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="">
-          <CardContent className="pt-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <Card>
+          <CardContent className="pt-5 pb-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Movements</p>
-            <p className="text-2xl font-semibold mt-2">{loading ? "—" : (stats?.totalMovements ?? 0).toLocaleString()}</p>
+            <p className="text-2xl font-semibold mt-1">{loading ? "—" : (stats?.totalMovements ?? 0).toLocaleString()}</p>
           </CardContent>
         </Card>
-        <Card className="">
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-400">Total Inbound</p>
-            <p className="text-2xl font-semibold mt-2 text-emerald-400">{loading ? "—" : "+" + (stats?.totalIn ?? 0).toLocaleString()}</p>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Product Movements</p>
+            <p className="text-2xl font-semibold mt-1 text-blue-500">{loading ? "—" : (stats?.productMovements ?? 0).toLocaleString()}</p>
           </CardContent>
         </Card>
-        <Card className="">
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">Total Outbound</p>
-            <p className="text-2xl font-semibold mt-2 text-rose-400">{loading ? "—" : "−" + (stats?.totalOut ?? 0).toLocaleString()}</p>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Raw Material Movements</p>
+            <p className="text-2xl font-semibold mt-1 text-purple-500">{loading ? "—" : (stats?.rawMaterialMovements ?? 0).toLocaleString()}</p>
           </CardContent>
         </Card>
-        <Card className="">
-          <CardContent className="pt-6">
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">Inbound</p>
+            <p className="text-2xl font-semibold mt-1 text-emerald-500">{loading ? "—" : "+" + fmtQty(stats?.totalIn)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">Outbound</p>
+            <p className="text-2xl font-semibold mt-1 text-rose-400">{loading ? "—" : "−" + fmtQty(stats?.totalOut)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Change</p>
-            <p className={`text-2xl font-semibold mt-2 ${netChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-              {loading ? "—" : (netChange >= 0 ? "+" : "") + netChange.toLocaleString()}
+            <p className={`text-2xl font-semibold mt-1 ${netChange >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+              {loading ? "—" : (netChange >= 0 ? "+" : "") + fmtQty(netChange)}
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
-      <Card className="">
+      <Card>
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[180px]">
-              <p className="text-xs text-muted-foreground mb-1">Search product / SKU / ref</p>
+              <p className="text-xs text-muted-foreground mb-1">Search item / SKU / reference</p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -2336,7 +2417,20 @@ function StockMovementsModule() {
                 />
               </div>
             </div>
-            <div className="min-w-[180px]">
+            <div className="min-w-[160px]">
+              <p className="text-xs text-muted-foreground mb-1">Item Type</p>
+              <Select value={itemTypeFilter} onValueChange={setItemTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Items</SelectItem>
+                  <SelectItem value="PRODUCT">Product</SelectItem>
+                  <SelectItem value="RAW_MATERIAL">Raw Material</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[170px]">
               <p className="text-xs text-muted-foreground mb-1">Movement Type</p>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger>
@@ -2366,7 +2460,7 @@ function StockMovementsModule() {
       </Card>
 
       {/* Ledger Table */}
-      <Card className="">
+      <Card>
         <CardContent className="p-0">
           {loading ? (
             <div className="p-8 text-center text-muted-foreground text-sm">Loading movements…</div>
@@ -2383,9 +2477,10 @@ function StockMovementsModule() {
                   <tr className="border-b border-[rgba(17,24,39,0.04)]">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Date</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Reference</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Product</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Variant</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Item Type</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Item Name</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Variant / Detail</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Movement Type</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Qty</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Before</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">After</th>
@@ -2396,25 +2491,44 @@ function StockMovementsModule() {
                   {items.map((m, idx) => {
                     const meta = movementTypeMeta(m.movementType);
                     const inbound = isInboundType(m.movementType);
+                    const isProduct = (m.itemType || "PRODUCT") === "PRODUCT";
                     return (
                       <tr key={m.id} className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors ${idx % 2 === 0 ? "" : "bg-muted/10"}`}>
                         <td className="px-4 py-3 text-muted-foreground">{m.movementDate}</td>
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{m.referenceNumber || "—"}</td>
                         <td className="px-4 py-3">
-                          <p className="font-medium leading-none">{m.product?.name || "—"}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{m.product?.sku}</p>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isProduct ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"}`}>
+                            {isProduct ? "PRODUCT" : "RAW MAT"}
+                          </span>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">{m.inventory ? `${m.inventory.color} / ${m.inventory.size}` : "—"}</td>
+                        <td className="px-4 py-3">
+                          {isProduct ? (
+                            <>
+                              <p className="font-medium leading-none">{m.product?.name || "—"}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{m.product?.sku}</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-medium leading-none">{m.rawMaterial?.name || "—"}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{m.rawMaterial?.category || ""}</p>
+                            </>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {isProduct
+                            ? (m.inventory ? `${m.inventory.color} / ${m.inventory.size}` : "—")
+                            : (m.rawMaterial?.unit || "—")}
+                        </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${meta.bg}`}>
                             {meta.label}
                           </span>
                         </td>
                         <td className={`px-4 py-3 text-right font-semibold tabular-nums ${inbound ? "text-emerald-400" : "text-rose-400"}`}>
-                          {inbound ? "+" : "−"}{m.quantity}
+                          {inbound ? "+" : "−"}{fmtQty(m.quantity)}
                         </td>
-                        <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">{m.previousQuantity}</td>
-                        <td className="px-4 py-3 text-right font-medium tabular-nums">{m.newQuantity}</td>
+                        <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">{fmtQty(m.previousQuantity)}</td>
+                        <td className="px-4 py-3 text-right font-medium tabular-nums">{fmtQty(m.newQuantity)}</td>
                         <td className="px-4 py-3 text-muted-foreground text-xs max-w-[200px] truncate">{m.notes || "—"}</td>
                       </tr>
                     );
@@ -2431,6 +2545,7 @@ function StockMovementsModule() {
         onOpenChange={setShowAdjust}
         inventory={inventory}
         products={products}
+        rawMaterials={rawMaterials}
         onSave={load}
       />
     </div>

@@ -48,25 +48,30 @@ model Inventory {
 }
 
 model StockMovement {
-  id               String    @id
-  inventoryId      String
-  inventory        Inventory @relation(fields: [inventoryId], references: [id])
-  productId        String
-  product          Product   @relation(fields: [productId], references: [id])
+  id               String       @id
+  itemType         String       @default("PRODUCT")
+  inventoryId      String?
+  inventory        Inventory?   @relation(fields: [inventoryId], references: [id])
+  productId        String?
+  product          Product?     @relation(fields: [productId], references: [id])
+  rawMaterialId    String?
+  rawMaterial      RawMaterial? @relation(fields: [rawMaterialId], references: [id])
   movementDate     String
   movementType     String
-  quantity         Int
-  previousQuantity Int
-  newQuantity      Int
-  notes            String    @default("")
-  referenceNumber  String    @default("")
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  quantity         Float
+  previousQuantity Float
+  newQuantity      Float
+  notes            String       @default("")
+  referenceNumber  String       @default("")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@index([inventoryId])
   @@index([productId])
+  @@index([rawMaterialId])
   @@index([movementDate])
   @@index([movementType])
+  @@index([itemType])
 }
 
 model Plan {
@@ -173,21 +178,22 @@ model Notification {
 }
 
 model RawMaterial {
-  id           String   @id
-  name         String
-  color        String
-  weight       Float
-  photo        String?
-  category     String   @default("")
-  unit         String   @default("")
-  currentStock Float    @default(0)
-  minimumStock Float    @default(0)
-  unitCost     Float    @default(0)
-  supplierName String   @default("")
-  notes        String   @default("")
-  status       String   @default("Active")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String          @id
+  name           String
+  color          String
+  weight         Float
+  photo          String?
+  category       String          @default("")
+  unit           String          @default("")
+  currentStock   Float           @default(0)
+  minimumStock   Float           @default(0)
+  unitCost       Float           @default(0)
+  supplierName   String          @default("")
+  notes          String          @default("")
+  status         String          @default("Active")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  stockMovements StockMovement[]
 }
 
 model ChartOfAccount {
