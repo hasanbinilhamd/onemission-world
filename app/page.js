@@ -469,64 +469,83 @@ function Login({ onLogin }) {
     }
   };
   return (
-    <div className="min-h-screen bg-background grid-bg flex items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-card opacity-80" />
+    <div className="min-h-screen gradient-hero flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Ambient blobs */}
+      <div className="absolute top-[-80px] right-[-80px] w-[480px] h-[480px] rounded-full bg-[#D8E3F3]/40 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-80px] left-[-80px] w-[400px] h-[400px] rounded-full bg-[#EEF3FA]/60 blur-3xl pointer-events-none" />
+
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
         className="relative w-full max-w-md"
       >
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground text-background mb-4 font-bold text-2xl tracking-tight">
+        {/* Logo */}
+        <div className="text-center mb-10">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="inline-flex items-center justify-center w-[72px] h-[72px] rounded-[24px] bg-white shadow-[0_8px_32px_rgba(0,0,0,0.10)] mb-6"
+          >
             <img
               src="https://ik.imagekit.io/edyl3oplm/Onemission/logos/LOGO_ONEMISSION_3D.png"
               alt="Logo"
-              className="w-full h-full object-contain"
+              className="w-[52px] h-[52px] object-contain"
             />
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            ONEMISSION HQ
+          </motion.div>
+          <h1 className="text-[2rem] font-bold tracking-[0.06em] uppercase text-[#111827]">
+            ONEMISSION
           </h1>
-          <p className="text-sm text-muted-foreground mt-1.5 tracking-widest uppercase">
+          <p className="text-[11px] text-[#5F6B7A] mt-2 tracking-[0.25em] uppercase font-medium">
             Values Matter
           </p>
         </div>
-        <Card className="border-border/60 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Sign in</CardTitle>
-            <CardDescription>
-              Access the central operating system
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={submit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@onemission.id"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Password</Label>
-                <Input
-                  placeholder="••••••••"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Sign in"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+
+        {/* Login card */}
+        <div className="bg-white rounded-[32px] border border-[rgba(17,24,39,0.05)] shadow-[0_16px_56px_rgba(0,0,0,0.07)] p-8">
+          <div className="mb-6">
+            <h2 className="text-lg font-bold tracking-tight text-[#111827]">Mission Control</h2>
+            <p className="text-sm text-[#5F6B7A] mt-1">Sign in to access the operating system</p>
+          </div>
+          <form onSubmit={submit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#111827] tracking-wide">Email</label>
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@onemission.id"
+                type="email"
+                className="w-full h-[52px] px-5 rounded-[20px] bg-[#F7F8FA] border border-[rgba(17,24,39,0.07)] text-[#111827] placeholder:text-[#5F6B7A]/50 focus:outline-none focus:border-[#BFCDE2] focus:shadow-[0_0_0_4px_rgba(191,205,226,0.25)] transition-all text-sm font-medium"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#111827] tracking-wide">Password</label>
+              <input
+                placeholder="••••••••"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-[52px] px-5 rounded-[20px] bg-[#F7F8FA] border border-[rgba(17,24,39,0.07)] text-[#111827] placeholder:text-[#5F6B7A]/50 focus:outline-none focus:border-[#BFCDE2] focus:shadow-[0_0_0_4px_rgba(191,205,226,0.25)] transition-all text-sm font-medium"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-[52px] mt-2 rounded-[18px] bg-[#111827] text-white font-semibold text-sm tracking-wide hover:bg-[#1e293b] hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(17,24,39,0.25)] active:translate-y-0 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Sign In"
+              )}
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center text-[11px] text-[#5F6B7A]/60 mt-8 tracking-[0.15em] uppercase">
+          ONEMISSION HQ · Internal Operations
+        </p>
       </motion.div>
     </div>
   );
@@ -9985,21 +10004,21 @@ function App() {
 
   const SidebarBody = (
     <>
-      <div className="p-4 border-b border-border flex items-center justify-between gap-3">
+      <div className="px-6 pt-6 pb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-sm shrink-0">
+          <div className="w-10 h-10 rounded-[14px] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] flex items-center justify-center shrink-0">
             <img
               src="https://ik.imagekit.io/edyl3oplm/Onemission/logos/LOGO_ONEMISSION_3D.png"
               alt="Logo"
-              className="w-full h-full object-contain"
+              className="w-8 h-8 object-contain"
             />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-sm font-semibold tracking-tight truncate">
-                ONEMISSION HQ
+              <p className="text-[13px] font-bold tracking-[0.05em] uppercase text-[#111827] truncate">
+                ONEMISSION
               </p>
-              <p className="text-[10px] text-muted-foreground tracking-widest uppercase">
+              <p className="text-[10px] text-[#5F6B7A] tracking-[0.2em] uppercase font-medium">
                 Values Matter
               </p>
             </div>
@@ -10008,26 +10027,26 @@ function App() {
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden h-8 w-8"
+          className="md:hidden h-8 w-8 text-[#5F6B7A] hover:text-[#111827]"
           onClick={() => setMobileOpen(false)}
         >
           <X className="h-4 w-4" />
         </Button>
       </div>
-      <div className="p-3">
+      <div className="px-4 pb-3">
         {!collapsed && (
           <div className="relative">
-            <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search className="h-3.5 w-3.5 absolute left-4 top-1/2 -translate-y-1/2 text-[#5F6B7A]/60" />
             <Input
-              placeholder="Search..."
-              className="pl-8 h-8 text-xs"
+              placeholder="Search modules..."
+              className="pl-10 h-10 text-xs rounded-[18px] bg-[#F7F8FA] border-[rgba(17,24,39,0.07)] text-[#111827] placeholder:text-[#5F6B7A]/50 focus-visible:ring-[#BFCDE2]/40"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
         )}
       </div>
-      <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto scrollbar-thin py-1">
+      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto scrollbar-thin py-1">
         {filteredGroups.map((group) => {
           if (group.single) {
             const Icon = group.icon;
@@ -10036,7 +10055,7 @@ function App() {
               <button
                 key={group.id}
                 onClick={() => handleNavClick(group.id)}
-                className={`w-full flex items-center gap-3 px-2.5 py-2.5 md:py-2 rounded-lg text-sm transition-colors ${isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[16px] text-sm transition-all duration-200 ${isActive ? "bg-[#D8E3F3] text-[#111827] font-semibold shadow-[0_2px_8px_rgba(17,24,39,0.06)]" : "text-[#5F6B7A] hover:bg-[#EEF3FA] hover:text-[#111827]"}`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && <span className="truncate">{group.label}</span>}
@@ -10052,7 +10071,7 @@ function App() {
                 onClick={() => {
                   if (!collapsed) toggleGroup(group.id);
                 }}
-                className={`w-full flex items-center gap-3 px-2.5 py-2.5 md:py-2 rounded-lg text-sm transition-colors ${hasActiveChild ? "text-sidebar-foreground font-medium" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[16px] text-sm transition-all duration-200 ${hasActiveChild ? "text-[#111827] font-semibold" : "text-[#5F6B7A] hover:bg-[#EEF3FA] hover:text-[#111827]"}`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && (
@@ -10077,7 +10096,7 @@ function App() {
                       transition={{ duration: 0.18, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="ml-3 pl-3 border-l border-border mt-0.5 mb-0.5 space-y-0.5">
+                      <div className="ml-4 pl-3 border-l-2 border-[#D8E3F3] mt-1 mb-1 space-y-0.5">
                         {group.children?.map((item) => {
                           const ItemIcon = item.icon;
                           const isActive = active === item.id;
@@ -10085,7 +10104,7 @@ function App() {
                             <button
                               key={item.id}
                               onClick={() => handleNavClick(item.id)}
-                              className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors ${isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[13px] text-[13px] transition-all duration-200 ${isActive ? "bg-[#D8E3F3] text-[#111827] font-semibold shadow-[0_2px_8px_rgba(17,24,39,0.06)]" : "text-[#5F6B7A] hover:bg-[#EEF3FA] hover:text-[#111827]"}`}
                             >
                               <ItemIcon className="h-3.5 w-3.5 shrink-0" />
                               <span className="truncate">{item.label}</span>
@@ -10101,10 +10120,10 @@ function App() {
           );
         })}
       </nav>
-      <div className="p-3 border-t border-border">
+      <div className="p-4 pt-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-sidebar-accent transition-colors">
+            <button className="w-full flex items-center gap-3 p-3 rounded-[18px] hover:bg-[#EEF3FA] transition-all duration-200">
               <Avatar className="h-7 w-7">
                 <AvatarFallback className="text-xs">
                   {user.avatar}
@@ -10144,10 +10163,10 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex">
-      {/* Desktop sidebar */}
+    <div className="min-h-screen bg-[#F7F8FA] flex p-3 md:p-4 gap-3 md:gap-4">
+      {/* Desktop floating sidebar */}
       <aside
-        className={`hidden md:flex ${collapsed ? "w-[64px]" : "w-[240px]"} shrink-0 border-r border-border bg-sidebar transition-all duration-200 flex-col h-screen sticky top-0`}
+        className={`hidden md:flex ${collapsed ? "w-[72px]" : "w-[280px]"} shrink-0 bg-white rounded-[32px] border border-[rgba(17,24,39,0.05)] shadow-[0_10px_40px_rgba(0,0,0,0.05)] transition-all duration-200 flex-col h-[calc(100vh-32px)] sticky top-4 overflow-hidden`}
       >
         {SidebarBody}
       </aside>
@@ -10160,15 +10179,15 @@ function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+              className="fixed inset-0 z-40 bg-[#111827]/40 backdrop-blur-sm md:hidden"
               onClick={() => setMobileOpen(false)}
             />
             <motion.aside
-              initial={{ x: -280 }}
+              initial={{ x: -300 }}
               animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: "tween", duration: 0.2 }}
-              className="fixed top-0 left-0 z-50 h-screen w-[260px] border-r border-border bg-sidebar flex flex-col md:hidden"
+              exit={{ x: -300 }}
+              transition={{ type: "tween", duration: 0.25 }}
+              className="fixed top-0 left-0 z-50 h-screen w-[280px] bg-white shadow-[4px_0_48px_rgba(0,0,0,0.10)] flex flex-col md:hidden"
             >
               {SidebarBody}
             </motion.aside>
@@ -10177,50 +10196,51 @@ function App() {
       </AnimatePresence>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 w-full">
-        <div className="sticky top-0 z-30 glass border-b border-border px-4 md:px-6 py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+      <main className="flex-1 min-w-0 flex flex-col gap-3 md:gap-4">
+        {/* Floating topbar */}
+        <div className="sticky top-3 md:top-4 z-30 bg-white/90 backdrop-blur-[20px] rounded-[24px] md:rounded-[28px] border border-[rgba(17,24,39,0.05)] shadow-[0_4px_24px_rgba(0,0,0,0.04)] px-4 md:px-6 h-[64px] md:h-[72px] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden h-8 w-8 shrink-0"
+              className="md:hidden h-9 w-9 shrink-0 rounded-[12px] text-[#5F6B7A] hover:text-[#111827] hover:bg-[#EEF3FA]"
               onClick={() => setMobileOpen(true)}
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <div className="flex items-center gap-2 text-sm min-w-0">
-              <span className="text-muted-foreground hidden sm:inline">
-                ONEMISSION HQ
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[11px] text-[#5F6B7A] hidden sm:inline tracking-[0.12em] uppercase font-medium">
+                ONEMISSION
               </span>
-              <ChevronRight className="h-3 w-3 text-muted-foreground hidden sm:inline" />
-              <span className="font-medium capitalize truncate">
+              <ChevronRight className="h-3 w-3 text-[#BFCDE2] hidden sm:inline" />
+              <span className="font-semibold text-[#111827] text-sm truncate tracking-tight">
                 {getNavLabel(active)}
               </span>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
+            <button
               onClick={() => setActive("notifications")}
+              className="h-9 w-9 rounded-[12px] flex items-center justify-center text-[#5F6B7A] hover:text-[#111827] hover:bg-[#EEF3FA] transition-all duration-200"
             >
               <Bell className="h-4 w-4" />
-            </Button>
-            <Badge variant="outline" className="gap-1.5 hidden sm:inline-flex">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Online
-            </Badge>
+            </button>
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] bg-[#EEF3FA] border border-[rgba(17,24,39,0.05)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#4FAF73]" />
+              <span className="text-[11px] font-semibold text-[#111827] tracking-wide">LIVE</span>
+            </div>
           </div>
         </div>
-        <div className="p-4 md:p-6 max-w-[1600px]">
+
+        {/* Content */}
+        <div className="flex-1 pb-4 max-w-[1600px] w-full">
           <AnimatePresence mode="wait">
             <motion.div
               key={active}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
             >
               {Component}
             </motion.div>
