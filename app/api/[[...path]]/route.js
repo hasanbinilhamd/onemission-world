@@ -49,6 +49,26 @@ async function generateJournalNumber(journalDate) {
   return `${prefix}${String(maxSeq + 1).padStart(5, '0')}`;
 }
 
+// Generate stock movement reference: SM-YYYYMM-00001
+async function generateStockMovementRef(movementDate) {
+  const d = movementDate ? new Date(movementDate) : new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const prefix = `SM-${year}${month}-`;
+  const existing = await prisma.stockMovement.findMany({
+    where: { referenceNumber: { startsWith: prefix } },
+    select: { referenceNumber: true },
+    orderBy: { referenceNumber: 'desc' },
+  });
+  let maxSeq = 0;
+  for (const e of existing) {
+    const parts = e.referenceNumber.split('-');
+    const seq = parseInt(parts[parts.length - 1] || '0', 10);
+    if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+  }
+  return `${prefix}${String(maxSeq + 1).padStart(5, '0')}`;
+}
+
 // Build journal lines for a cash transaction
 function buildCashJournalLines(txnType, faLinkedCoaId, chartOfAccountId, amount, description) {
   const note = description?.trim() || '';
@@ -1017,6 +1037,129 @@ async function handle(request, { params }) {
       }
 
       return NextResponse.json({ created: toCreate.length, repaired: products.length });
+    }
+
+    // ---------- INVENTORY PUT — intercept to auto-create StockMovement ----------
+    if (segs[0] === 'inventory' && method === 'PUT' && segs.length === 2) {
+      const id = segs[1];
+      const body = await readJson(request);
+      const current = await prisma.inventory.findUnique({ where: { id } });
+      if (!current) return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 });
+
+      const prevQty = current.quantity;
+      const newQty = body.quantity !== undefined ? Number(body.quantity) : prevQty;
+      const updated = await prisma.inventory.update({ where: { id }, data: body });
+
+      if (newQty !== prevQty) {
+        const delta = newQty - prevQty;
+        const movementType = delta > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
+        const today = new Date().toISOString().split('T')[0];
+        const ref = await generateStockMovementRef(today);
+        await prisma.stockMovement.create({
+          data: {
+            id: uuid(),
+            inventoryId: id,
+            productId: current.productId,
+            movementDate: today,
+            movementType,
+            quantity: Math.abs(delta),
+            previousQuantity: prevQty,
+            newQuantity: newQty,
+            notes: 'Auto-recorded from inventory adjustment',
+            referenceNumber: ref,
+          },
+        });
+      }
+      return NextResponse.json(updated);
+    }
+
+    // ---------- STOCK MOVEMENTS ----------
+    if (segs[0] === 'stockmovements') {
+      // Stats
+      if (segs[1] === 'stats' && method === 'GET') {
+        const url = new URL(request.url);
+        const from = url.searchParams.get('from');
+        const to = url.searchParams.get('to');
+        const type = url.searchParams.get('type');
+        const where = {};
+        if (from || to) { where.movementDate = {}; if (from) where.movementDate.gte = from; if (to) where.movementDate.lte = to; }
+        if (type) where.movementType = type;
+        const movements = await prisma.stockMovement.findMany({ where, select: { movementType: true, quantity: true } });
+        const totalMovements = movements.length;
+        const inTypes = ['ADJUSTMENT_IN', 'MANUAL_IN', 'OPENING'];
+        const outTypes = ['ADJUSTMENT_OUT', 'MANUAL_OUT'];
+        const totalIn = movements.filter(m => inTypes.includes(m.movementType)).reduce((s, m) => s + m.quantity, 0);
+        const totalOut = movements.filter(m => outTypes.includes(m.movementType)).reduce((s, m) => s + m.quantity, 0);
+        return NextResponse.json({ totalMovements, totalIn, totalOut });
+      }
+
+      // List
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const from = url.searchParams.get('from');
+        const to = url.searchParams.get('to');
+        const type = url.searchParams.get('type');
+        const search = url.searchParams.get('search');
+        const where = {};
+        if (from || to) { where.movementDate = {}; if (from) where.movementDate.gte = from; if (to) where.movementDate.lte = to; }
+        if (type) where.movementType = type;
+        const movements = await prisma.stockMovement.findMany({
+          where,
+          include: { product: { select: { id: true, name: true, sku: true } }, inventory: { select: { color: true, size: true } } },
+          orderBy: [{ movementDate: 'desc' }, { createdAt: 'desc' }],
+        });
+        const result = search
+          ? movements.filter(m => m.product.name.toLowerCase().includes(search.toLowerCase()) || m.product.sku.toLowerCase().includes(search.toLowerCase()) || m.referenceNumber.toLowerCase().includes(search.toLowerCase()))
+          : movements;
+        return NextResponse.json(result);
+      }
+
+      // Manual adjustment POST
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+        if (!body.inventoryId) return NextResponse.json({ error: 'inventoryId is required' }, { status: 400 });
+        if (!body.movementType) return NextResponse.json({ error: 'movementType is required' }, { status: 400 });
+        const qty = Number(body.quantity);
+        if (!qty || qty <= 0) return NextResponse.json({ error: 'Quantity must be greater than zero' }, { status: 400 });
+
+        const inv = await prisma.inventory.findUnique({ where: { id: body.inventoryId } });
+        if (!inv) return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 });
+
+        const prevQty = inv.quantity;
+        const inTypes = ['MANUAL_IN', 'OPENING', 'ADJUSTMENT_IN'];
+        const outTypes = ['MANUAL_OUT', 'ADJUSTMENT_OUT'];
+        let newQty;
+        if (inTypes.includes(body.movementType)) {
+          newQty = prevQty + qty;
+        } else if (outTypes.includes(body.movementType)) {
+          newQty = prevQty - qty;
+          if (newQty < 0) return NextResponse.json({ error: `Insufficient stock. Current: ${prevQty}, Requested: ${qty}` }, { status: 400 });
+        } else {
+          return NextResponse.json({ error: 'Invalid movementType' }, { status: 400 });
+        }
+
+        const movementDate = body.movementDate || new Date().toISOString().split('T')[0];
+        const ref = body.referenceNumber || await generateStockMovementRef(movementDate);
+
+        const [movement] = await prisma.$transaction([
+          prisma.stockMovement.create({
+            data: {
+              id: uuid(),
+              inventoryId: body.inventoryId,
+              productId: inv.productId,
+              movementDate,
+              movementType: body.movementType,
+              quantity: qty,
+              previousQuantity: prevQty,
+              newQuantity: newQty,
+              notes: body.notes || '',
+              referenceNumber: ref,
+            },
+          }),
+          prisma.inventory.update({ where: { id: body.inventoryId }, data: { quantity: newQty } }),
+        ]);
+        return NextResponse.json(movement);
+      }
     }
 
     // Generic CRUD
