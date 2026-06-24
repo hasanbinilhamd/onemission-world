@@ -55,6 +55,17 @@ import {
   Scale,
   BarChart2,
   Landmark,
+  Truck,
+  Factory,
+  ShoppingCart,
+  Activity,
+  Megaphone,
+  Shield,
+  Users,
+  PackageCheck,
+  FileText,
+  PieChart,
+  UserCog,
 } from "lucide-react";
 import {
   TableSkeleton,
@@ -341,47 +352,38 @@ const NAV_GROUPS = [
     single: true,
   },
   {
-    id: "catalog",
-    label: "Product & Inventory",
-    icon: Package,
+    id: "operations",
+    label: "Operations",
+    icon: Factory,
     children: [
       { id: "products", label: "Product Catalog", icon: Package },
       { id: "inventory", label: "Inventory", icon: Boxes },
       { id: "rawmaterials", label: "Raw Materials", icon: Layers },
+      { id: "stockmovements", label: "Stock Movements", icon: Activity },
+      { id: "suppliers", label: "Suppliers", icon: Truck },
+      { id: "bom", label: "Bill of Materials (BOM)", icon: FileText },
+      { id: "productionorders", label: "Production Orders", icon: Factory },
+      { id: "finishedgoods", label: "Finished Goods", icon: PackageCheck },
     ],
   },
   {
-    id: "marketing",
-    label: "Marketing & Community",
-    icon: Users2,
+    id: "sales",
+    label: "Sales",
+    icon: ShoppingCart,
     children: [
-      { id: "content", label: "Content Planner", icon: CalendarDays },
-      { id: "creators", label: "Creator CRM", icon: Users2 },
-      { id: "schools", label: "School CRM", icon: School },
-      { id: "events", label: "Events", icon: PartyPopper },
-    ],
-  },
-  {
-    id: "operations",
-    label: "Strategic & Operations",
-    icon: Target,
-    children: [
-      { id: "planning", label: "Strategic Planning", icon: Target },
-      { id: "timeline", label: "Timeline", icon: Route },
+      { id: "customers", label: "Customers", icon: Users },
+      { id: "schools", label: "School Partners", icon: School },
+      { id: "orders", label: "Orders", icon: ShoppingCart },
+      { id: "saleschannels", label: "Sales Channels", icon: Globe },
     ],
   },
   {
     id: "financial",
-    label: "Financial & Reports",
+    label: "Finance",
     icon: Wallet,
     children: [
-      { id: "finance", label: "Overview", icon: Gauge },
       { id: "chartofaccounts", label: "Chart of Accounts", icon: BookOpen },
-      {
-        id: "financialaccounts",
-        label: "Financial Accounts",
-        icon: DollarSign,
-      },
+      { id: "financialaccounts", label: "Financial Accounts", icon: DollarSign },
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "journalentries", label: "Journal Entries", icon: ClipboardList },
@@ -389,17 +391,40 @@ const NAV_GROUPS = [
       { id: "trialbalance", label: "Trial Balance", icon: Scale },
       { id: "profitloss", label: "Profit & Loss", icon: BarChart2 },
       { id: "balancesheet", label: "Balance Sheet", icon: Landmark },
-      { id: "cashflowstatement", label: "Cash Flow Statement", icon: Layers },
-      { id: "reports", label: "Reports", icon: FileBarChart2 },
+      { id: "cashflowstatement", label: "Cash Flow", icon: Layers },
+    ],
+  },
+  {
+    id: "marketing",
+    label: "Marketing",
+    icon: Megaphone,
+    children: [
+      { id: "content", label: "Content", icon: CalendarDays },
+      { id: "creators", label: "Creators", icon: Users2 },
+      { id: "campaigns", label: "Campaigns", icon: Megaphone },
+    ],
+  },
+  {
+    id: "reportsgroup",
+    label: "Reports",
+    icon: FileBarChart2,
+    children: [
+      { id: "productanalytics", label: "Product Analytics", icon: BarChart2 },
+      { id: "inventoryanalytics", label: "Inventory Analytics", icon: Boxes },
+      { id: "financialanalytics", label: "Financial Analytics", icon: DollarSign },
+      { id: "marketinganalytics", label: "Marketing Analytics", icon: PieChart },
+      { id: "executivereports", label: "Executive Reports", icon: FileBarChart2 },
     ],
   },
   {
     id: "system",
-    label: "System",
+    label: "Settings",
     icon: SettingsIcon,
     children: [
-      { id: "notifications", label: "Notifications", icon: Bell },
-      { id: "settings", label: "Settings", icon: SettingsIcon },
+      { id: "users", label: "Users", icon: Users },
+      { id: "rolespermissions", label: "Roles & Permissions", icon: Shield },
+      { id: "notificationsettings", label: "Notification Settings", icon: Bell },
+      { id: "systemconfig", label: "System Configuration", icon: SettingsIcon },
     ],
   },
 ];
@@ -9007,6 +9032,103 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
   );
 }
 
+// =========== COMING SOON PLACEHOLDER ===========
+const COMING_SOON_META = {
+  stockmovements: {
+    title: "Stock Movements",
+    description: "Track all inventory movements including inbound, outbound, transfers, and adjustments across warehouses.",
+  },
+  suppliers: {
+    title: "Suppliers",
+    description: "Manage supplier contacts, purchase terms, lead times, and procurement relationships.",
+  },
+  bom: {
+    title: "Bill of Materials (BOM)",
+    description: "Manage product material compositions and manufacturing recipes.",
+  },
+  productionorders: {
+    title: "Production Orders",
+    description: "Plan and track manufacturing runs, assign resources, and monitor production progress.",
+  },
+  finishedgoods: {
+    title: "Finished Goods",
+    description: "Track completed products ready for sale, including quality checks and storage locations.",
+  },
+  customers: {
+    title: "Customers",
+    description: "Manage customer profiles, purchase history, and relationship data.",
+  },
+  orders: {
+    title: "Orders",
+    description: "Create and manage sales orders, track fulfillment status, and handle invoicing.",
+  },
+  saleschannels: {
+    title: "Sales Channels",
+    description: "Configure and monitor sales channels including online stores, marketplaces, and direct sales.",
+  },
+  campaigns: {
+    title: "Campaigns",
+    description: "Plan and track marketing campaigns, set goals, assign budgets, and measure performance.",
+  },
+  productanalytics: {
+    title: "Product Analytics",
+    description: "Analyze product performance, best sellers, return rates, and revenue contribution.",
+  },
+  inventoryanalytics: {
+    title: "Inventory Analytics",
+    description: "Monitor stock health, turnover rates, shrinkage, and demand forecasting.",
+  },
+  financialanalytics: {
+    title: "Financial Analytics",
+    description: "Deep-dive into revenue trends, cost structures, margins, and financial KPIs.",
+  },
+  marketinganalytics: {
+    title: "Marketing Analytics",
+    description: "Measure content reach, creator ROI, campaign conversions, and audience engagement.",
+  },
+  executivereports: {
+    title: "Executive Reports",
+    description: "High-level business summaries and dashboards for leadership and board reporting.",
+  },
+  users: {
+    title: "Users",
+    description: "Manage user accounts, access levels, and team members in the system.",
+  },
+  rolespermissions: {
+    title: "Roles & Permissions",
+    description: "Define roles and control access permissions for each module and action.",
+  },
+};
+
+function ComingSoonModule({ pageId }) {
+  const meta = COMING_SOON_META[pageId] || {
+    title: pageId,
+    description: "This module is under development.",
+  };
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight">{meta.title}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{meta.description}</p>
+      </div>
+      <Card className="border-border/60">
+        <CardContent className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+            <Sparkles className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <div className="text-center max-w-sm">
+            <p className="text-lg font-semibold">Coming Soon</p>
+            <p className="text-sm text-muted-foreground mt-1">{meta.description}</p>
+          </div>
+          <span className="text-xs font-medium px-3 py-1 rounded-full border border-border bg-muted text-muted-foreground tracking-wider uppercase">
+            In Development
+          </span>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // =========== CASH FLOW STATEMENT ===========
 function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNavigateToLedger }) {
   const now = new Date();
@@ -9454,10 +9576,37 @@ function App() {
         }}
       />
     ),
+    // Hidden but preserved pages (accessible internally)
+    planning: <PlanningModule />,
+    timeline: <TimelineModule />,
     events: <EventsModule />,
     reports: <ReportsModule />,
+    finance: <FinanceModule />,
     notifications: <NotificationsModule />,
     settings: <SettingsModule user={user} />,
+    // Operations placeholders
+    stockmovements: <ComingSoonModule pageId="stockmovements" />,
+    suppliers: <ComingSoonModule pageId="suppliers" />,
+    bom: <ComingSoonModule pageId="bom" />,
+    productionorders: <ComingSoonModule pageId="productionorders" />,
+    finishedgoods: <ComingSoonModule pageId="finishedgoods" />,
+    // Sales placeholders
+    customers: <ComingSoonModule pageId="customers" />,
+    orders: <ComingSoonModule pageId="orders" />,
+    saleschannels: <ComingSoonModule pageId="saleschannels" />,
+    // Marketing placeholders
+    campaigns: <ComingSoonModule pageId="campaigns" />,
+    // Reports placeholders
+    productanalytics: <ComingSoonModule pageId="productanalytics" />,
+    inventoryanalytics: <ComingSoonModule pageId="inventoryanalytics" />,
+    financialanalytics: <ComingSoonModule pageId="financialanalytics" />,
+    marketinganalytics: <ComingSoonModule pageId="marketinganalytics" />,
+    executivereports: <ComingSoonModule pageId="executivereports" />,
+    // Settings (new IDs → existing modules)
+    users: <ComingSoonModule pageId="users" />,
+    rolespermissions: <ComingSoonModule pageId="rolespermissions" />,
+    notificationsettings: <NotificationsModule />,
+    systemconfig: <SettingsModule user={user} />,
   }[active];
 
   const logout = () => {
