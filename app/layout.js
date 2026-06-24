@@ -1,9 +1,13 @@
 import './globals.css'
 import { Providers } from './providers'
-import { Inter } from 'next/font/google'
+import { Space_Grotesk } from 'next/font/google'
 import PWARegister from '@/components/onemission/pwa-register'
 
-const inter = Inter({ subsets: ['latin'], weight: ['400','500','600','700'], variable: '--font-inter' })
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-space-grotesk',
+})
 
 export const metadata = {
   title: 'ONEMISSION HQ — VALUES MATTER',
@@ -13,7 +17,7 @@ export const metadata = {
   appleWebApp: {
     capable: true,
     title: 'ONEMISSION HQ',
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
   },
   formatDetection: { telephone: false },
   icons: {
@@ -28,7 +32,7 @@ export const metadata = {
 }
 
 export const viewport = {
-  themeColor: '#09090B',
+  themeColor: '#F7F8FA',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -37,15 +41,15 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`dark ${inter.variable}`} suppressHydrationWarning>
+    <html lang="en" className={spaceGrotesk.variable} suppressHydrationWarning>
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="ONEMISSION HQ" />
         <script dangerouslySetInnerHTML={{__html:'window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);'}} />
       </head>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${spaceGrotesk.className} antialiased`}>
         <Providers>{children}</Providers>
         <PWARegister />
       </body>
