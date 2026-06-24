@@ -145,7 +145,10 @@ async function handle(request, { params }) {
       const total = items.length;
       const totalWeight = items.reduce((s, i) => s + (i.weight || 0), 0);
       const uniqueColors = new Set(items.map(i => i.color.toLowerCase().trim())).size;
-      return NextResponse.json({ total, totalWeight, uniqueColors });
+      const lowStockCount = items.filter(i => (i.currentStock || 0) <= (i.minimumStock || 0) && (i.minimumStock || 0) > 0).length;
+      const totalInventoryValue = items.reduce((s, i) => s + ((i.unitCost || 0) * (i.currentStock || 0)), 0);
+      const activeCount = items.filter(i => (i.status || 'Active') === 'Active').length;
+      return NextResponse.json({ total, totalWeight, uniqueColors, lowStockCount, totalInventoryValue, activeCount });
     }
 
     // ---------- FINANCIAL ACCOUNTS — explicit GET + check-name ----------

@@ -6747,6 +6747,7 @@ function RawMaterialModule() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const load = async () => {
     setLoading(true);
     setItems(await api.get("rawmaterials"));
@@ -6756,40 +6757,81 @@ function RawMaterialModule() {
     load();
   }, []);
 
-  const empty = { name: "", color: "", weight: 0, photo: "" };
+  const empty = {
+    name: "",
+    color: "",
+    weight: 0,
+    photo: "",
+    category: "",
+    unit: "",
+    currentStock: 0,
+    minimumStock: 0,
+    unitCost: 0,
+    supplierName: "",
+    notes: "",
+    status: "Active",
+  };
+
   const save = async (data) => {
     const body = {
       name: data.name,
       color: data.color,
       weight: Number(data.weight),
       photo: data.photo || null,
+      category: data.category || "",
+      unit: data.unit || "",
+      currentStock: Number(data.currentStock) || 0,
+      minimumStock: Number(data.minimumStock) || 0,
+      unitCost: Number(data.unitCost) || 0,
+      supplierName: data.supplierName || "",
+      notes: data.notes || "",
+      status: data.status || "Active",
     };
     if (editing?.id) {
       await api.put("rawmaterials/" + editing.id, body);
-      toast.success("Bahan baku berhasil diperbarui");
+      toast.success("Raw material updated successfully");
     } else {
       await api.post("rawmaterials", body);
-      toast.success("Bahan baku berhasil ditambahkan");
+      toast.success("Raw material added successfully");
     }
     setOpen(false);
     setEditing(null);
     load();
   };
+
   const del = async (id) => {
     await api.del("rawmaterials/" + id);
     load();
-    toast.success("Bahan baku berhasil dihapus");
+    toast.success("Raw material deleted successfully");
   };
 
-  const filtered = items.filter(
-    (item) =>
+  const isLowStock = (item) =>
+    (item.minimumStock || 0) > 0 &&
+    (item.currentStock || 0) <= (item.minimumStock || 0);
+
+  const filtered = items.filter((item) => {
+    const q = search.toLowerCase();
+    const matchesSearch =
       !search ||
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.color.toLowerCase().includes(search.toLowerCase()),
-  );
+      item.name.toLowerCase().includes(q) ||
+      (item.color || "").toLowerCase().includes(q) ||
+      (item.category || "").toLowerCase().includes(q) ||
+      (item.supplierName || "").toLowerCase().includes(q);
+    const matchesStatus =
+      statusFilter === "all" || (item.status || "Active") === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   const totalWeight = items.reduce((s, i) => s + (i.weight || 0), 0);
-  const uniqueColors = new Set(items.map((i) => i.color.toLowerCase().trim()))
-    .size;
+  const lowStockCount = items.filter(isLowStock).length;
+  const totalInventoryValue = items.reduce(
+    (s, i) => s + (i.unitCost || 0) * (i.currentStock || 0),
+    0
+  );
+  const activeCount = items.filter(
+    (i) => (i.status || "Active") === "Active"
+  ).length;
+
   const fmtDate = (dt) => {
     if (!dt) return "—";
     return new Date(dt).toLocaleDateString("id-ID", {
@@ -6806,8 +6848,8 @@ function RawMaterialModule() {
           <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
           <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
         </div>
-        <StatsSkeleton stats={3} showChart={false} />
-        <TableSkeleton rows={6} cols={5} />
+        <StatsSkeleton stats={4} showChart={false} />
+        <TableSkeleton rows={6} cols={8} />
       </div>
     );
 
@@ -6819,7 +6861,7 @@ function RawMaterialModule() {
             Raw Materials
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Production material inventory management
+            Manufacturing-ready material master
           </p>
         </div>
         <Button
@@ -6833,145 +6875,193 @@ function RawMaterialModule() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="">
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">
-              Total Raw Materials
-            </p>
+            <p className="text-xs text-muted-foreground mb-1">Total Materials</p>
             <p className="text-2xl font-bold">{items.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">{activeCount} active</p>
           </CardContent>
         </Card>
-        <Card className="">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Inventory Value</p>
+            <p className="text-2xl font-bold">{fmtShort(totalInventoryValue)}</p>
+            <p className="text-xs text-muted-foreground mt-1">at unit cost</p>
+          </CardContent>
+        </Card>
+        <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-1">Total Weight</p>
             <p className="text-2xl font-bold">
-              {totalWeight.toLocaleString("id-ID", {
-                maximumFractionDigits: 2,
-              })}{" "}
-              kg
+              {totalWeight.toLocaleString("id-ID", { maximumFractionDigits: 2 })} kg
             </p>
           </CardContent>
         </Card>
-        <Card className="">
+        <Card className={lowStockCount > 0 ? "border-amber-300 bg-amber-50" : ""}>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Unique Colors</p>
-            <p className="text-2xl font-bold">{uniqueColors}</p>
+            <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+              {lowStockCount > 0 && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+              Low Stock
+            </p>
+            <p className={`text-2xl font-bold ${lowStockCount > 0 ? "text-amber-600" : ""}`}>
+              {lowStockCount}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">items need reorder</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Cari nama atau warna..."
-          className="pl-8 h-9 text-sm"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search name, category, supplier..."
+            className="pl-8 h-9 text-sm"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-9 w-36">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
+      {/* Table */}
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-[#F7F8FA]">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Photo
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Name
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Color
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                  Weight
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Created Date
-                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Photo</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Category</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Unit</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Current Stock</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Min Stock</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Unit Cost</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Supplier</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item) => (
-                <tr
-                  key={item.id}
-                  className="border-b hover:bg-[#F7F8FA] transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    {item.photo ? (
-                      <img
-                        src={item.photo}
-                        alt={item.name}
-                        className="w-10 h-10 object-cover rounded-md border"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-md border bg-[#F7F8FA] flex items-center justify-center text-muted-foreground">
-                        <Package className="h-4 w-4" />
+              {filtered.map((item) => {
+                const lowStock = isLowStock(item);
+                return (
+                  <tr
+                    key={item.id}
+                    className={`border-b hover:bg-[#F7F8FA] transition-colors ${lowStock ? "bg-amber-50/40" : ""}`}
+                  >
+                    <td className="px-4 py-3">
+                      {item.photo ? (
+                        <img
+                          src={item.photo}
+                          alt={item.name}
+                          className="w-10 h-10 object-cover rounded-md border"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-md border bg-[#F7F8FA] flex items-center justify-center text-muted-foreground">
+                          <Package className="h-4 w-4" />
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        {item.color && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <div
+                              className="w-2.5 h-2.5 rounded-full border shrink-0"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            <span className="text-xs text-muted-foreground">{item.color}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 font-medium">{item.name}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full border shrink-0"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="text-muted-foreground">
-                        {item.color}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium">
-                    {Number(item.weight).toLocaleString("id-ID", {
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    kg
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">
-                    {fmtDate(item.createdAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setEditing(item);
-                            setOpen(true);
-                          }}
-                        >
-                          <Edit3 className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => del(item.id)}
-                          className="text-rose-400"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{item.category || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{item.unit || "—"}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {lowStock && (
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        )}
+                        <span className={`font-medium ${lowStock ? "text-amber-600" : ""}`}>
+                          {Number(item.currentStock || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      {lowStock && (
+                        <Badge variant="outline" className="text-[10px] mt-0.5 border-amber-300 text-amber-600 bg-amber-50">
+                          Low Stock
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">
+                      {Number(item.minimumStock || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium">
+                      {item.unitCost ? fmt(item.unitCost) : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{item.supplierName || "—"}</td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant="outline"
+                        className={
+                          (item.status || "Active") === "Active"
+                            ? "border-green-300 text-green-700 bg-green-50"
+                            : "border-gray-300 text-gray-500 bg-gray-50"
+                        }
+                      >
+                        {item.status || "Active"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditing(item);
+                              setOpen(true);
+                            }}
+                          >
+                            <Edit3 className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => del(item.id)}
+                            className="text-rose-400"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="p-12 text-center text-muted-foreground"
-                  >
-                    There are currently no raw materials in the inventory. Click
-                    'Add Raw Material' to get started.
+                  <td colSpan={10} className="p-12 text-center text-muted-foreground">
+                    {items.length === 0
+                      ? "There are currently no raw materials in the inventory. Click 'Add Raw Material' to get started."
+                      : "No materials match your search criteria."}
                   </td>
                 </tr>
               )}
@@ -6993,42 +7083,57 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave }) {
   const [form, setForm] = useState(initial);
   useEffect(() => setForm(initial), [initial, open]);
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const SectionHeader = ({ children }) => (
+    <div className="col-span-2 pt-2">
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5">
+        {children}
+      </p>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {initial?.id ? "Edit Raw Material" : "Add Raw Material"}
           </DialogTitle>
-          <DialogDescription>Manage raw material inventory</DialogDescription>
+          <DialogDescription>Manage raw material master data</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 gap-4">
-          <div className="space-y-2">
-            <Label>Name</Label>
+
+        <div className="grid grid-cols-2 gap-4">
+          {/* ── Material Information ── */}
+          <SectionHeader>Material Information</SectionHeader>
+
+          <div className="space-y-2 col-span-2">
+            <Label>Name <span className="text-rose-500">*</span></Label>
             <Input
               value={form.name || ""}
               onChange={(e) => update("name", e.target.value)}
               placeholder="Raw material name"
             />
           </div>
+
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Input
+              value={form.category || ""}
+              onChange={(e) => update("category", e.target.value)}
+              placeholder="e.g. Fabric, Thread, Dye"
+            />
+          </div>
+
           <div className="space-y-2">
             <Label>Color</Label>
             <Input
               value={form.color || ""}
               onChange={(e) => update("color", e.target.value)}
-              placeholder="Example: White, Navy Blue, #FF0000"
+              placeholder="e.g. White, Navy Blue, #FF0000"
             />
           </div>
-          <div className="space-y-2">
-            <Label>Weight (kg)</Label>
-            <NumberInput
-              decimal
-              value={form.weight || 0}
-              onChange={(v) => update("weight", v)}
-              placeholder="0.00"
-            />
-          </div>
-          <div className="space-y-2">
+
+          <div className="space-y-2 col-span-2">
             <Label>Photo URL (optional)</Label>
             <Input
               value={form.photo || ""}
@@ -7040,18 +7145,119 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave }) {
                 src={form.photo}
                 alt="Preview"
                 className="w-full max-h-32 object-cover rounded-md border mt-2"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                }}
+                onError={(e) => { e.target.style.display = "none"; }}
               />
             )}
           </div>
+
+          {/* ── Inventory Information ── */}
+          <SectionHeader>Inventory Information</SectionHeader>
+
+          <div className="space-y-2">
+            <Label>Unit</Label>
+            <Input
+              value={form.unit || ""}
+              onChange={(e) => update("unit", e.target.value)}
+              placeholder="e.g. kg, meter, pcs, roll"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Weight (kg)</Label>
+            <NumberInput
+              decimal
+              value={form.weight || 0}
+              onChange={(v) => update("weight", v)}
+              placeholder="0.00"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Current Stock</Label>
+            <NumberInput
+              decimal
+              value={form.currentStock || 0}
+              onChange={(v) => update("currentStock", v)}
+              placeholder="0"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Minimum Stock</Label>
+            <NumberInput
+              decimal
+              value={form.minimumStock || 0}
+              onChange={(v) => update("minimumStock", v)}
+              placeholder="0"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              A low stock warning appears when current stock falls at or below this value.
+            </p>
+          </div>
+
+          {/* ── Cost Information ── */}
+          <SectionHeader>Cost Information</SectionHeader>
+
+          <div className="space-y-2 col-span-2">
+            <Label>Unit Cost (Rp)</Label>
+            <NumberInput
+              decimal
+              value={form.unitCost || 0}
+              onChange={(v) => update("unitCost", v)}
+              placeholder="0"
+            />
+          </div>
+
+          {/* ── Supplier Information ── */}
+          <SectionHeader>Supplier Information</SectionHeader>
+
+          <div className="space-y-2 col-span-2">
+            <Label>Supplier Name</Label>
+            <Input
+              value={form.supplierName || ""}
+              onChange={(e) => update("supplierName", e.target.value)}
+              placeholder="Supplier or vendor name"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              This field will link to a Supplier Master record in a future update.
+            </p>
+          </div>
+
+          {/* ── Additional Information ── */}
+          <SectionHeader>Additional Information</SectionHeader>
+
+          <div className="space-y-2 col-span-2">
+            <Label>Notes</Label>
+            <Textarea
+              value={form.notes || ""}
+              onChange={(e) => update("notes", e.target.value)}
+              placeholder="Internal notes about this material..."
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select
+              value={form.status || "Active"}
+              onValueChange={(v) => update("status", v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <DialogFooter>
+
+        <DialogFooter className="mt-4">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={() => onSave(form)}>
+          <Button onClick={() => onSave(form)} disabled={!form.name?.trim()}>
             {initial?.id ? "Save Changes" : "Add Raw Material"}
           </Button>
         </DialogFooter>

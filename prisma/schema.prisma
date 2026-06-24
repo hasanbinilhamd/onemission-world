@@ -173,13 +173,21 @@ model Notification {
 }
 
 model RawMaterial {
-  id        String   @id
-  name      String
-  color     String
-  weight    Float
-  photo     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id
+  name         String
+  color        String
+  weight       Float
+  photo        String?
+  category     String   @default("")
+  unit         String   @default("")
+  currentStock Float    @default(0)
+  minimumStock Float    @default(0)
+  unitCost     Float    @default(0)
+  supplierName String   @default("")
+  notes        String   @default("")
+  status       String   @default("Active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model ChartOfAccount {
