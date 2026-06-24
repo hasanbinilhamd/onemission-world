@@ -6858,6 +6858,7 @@ function ChartOfAccountModal({
 
 function RawMaterialModule() {
   const [items, setItems] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -6865,7 +6866,12 @@ function RawMaterialModule() {
   const [statusFilter, setStatusFilter] = useState("all");
   const load = async () => {
     setLoading(true);
-    setItems(await api.get("rawmaterials"));
+    const [rms, sups] = await Promise.all([
+      api.get("rawmaterials"),
+      api.get("suppliers"),
+    ]);
+    setItems(Array.isArray(rms) ? rms : []);
+    setSuppliers(Array.isArray(sups) ? sups : []);
     setLoading(false);
   };
   useEffect(() => {
@@ -6882,12 +6888,17 @@ function RawMaterialModule() {
     currentStock: 0,
     minimumStock: 0,
     unitCost: 0,
+    supplierId: "",
     supplierName: "",
     notes: "",
     status: "Active",
   };
 
   const save = async (data) => {
+    // Sync supplierName from linked supplier for backward compatibility
+    const linkedSupplier = data.supplierId
+      ? suppliers.find((s) => s.id === data.supplierId)
+      : null;
     const body = {
       name: data.name,
       color: data.color,
@@ -6898,7 +6909,8 @@ function RawMaterialModule() {
       currentStock: Number(data.currentStock) || 0,
       minimumStock: Number(data.minimumStock) || 0,
       unitCost: Number(data.unitCost) || 0,
-      supplierName: data.supplierName || "",
+      supplierId: data.supplierId || null,
+      supplierName: linkedSupplier ? linkedSupplier.supplierName : (data.supplierName || ""),
       notes: data.notes || "",
       status: data.status || "Active",
     };
@@ -7189,12 +7201,13 @@ function RawMaterialModule() {
         onOpenChange={setOpen}
         initial={editing || empty}
         onSave={save}
+        suppliers={suppliers}
       />
     </div>
   );
 }
 
-function RawMaterialModal({ open, onOpenChange, initial, onSave }) {
+function RawMaterialModal({ open, onOpenChange, initial, onSave, suppliers = [] }) {
   const [form, setForm] = useState(initial);
   useEffect(() => setForm(initial), [initial, open]);
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -7327,15 +7340,42 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave }) {
           <SectionHeader>Supplier Information</SectionHeader>
 
           <div className="space-y-2 col-span-2">
-            <Label>Supplier Name</Label>
-            <Input
-              value={form.supplierName || ""}
-              onChange={(e) => update("supplierName", e.target.value)}
-              placeholder="Supplier or vendor name"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              This field will link to a Supplier Master record in a future update.
-            </p>
+            <Label>Supplier</Label>
+            {suppliers.length > 0 ? (
+              <Select
+                value={form.supplierId || "none"}
+                onValueChange={(v) => {
+                  const sid = v === "none" ? "" : v;
+                  const sup = suppliers.find((s) => s.id === sid);
+                  update("supplierId", sid);
+                  if (sup) update("supplierName", sup.supplierName);
+                  else if (!sid) update("supplierName", "");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select supplier…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— No Supplier —</SelectItem>
+                  {suppliers.filter((s) => (s.status || "Active") === "Active").map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.supplierCode} · {s.supplierName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value={form.supplierName || ""}
+                onChange={(e) => update("supplierName", e.target.value)}
+                placeholder="Supplier or vendor name"
+              />
+            )}
+            {!suppliers.length && (
+              <p className="text-[11px] text-muted-foreground">
+                Add suppliers in Operations → Suppliers to link raw materials to a supplier.
+              </p>
+            )}
           </div>
 
           {/* ── Additional Information ── */}
@@ -9726,6 +9766,433 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
   );
 }
 
+// =========== SUPPLIER MASTER ===========
+
+function SupplierFormDialog({ open, onOpenChange, initial, onSave }) {
+  const empty = {
+    supplierName: "", contactPerson: "", phone: "", email: "",
+    address: "", city: "", province: "", country: "Indonesia",
+    leadTimeDays: 0, notes: "", status: "Active",
+  };
+  const [form, setForm] = useState(empty);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => { setForm(initial ? { ...empty, ...initial } : empty); }, [initial, open]);
+  const up = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const SH = ({ children }) => (
+    <div className="col-span-2 pt-2">
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5">{children}</p>
+    </div>
+  );
+
+  const submit = async () => {
+    if (!form.supplierName?.trim()) { toast.error("Supplier name is required"); return; }
+    setLoading(true);
+    try { await onSave(form); } finally { setLoading(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{initial?.id ? "Edit Supplier" : "Add Supplier"}</DialogTitle>
+          <DialogDescription>Manage supplier master data</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-4">
+          <SH>Supplier Information</SH>
+          <div className="space-y-2 col-span-2">
+            <Label>Supplier Name <span className="text-rose-500">*</span></Label>
+            <Input value={form.supplierName || ""} onChange={(e) => up("supplierName", e.target.value)} placeholder="e.g. PT. Bahan Baku Indonesia" />
+          </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={form.status || "Active"} onValueChange={(v) => up("status", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Lead Time (days)</Label>
+            <Input type="number" min="0" value={form.leadTimeDays || 0} onChange={(e) => up("leadTimeDays", Number(e.target.value))} placeholder="0" />
+          </div>
+
+          <SH>Contact Information</SH>
+          <div className="space-y-2">
+            <Label>Contact Person</Label>
+            <Input value={form.contactPerson || ""} onChange={(e) => up("contactPerson", e.target.value)} placeholder="Full name" />
+          </div>
+          <div className="space-y-2">
+            <Label>Phone</Label>
+            <Input value={form.phone || ""} onChange={(e) => up("phone", e.target.value)} placeholder="+62..." />
+          </div>
+          <div className="space-y-2 col-span-2">
+            <Label>Email</Label>
+            <Input type="email" value={form.email || ""} onChange={(e) => up("email", e.target.value)} placeholder="supplier@example.com" />
+          </div>
+
+          <SH>Address</SH>
+          <div className="space-y-2 col-span-2">
+            <Label>Street Address</Label>
+            <Input value={form.address || ""} onChange={(e) => up("address", e.target.value)} placeholder="Jl. ..." />
+          </div>
+          <div className="space-y-2">
+            <Label>City</Label>
+            <Input value={form.city || ""} onChange={(e) => up("city", e.target.value)} placeholder="Jakarta" />
+          </div>
+          <div className="space-y-2">
+            <Label>Province</Label>
+            <Input value={form.province || ""} onChange={(e) => up("province", e.target.value)} placeholder="DKI Jakarta" />
+          </div>
+          <div className="space-y-2 col-span-2">
+            <Label>Country</Label>
+            <Input value={form.country || "Indonesia"} onChange={(e) => up("country", e.target.value)} placeholder="Indonesia" />
+          </div>
+
+          <SH>Notes</SH>
+          <div className="space-y-2 col-span-2">
+            <Label>Notes</Label>
+            <Textarea value={form.notes || ""} onChange={(e) => up("notes", e.target.value)} placeholder="Internal notes…" rows={3} />
+          </div>
+        </div>
+        <DialogFooter className="mt-4">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={loading || !form.supplierName?.trim()}>
+            {loading ? "Saving…" : initial?.id ? "Save Changes" : "Add Supplier"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SupplierDetailDialog({ open, onOpenChange, supplier, onEdit }) {
+  if (!supplier) return null;
+  const statusColor = (supplier.status || "Active") === "Active"
+    ? "bg-emerald-500/10 text-emerald-600"
+    : "bg-gray-400/10 text-gray-500";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div>
+              <DialogTitle className="text-lg">{supplier.supplierName}</DialogTitle>
+              <p className="text-sm text-muted-foreground font-mono mt-0.5">{supplier.supplierCode}</p>
+            </div>
+            <span className={`ml-auto inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${statusColor}`}>
+              {supplier.status || "Active"}
+            </span>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-6 py-2">
+          {/* Supplier Information */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Supplier Information</p>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+              <div><span className="text-muted-foreground">Code:</span> <span className="font-mono ml-2">{supplier.supplierCode}</span></div>
+              <div><span className="text-muted-foreground">Lead Time:</span> <span className="ml-2">{supplier.leadTimeDays || 0} days</span></div>
+            </div>
+            {supplier.notes && <p className="text-sm text-muted-foreground mt-3 italic">"{supplier.notes}"</p>}
+          </div>
+
+          {/* Contact Information */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Contact Information</p>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+              <div><span className="text-muted-foreground">Contact:</span> <span className="ml-2">{supplier.contactPerson || "—"}</span></div>
+              <div><span className="text-muted-foreground">Phone:</span> <span className="ml-2">{supplier.phone || "—"}</span></div>
+              <div className="col-span-2"><span className="text-muted-foreground">Email:</span> <span className="ml-2">{supplier.email || "—"}</span></div>
+            </div>
+          </div>
+
+          {/* Address */}
+          {(supplier.address || supplier.city || supplier.province || supplier.country) && (
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Address</p>
+              <div className="text-sm space-y-1">
+                {supplier.address && <p>{supplier.address}</p>}
+                <p className="text-muted-foreground">
+                  {[supplier.city, supplier.province, supplier.country].filter(Boolean).join(", ")}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Related Raw Materials */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+              Related Raw Materials {supplier.rawMaterials?.length ? `(${supplier.rawMaterials.length})` : ""}
+            </p>
+            {!supplier.rawMaterials?.length ? (
+              <p className="text-sm text-muted-foreground italic">No raw materials linked to this supplier.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">Name</th>
+                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">Category</th>
+                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">Unit</th>
+                      <th className="text-right py-2 font-medium text-muted-foreground text-xs uppercase">Stock</th>
+                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {supplier.rawMaterials.map((rm) => (
+                      <tr key={rm.id} className="border-b border-border/30">
+                        <td className="py-2 font-medium">{rm.name}</td>
+                        <td className="py-2 text-muted-foreground">{rm.category || "—"}</td>
+                        <td className="py-2 text-muted-foreground">{rm.unit || "—"}</td>
+                        <td className="py-2 text-right tabular-nums">{Number(rm.currentStock || 0).toLocaleString()}</td>
+                        <td className="py-2">
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${(rm.status || "Active") === "Active" ? "bg-emerald-500/10 text-emerald-600" : "bg-gray-400/10 text-gray-500"}`}>
+                            {rm.status || "Active"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => { onOpenChange(false); onEdit(supplier); }}>Edit Supplier</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SuppliersModule() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [stats, setStats] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [detailSupplier, setDetailSupplier] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+
+  const load = async () => {
+    setLoading(true);
+    const qs = new URLSearchParams();
+    if (statusFilter !== "all") qs.append("status", statusFilter);
+    if (search) qs.append("search", search);
+    const [data, statsData] = await Promise.all([
+      api.get("suppliers" + (qs.toString() ? "?" + qs.toString() : "")),
+      api.get("suppliers/stats"),
+    ]);
+    setItems(Array.isArray(data) ? data : []);
+    setStats(statsData && !statsData.error ? statsData : null);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [search, statusFilter]);
+
+  const openCreate = () => { setEditing(null); setShowForm(true); };
+  const openEdit = (s) => { setEditing(s); setShowForm(true); };
+
+  const openDetail = async (s) => {
+    const detail = await api.get(`suppliers/${s.id}`);
+    setDetailSupplier(detail);
+    setShowDetail(true);
+  };
+
+  const save = async (form) => {
+    if (editing?.id) {
+      await api.put("suppliers/" + editing.id, form);
+      toast.success("Supplier updated");
+    } else {
+      await api.post("suppliers", form);
+      toast.success("Supplier created");
+    }
+    setShowForm(false);
+    setEditing(null);
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    await api.del("suppliers/" + deleteId);
+    toast.success("Supplier deleted");
+    setDeleteId(null);
+    load();
+  };
+
+  const statusBadge = (status) => {
+    const isActive = (status || "Active") === "Active";
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? "bg-emerald-500/10 text-emerald-600" : "bg-gray-400/10 text-gray-500"}`}>
+        {status || "Active"}
+      </span>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Supplier Master</h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Manage suppliers for raw material procurement and purchasing</p>
+        </div>
+        <Button onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Supplier
+        </Button>
+      </div>
+
+      {/* Dashboard Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Suppliers</p>
+            <p className="text-3xl font-semibold mt-1">{loading ? "—" : (stats?.total ?? 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">Active</p>
+            <p className="text-3xl font-semibold mt-1 text-emerald-500">{loading ? "—" : (stats?.active ?? 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-gray-400">Inactive</p>
+            <p className="text-3xl font-semibold mt-1 text-gray-400">{loading ? "—" : (stats?.inactive ?? 0)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-xs text-muted-foreground mb-1">Search code / name / contact</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-9" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+            </div>
+            <div className="min-w-[150px]">
+              <p className="text-xs text-muted-foreground mb-1">Status</p>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" size="icon" onClick={load} title="Refresh">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">Loading suppliers…</div>
+          ) : items.length === 0 ? (
+            <div className="p-12 text-center">
+              <Truck className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">No suppliers found</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Add your first supplier to get started.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[rgba(17,24,39,0.04)]">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Code</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Supplier Name</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Contact Person</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Phone</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">City</th>
+                    <th className="text-center px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Raw Materials</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((s, idx) => (
+                    <tr
+                      key={s.id}
+                      className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors cursor-pointer ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
+                      onClick={() => openDetail(s)}
+                    >
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{s.supplierCode}</td>
+                      <td className="px-4 py-3 font-medium">{s.supplierName}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{s.contactPerson || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{s.phone || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{s.city || "—"}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold">
+                          {s._count?.rawMaterials ?? 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{statusBadge(s.status)}</td>
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}>
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600" onClick={() => setDeleteId(s.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <SupplierFormDialog open={showForm} onOpenChange={setShowForm} initial={editing} onSave={save} />
+      <SupplierDetailDialog
+        open={showDetail}
+        onOpenChange={setShowDetail}
+        supplier={detailSupplier}
+        onEdit={(s) => { setEditing(s); setShowForm(true); }}
+      />
+
+      {/* Delete Confirmation */}
+      <Dialog open={!!deleteId} onOpenChange={(v) => { if (!v) setDeleteId(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Supplier</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the supplier. Raw materials linked to this supplier will be unlinked but not deleted. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // =========== COMING SOON PLACEHOLDER ===========
 const COMING_SOON_META = {
   stockmovements: {
@@ -10280,7 +10747,7 @@ function App() {
     settings: <SettingsModule user={user} />,
     // Operations placeholders
     stockmovements: <StockMovementsModule />,
-    suppliers: <ComingSoonModule pageId="suppliers" />,
+    suppliers: <SuppliersModule />,
     bom: <ComingSoonModule pageId="bom" />,
     productionorders: <ComingSoonModule pageId="productionorders" />,
     finishedgoods: <ComingSoonModule pageId="finishedgoods" />,

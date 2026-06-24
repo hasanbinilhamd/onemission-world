@@ -49,6 +49,21 @@ async function generateJournalNumber(journalDate) {
   return `${prefix}${String(maxSeq + 1).padStart(5, '0')}`;
 }
 
+// Generate supplier code: SUP-0001
+async function generateSupplierCode() {
+  const existing = await prisma.supplier.findMany({
+    select: { supplierCode: true },
+    orderBy: { supplierCode: 'desc' },
+  });
+  let maxSeq = 0;
+  for (const s of existing) {
+    const parts = s.supplierCode.split('-');
+    const seq = parseInt(parts[parts.length - 1] || '0', 10);
+    if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+  }
+  return `SUP-${String(maxSeq + 1).padStart(4, '0')}`;
+}
+
 // Generate stock movement reference: SM-YYYYMM-00001
 async function generateStockMovementRef(movementDate) {
   const d = movementDate ? new Date(movementDate) : new Date();
@@ -149,6 +164,103 @@ async function handle(request, { params }) {
       const totalInventoryValue = items.reduce((s, i) => s + ((i.unitCost || 0) * (i.currentStock || 0)), 0);
       const activeCount = items.filter(i => (i.status || 'Active') === 'Active').length;
       return NextResponse.json({ total, totalWeight, uniqueColors, lowStockCount, totalInventoryValue, activeCount });
+    }
+
+    // ---------- RAW MATERIALS LIST (with supplier) ----------
+    if (segs[0] === 'rawmaterials' && method === 'GET' && segs.length === 1) {
+      const items = await prisma.rawMaterial.findMany({
+        include: { supplier: { select: { id: true, supplierCode: true, supplierName: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+      return NextResponse.json(items);
+    }
+
+    // ---------- SUPPLIERS ----------
+    if (segs[0] === 'suppliers') {
+      // Stats
+      if (segs[1] === 'stats' && method === 'GET') {
+        const all = await prisma.supplier.findMany({ select: { status: true } });
+        const total = all.length;
+        const active = all.filter(s => (s.status || 'Active') === 'Active').length;
+        const inactive = all.filter(s => s.status === 'Inactive').length;
+        return NextResponse.json({ total, active, inactive });
+      }
+
+      // List
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const search = url.searchParams.get('search');
+        const status = url.searchParams.get('status');
+        const where = {};
+        if (status && status !== 'all') where.status = status;
+        const suppliers = await prisma.supplier.findMany({
+          where,
+          include: { _count: { select: { rawMaterials: true } } },
+          orderBy: { supplierCode: 'asc' },
+        });
+        const result = search
+          ? suppliers.filter(s => {
+              const q = search.toLowerCase();
+              return s.supplierCode.toLowerCase().includes(q)
+                || s.supplierName.toLowerCase().includes(q)
+                || (s.contactPerson || '').toLowerCase().includes(q);
+            })
+          : suppliers;
+        return NextResponse.json(result);
+      }
+
+      // Get by ID (with rawMaterials)
+      if (method === 'GET' && segs.length === 2) {
+        const supplier = await prisma.supplier.findUnique({
+          where: { id: segs[1] },
+          include: { rawMaterials: { orderBy: { name: 'asc' } } },
+        });
+        if (!supplier) return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+        return NextResponse.json(supplier);
+      }
+
+      // Create
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+        if (!body.supplierName?.trim()) return NextResponse.json({ error: 'Supplier name is required' }, { status: 400 });
+        const supplierCode = await generateSupplierCode();
+        const supplier = await prisma.supplier.create({
+          data: {
+            id: uuid(),
+            supplierCode,
+            supplierName: body.supplierName.trim(),
+            contactPerson: body.contactPerson || '',
+            phone: body.phone || '',
+            email: body.email || '',
+            address: body.address || '',
+            city: body.city || '',
+            province: body.province || '',
+            country: body.country || 'Indonesia',
+            leadTimeDays: Number(body.leadTimeDays) || 0,
+            notes: body.notes || '',
+            status: body.status || 'Active',
+          },
+        });
+        return NextResponse.json(supplier);
+      }
+
+      // Update
+      if (method === 'PUT' && segs.length === 2) {
+        const body = await readJson(request);
+        if (body.supplierName !== undefined && !body.supplierName?.trim()) {
+          return NextResponse.json({ error: 'Supplier name is required' }, { status: 400 });
+        }
+        const { id: _id, supplierCode: _code, createdAt: _ca, updatedAt: _ua, ...rest } = body;
+        const updated = await prisma.supplier.update({ where: { id: segs[1] }, data: rest });
+        return NextResponse.json(updated);
+      }
+
+      // Delete
+      if (method === 'DELETE' && segs.length === 2) {
+        await prisma.rawMaterial.updateMany({ where: { supplierId: segs[1] }, data: { supplierId: null } });
+        await prisma.supplier.delete({ where: { id: segs[1] } });
+        return NextResponse.json({ ok: true });
+      }
     }
 
     // ---------- FINANCIAL ACCOUNTS — explicit GET + check-name ----------
