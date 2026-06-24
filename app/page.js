@@ -2063,6 +2063,375 @@ function InventoryModule() {
   );
 }
 
+// =========== STOCK MOVEMENTS ===========
+const MOVEMENT_TYPES = [
+  { value: "MANUAL_IN", label: "Manual In", color: "text-emerald-400", bg: "bg-emerald-500/10 text-emerald-400" },
+  { value: "MANUAL_OUT", label: "Manual Out", color: "text-rose-400", bg: "bg-rose-500/10 text-rose-400" },
+  { value: "ADJUSTMENT_IN", label: "Adjustment In", color: "text-blue-400", bg: "bg-blue-500/10 text-blue-400" },
+  { value: "ADJUSTMENT_OUT", label: "Adjustment Out", color: "text-orange-400", bg: "bg-orange-500/10 text-orange-400" },
+  { value: "OPENING", label: "Opening Stock", color: "text-purple-400", bg: "bg-purple-500/10 text-purple-400" },
+];
+
+function movementTypeMeta(type) {
+  return MOVEMENT_TYPES.find((t) => t.value === type) || { label: type, bg: "bg-muted text-muted-foreground" };
+}
+
+function isInboundType(type) {
+  return ["MANUAL_IN", "ADJUSTMENT_IN", "OPENING"].includes(type);
+}
+
+function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, onSave }) {
+  const empty = { inventoryId: "", movementType: "MANUAL_IN", quantity: "", notes: "", referenceNumber: "", movementDate: new Date().toISOString().split("T")[0] };
+  const [form, setForm] = useState(empty);
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const invItem = inventory.find((i) => i.id === form.inventoryId);
+  const product = invItem ? products.find((p) => p.id === invItem.productId) : null;
+
+  const handleOpen = (val) => {
+    if (val) { setForm(empty); setErrors({}); }
+    onOpenChange(val);
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!form.inventoryId) e.inventoryId = "Select a stock item";
+    if (!form.movementType) e.movementType = "Select movement type";
+    const qty = Number(form.quantity);
+    if (!form.quantity || isNaN(qty) || qty <= 0) e.quantity = "Enter a positive quantity";
+    if (!form.movementDate) e.movementDate = "Select a date";
+    return e;
+  };
+
+  const submit = async () => {
+    const e = validate();
+    if (Object.keys(e).length) { setErrors(e); return; }
+    setLoading(true);
+    try {
+      await api.post("stockmovements", {
+        inventoryId: form.inventoryId,
+        movementType: form.movementType,
+        quantity: Number(form.quantity),
+        notes: form.notes,
+        referenceNumber: form.referenceNumber,
+        movementDate: form.movementDate,
+      });
+      toast.success("Stock movement recorded");
+      onSave();
+      handleOpen(false);
+    } catch (err) {
+      toast.error(err.message || "Failed to record movement");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((e) => ({ ...e, [k]: undefined })); };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Manual Stock Adjustment</DialogTitle>
+          <DialogDescription>Record a manual inbound or outbound stock movement.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Stock Item (Product · Color · Size)</label>
+            <Select value={form.inventoryId} onValueChange={(v) => set("inventoryId", v)}>
+              <SelectTrigger className={errors.inventoryId ? "border-red-500" : ""}>
+                <SelectValue placeholder="Select stock item…" />
+              </SelectTrigger>
+              <SelectContent>
+                {inventory.map((inv) => {
+                  const p = products.find((pr) => pr.id === inv.productId);
+                  return (
+                    <SelectItem key={inv.id} value={inv.id}>
+                      {p ? p.name : inv.productId} · {inv.color} · {inv.size} (stock: {inv.quantity})
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            {errors.inventoryId && <p className="text-xs text-red-500">{errors.inventoryId}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Movement Type</label>
+              <Select value={form.movementType} onValueChange={(v) => set("movementType", v)}>
+                <SelectTrigger className={errors.movementType ? "border-red-500" : ""}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MOVEMENT_TYPES.filter((t) => t.value !== "ADJUSTMENT_IN" && t.value !== "ADJUSTMENT_OUT").map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.movementType && <p className="text-xs text-red-500">{errors.movementType}</p>}
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Quantity</label>
+              <Input
+                type="number"
+                min="1"
+                placeholder="0"
+                value={form.quantity}
+                onChange={(e) => set("quantity", e.target.value)}
+                className={errors.quantity ? "border-red-500" : ""}
+              />
+              {errors.quantity && <p className="text-xs text-red-500">{errors.quantity}</p>}
+              {invItem && (
+                <p className="text-xs text-muted-foreground">
+                  Current stock: {invItem.quantity}
+                  {!isInboundType(form.movementType) && form.quantity && (
+                    <span className={Number(form.quantity) > invItem.quantity ? " text-red-400" : " text-emerald-400"}>
+                      {" → "}{Math.max(0, invItem.quantity - Number(form.quantity))}
+                    </span>
+                  )}
+                  {isInboundType(form.movementType) && form.quantity && (
+                    <span className=" text-emerald-400"> → {invItem.quantity + Number(form.quantity)}</span>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Date</label>
+              <Input
+                type="date"
+                value={form.movementDate}
+                onChange={(e) => set("movementDate", e.target.value)}
+                className={errors.movementDate ? "border-red-500" : ""}
+              />
+              {errors.movementDate && <p className="text-xs text-red-500">{errors.movementDate}</p>}
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Reference No. (optional)</label>
+              <Input placeholder="Auto-generated if blank" value={form.referenceNumber} onChange={(e) => set("referenceNumber", e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Notes (optional)</label>
+            <Input placeholder="Reason for adjustment…" value={form.notes} onChange={(e) => set("notes", e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpen(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={loading}>{loading ? "Saving…" : "Record Movement"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function StockMovementsModule() {
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const today = now.toISOString().split("T")[0];
+
+  const [items, setItems] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState(firstOfMonth);
+  const [dateTo, setDateTo] = useState(today);
+  const [showAdjust, setShowAdjust] = useState(false);
+
+  const buildParams = () => {
+    const p = new URLSearchParams();
+    if (search) p.append("search", search);
+    if (typeFilter !== "all") p.append("type", typeFilter);
+    if (dateFrom) p.append("from", dateFrom);
+    if (dateTo) p.append("to", dateTo);
+    return p.toString();
+  };
+
+  const load = async () => {
+    setLoading(true);
+    const qs = buildParams();
+    const [data, statsData, prods, inv] = await Promise.all([
+      api.get("stockmovements" + (qs ? "?" + qs : "")),
+      api.get("stockmovements/stats" + (qs ? "?" + qs : "")),
+      api.get("products"),
+      api.get("inventory"),
+    ]);
+    setItems(Array.isArray(data) ? data : []);
+    setStats(statsData && !statsData.error ? statsData : null);
+    setProducts(Array.isArray(prods) ? prods : []);
+    setInventory(Array.isArray(inv) ? inv : []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [search, typeFilter, dateFrom, dateTo]);
+
+  const netChange = stats ? stats.totalIn - stats.totalOut : 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Stock Movement Ledger</h2>
+          <p className="text-sm text-muted-foreground mt-1">Immutable record of all inventory movements</p>
+        </div>
+        <Button onClick={() => setShowAdjust(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Manual Adjustment
+        </Button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-border/60">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Movements</p>
+            <p className="text-2xl font-semibold mt-2">{loading ? "—" : (stats?.totalMovements ?? 0).toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-400">Total Inbound</p>
+            <p className="text-2xl font-semibold mt-2 text-emerald-400">{loading ? "—" : "+" + (stats?.totalIn ?? 0).toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">Total Outbound</p>
+            <p className="text-2xl font-semibold mt-2 text-rose-400">{loading ? "—" : "−" + (stats?.totalOut ?? 0).toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Change</p>
+            <p className={`text-2xl font-semibold mt-2 ${netChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              {loading ? "—" : (netChange >= 0 ? "+" : "") + netChange.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card className="border-border/60">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[180px]">
+              <p className="text-xs text-muted-foreground mb-1">Search product / SKU / ref</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Search…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="min-w-[180px]">
+              <p className="text-xs text-muted-foreground mb-1">Movement Type</p>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {MOVEMENT_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Date From</p>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Date To</p>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
+            </div>
+            <Button variant="outline" size="icon" onClick={load} title="Refresh">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Ledger Table */}
+      <Card className="border-border/60">
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">Loading movements…</div>
+          ) : items.length === 0 ? (
+            <div className="p-12 text-center">
+              <Activity className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">No stock movements found</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Movements are recorded automatically when inventory is adjusted, or manually via the button above.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Date</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Reference</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Product</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Variant</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Qty</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Before</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">After</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((m, idx) => {
+                    const meta = movementTypeMeta(m.movementType);
+                    const inbound = isInboundType(m.movementType);
+                    return (
+                      <tr key={m.id} className={`border-b border-border/30 hover:bg-muted/30 transition-colors ${idx % 2 === 0 ? "" : "bg-muted/10"}`}>
+                        <td className="px-4 py-3 text-muted-foreground">{m.movementDate}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{m.referenceNumber || "—"}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium leading-none">{m.product?.name || "—"}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{m.product?.sku}</p>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{m.inventory ? `${m.inventory.color} / ${m.inventory.size}` : "—"}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${meta.bg}`}>
+                            {meta.label}
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 text-right font-semibold tabular-nums ${inbound ? "text-emerald-400" : "text-rose-400"}`}>
+                          {inbound ? "+" : "−"}{m.quantity}
+                        </td>
+                        <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">{m.previousQuantity}</td>
+                        <td className="px-4 py-3 text-right font-medium tabular-nums">{m.newQuantity}</td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs max-w-[200px] truncate">{m.notes || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <StockMovementAdjustDialog
+        open={showAdjust}
+        onOpenChange={setShowAdjust}
+        inventory={inventory}
+        products={products}
+        onSave={load}
+      />
+    </div>
+  );
+}
+
 // =========== PLANNING ===========
 const PLAN_LEVELS = ["Monthly", "Quarterly", "Six-Month", "Annual"];
 const PLAN_STATUS = ["Planned", "In Progress", "At Risk", "Completed"];
@@ -9584,7 +9953,7 @@ function App() {
     notifications: <NotificationsModule />,
     settings: <SettingsModule user={user} />,
     // Operations placeholders
-    stockmovements: <ComingSoonModule pageId="stockmovements" />,
+    stockmovements: <StockMovementsModule />,
     suppliers: <ComingSoonModule pageId="suppliers" />,
     bom: <ComingSoonModule pageId="bom" />,
     productionorders: <ComingSoonModule pageId="productionorders" />,
