@@ -17,32 +17,51 @@ model User {
 }
 
 model Product {
-  id           String      @id
-  name         String
-  sku          String
-  category     String
-  brand        String
-  status       String
-  costPrice    Float
-  sellingPrice Float
-  description  String
-  tags         String[]
-  colors       String[]
-  sizes        String[]
-  notes        String      @default("")
-  imageUrl     String      @default("")
-  inventory    Inventory[]
+  id             String          @id
+  name           String
+  sku            String
+  category       String
+  brand          String
+  status         String
+  costPrice      Float
+  sellingPrice   Float
+  description    String
+  tags           String[]
+  colors         String[]
+  sizes          String[]
+  notes          String          @default("")
+  imageUrl       String          @default("")
+  inventory      Inventory[]
+  stockMovements StockMovement[]
 }
 
 model Inventory {
-  id        String  @id
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  color     String
-  size      String
-  quantity  Int
-  threshold Int
-  incoming  Int
+  id             String          @id
+  productId      String
+  product        Product         @relation(fields: [productId], references: [id])
+  color          String
+  size           String
+  quantity       Int
+  threshold      Int
+  incoming       Int
+  stockMovements StockMovement[]
+}
+
+model StockMovement {
+  id               String    @id
+  inventoryId      String
+  inventory        Inventory @relation(fields: [inventoryId], references: [id])
+  productId        String
+  product          Product   @relation(fields: [productId], references: [id])
+  movementDate     String
+  movementType     String
+  quantity         Int
+  previousQuantity Int
+  newQuantity      Int
+  notes            String    @default("")
+  referenceNumber  String    @default("")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model Plan {
