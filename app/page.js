@@ -609,53 +609,38 @@ function Dashboard() {
   if (!stats) return <DashboardSkeleton />;
 
   const KPI = ({ label, value, sub, icon: Icon, trend }) => (
-    <Card className="border-border/60 hover:border-border transition-colors">
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-              {label}
-            </p>
-            <p className="text-2xl font-semibold tracking-tight mt-2">
-              {value}
-            </p>
-            {sub && (
-              <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-                {trend === "up" ? (
-                  <TrendingUp className="h-3 w-3 text-emerald-500" />
-                ) : trend === "down" ? (
-                  <TrendingDown className="h-3 w-3 text-rose-500" />
-                ) : null}
-                {sub}
-              </p>
-            )}
-          </div>
-          <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
-            <Icon className="h-4 w-4 text-muted-foreground" />
-          </div>
+    <div className="bg-white rounded-[28px] border border-[rgba(17,24,39,0.05)] shadow-[0_8px_32px_rgba(0,0,0,0.05)] p-6 hover:-translate-y-[3px] hover:shadow-[0_16px_40px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-default">
+      <div className="flex items-start justify-between mb-4">
+        <div className="w-10 h-10 rounded-[14px] bg-gradient-to-br from-[#EEF3FA] to-[#D8E3F3] flex items-center justify-center shrink-0">
+          <Icon className="h-4 w-4 text-[#5F6B7A]" />
         </div>
-      </CardContent>
-    </Card>
+        {trend && (
+          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${trend === "up" ? "bg-[#4FAF73]/10 text-[#4FAF73]" : "bg-[#E26D6D]/10 text-[#E26D6D]"}`}>
+            {trend === "up" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+          </div>
+        )}
+      </div>
+      <p className="text-[10.5px] text-[#5F6B7A] uppercase tracking-[0.14em] font-bold">{label}</p>
+      <p className="text-[1.55rem] font-bold tracking-tight text-[#111827] mt-1 leading-tight">{value}</p>
+      {sub && <p className="text-[11.5px] text-[#5F6B7A] mt-1.5 font-medium">{sub}</p>}
+    </div>
   );
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.6rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             CEO Dashboard
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Real-time pulse of ONEMISSION operations
           </p>
         </div>
-        <Badge
-          variant="outline"
-          className="gap-1.5 border-emerald-500/30 text-emerald-400"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />{" "}
-          Live
-        </Badge>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4FAF73]/10 border border-[#4FAF73]/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#4FAF73] animate-pulse" />
+          <span className="text-[11px] font-bold text-[#4FAF73] tracking-[0.12em] uppercase">Live</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -703,7 +688,7 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2 border-border/60">
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Revenue by Month</CardTitle>
             <CardDescription>2026 monthly performance</CardDescription>
@@ -760,7 +745,7 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base">Expense Breakdown</CardTitle>
             <CardDescription>Category distribution</CardDescription>
@@ -813,7 +798,7 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="border-border/60">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base">Cashflow Trend</CardTitle>
             <CardDescription>Net cash position over months</CardDescription>
@@ -863,7 +848,7 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base">
               Product Sales Performance
@@ -911,7 +896,7 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="border-border/60">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" /> Critical
@@ -944,7 +929,7 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base">Upcoming Content</CardTitle>
             <CardDescription>Next pieces due</CardDescription>
@@ -969,7 +954,7 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base">Upcoming Events</CardTitle>
             <CardDescription>One Goal regional dates</CardDescription>
@@ -994,7 +979,7 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="border-border/60">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base">
               Creator Collaboration Updates
@@ -1040,7 +1025,7 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base">
               School Partnership Updates
@@ -1075,13 +1060,13 @@ function DashboardSkeleton() {
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="h-28 rounded-xl bg-card border border-border/60 animate-pulse"
+            className="h-28 rounded-xl bg-card border animate-pulse"
           />
         ))}
       </div>
       <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 h-72 rounded-xl bg-card border border-border/60 animate-pulse" />
-        <div className="h-72 rounded-xl bg-card border border-border/60 animate-pulse" />
+        <div className="col-span-2 h-72 rounded-xl bg-card border animate-pulse" />
+        <div className="h-72 rounded-xl bg-card border animate-pulse" />
       </div>
     </div>
   );
@@ -1188,10 +1173,10 @@ function ProductsModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Product Catalog
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Manage all ONEMISSION products
           </p>
         </div>
@@ -1269,7 +1254,7 @@ function ProductsModule() {
               return (
                 <Card
                   key={p.id}
-                  className="border-border/60 overflow-hidden flex flex-col hover:border-border transition-colors"
+                  className="overflow-hidden flex flex-col transition-colors"
                 >
                   <div className="relative aspect-[4/3] h-80 bg-white/85 shrink-0">
                     {p.imageUrl ? (
@@ -1362,7 +1347,7 @@ function ProductsModule() {
                         {p.description}
                       </p>
                     )}
-                    <div className="mt-auto pt-3 border-t border-border/60 grid grid-cols-3 gap-2 text-xs">
+                    <div className="mt-auto pt-3 border-t grid grid-cols-3 gap-2 text-xs">
                       <div>
                         <p className="text-muted-foreground">Cost</p>
                         <p className="font-medium mt-0.5">
@@ -1411,7 +1396,7 @@ function ProductsModule() {
           </div>
         )
       ) : (
-        <Card className="border-border/60">
+        <Card className="">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-secondary/30">
@@ -1437,7 +1422,7 @@ function ProductsModule() {
                   return (
                     <tr
                       key={p.id}
-                      className="border-b border-border/60 hover:bg-secondary/30 transition-colors"
+                      className="border-b hover:bg-secondary/30 transition-colors"
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -1718,7 +1703,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
               <img
                 src={form.imageUrl}
                 alt="Preview"
-                className="w-full max-h-36 object-cover rounded-md border border-border/60 mt-2"
+                className="w-full max-h-36 object-cover rounded-md border mt-2"
                 onError={(e) => {
                   e.target.style.display = "none";
                 }}
@@ -1835,8 +1820,8 @@ function InventoryModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Inventory</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Inventory</h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Real-time stock by product, color, and size
           </p>
         </div>
@@ -1856,7 +1841,7 @@ function InventoryModule() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Total Units
@@ -1866,7 +1851,7 @@ function InventoryModule() {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               SKUs
@@ -1874,7 +1859,7 @@ function InventoryModule() {
             <p className="text-2xl font-semibold mt-2">{filtered.length}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">
               Critical
@@ -1884,7 +1869,7 @@ function InventoryModule() {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Incoming
@@ -1901,7 +1886,7 @@ function InventoryModule() {
           const product = products.find((p) => p.id === pid);
           if (!product) return null;
           return (
-            <Card key={pid} className="border-border/60">
+            <Card key={pid} className="">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -2296,8 +2281,8 @@ function StockMovementsModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Stock Movement Ledger</h2>
-          <p className="text-sm text-muted-foreground mt-1">Immutable record of all inventory movements</p>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Stock Movement Ledger</h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Immutable record of all inventory movements</p>
         </div>
         <Button onClick={() => setShowAdjust(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -2307,25 +2292,25 @@ function StockMovementsModule() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Movements</p>
             <p className="text-2xl font-semibold mt-2">{loading ? "—" : (stats?.totalMovements ?? 0).toLocaleString()}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-400">Total Inbound</p>
             <p className="text-2xl font-semibold mt-2 text-emerald-400">{loading ? "—" : "+" + (stats?.totalIn ?? 0).toLocaleString()}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">Total Outbound</p>
             <p className="text-2xl font-semibold mt-2 text-rose-400">{loading ? "—" : "−" + (stats?.totalOut ?? 0).toLocaleString()}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Change</p>
             <p className={`text-2xl font-semibold mt-2 ${netChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
@@ -2336,7 +2321,7 @@ function StockMovementsModule() {
       </div>
 
       {/* Filters */}
-      <Card className="border-border/60">
+      <Card className="">
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[180px]">
@@ -2381,7 +2366,7 @@ function StockMovementsModule() {
       </Card>
 
       {/* Ledger Table */}
-      <Card className="border-border/60">
+      <Card className="">
         <CardContent className="p-0">
           {loading ? (
             <div className="p-8 text-center text-muted-foreground text-sm">Loading movements…</div>
@@ -2395,7 +2380,7 @@ function StockMovementsModule() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border/50">
+                  <tr className="border-b border-[rgba(17,24,39,0.04)]">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Date</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Reference</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Product</th>
@@ -2412,7 +2397,7 @@ function StockMovementsModule() {
                     const meta = movementTypeMeta(m.movementType);
                     const inbound = isInboundType(m.movementType);
                     return (
-                      <tr key={m.id} className={`border-b border-border/30 hover:bg-muted/30 transition-colors ${idx % 2 === 0 ? "" : "bg-muted/10"}`}>
+                      <tr key={m.id} className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors ${idx % 2 === 0 ? "" : "bg-muted/10"}`}>
                         <td className="px-4 py-3 text-muted-foreground">{m.movementDate}</td>
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{m.referenceNumber || "—"}</td>
                         <td className="px-4 py-3">
@@ -2518,10 +2503,10 @@ function PlanningModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Strategic Planning
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Objectives, Key Results, and Action Items
           </p>
         </div>
@@ -2551,7 +2536,7 @@ function PlanningModule() {
         {filtered.map((p) => (
           <Card
             key={p.id}
-            className="border-border/60 hover:border-border transition-colors"
+            className="hover:border-border transition-colors"
           >
             <CardHeader>
               <div className="flex items-start justify-between gap-3">
@@ -2844,10 +2829,10 @@ function ContentModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Content Planner
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Manage all content across platforms
           </p>
         </div>
@@ -2888,7 +2873,7 @@ function ContentModule() {
                   {col.map((item) => (
                     <Card
                       key={item.id}
-                      className="border-border/60 cursor-pointer hover:border-border"
+                      className="cursor-pointer"
                       onClick={() => {
                         setEditing(item);
                         setOpen(true);
@@ -2935,7 +2920,7 @@ function ContentModule() {
           })}
         </div>
       ) : (
-        <Card className="border-border/60">
+        <Card className="">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-secondary/30">
               <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
@@ -2952,7 +2937,7 @@ function ContentModule() {
               {items.map((c) => (
                 <tr
                   key={c.id}
-                  className="border-b border-border/60 hover:bg-secondary/30"
+                  className="border-b hover:bg-secondary/30"
                 >
                   <td className="px-4 py-3 font-medium">{c.title}</td>
                   <td className="px-4 py-3">
@@ -3212,8 +3197,8 @@ function CreatorCRM() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Creator CRM</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Creator CRM</h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Manage influencer collaborations with Islamic values alignment
           </p>
         </div>
@@ -3237,7 +3222,7 @@ function CreatorCRM() {
           ))}
         </TabsList>
       </Tabs>
-      <Card className="border-border/60 overflow-x-auto">
+      <Card className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-secondary/30">
             <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
@@ -3256,7 +3241,7 @@ function CreatorCRM() {
             {filtered.map((c) => (
               <tr
                 key={c.id}
-                className="border-b border-border/60 hover:bg-secondary/30"
+                className="border-b hover:bg-secondary/30"
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -3602,8 +3587,8 @@ function SchoolCRM() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">School CRM</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">School CRM</h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Islamic school partnerships pipeline
           </p>
         </div>
@@ -3638,7 +3623,7 @@ function SchoolCRM() {
                 {col.map((item) => {
                   const wa = whatsappUrl(item.phone);
                   return (
-                    <Card key={item.id} className="border-border/60 group">
+                    <Card key={item.id} className="group">
                       <CardContent className="p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm font-medium leading-tight flex-1">
@@ -3927,10 +3912,10 @@ function TimelineModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Business Timeline
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Roadmap 2026 to 2028
           </p>
         </div>
@@ -3966,7 +3951,7 @@ function TimelineModule() {
                   <div
                     className={`absolute -left-[31px] top-4 w-3 h-3 rounded-full ${priorityColor[init.priority] || "bg-muted-foreground"} ring-4 ring-background`}
                   />
-                  <Card className="border-border/60 hover:border-border transition-colors">
+                  <Card className="hover:border-border transition-colors">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -4048,10 +4033,10 @@ function FinanceModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Finance Center
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Revenue, expenses, cashflow, and forecasting
           </p>
         </div>
@@ -4068,7 +4053,7 @@ function FinanceModule() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Revenue
@@ -4079,7 +4064,7 @@ function FinanceModule() {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Expenses
@@ -4087,7 +4072,7 @@ function FinanceModule() {
             <p className="text-2xl font-semibold mt-2">{fmtShort(totalExp)}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Net Profit
@@ -4099,7 +4084,7 @@ function FinanceModule() {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Margin
@@ -4111,7 +4096,7 @@ function FinanceModule() {
         </Card>
       </div>
 
-      <Card className="border-border/60">
+      <Card className="">
         <CardHeader>
           <CardTitle className="text-base">
             Revenue · Expenses · Profit Trend
@@ -4168,7 +4153,7 @@ function FinanceModule() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="border-border/60">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base">Cashflow Projection</CardTitle>
           </CardHeader>
@@ -4207,7 +4192,7 @@ function FinanceModule() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base">Monthly Detail</CardTitle>
           </CardHeader>
@@ -4224,7 +4209,7 @@ function FinanceModule() {
                 </thead>
                 <tbody>
                   {adjustedFinance.map((f) => (
-                    <tr key={f.id} className="border-b border-border/60">
+                    <tr key={f.id} className="border-b">
                       <td className="py-2 font-medium">{f.month}</td>
                       <td className="text-right">{fmtShort(f.revenue)}</td>
                       <td className="text-right text-muted-foreground">
@@ -4288,10 +4273,10 @@ function EventsModule() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
           Events · One Goal
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
           Manage events end-to-end
         </p>
       </div>
@@ -4301,7 +4286,7 @@ function EventsModule() {
           const done = e.checklist?.filter((c) => c.done).length || 0;
           const pct = total ? (done / total) * 100 : 0;
           return (
-            <Card key={e.id} className="border-border/60">
+            <Card key={e.id} className="">
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -4485,8 +4470,8 @@ function ReportsModule() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Reports</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Reports</h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
           Generate and export business reports
         </p>
       </div>
@@ -4494,7 +4479,7 @@ function ReportsModule() {
         {reports.map((r) => (
           <Card
             key={r.id}
-            className="border-border/60 hover:border-border transition-colors"
+            className="hover:border-border transition-colors"
           >
             <CardHeader>
               <CardTitle className="text-base">{r.title}</CardTitle>
@@ -4553,8 +4538,8 @@ function NotificationsModule() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Notifications</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Notifications</h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
           Alerts and updates across all modules
         </p>
       </div>
@@ -4562,7 +4547,7 @@ function NotificationsModule() {
         {items.map((n) => (
           <Card
             key={n.id}
-            className={`border-border/60 ${!n.read ? "bg-secondary/30" : ""} cursor-pointer`}
+            className={`${!n.read ? "bg-secondary/30" : ""} cursor-pointer`}
             onClick={() => !n.read && markRead(n)}
           >
             <CardContent className="p-4 flex items-start gap-3">
@@ -4603,8 +4588,8 @@ function SettingsModule({ user }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Settings</h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
           Manage your workspace
         </p>
       </div>
@@ -4617,7 +4602,7 @@ function SettingsModule({ user }) {
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
         <TabsContent value="company" className="space-y-4 mt-4">
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader>
               <CardTitle className="text-base">Company Information</CardTitle>
             </CardHeader>
@@ -4641,7 +4626,7 @@ function SettingsModule({ user }) {
           </Card>
         </TabsContent>
         <TabsContent value="users" className="space-y-4 mt-4">
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader>
               <CardTitle className="text-base">Team Members</CardTitle>
             </CardHeader>
@@ -4656,7 +4641,7 @@ function SettingsModule({ user }) {
                 </thead>
                 <tbody>
                   {users.map((u) => (
-                    <tr key={u.id} className="border-b border-border/60">
+                    <tr key={u.id} className="border-b">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8">
@@ -4681,7 +4666,7 @@ function SettingsModule({ user }) {
           </Card>
         </TabsContent>
         <TabsContent value="notifications" className="space-y-4 mt-4">
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader>
               <CardTitle className="text-base">
                 Notification Preferences
@@ -4703,7 +4688,7 @@ function SettingsModule({ user }) {
               ))}
             </CardContent>
           </Card>
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader>
               <CardTitle className="text-base">Stock Thresholds</CardTitle>
             </CardHeader>
@@ -4723,7 +4708,7 @@ function SettingsModule({ user }) {
           </Card>
         </TabsContent>
         <TabsContent value="appearance" className="space-y-4 mt-4">
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader>
               <CardTitle className="text-base">Appearance</CardTitle>
             </CardHeader>
@@ -4749,7 +4734,7 @@ function SettingsModule({ user }) {
           </Card>
         </TabsContent>
         <TabsContent value="integrations" className="space-y-4 mt-4">
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Globe className="h-4 w-4" /> Public Product API
@@ -4904,10 +4889,10 @@ function FinancialAccountModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Financial Accounts
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Manage cash, bank, and e-wallet accounts
           </p>
         </div>
@@ -4927,7 +4912,7 @@ function FinancialAccountModule() {
         {FA_TYPES.map((t) => (
           <Card
             key={t}
-            className={`border-border/60 cursor-pointer transition-colors ${filterType === t ? "ring-1 ring-border" : "hover:border-border"}`}
+            className={`cursor-pointer transition-colors ${filterType === t ? "ring-1 ring-border" : "hover:border-border"}`}
             onClick={() => {
               setFilterType(filterType === t ? "all" : t);
               setPage(1);
@@ -4998,7 +4983,7 @@ function FinancialAccountModule() {
       </div>
 
       {/* Table */}
-      <Card className="border-border/60">
+      <Card className="">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -5039,7 +5024,7 @@ function FinancialAccountModule() {
                 paginated.map((a) => (
                   <tr
                     key={a.id}
-                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                    className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
                   >
                     <td className="px-4 py-3">
                       <p className="font-medium">{a.name}</p>
@@ -5533,8 +5518,8 @@ function CashTransactionModule({ type }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">{label}</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">{label}</h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             {isIn
               ? "Record incoming cash and bank receipts"
               : "Record outgoing cash and bank payments"}
@@ -5553,13 +5538,13 @@ function CashTransactionModule({ type }) {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Transactions</p>
             <p className="text-2xl font-semibold mt-1">{items.length}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Amount</p>
             <p className={"text-xl font-semibold mt-1 " + amtClass}>
@@ -5567,7 +5552,7 @@ function CashTransactionModule({ type }) {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/60 col-span-2 sm:col-span-1">
+        <Card className="col-span-2 sm:col-span-1">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">This Month</p>
             <p className={"text-xl font-semibold mt-1 " + amtClass}>
@@ -5626,7 +5611,7 @@ function CashTransactionModule({ type }) {
       </div>
 
       {/* Table */}
-      <Card className="border-border/60">
+      <Card className="">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -5669,7 +5654,7 @@ function CashTransactionModule({ type }) {
                 paginated.map((t) => (
                   <tr
                     key={t.id}
-                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                    className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
                       {t.transactionDate}
@@ -6071,7 +6056,7 @@ function CashTransactionViewModal({ open, onOpenChange, item }) {
           {rows.map((r) => (
             <div
               key={r.label}
-              className="flex items-start justify-between gap-4 py-1 border-b border-border/40 last:border-0"
+              className="flex items-start justify-between gap-4 py-1 border-b border-[rgba(17,24,39,0.04)] last:border-0"
             >
               <span className="text-sm text-muted-foreground shrink-0 w-36">
                 {r.label}
@@ -6215,10 +6200,10 @@ function ChartOfAccountsModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Chart of Accounts
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Master account structure for financial reporting
           </p>
         </div>
@@ -6237,7 +6222,7 @@ function ChartOfAccountsModule() {
         {ACCOUNT_TYPES.map((t) => (
           <Card
             key={t}
-            className={`border-border/60 cursor-pointer transition-colors ${filterType === t ? "border-border ring-1 ring-border" : "hover:border-border"}`}
+            className={`cursor-pointer transition-colors ${filterType === t ? "border-border ring-1 ring-border" : "hover:border-border"}`}
             onClick={() => {
               setFilterType(filterType === t ? "all" : t);
               setPage(1);
@@ -6306,11 +6291,11 @@ function ChartOfAccountsModule() {
         </Select>
       </div>
 
-      <Card className="border-border/60 overflow-hidden">
+      <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border/60 bg-muted/30">
+              <tr className="border-b bg-[#F7F8FA]">
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground w-28">
                   Code
                 </th>
@@ -6344,7 +6329,7 @@ function ChartOfAccountsModule() {
                 return (
                   <tr
                     key={a.id}
-                    className={`border-b border-border/60 hover:bg-muted/20 transition-colors ${!a.isActive ? "opacity-50" : ""}`}
+                    className={`border-b hover:bg-[#F7F8FA] transition-colors ${!a.isActive ? "opacity-50" : ""}`}
                   >
                     <td className="px-4 py-3 font-mono text-xs font-medium">
                       {a.accountCode}
@@ -6445,7 +6430,7 @@ function ChartOfAccountsModule() {
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border/60">
+          <div className="flex items-center justify-between px-4 py-3 border-t">
             <p className="text-xs text-muted-foreground">
               Showing {(safePage - 1) * PAGE_SIZE_COA + 1}–
               {Math.min(safePage * PAGE_SIZE_COA, filtered.length)} of{" "}
@@ -6830,10 +6815,10 @@ function RawMaterialModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Raw Materials
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Production material inventory management
           </p>
         </div>
@@ -6849,7 +6834,7 @@ function RawMaterialModule() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-1">
               Total Raw Materials
@@ -6857,7 +6842,7 @@ function RawMaterialModule() {
             <p className="text-2xl font-bold">{items.length}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-1">Total Weight</p>
             <p className="text-2xl font-bold">
@@ -6868,7 +6853,7 @@ function RawMaterialModule() {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-1">Unique Colors</p>
             <p className="text-2xl font-bold">{uniqueColors}</p>
@@ -6886,11 +6871,11 @@ function RawMaterialModule() {
         />
       </div>
 
-      <Card className="border-border/60 overflow-hidden">
+      <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border/60 bg-muted/30">
+              <tr className="border-b bg-[#F7F8FA]">
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                   Photo
                 </th>
@@ -6913,17 +6898,17 @@ function RawMaterialModule() {
               {filtered.map((item) => (
                 <tr
                   key={item.id}
-                  className="border-b border-border/60 hover:bg-muted/20 transition-colors"
+                  className="border-b hover:bg-[#F7F8FA] transition-colors"
                 >
                   <td className="px-4 py-3">
                     {item.photo ? (
                       <img
                         src={item.photo}
                         alt={item.name}
-                        className="w-10 h-10 object-cover rounded-md border border-border/60"
+                        className="w-10 h-10 object-cover rounded-md border"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-md border border-border/60 bg-muted/50 flex items-center justify-center text-muted-foreground">
+                      <div className="w-10 h-10 rounded-md border bg-[#F7F8FA] flex items-center justify-center text-muted-foreground">
                         <Package className="h-4 w-4" />
                       </div>
                     )}
@@ -6932,7 +6917,7 @@ function RawMaterialModule() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-3 h-3 rounded-full border border-border/60 shrink-0"
+                        className="w-3 h-3 rounded-full border shrink-0"
                         style={{ backgroundColor: item.color }}
                       />
                       <span className="text-muted-foreground">
@@ -7054,7 +7039,7 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave }) {
               <img
                 src={form.photo}
                 alt="Preview"
-                className="w-full max-h-32 object-cover rounded-md border border-border/60 mt-2"
+                className="w-full max-h-32 object-cover rounded-md border mt-2"
                 onError={(e) => {
                   e.target.style.display = "none";
                 }}
@@ -7234,10 +7219,10 @@ function JournalEntriesModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Journal Entries
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Accounting journal entries — the backbone of financial records
           </p>
         </div>
@@ -7254,13 +7239,13 @@ function JournalEntriesModule() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-3">
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Journals</p>
             <p className="text-2xl font-semibold mt-1">{totalJournals}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Draft</p>
             <p className="text-2xl font-semibold mt-1 text-amber-500">
@@ -7268,7 +7253,7 @@ function JournalEntriesModule() {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card className="">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Posted</p>
             <p className="text-2xl font-semibold mt-1 text-emerald-500">
@@ -7368,11 +7353,11 @@ function JournalEntriesModule() {
       </div>
 
       {/* Table */}
-      <Card className="border-border/60">
+      <Card className="">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/30">
+              <tr className="border-b border-border bg-[#F7F8FA]">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">
                   Journal No.
                 </th>
@@ -7415,7 +7400,7 @@ function JournalEntriesModule() {
                 paginated.map((j) => (
                   <tr
                     key={j.id}
-                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                    className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
                   >
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
@@ -7850,7 +7835,7 @@ function JournalEntryModal({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border bg-muted/30">
+                    <tr className="border-b border-border bg-[#F7F8FA]">
                       <th className="px-3 py-2 text-left font-medium text-muted-foreground">
                         Account <span className="text-rose-400">*</span>
                       </th>
@@ -7870,7 +7855,7 @@ function JournalEntryModal({
                     {(form.lines || []).map((line, idx) => (
                       <tr
                         key={idx}
-                        className="border-b border-border/50 last:border-0"
+                        className="border-b border-[rgba(17,24,39,0.04)] last:border-0"
                       >
                         <td className="px-3 py-2 min-w-[180px]">
                           <Select
@@ -7945,7 +7930,7 @@ function JournalEntryModal({
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t border-border bg-muted/20">
+                    <tr className="border-t border-border bg-[#F7F8FA]">
                       <td
                         colSpan={2}
                         className="px-3 py-2 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell"
@@ -8041,7 +8026,7 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
             ].map((r) => (
               <div
                 key={r.label}
-                className="py-1 border-b border-border/40 last:border-0"
+                className="py-1 border-b border-[rgba(17,24,39,0.04)] last:border-0"
               >
                 <p className="text-xs text-muted-foreground">{r.label}</p>
                 <p className="font-medium mt-0.5">{r.value}</p>
@@ -8049,7 +8034,7 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
             ))}
           </div>
 
-          <div className="py-1 border-b border-border/40">
+          <div className="py-1 border-b border-[rgba(17,24,39,0.04)]">
             <p className="text-xs text-muted-foreground">Description</p>
             <p className="font-medium mt-0.5 text-sm">{item.description}</p>
           </div>
@@ -8060,7 +8045,7 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-muted/30">
+                  <tr className="border-b border-border bg-[#F7F8FA]">
                     <th className="px-3 py-2 text-left font-medium text-muted-foreground">
                       Account
                     </th>
@@ -8079,7 +8064,7 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
                   {(item.lines || []).map((line, idx) => (
                     <tr
                       key={idx}
-                      className="border-b border-border/50 last:border-0"
+                      className="border-b border-[rgba(17,24,39,0.04)] last:border-0"
                     >
                       <td className="px-3 py-2">
                         <p className="text-xs text-muted-foreground">
@@ -8100,7 +8085,7 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-border bg-muted/20">
+                  <tr className="border-t border-border bg-[#F7F8FA]">
                     <td
                       colSpan={2}
                       className="px-3 py-2 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell"
@@ -8196,17 +8181,17 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             General Ledger
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Account-level transaction history from posted journal entries
           </p>
         </div>
       </div>
 
       {/* Filters */}
-      <Card className="border-border/60">
+      <Card className="">
         <CardContent className="p-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="space-y-1.5 lg:col-span-1">
@@ -8312,7 +8297,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
               suffix: ledgerData.closingBalance < 0 ? " (Cr)" : "",
             },
           ].map((s) => (
-            <Card key={s.label} className="border-border/60">
+            <Card key={s.label} className="">
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">{s.label}</p>
                 <p className={`text-xl font-semibold mt-1 ${s.cls}`}>
@@ -8331,7 +8316,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
 
       {/* Account Info Banner */}
       {selectedAccount && ledgerData && (
-        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-lg border border-border/60 bg-muted/20 text-sm">
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-lg border bg-[#F7F8FA] text-sm">
           <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="font-medium">
             {selectedAccount.accountCode} — {selectedAccount.accountName}
@@ -8360,7 +8345,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
           </span>
         </div>
       ) : !selectedAccountId ? (
-        <Card className="border-border/60">
+        <Card className="">
           <div className="py-20 text-center text-muted-foreground">
             <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-20" />
             <p className="text-sm">
@@ -8369,7 +8354,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
           </div>
         </Card>
       ) : ledgerData && ledgerData.lines.length === 0 ? (
-        <Card className="border-border/60">
+        <Card className="">
           <div className="py-16 text-center text-muted-foreground">
             <ClipboardList className="h-8 w-8 mx-auto mb-3 opacity-30" />
             <p className="text-sm">
@@ -8379,11 +8364,11 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
           </div>
         </Card>
       ) : ledgerData ? (
-        <Card className="border-border/60">
+        <Card className="">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/30">
+                <tr className="border-b border-border bg-[#F7F8FA]">
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
                     Date
                   </th>
@@ -8415,7 +8400,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
                 {ledgerData.lines.map((line) => (
                   <tr
                     key={line.id}
-                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                    className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
                       {line.journalDate}
@@ -8467,7 +8452,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-border bg-muted/20 font-semibold">
+                <tr className="border-t-2 border-border bg-[#F7F8FA] font-semibold">
                   <td
                     colSpan={5}
                     className="px-4 py-3 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell"
@@ -8541,10 +8526,10 @@ function TrialBalanceModule({ onNavigateToLedger }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Trial Balance
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Summarized debit and credit balances from posted journal entries
           </p>
         </div>
@@ -8571,7 +8556,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
       </div>
 
       {/* Filters */}
-      <Card className="border-border/60">
+      <Card className="">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1.5">
@@ -8626,7 +8611,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
       {/* Summary Cards */}
       {data && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="border-border/60">
+          <Card className="">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Total Debit
@@ -8636,7 +8621,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
               </p>
             </CardContent>
           </Card>
-          <Card className="border-border/60">
+          <Card className="">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Total Credit
@@ -8647,7 +8632,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
             </CardContent>
           </Card>
           <Card
-            className={`border-border/60 ${!data.isBalanced ? "border-rose-500/40" : ""}`}
+            className={`${!data.isBalanced ? "border-rose-500/40" : ""}`}
           >
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -8672,7 +8657,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
           </span>
         </div>
       ) : data && data.rows.length === 0 ? (
-        <Card className="border-border/60">
+        <Card className="">
           <div className="py-20 text-center text-muted-foreground">
             <Scale className="h-10 w-10 mx-auto mb-3 opacity-20" />
             <p className="text-sm">
@@ -8681,11 +8666,11 @@ function TrialBalanceModule({ onNavigateToLedger }) {
           </div>
         </Card>
       ) : data ? (
-        <Card className="border-border/60">
+        <Card className="">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/30">
+                <tr className="border-b border-border bg-[#F7F8FA]">
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
                     Account Code
                   </th>
@@ -8708,7 +8693,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
                 {data.rows.map((row) => (
                   <tr
                     key={row.id}
-                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                    className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
@@ -8744,7 +8729,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-border bg-muted/20 font-semibold">
+                <tr className="border-t-2 border-border bg-[#F7F8FA] font-semibold">
                   <td
                     colSpan={3}
                     className="px-4 py-3 text-right text-xs font-medium text-muted-foreground"
@@ -8799,7 +8784,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border bg-muted/30">
+          <tr className="border-b border-border bg-[#F7F8FA]">
             <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
               Account Code
             </th>
@@ -8826,7 +8811,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
             rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
               >
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
@@ -8863,10 +8848,10 @@ function ProfitLossModule({ onNavigateToLedger }) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Profit &amp; Loss
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Income statement based on posted journal entries
           </p>
         </div>
@@ -8893,7 +8878,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
       </div>
 
       {/* Filters */}
-      <Card className="border-border/60">
+      <Card className="">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1.5">
@@ -8932,7 +8917,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
       {/* Summary Cards */}
       {data && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="border-border/60">
+          <Card className="">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Total Revenue
@@ -8942,7 +8927,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
               </p>
             </CardContent>
           </Card>
-          <Card className="border-border/60">
+          <Card className="">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Total Expenses
@@ -8953,7 +8938,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
             </CardContent>
           </Card>
           <Card
-            className={`border-border/60 ${data.netProfit < 0 ? "border-rose-500/40" : ""}`}
+            className={`${data.netProfit < 0 ? "border-rose-500/40" : ""}`}
           >
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -8980,7 +8965,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
       ) : data ? (
         <div className="space-y-4">
           {/* Revenue Section */}
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -8996,14 +8981,14 @@ function ProfitLossModule({ onNavigateToLedger }) {
               rows={data.revenueRows}
               emptyLabel="No revenue accounts with posted transactions"
             />
-            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+            <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Revenue</span>
               <span className="text-emerald-500">{fmt(data.totalRevenue)}</span>
             </div>
           </Card>
 
           {/* Expense Section */}
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -9019,7 +9004,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
               rows={data.expenseRows}
               emptyLabel="No expense accounts with posted transactions"
             />
-            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+            <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Expenses</span>
               <span className="text-rose-400">{fmt(data.totalExpenses)}</span>
             </div>
@@ -9077,7 +9062,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border bg-muted/30">
+          <tr className="border-b border-border bg-[#F7F8FA]">
             <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
               Account Code
             </th>
@@ -9106,7 +9091,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
             rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
               >
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
@@ -9145,10 +9130,10 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Balance Sheet
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Financial position report based on posted journal entries
           </p>
         </div>
@@ -9175,7 +9160,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
       </div>
 
       {/* Filter */}
-      <Card className="border-border/60">
+      <Card className="">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1.5">
@@ -9217,7 +9202,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
       {/* Summary Cards */}
       {data && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="border-border/60">
+          <Card className="">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Total Assets
@@ -9227,7 +9212,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
               </p>
             </CardContent>
           </Card>
-          <Card className="border-border/60">
+          <Card className="">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Total Liabilities
@@ -9238,7 +9223,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
             </CardContent>
           </Card>
           <Card
-            className={`border-border/60 ${data.isBalanced ? "" : "border-rose-500/40"}`}
+            className={`${data.isBalanced ? "" : "border-rose-500/40"}`}
           >
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -9262,7 +9247,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
       ) : data ? (
         <div className="space-y-4">
           {/* Assets */}
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -9279,14 +9264,14 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
               emptyLabel="No asset accounts configured"
               balanceColor="text-blue-400"
             />
-            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+            <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Assets</span>
               <span className="text-blue-400">{fmt(data.totalAssets)}</span>
             </div>
           </Card>
 
           {/* Liabilities */}
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -9303,7 +9288,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
               emptyLabel="No liability accounts configured"
               balanceColor="text-rose-400"
             />
-            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+            <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Liabilities</span>
               <span className="text-rose-400">
                 {fmt(data.totalLiabilities)}
@@ -9312,7 +9297,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
           </Card>
 
           {/* Equity */}
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -9330,7 +9315,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
               balanceColor="text-emerald-500"
             />
             {/* Current Year Earnings — auto-calculated from P&L, not a journal entry */}
-            <div className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+            <div className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
               <div className="grid grid-cols-[auto_1fr_auto_auto] items-center px-4 py-3 gap-2 text-sm">
                 <span className="font-mono text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded whitespace-nowrap">
                   Auto
@@ -9362,7 +9347,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
                 </span>
               </div>
             </div>
-            <div className="border-t-2 border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+            <div className="border-t-2 border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Equity</span>
               <span className="text-emerald-500">{fmt(data.totalEquity)}</span>
             </div>
@@ -9496,19 +9481,19 @@ function ComingSoonModule({ pageId }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">{meta.title}</h2>
-        <p className="text-sm text-muted-foreground mt-1">{meta.description}</p>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">{meta.title}</h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">{meta.description}</p>
       </div>
-      <Card className="border-border/60">
-        <CardContent className="flex flex-col items-center justify-center py-20 gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-            <Sparkles className="h-7 w-7 text-muted-foreground" />
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-24 gap-5">
+          <div className="w-16 h-16 rounded-[22px] bg-gradient-to-br from-[#EEF3FA] to-[#D8E3F3] flex items-center justify-center shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
+            <Sparkles className="h-7 w-7 text-[#5F6B7A]" />
           </div>
           <div className="text-center max-w-sm">
-            <p className="text-lg font-semibold">Coming Soon</p>
-            <p className="text-sm text-muted-foreground mt-1">{meta.description}</p>
+            <p className="text-lg font-bold tracking-tight text-[#111827]">Coming Soon</p>
+            <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium leading-relaxed">{meta.description}</p>
           </div>
-          <span className="text-xs font-medium px-3 py-1 rounded-full border border-border bg-muted text-muted-foreground tracking-wider uppercase">
+          <span className="text-[11px] font-bold px-4 py-1.5 rounded-full bg-[#EEF3FA] text-[#5F6B7A] tracking-[0.15em] uppercase border border-[rgba(17,24,39,0.06)]">
             In Development
           </span>
         </CardContent>
@@ -9546,7 +9531,7 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border bg-muted/30">
+          <tr className="border-b border-border bg-[#F7F8FA]">
             <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Account Code</th>
             <th className="text-left px-4 py-3 font-medium text-muted-foreground">Category / COA</th>
             <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Transactions</th>
@@ -9561,7 +9546,7 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.coaId} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+              <tr key={row.coaId} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{row.accountCode}</span>
                 </td>
@@ -9588,8 +9573,8 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Cash Flow Statement</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Cash Flow Statement</h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Direct method — generated from Cash In and Cash Out transactions
           </p>
         </div>
@@ -9606,7 +9591,7 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
       </div>
 
       {/* Filters */}
-      <Card className="border-border/60">
+      <Card className="">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1.5">
@@ -9645,19 +9630,19 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
       {/* Summary Cards */}
       {data && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="border-border/60">
+          <Card className="">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Cash Inflows</p>
               <p className="text-xl font-semibold text-emerald-500 mt-1">{fmt(data.totalInflows)}</p>
             </CardContent>
           </Card>
-          <Card className="border-border/60">
+          <Card className="">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Cash Outflows</p>
               <p className="text-xl font-semibold text-rose-400 mt-1">{fmt(data.totalOutflows)}</p>
             </CardContent>
           </Card>
-          <Card className={`border-border/60 ${data.netCashFlow < 0 ? "border-rose-500/40" : ""}`}>
+          <Card className={`${data.netCashFlow < 0 ? "border-rose-500/40" : ""}`}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Cash Flow</p>
               <p className={`text-xl font-semibold mt-1 ${data.netCashFlow >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
@@ -9676,7 +9661,7 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
       ) : data ? (
         <div className="space-y-4">
           {/* Cash Inflows */}
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -9700,14 +9685,14 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
               colorClass="text-emerald-500"
               onDrillDown={onNavigateToCashIn}
             />
-            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+            <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Cash Inflows</span>
               <span className="text-emerald-500">{fmt(data.totalInflows)}</span>
             </div>
           </Card>
 
           {/* Cash Outflows */}
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -9731,7 +9716,7 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
               colorClass="text-rose-400"
               onDrillDown={onNavigateToCashOut}
             />
-            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex justify-between text-sm font-semibold">
+            <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Cash Outflows</span>
               <span className="text-rose-400">{fmt(data.totalOutflows)}</span>
             </div>
@@ -9753,7 +9738,7 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
           </Card>
 
           {/* Financial Account Summary */}
-          <Card className="border-border/60">
+          <Card className="">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <Landmark className="h-4 w-4 text-blue-400" />
@@ -9763,7 +9748,7 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-muted/30">
+                  <tr className="border-b border-border bg-[#F7F8FA]">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Account</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Opening Balance</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Total In</th>
@@ -9779,7 +9764,7 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
                     </tr>
                   ) : (
                     data.accountSummary.map((acc) => (
-                      <tr key={acc.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      <tr key={acc.id} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
                         <td className="px-4 py-3 font-medium">{acc.name}</td>
                         <td className="px-4 py-3 text-right text-muted-foreground">{fmt(acc.openingBalance)}</td>
                         <td className="px-4 py-3 text-right text-emerald-500">{acc.totalIn > 0 ? fmt(acc.totalIn) : "—"}</td>
@@ -9807,19 +9792,19 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Cash Position Summary</p>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between items-center py-1.5 border-b border-border/40">
+                <div className="flex justify-between items-center py-1.5 border-b border-[rgba(17,24,39,0.04)]">
                   <span className="text-muted-foreground">Opening Cash Position</span>
                   <span className="font-medium">{fmt(data.openingCashPosition)}</span>
                 </div>
-                <div className="flex justify-between items-center py-1.5 border-b border-border/40">
+                <div className="flex justify-between items-center py-1.5 border-b border-[rgba(17,24,39,0.04)]">
                   <span className="text-muted-foreground">+ Total Cash Inflows</span>
                   <span className="font-medium text-emerald-500">{fmt(data.totalInflows)}</span>
                 </div>
-                <div className="flex justify-between items-center py-1.5 border-b border-border/40">
+                <div className="flex justify-between items-center py-1.5 border-b border-[rgba(17,24,39,0.04)]">
                   <span className="text-muted-foreground">− Total Cash Outflows</span>
                   <span className="font-medium text-rose-400">{fmt(data.totalOutflows)}</span>
                 </div>
-                <div className="flex justify-between items-center py-1.5 border-b border-border/40">
+                <div className="flex justify-between items-center py-1.5 border-b border-[rgba(17,24,39,0.04)]">
                   <span className="text-muted-foreground">= Net Cash Flow</span>
                   <span className={`font-semibold ${data.netCashFlow >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
                     {data.netCashFlow < 0 ? "-" : ""}{fmt(Math.abs(data.netCashFlow))}
