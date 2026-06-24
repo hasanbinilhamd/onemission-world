@@ -1413,6 +1413,28 @@ async function handle(request, { params }) {
 
     return NextResponse.json({ error: 'Not found', segs }, { status: 404 });
   } catch (e) {
+    // Detect PostgreSQL connection termination errors and reconnect so
+    // the NEXT request succeeds. Codes: E57P01 (admin_shutdown),
+    // P1017 (server closed connection), P1001 (unreachable server).
+    const msg = e?.message || '';
+    const isConnErr =
+      ['P1017', 'P1001'].includes(e?.code) ||
+      msg.includes('E57P01') ||
+      msg.includes('terminating connection') ||
+      msg.includes('Server has closed the connection') ||
+      msg.includes('Connection pool timeout') ||
+      msg.includes('Connection reset by peer');
+    if (isConnErr) {
+      console.warn('[DB] Connection terminated — reconnecting for next request:', msg);
+      // Fire-and-forget reconnect so the next request gets a fresh connection.
+      prisma.$disconnect()
+        .catch(() => {})
+        .finally(() => prisma.$connect().catch(() => {}));
+      return NextResponse.json(
+        { error: 'Database connection was interrupted. Please retry your action.' },
+        { status: 503 }
+      );
+    }
     console.error('API error', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
