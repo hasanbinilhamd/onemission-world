@@ -361,7 +361,11 @@ const NAV_GROUPS = [
       { id: "suppliers", label: "Suppliers", icon: Truck },
       { id: "bom", label: "Bill of Materials (BOM)", icon: FileText },
       { id: "productionorders", label: "Production Orders", icon: Factory },
-      { id: "productionresults", label: "Production Results", icon: ClipboardList },
+      {
+        id: "productionresults",
+        label: "Production Results",
+        icon: ClipboardList,
+      },
       { id: "inventory", label: "Inventory", icon: Boxes },
       { id: "stockmovements", label: "Stock Movements", icon: Activity },
     ],
@@ -372,9 +376,9 @@ const NAV_GROUPS = [
     icon: ShoppingCart,
     children: [
       { id: "customers", label: "Customers", icon: Users },
-      { id: "schools", label: "School Partners", icon: School },
       { id: "orders", label: "Orders", icon: ShoppingCart },
       { id: "saleschannels", label: "Sales Channels", icon: Globe },
+      { id: "schools", label: "School Partners", icon: School },
     ],
   },
   {
@@ -383,7 +387,11 @@ const NAV_GROUPS = [
     icon: Wallet,
     children: [
       { id: "chartofaccounts", label: "Chart of Accounts", icon: BookOpen },
-      { id: "financialaccounts", label: "Financial Accounts", icon: DollarSign },
+      {
+        id: "financialaccounts",
+        label: "Financial Accounts",
+        icon: DollarSign,
+      },
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "journalentries", label: "Journal Entries", icon: ClipboardList },
@@ -411,9 +419,21 @@ const NAV_GROUPS = [
     children: [
       { id: "productanalytics", label: "Product Analytics", icon: BarChart2 },
       { id: "inventoryanalytics", label: "Inventory Analytics", icon: Boxes },
-      { id: "financialanalytics", label: "Financial Analytics", icon: DollarSign },
-      { id: "marketinganalytics", label: "Marketing Analytics", icon: Megaphone },
-      { id: "executivereports", label: "Executive Reports", icon: FileBarChart2 },
+      {
+        id: "financialanalytics",
+        label: "Financial Analytics",
+        icon: DollarSign,
+      },
+      {
+        id: "marketinganalytics",
+        label: "Marketing Analytics",
+        icon: Megaphone,
+      },
+      {
+        id: "executivereports",
+        label: "Executive Reports",
+        icon: FileBarChart2,
+      },
     ],
   },
   {
@@ -423,7 +443,11 @@ const NAV_GROUPS = [
     children: [
       { id: "users", label: "Users", icon: Users },
       { id: "rolespermissions", label: "Roles & Permissions", icon: Shield },
-      { id: "notificationsettings", label: "Notification Settings", icon: Bell },
+      {
+        id: "notificationsettings",
+        label: "Notification Settings",
+        icon: Bell,
+      },
       { id: "systemconfig", label: "System Configuration", icon: SettingsIcon },
     ],
   },
@@ -505,12 +529,18 @@ function Login({ onLogin }) {
         {/* Login card */}
         <div className="bg-white rounded-[32px] border border-[rgba(17,24,39,0.05)] shadow-[0_16px_56px_rgba(0,0,0,0.07)] p-8">
           <div className="mb-6">
-            <h2 className="text-lg font-bold tracking-tight text-[#111827]">Mission Control</h2>
-            <p className="text-sm text-[#5F6B7A] mt-1">Sign in to access the operating system</p>
+            <h2 className="text-lg font-bold tracking-tight text-[#111827]">
+              Mission Control
+            </h2>
+            <p className="text-sm text-[#5F6B7A] mt-1">
+              Sign in to access the operating system
+            </p>
           </div>
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-[#111827] tracking-wide">Email</label>
+              <label className="text-[13px] font-semibold text-[#111827] tracking-wide">
+                Email
+              </label>
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -520,7 +550,9 @@ function Login({ onLogin }) {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-[#111827] tracking-wide">Password</label>
+              <label className="text-[13px] font-semibold text-[#111827] tracking-wide">
+                Password
+              </label>
               <input
                 placeholder="••••••••"
                 type="password"
@@ -615,14 +647,26 @@ function Dashboard() {
           <Icon className="h-4 w-4 text-[#5F6B7A]" />
         </div>
         {trend && (
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${trend === "up" ? "bg-[#4FAF73]/10 text-[#4FAF73]" : "bg-[#E26D6D]/10 text-[#E26D6D]"}`}>
-            {trend === "up" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+          <div
+            className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${trend === "up" ? "bg-[#4FAF73]/10 text-[#4FAF73]" : "bg-[#E26D6D]/10 text-[#E26D6D]"}`}
+          >
+            {trend === "up" ? (
+              <TrendingUp className="h-2.5 w-2.5" />
+            ) : (
+              <TrendingDown className="h-2.5 w-2.5" />
+            )}
           </div>
         )}
       </div>
-      <p className="text-[10.5px] text-[#5F6B7A] uppercase tracking-[0.14em] font-bold">{label}</p>
-      <p className="text-[1.55rem] font-bold tracking-tight text-[#111827] mt-1 leading-tight">{value}</p>
-      {sub && <p className="text-[11.5px] text-[#5F6B7A] mt-1.5 font-medium">{sub}</p>}
+      <p className="text-[10.5px] text-[#5F6B7A] uppercase tracking-[0.14em] font-bold">
+        {label}
+      </p>
+      <p className="text-[1.55rem] font-bold tracking-tight text-[#111827] mt-1 leading-tight">
+        {value}
+      </p>
+      {sub && (
+        <p className="text-[11.5px] text-[#5F6B7A] mt-1.5 font-medium">{sub}</p>
+      )}
     </div>
   );
 
@@ -639,7 +683,9 @@ function Dashboard() {
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4FAF73]/10 border border-[#4FAF73]/20">
           <span className="w-1.5 h-1.5 rounded-full bg-[#4FAF73] animate-pulse" />
-          <span className="text-[11px] font-bold text-[#4FAF73] tracking-[0.12em] uppercase">Live</span>
+          <span className="text-[11px] font-bold text-[#4FAF73] tracking-[0.12em] uppercase">
+            Live
+          </span>
         </div>
       </div>
 
@@ -1820,7 +1866,9 @@ function InventoryModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Inventory</h2>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Inventory
+          </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Real-time stock by product, color, and size
           </p>
@@ -2070,22 +2118,59 @@ function InventoryModule() {
 
 // =========== STOCK MOVEMENTS ===========
 const MOVEMENT_TYPES = [
-  { value: "MANUAL_IN", label: "Manual In", color: "text-emerald-400", bg: "bg-emerald-500/10 text-emerald-400" },
-  { value: "MANUAL_OUT", label: "Manual Out", color: "text-rose-400", bg: "bg-rose-500/10 text-rose-400" },
-  { value: "ADJUSTMENT_IN", label: "Adjustment In", color: "text-blue-400", bg: "bg-blue-500/10 text-blue-400" },
-  { value: "ADJUSTMENT_OUT", label: "Adjustment Out", color: "text-orange-400", bg: "bg-orange-500/10 text-orange-400" },
-  { value: "OPENING", label: "Opening Stock", color: "text-purple-400", bg: "bg-purple-500/10 text-purple-400" },
+  {
+    value: "MANUAL_IN",
+    label: "Manual In",
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/10 text-emerald-400",
+  },
+  {
+    value: "MANUAL_OUT",
+    label: "Manual Out",
+    color: "text-rose-400",
+    bg: "bg-rose-500/10 text-rose-400",
+  },
+  {
+    value: "ADJUSTMENT_IN",
+    label: "Adjustment In",
+    color: "text-blue-400",
+    bg: "bg-blue-500/10 text-blue-400",
+  },
+  {
+    value: "ADJUSTMENT_OUT",
+    label: "Adjustment Out",
+    color: "text-orange-400",
+    bg: "bg-orange-500/10 text-orange-400",
+  },
+  {
+    value: "OPENING",
+    label: "Opening Stock",
+    color: "text-purple-400",
+    bg: "bg-purple-500/10 text-purple-400",
+  },
 ];
 
 function movementTypeMeta(type) {
-  return MOVEMENT_TYPES.find((t) => t.value === type) || { label: type, bg: "bg-muted text-muted-foreground" };
+  return (
+    MOVEMENT_TYPES.find((t) => t.value === type) || {
+      label: type,
+      bg: "bg-muted text-muted-foreground",
+    }
+  );
 }
 
 function isInboundType(type) {
   return ["MANUAL_IN", "ADJUSTMENT_IN", "OPENING"].includes(type);
 }
 
-function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, rawMaterials, onSave }) {
+function StockMovementAdjustDialog({
+  open,
+  onOpenChange,
+  inventory,
+  products,
+  rawMaterials,
+  onSave,
+}) {
   const makeEmpty = () => ({
     itemType: "PRODUCT",
     inventoryId: "",
@@ -2100,29 +2185,45 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, ra
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const invItem = form.itemType === "PRODUCT" ? inventory.find((i) => i.id === form.inventoryId) : null;
-  const rawMat = form.itemType === "RAW_MATERIAL" ? rawMaterials.find((r) => r.id === form.rawMaterialId) : null;
-  const currentStock = form.itemType === "PRODUCT" ? invItem?.quantity : rawMat?.currentStock;
+  const invItem =
+    form.itemType === "PRODUCT"
+      ? inventory.find((i) => i.id === form.inventoryId)
+      : null;
+  const rawMat =
+    form.itemType === "RAW_MATERIAL"
+      ? rawMaterials.find((r) => r.id === form.rawMaterialId)
+      : null;
+  const currentStock =
+    form.itemType === "PRODUCT" ? invItem?.quantity : rawMat?.currentStock;
 
   const handleOpen = (val) => {
-    if (val) { setForm(makeEmpty()); setErrors({}); }
+    if (val) {
+      setForm(makeEmpty());
+      setErrors({});
+    }
     onOpenChange(val);
   };
 
   const validate = () => {
     const e = {};
-    if (form.itemType === "PRODUCT" && !form.inventoryId) e.inventoryId = "Select a stock item";
-    if (form.itemType === "RAW_MATERIAL" && !form.rawMaterialId) e.rawMaterialId = "Select a raw material";
+    if (form.itemType === "PRODUCT" && !form.inventoryId)
+      e.inventoryId = "Select a stock item";
+    if (form.itemType === "RAW_MATERIAL" && !form.rawMaterialId)
+      e.rawMaterialId = "Select a raw material";
     if (!form.movementType) e.movementType = "Select movement type";
     const qty = Number(form.quantity);
-    if (!form.quantity || isNaN(qty) || qty <= 0) e.quantity = "Enter a positive quantity";
+    if (!form.quantity || isNaN(qty) || qty <= 0)
+      e.quantity = "Enter a positive quantity";
     if (!form.movementDate) e.movementDate = "Select a date";
     return e;
   };
 
   const submit = async () => {
     const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
+    if (Object.keys(e).length) {
+      setErrors(e);
+      return;
+    }
     setLoading(true);
     try {
       const body = {
@@ -2151,7 +2252,10 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, ra
   const set = (k, v) => {
     setForm((f) => {
       const next = { ...f, [k]: v };
-      if (k === "itemType") { next.inventoryId = ""; next.rawMaterialId = ""; }
+      if (k === "itemType") {
+        next.inventoryId = "";
+        next.rawMaterialId = "";
+      }
       return next;
     });
     setErrors((e) => ({ ...e, [k]: undefined }));
@@ -2162,13 +2266,19 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, ra
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Manual Stock Adjustment</DialogTitle>
-          <DialogDescription>Record a manual inbound or outbound stock movement for products or raw materials.</DialogDescription>
+          <DialogDescription>
+            Record a manual inbound or outbound stock movement for products or
+            raw materials.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           {/* Item Type selector */}
           <div className="space-y-1">
             <label className="text-sm font-medium">Item Type</label>
-            <Select value={form.itemType} onValueChange={(v) => set("itemType", v)}>
+            <Select
+              value={form.itemType}
+              onValueChange={(v) => set("itemType", v)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -2182,9 +2292,16 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, ra
           {/* Product stock item selector */}
           {form.itemType === "PRODUCT" && (
             <div className="space-y-1">
-              <label className="text-sm font-medium">Stock Item (Product · Color · Size)</label>
-              <Select value={form.inventoryId} onValueChange={(v) => set("inventoryId", v)}>
-                <SelectTrigger className={errors.inventoryId ? "border-red-500" : ""}>
+              <label className="text-sm font-medium">
+                Stock Item (Product · Color · Size)
+              </label>
+              <Select
+                value={form.inventoryId}
+                onValueChange={(v) => set("inventoryId", v)}
+              >
+                <SelectTrigger
+                  className={errors.inventoryId ? "border-red-500" : ""}
+                >
                   <SelectValue placeholder="Select stock item…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2192,13 +2309,16 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, ra
                     const p = products.find((pr) => pr.id === inv.productId);
                     return (
                       <SelectItem key={inv.id} value={inv.id}>
-                        {p ? p.name : inv.productId} · {inv.color} · {inv.size} (stock: {inv.quantity})
+                        {p ? p.name : inv.productId} · {inv.color} · {inv.size}{" "}
+                        (stock: {inv.quantity})
                       </SelectItem>
                     );
                   })}
                 </SelectContent>
               </Select>
-              {errors.inventoryId && <p className="text-xs text-red-500">{errors.inventoryId}</p>}
+              {errors.inventoryId && (
+                <p className="text-xs text-red-500">{errors.inventoryId}</p>
+              )}
             </div>
           )}
 
@@ -2206,36 +2326,59 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, ra
           {form.itemType === "RAW_MATERIAL" && (
             <div className="space-y-1">
               <label className="text-sm font-medium">Raw Material</label>
-              <Select value={form.rawMaterialId} onValueChange={(v) => set("rawMaterialId", v)}>
-                <SelectTrigger className={errors.rawMaterialId ? "border-red-500" : ""}>
+              <Select
+                value={form.rawMaterialId}
+                onValueChange={(v) => set("rawMaterialId", v)}
+              >
+                <SelectTrigger
+                  className={errors.rawMaterialId ? "border-red-500" : ""}
+                >
                   <SelectValue placeholder="Select raw material…" />
                 </SelectTrigger>
                 <SelectContent>
                   {rawMaterials.map((rm) => (
                     <SelectItem key={rm.id} value={rm.id}>
-                      {rm.name}{rm.category ? ` · ${rm.category}` : ""} (stock: {rm.currentStock || 0}{rm.unit ? " " + rm.unit : ""})
+                      {rm.name}
+                      {rm.category ? ` · ${rm.category}` : ""} (stock:{" "}
+                      {rm.currentStock || 0}
+                      {rm.unit ? " " + rm.unit : ""})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.rawMaterialId && <p className="text-xs text-red-500">{errors.rawMaterialId}</p>}
+              {errors.rawMaterialId && (
+                <p className="text-xs text-red-500">{errors.rawMaterialId}</p>
+              )}
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-sm font-medium">Movement Type</label>
-              <Select value={form.movementType} onValueChange={(v) => set("movementType", v)}>
-                <SelectTrigger className={errors.movementType ? "border-red-500" : ""}>
+              <Select
+                value={form.movementType}
+                onValueChange={(v) => set("movementType", v)}
+              >
+                <SelectTrigger
+                  className={errors.movementType ? "border-red-500" : ""}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {MOVEMENT_TYPES.filter((t) => t.value !== "ADJUSTMENT_IN" && t.value !== "ADJUSTMENT_OUT").map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  {MOVEMENT_TYPES.filter(
+                    (t) =>
+                      t.value !== "ADJUSTMENT_IN" &&
+                      t.value !== "ADJUSTMENT_OUT",
+                  ).map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.movementType && <p className="text-xs text-red-500">{errors.movementType}</p>}
+              {errors.movementType && (
+                <p className="text-xs text-red-500">{errors.movementType}</p>
+              )}
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Quantity</label>
@@ -2248,17 +2391,32 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, ra
                 onChange={(e) => set("quantity", e.target.value)}
                 className={errors.quantity ? "border-red-500" : ""}
               />
-              {errors.quantity && <p className="text-xs text-red-500">{errors.quantity}</p>}
+              {errors.quantity && (
+                <p className="text-xs text-red-500">{errors.quantity}</p>
+              )}
               {currentStock !== undefined && currentStock !== null && (
                 <p className="text-xs text-muted-foreground">
                   Current stock: {currentStock}
                   {!isInboundType(form.movementType) && form.quantity && (
-                    <span className={Number(form.quantity) > currentStock ? " text-red-400" : " text-emerald-400"}>
-                      {" → "}{Math.max(0, currentStock - Number(form.quantity))}
+                    <span
+                      className={
+                        Number(form.quantity) > currentStock
+                          ? " text-red-400"
+                          : " text-emerald-400"
+                      }
+                    >
+                      {" → "}
+                      {Math.max(0, currentStock - Number(form.quantity))}
                     </span>
                   )}
                   {isInboundType(form.movementType) && form.quantity && (
-                    <span className=" text-emerald-400"> → {Number((currentStock + Number(form.quantity)).toFixed(4))}</span>
+                    <span className=" text-emerald-400">
+                      {" "}
+                      →{" "}
+                      {Number(
+                        (currentStock + Number(form.quantity)).toFixed(4),
+                      )}
+                    </span>
                   )}
                 </p>
               )}
@@ -2273,21 +2431,37 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, ra
                 onChange={(e) => set("movementDate", e.target.value)}
                 className={errors.movementDate ? "border-red-500" : ""}
               />
-              {errors.movementDate && <p className="text-xs text-red-500">{errors.movementDate}</p>}
+              {errors.movementDate && (
+                <p className="text-xs text-red-500">{errors.movementDate}</p>
+              )}
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium">Reference No. (optional)</label>
-              <Input placeholder="Auto-generated if blank" value={form.referenceNumber} onChange={(e) => set("referenceNumber", e.target.value)} />
+              <label className="text-sm font-medium">
+                Reference No. (optional)
+              </label>
+              <Input
+                placeholder="Auto-generated if blank"
+                value={form.referenceNumber}
+                onChange={(e) => set("referenceNumber", e.target.value)}
+              />
             </div>
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium">Notes (optional)</label>
-            <Input placeholder="Reason for adjustment…" value={form.notes} onChange={(e) => set("notes", e.target.value)} />
+            <Input
+              placeholder="Reason for adjustment…"
+              value={form.notes}
+              onChange={(e) => set("notes", e.target.value)}
+            />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpen(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={loading}>{loading ? "Saving…" : "Record Movement"}</Button>
+          <Button variant="outline" onClick={() => handleOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={loading}>
+            {loading ? "Saving…" : "Record Movement"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -2296,7 +2470,9 @@ function StockMovementAdjustDialog({ open, onOpenChange, inventory, products, ra
 
 function StockMovementsModule() {
   const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .split("T")[0];
   const today = now.toISOString().split("T")[0];
 
   const [items, setItems] = useState([]);
@@ -2340,18 +2516,25 @@ function StockMovementsModule() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [search, typeFilter, itemTypeFilter, dateFrom, dateTo]);
+  useEffect(() => {
+    load();
+  }, [search, typeFilter, itemTypeFilter, dateFrom, dateTo]);
 
   const netChange = stats ? stats.totalIn - stats.totalOut : 0;
 
-  const fmtQty = (n) => Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 4 });
+  const fmtQty = (n) =>
+    Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 4 });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Stock Movement Ledger</h2>
-          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Unified immutable record of all product and raw material movements</p>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Stock Movement Ledger
+          </h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+            Unified immutable record of all product and raw material movements
+          </p>
         </div>
         <Button onClick={() => setShowAdjust(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -2363,38 +2546,64 @@ function StockMovementsModule() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Movements</p>
-            <p className="text-2xl font-semibold mt-1">{loading ? "—" : (stats?.totalMovements ?? 0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Total Movements
+            </p>
+            <p className="text-2xl font-semibold mt-1">
+              {loading ? "—" : (stats?.totalMovements ?? 0).toLocaleString()}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Product Movements</p>
-            <p className="text-2xl font-semibold mt-1 text-blue-500">{loading ? "—" : (stats?.productMovements ?? 0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Product Movements
+            </p>
+            <p className="text-2xl font-semibold mt-1 text-blue-500">
+              {loading ? "—" : (stats?.productMovements ?? 0).toLocaleString()}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Raw Material Movements</p>
-            <p className="text-2xl font-semibold mt-1 text-purple-500">{loading ? "—" : (stats?.rawMaterialMovements ?? 0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Raw Material Movements
+            </p>
+            <p className="text-2xl font-semibold mt-1 text-purple-500">
+              {loading
+                ? "—"
+                : (stats?.rawMaterialMovements ?? 0).toLocaleString()}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">Inbound</p>
-            <p className="text-2xl font-semibold mt-1 text-emerald-500">{loading ? "—" : "+" + fmtQty(stats?.totalIn)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">
+              Inbound
+            </p>
+            <p className="text-2xl font-semibold mt-1 text-emerald-500">
+              {loading ? "—" : "+" + fmtQty(stats?.totalIn)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">Outbound</p>
-            <p className="text-2xl font-semibold mt-1 text-rose-400">{loading ? "—" : "−" + fmtQty(stats?.totalOut)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">
+              Outbound
+            </p>
+            <p className="text-2xl font-semibold mt-1 text-rose-400">
+              {loading ? "—" : "−" + fmtQty(stats?.totalOut)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Change</p>
-            <p className={`text-2xl font-semibold mt-1 ${netChange >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Net Change
+            </p>
+            <p
+              className={`text-2xl font-semibold mt-1 ${netChange >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+            >
               {loading ? "—" : (netChange >= 0 ? "+" : "") + fmtQty(netChange)}
             </p>
           </CardContent>
@@ -2406,7 +2615,9 @@ function StockMovementsModule() {
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[180px]">
-              <p className="text-xs text-muted-foreground mb-1">Search item / SKU / reference</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Search item / SKU / reference
+              </p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -2431,7 +2642,9 @@ function StockMovementsModule() {
               </Select>
             </div>
             <div className="min-w-[170px]">
-              <p className="text-xs text-muted-foreground mb-1">Movement Type</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Movement Type
+              </p>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger>
                   <SelectValue />
@@ -2439,20 +2652,37 @@ function StockMovementsModule() {
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   {MOVEMENT_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Date From</p>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-36"
+              />
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Date To</p>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-36"
+              />
             </div>
-            <Button variant="outline" size="icon" onClick={load} title="Refresh">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={load}
+              title="Refresh"
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -2463,28 +2693,55 @@ function StockMovementsModule() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">Loading movements…</div>
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              Loading movements…
+            </div>
           ) : items.length === 0 ? (
             <div className="p-12 text-center">
               <Activity className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">No stock movements found</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Movements are recorded automatically when inventory is adjusted, or manually via the button above.</p>
+              <p className="text-muted-foreground text-sm">
+                No stock movements found
+              </p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Movements are recorded automatically when inventory is adjusted,
+                or manually via the button above.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[rgba(17,24,39,0.04)]">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Date</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Reference</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Item Type</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Item Name</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Variant / Detail</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Movement Type</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Qty</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Before</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">After</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Notes</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Reference
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Item Type
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Item Name
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Variant / Detail
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Movement Type
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Qty
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Before
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      After
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Notes
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2493,43 +2750,73 @@ function StockMovementsModule() {
                     const inbound = isInboundType(m.movementType);
                     const isProduct = (m.itemType || "PRODUCT") === "PRODUCT";
                     return (
-                      <tr key={m.id} className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors ${idx % 2 === 0 ? "" : "bg-muted/10"}`}>
-                        <td className="px-4 py-3 text-muted-foreground">{m.movementDate}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{m.referenceNumber || "—"}</td>
+                      <tr
+                        key={m.id}
+                        className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
+                      >
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {m.movementDate}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                          {m.referenceNumber || "—"}
+                        </td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isProduct ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"}`}>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isProduct ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"}`}
+                          >
                             {isProduct ? "PRODUCT" : "RAW MAT"}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           {isProduct ? (
                             <>
-                              <p className="font-medium leading-none">{m.product?.name || "—"}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">{m.product?.sku}</p>
+                              <p className="font-medium leading-none">
+                                {m.product?.name || "—"}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {m.product?.sku}
+                              </p>
                             </>
                           ) : (
                             <>
-                              <p className="font-medium leading-none">{m.rawMaterial?.name || "—"}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">{m.rawMaterial?.category || ""}</p>
+                              <p className="font-medium leading-none">
+                                {m.rawMaterial?.name || "—"}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {m.rawMaterial?.category || ""}
+                              </p>
                             </>
                           )}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {isProduct
-                            ? (m.inventory ? `${m.inventory.color} / ${m.inventory.size}` : "—")
-                            : (m.rawMaterial?.unit || "—")}
+                            ? m.inventory
+                              ? `${m.inventory.color} / ${m.inventory.size}`
+                              : "—"
+                            : m.rawMaterial?.unit || "—"}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${meta.bg}`}>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${meta.bg}`}
+                          >
                             {meta.label}
                           </span>
                         </td>
-                        <td className={`px-4 py-3 text-right font-semibold tabular-nums ${inbound ? "text-emerald-400" : "text-rose-400"}`}>
-                          {inbound ? "+" : "−"}{fmtQty(m.quantity)}
+                        <td
+                          className={`px-4 py-3 text-right font-semibold tabular-nums ${inbound ? "text-emerald-400" : "text-rose-400"}`}
+                        >
+                          {inbound ? "+" : "−"}
+                          {fmtQty(m.quantity)}
                         </td>
-                        <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">{fmtQty(m.previousQuantity)}</td>
-                        <td className="px-4 py-3 text-right font-medium tabular-nums">{fmtQty(m.newQuantity)}</td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs max-w-[200px] truncate">{m.notes || "—"}</td>
+                        <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
+                          {fmtQty(m.previousQuantity)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium tabular-nums">
+                          {fmtQty(m.newQuantity)}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs max-w-[200px] truncate">
+                          {m.notes || "—"}
+                        </td>
                       </tr>
                     );
                   })}
@@ -2649,10 +2936,7 @@ function PlanningModule() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {filtered.map((p) => (
-          <Card
-            key={p.id}
-            className="hover:border-border transition-colors"
-          >
+          <Card key={p.id} className="hover:border-border transition-colors">
             <CardHeader>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -3050,10 +3334,7 @@ function ContentModule() {
             </thead>
             <tbody>
               {items.map((c) => (
-                <tr
-                  key={c.id}
-                  className="border-b hover:bg-secondary/30"
-                >
+                <tr key={c.id} className="border-b hover:bg-secondary/30">
                   <td className="px-4 py-3 font-medium">{c.title}</td>
                   <td className="px-4 py-3">
                     <Badge variant="outline">{c.platform}</Badge>
@@ -3312,7 +3593,9 @@ function CreatorCRM() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Creator CRM</h2>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Creator CRM
+          </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Manage influencer collaborations with Islamic values alignment
           </p>
@@ -3354,10 +3637,7 @@ function CreatorCRM() {
           </thead>
           <tbody>
             {filtered.map((c) => (
-              <tr
-                key={c.id}
-                className="border-b hover:bg-secondary/30"
-              >
+              <tr key={c.id} className="border-b hover:bg-secondary/30">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
@@ -3702,7 +3982,9 @@ function SchoolCRM() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">School CRM</h2>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            School CRM
+          </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Islamic school partnerships pipeline
           </p>
@@ -4585,17 +4867,16 @@ function ReportsModule() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Reports</h2>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+          Reports
+        </h2>
         <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
           Generate and export business reports
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {reports.map((r) => (
-          <Card
-            key={r.id}
-            className="hover:border-border transition-colors"
-          >
+          <Card key={r.id} className="hover:border-border transition-colors">
             <CardHeader>
               <CardTitle className="text-base">{r.title}</CardTitle>
               <CardDescription>{r.desc}</CardDescription>
@@ -4653,7 +4934,9 @@ function NotificationsModule() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Notifications</h2>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+          Notifications
+        </h2>
         <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
           Alerts and updates across all modules
         </p>
@@ -4703,7 +4986,9 @@ function SettingsModule({ user }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Settings</h2>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+          Settings
+        </h2>
         <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
           Manage your workspace
         </p>
@@ -5633,7 +5918,9 @@ function CashTransactionModule({ type }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">{label}</h2>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            {label}
+          </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             {isIn
               ? "Record incoming cash and bank receipts"
@@ -6910,7 +7197,9 @@ function RawMaterialModule() {
       minimumStock: Number(data.minimumStock) || 0,
       unitCost: Number(data.unitCost) || 0,
       supplierId: data.supplierId || null,
-      supplierName: linkedSupplier ? linkedSupplier.supplierName : (data.supplierName || ""),
+      supplierName: linkedSupplier
+        ? linkedSupplier.supplierName
+        : data.supplierName || "",
       notes: data.notes || "",
       status: data.status || "Active",
     };
@@ -6953,10 +7242,10 @@ function RawMaterialModule() {
   const lowStockCount = items.filter(isLowStock).length;
   const totalInventoryValue = items.reduce(
     (s, i) => s + (i.unitCost || 0) * (i.currentStock || 0),
-    0
+    0,
   );
   const activeCount = items.filter(
-    (i) => (i.status || "Active") === "Active"
+    (i) => (i.status || "Active") === "Active",
   ).length;
 
   const fmtDate = (dt) => {
@@ -7006,15 +7295,23 @@ function RawMaterialModule() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Total Materials</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Total Materials
+            </p>
             <p className="text-2xl font-bold">{items.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">{activeCount} active</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {activeCount} active
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Inventory Value</p>
-            <p className="text-2xl font-bold">{fmtShort(totalInventoryValue)}</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Inventory Value
+            </p>
+            <p className="text-2xl font-bold">
+              {fmtShort(totalInventoryValue)}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">at unit cost</p>
           </CardContent>
         </Card>
@@ -7022,20 +7319,31 @@ function RawMaterialModule() {
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-1">Total Weight</p>
             <p className="text-2xl font-bold">
-              {totalWeight.toLocaleString("id-ID", { maximumFractionDigits: 2 })} kg
+              {totalWeight.toLocaleString("id-ID", {
+                maximumFractionDigits: 2,
+              })}{" "}
+              kg
             </p>
           </CardContent>
         </Card>
-        <Card className={lowStockCount > 0 ? "border-amber-300 bg-amber-50" : ""}>
+        <Card
+          className={lowStockCount > 0 ? "border-amber-300 bg-amber-50" : ""}
+        >
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-              {lowStockCount > 0 && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+              {lowStockCount > 0 && (
+                <AlertTriangle className="h-3 w-3 text-amber-500" />
+              )}
               Low Stock
             </p>
-            <p className={`text-2xl font-bold ${lowStockCount > 0 ? "text-amber-600" : ""}`}>
+            <p
+              className={`text-2xl font-bold ${lowStockCount > 0 ? "text-amber-600" : ""}`}
+            >
               {lowStockCount}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">items need reorder</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              items need reorder
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -7069,15 +7377,33 @@ function RawMaterialModule() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-[#F7F8FA]">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Photo</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Category</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Unit</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Current Stock</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Min Stock</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Unit Cost</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Supplier</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Photo
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Name
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Category
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Unit
+                </th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                  Current Stock
+                </th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                  Min Stock
+                </th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                  Unit Cost
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Supplier
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Status
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -7111,35 +7437,53 @@ function RawMaterialModule() {
                               className="w-2.5 h-2.5 rounded-full border shrink-0"
                               style={{ backgroundColor: item.color }}
                             />
-                            <span className="text-xs text-muted-foreground">{item.color}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {item.color}
+                            </span>
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.category || "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.unit || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {item.category || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {item.unit || "—"}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         {lowStock && (
                           <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                         )}
-                        <span className={`font-medium ${lowStock ? "text-amber-600" : ""}`}>
-                          {Number(item.currentStock || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })}
+                        <span
+                          className={`font-medium ${lowStock ? "text-amber-600" : ""}`}
+                        >
+                          {Number(item.currentStock || 0).toLocaleString(
+                            "id-ID",
+                            { maximumFractionDigits: 2 },
+                          )}
                         </span>
                       </div>
                       {lowStock && (
-                        <Badge variant="outline" className="text-[10px] mt-0.5 border-amber-300 text-amber-600 bg-amber-50">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] mt-0.5 border-amber-300 text-amber-600 bg-amber-50"
+                        >
                           Low Stock
                         </Badge>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right text-muted-foreground">
-                      {Number(item.minimumStock || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })}
+                      {Number(item.minimumStock || 0).toLocaleString("id-ID", {
+                        maximumFractionDigits: 2,
+                      })}
                     </td>
                     <td className="px-4 py-3 text-right font-medium">
                       {item.unitCost ? fmt(item.unitCost) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.supplierName || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {item.supplierName || "—"}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge
                         variant="outline"
@@ -7155,7 +7499,11 @@ function RawMaterialModule() {
                     <td className="px-4 py-3">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -7185,7 +7533,10 @@ function RawMaterialModule() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="p-12 text-center text-muted-foreground">
+                  <td
+                    colSpan={10}
+                    className="p-12 text-center text-muted-foreground"
+                  >
                     {items.length === 0
                       ? "There are currently no raw materials in the inventory. Click 'Add Raw Material' to get started."
                       : "No materials match your search criteria."}
@@ -7207,7 +7558,13 @@ function RawMaterialModule() {
   );
 }
 
-function RawMaterialModal({ open, onOpenChange, initial, onSave, suppliers = [] }) {
+function RawMaterialModal({
+  open,
+  onOpenChange,
+  initial,
+  onSave,
+  suppliers = [],
+}) {
   const [form, setForm] = useState(initial);
   useEffect(() => setForm(initial), [initial, open]);
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -7235,7 +7592,9 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave, suppliers = [] 
           <SectionHeader>Material Information</SectionHeader>
 
           <div className="space-y-2 col-span-2">
-            <Label>Name <span className="text-rose-500">*</span></Label>
+            <Label>
+              Name <span className="text-rose-500">*</span>
+            </Label>
             <Input
               value={form.name || ""}
               onChange={(e) => update("name", e.target.value)}
@@ -7273,7 +7632,9 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave, suppliers = [] 
                 src={form.photo}
                 alt="Preview"
                 className="w-full max-h-32 object-cover rounded-md border mt-2"
-                onError={(e) => { e.target.style.display = "none"; }}
+                onError={(e) => {
+                  e.target.style.display = "none";
+                }}
               />
             )}
           </div>
@@ -7319,7 +7680,8 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave, suppliers = [] 
               placeholder="0"
             />
             <p className="text-[11px] text-muted-foreground">
-              A low stock warning appears when current stock falls at or below this value.
+              A low stock warning appears when current stock falls at or below
+              this value.
             </p>
           </div>
 
@@ -7357,11 +7719,13 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave, suppliers = [] 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— No Supplier —</SelectItem>
-                  {suppliers.filter((s) => (s.status || "Active") === "Active").map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.supplierCode} · {s.supplierName}
-                    </SelectItem>
-                  ))}
+                  {suppliers
+                    .filter((s) => (s.status || "Active") === "Active")
+                    .map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.supplierCode} · {s.supplierName}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             ) : (
@@ -7373,7 +7737,8 @@ function RawMaterialModal({ open, onOpenChange, initial, onSave, suppliers = [] 
             )}
             {!suppliers.length && (
               <p className="text-[11px] text-muted-foreground">
-                Add suppliers in Operations → Suppliers to link raw materials to a supplier.
+                Add suppliers in Operations → Suppliers to link raw materials to
+                a supplier.
               </p>
             )}
           </div>
@@ -8992,9 +9357,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
               </p>
             </CardContent>
           </Card>
-          <Card
-            className={`${!data.isBalanced ? "border-rose-500/40" : ""}`}
-          >
+          <Card className={`${!data.isBalanced ? "border-rose-500/40" : ""}`}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Difference
@@ -9298,9 +9661,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
               </p>
             </CardContent>
           </Card>
-          <Card
-            className={`${data.netProfit < 0 ? "border-rose-500/40" : ""}`}
-          >
+          <Card className={`${data.netProfit < 0 ? "border-rose-500/40" : ""}`}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Net Profit
@@ -9583,9 +9944,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
               </p>
             </CardContent>
           </Card>
-          <Card
-            className={`${data.isBalanced ? "" : "border-rose-500/40"}`}
-          >
+          <Card className={`${data.isBalanced ? "" : "border-rose-500/40"}`}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Total Equity
@@ -9770,44 +10129,76 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
 
 function SupplierFormDialog({ open, onOpenChange, initial, onSave }) {
   const empty = {
-    supplierName: "", contactPerson: "", phone: "", email: "",
-    address: "", city: "", province: "", country: "Indonesia",
-    leadTimeDays: 0, notes: "", status: "Active",
+    supplierName: "",
+    contactPerson: "",
+    phone: "",
+    email: "",
+    address: "",
+    city: "",
+    province: "",
+    country: "Indonesia",
+    leadTimeDays: 0,
+    notes: "",
+    status: "Active",
   };
   const [form, setForm] = useState(empty);
   const [loading, setLoading] = useState(false);
-  useEffect(() => { setForm(initial ? { ...empty, ...initial } : empty); }, [initial, open]);
+  useEffect(() => {
+    setForm(initial ? { ...empty, ...initial } : empty);
+  }, [initial, open]);
   const up = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const SH = ({ children }) => (
     <div className="col-span-2 pt-2">
-      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5">{children}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5">
+        {children}
+      </p>
     </div>
   );
 
   const submit = async () => {
-    if (!form.supplierName?.trim()) { toast.error("Supplier name is required"); return; }
+    if (!form.supplierName?.trim()) {
+      toast.error("Supplier name is required");
+      return;
+    }
     setLoading(true);
-    try { await onSave(form); } finally { setLoading(false); }
+    try {
+      await onSave(form);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{initial?.id ? "Edit Supplier" : "Add Supplier"}</DialogTitle>
+          <DialogTitle>
+            {initial?.id ? "Edit Supplier" : "Add Supplier"}
+          </DialogTitle>
           <DialogDescription>Manage supplier master data</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-4">
           <SH>Supplier Information</SH>
           <div className="space-y-2 col-span-2">
-            <Label>Supplier Name <span className="text-rose-500">*</span></Label>
-            <Input value={form.supplierName || ""} onChange={(e) => up("supplierName", e.target.value)} placeholder="e.g. PT. Bahan Baku Indonesia" />
+            <Label>
+              Supplier Name <span className="text-rose-500">*</span>
+            </Label>
+            <Input
+              value={form.supplierName || ""}
+              onChange={(e) => up("supplierName", e.target.value)}
+              placeholder="e.g. PT. Bahan Baku Indonesia"
+            />
           </div>
           <div className="space-y-2">
             <Label>Status</Label>
-            <Select value={form.status || "Active"} onValueChange={(v) => up("status", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={form.status || "Active"}
+              onValueChange={(v) => up("status", v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Inactive">Inactive</SelectItem>
@@ -9816,51 +10207,100 @@ function SupplierFormDialog({ open, onOpenChange, initial, onSave }) {
           </div>
           <div className="space-y-2">
             <Label>Lead Time (days)</Label>
-            <Input type="number" min="0" value={form.leadTimeDays || 0} onChange={(e) => up("leadTimeDays", Number(e.target.value))} placeholder="0" />
+            <Input
+              type="number"
+              min="0"
+              value={form.leadTimeDays || 0}
+              onChange={(e) => up("leadTimeDays", Number(e.target.value))}
+              placeholder="0"
+            />
           </div>
 
           <SH>Contact Information</SH>
           <div className="space-y-2">
             <Label>Contact Person</Label>
-            <Input value={form.contactPerson || ""} onChange={(e) => up("contactPerson", e.target.value)} placeholder="Full name" />
+            <Input
+              value={form.contactPerson || ""}
+              onChange={(e) => up("contactPerson", e.target.value)}
+              placeholder="Full name"
+            />
           </div>
           <div className="space-y-2">
             <Label>Phone</Label>
-            <Input value={form.phone || ""} onChange={(e) => up("phone", e.target.value)} placeholder="+62..." />
+            <Input
+              value={form.phone || ""}
+              onChange={(e) => up("phone", e.target.value)}
+              placeholder="+62..."
+            />
           </div>
           <div className="space-y-2 col-span-2">
             <Label>Email</Label>
-            <Input type="email" value={form.email || ""} onChange={(e) => up("email", e.target.value)} placeholder="supplier@example.com" />
+            <Input
+              type="email"
+              value={form.email || ""}
+              onChange={(e) => up("email", e.target.value)}
+              placeholder="supplier@example.com"
+            />
           </div>
 
           <SH>Address</SH>
           <div className="space-y-2 col-span-2">
             <Label>Street Address</Label>
-            <Input value={form.address || ""} onChange={(e) => up("address", e.target.value)} placeholder="Jl. ..." />
+            <Input
+              value={form.address || ""}
+              onChange={(e) => up("address", e.target.value)}
+              placeholder="Jl. ..."
+            />
           </div>
           <div className="space-y-2">
             <Label>City</Label>
-            <Input value={form.city || ""} onChange={(e) => up("city", e.target.value)} placeholder="Jakarta" />
+            <Input
+              value={form.city || ""}
+              onChange={(e) => up("city", e.target.value)}
+              placeholder="Jakarta"
+            />
           </div>
           <div className="space-y-2">
             <Label>Province</Label>
-            <Input value={form.province || ""} onChange={(e) => up("province", e.target.value)} placeholder="DKI Jakarta" />
+            <Input
+              value={form.province || ""}
+              onChange={(e) => up("province", e.target.value)}
+              placeholder="DKI Jakarta"
+            />
           </div>
           <div className="space-y-2 col-span-2">
             <Label>Country</Label>
-            <Input value={form.country || "Indonesia"} onChange={(e) => up("country", e.target.value)} placeholder="Indonesia" />
+            <Input
+              value={form.country || "Indonesia"}
+              onChange={(e) => up("country", e.target.value)}
+              placeholder="Indonesia"
+            />
           </div>
 
           <SH>Notes</SH>
           <div className="space-y-2 col-span-2">
             <Label>Notes</Label>
-            <Textarea value={form.notes || ""} onChange={(e) => up("notes", e.target.value)} placeholder="Internal notes…" rows={3} />
+            <Textarea
+              value={form.notes || ""}
+              onChange={(e) => up("notes", e.target.value)}
+              placeholder="Internal notes…"
+              rows={3}
+            />
           </div>
         </div>
         <DialogFooter className="mt-4">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={loading || !form.supplierName?.trim()}>
-            {loading ? "Saving…" : initial?.id ? "Save Changes" : "Add Supplier"}
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={submit}
+            disabled={loading || !form.supplierName?.trim()}
+          >
+            {loading
+              ? "Saving…"
+              : initial?.id
+                ? "Save Changes"
+                : "Add Supplier"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -9870,9 +10310,10 @@ function SupplierFormDialog({ open, onOpenChange, initial, onSave }) {
 
 function SupplierDetailDialog({ open, onOpenChange, supplier, onEdit }) {
   if (!supplier) return null;
-  const statusColor = (supplier.status || "Active") === "Active"
-    ? "bg-emerald-500/10 text-emerald-600"
-    : "bg-gray-400/10 text-gray-500";
+  const statusColor =
+    (supplier.status || "Active") === "Active"
+      ? "bg-emerald-500/10 text-emerald-600"
+      : "bg-gray-400/10 text-gray-500";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -9880,10 +10321,16 @@ function SupplierDetailDialog({ open, onOpenChange, supplier, onEdit }) {
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div>
-              <DialogTitle className="text-lg">{supplier.supplierName}</DialogTitle>
-              <p className="text-sm text-muted-foreground font-mono mt-0.5">{supplier.supplierCode}</p>
+              <DialogTitle className="text-lg">
+                {supplier.supplierName}
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground font-mono mt-0.5">
+                {supplier.supplierCode}
+              </p>
             </div>
-            <span className={`ml-auto inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${statusColor}`}>
+            <span
+              className={`ml-auto inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${statusColor}`}
+            >
               {supplier.status || "Active"}
             </span>
           </div>
@@ -9892,32 +10339,62 @@ function SupplierDetailDialog({ open, onOpenChange, supplier, onEdit }) {
         <div className="space-y-6 py-2">
           {/* Supplier Information */}
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Supplier Information</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+              Supplier Information
+            </p>
             <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-              <div><span className="text-muted-foreground">Code:</span> <span className="font-mono ml-2">{supplier.supplierCode}</span></div>
-              <div><span className="text-muted-foreground">Lead Time:</span> <span className="ml-2">{supplier.leadTimeDays || 0} days</span></div>
+              <div>
+                <span className="text-muted-foreground">Code:</span>{" "}
+                <span className="font-mono ml-2">{supplier.supplierCode}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Lead Time:</span>{" "}
+                <span className="ml-2">{supplier.leadTimeDays || 0} days</span>
+              </div>
             </div>
-            {supplier.notes && <p className="text-sm text-muted-foreground mt-3 italic">"{supplier.notes}"</p>}
+            {supplier.notes && (
+              <p className="text-sm text-muted-foreground mt-3 italic">
+                "{supplier.notes}"
+              </p>
+            )}
           </div>
 
           {/* Contact Information */}
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Contact Information</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+              Contact Information
+            </p>
             <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-              <div><span className="text-muted-foreground">Contact:</span> <span className="ml-2">{supplier.contactPerson || "—"}</span></div>
-              <div><span className="text-muted-foreground">Phone:</span> <span className="ml-2">{supplier.phone || "—"}</span></div>
-              <div className="col-span-2"><span className="text-muted-foreground">Email:</span> <span className="ml-2">{supplier.email || "—"}</span></div>
+              <div>
+                <span className="text-muted-foreground">Contact:</span>{" "}
+                <span className="ml-2">{supplier.contactPerson || "—"}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Phone:</span>{" "}
+                <span className="ml-2">{supplier.phone || "—"}</span>
+              </div>
+              <div className="col-span-2">
+                <span className="text-muted-foreground">Email:</span>{" "}
+                <span className="ml-2">{supplier.email || "—"}</span>
+              </div>
             </div>
           </div>
 
           {/* Address */}
-          {(supplier.address || supplier.city || supplier.province || supplier.country) && (
+          {(supplier.address ||
+            supplier.city ||
+            supplier.province ||
+            supplier.country) && (
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Address</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+                Address
+              </p>
               <div className="text-sm space-y-1">
                 {supplier.address && <p>{supplier.address}</p>}
                 <p className="text-muted-foreground">
-                  {[supplier.city, supplier.province, supplier.country].filter(Boolean).join(", ")}
+                  {[supplier.city, supplier.province, supplier.country]
+                    .filter(Boolean)
+                    .join(", ")}
                 </p>
               </div>
             </div>
@@ -9926,31 +10403,54 @@ function SupplierDetailDialog({ open, onOpenChange, supplier, onEdit }) {
           {/* Related Raw Materials */}
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
-              Related Raw Materials {supplier.rawMaterials?.length ? `(${supplier.rawMaterials.length})` : ""}
+              Related Raw Materials{" "}
+              {supplier.rawMaterials?.length
+                ? `(${supplier.rawMaterials.length})`
+                : ""}
             </p>
             {!supplier.rawMaterials?.length ? (
-              <p className="text-sm text-muted-foreground italic">No raw materials linked to this supplier.</p>
+              <p className="text-sm text-muted-foreground italic">
+                No raw materials linked to this supplier.
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">Name</th>
-                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">Category</th>
-                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">Unit</th>
-                      <th className="text-right py-2 font-medium text-muted-foreground text-xs uppercase">Stock</th>
-                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">Status</th>
+                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">
+                        Name
+                      </th>
+                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">
+                        Category
+                      </th>
+                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">
+                        Unit
+                      </th>
+                      <th className="text-right py-2 font-medium text-muted-foreground text-xs uppercase">
+                        Stock
+                      </th>
+                      <th className="text-left py-2 font-medium text-muted-foreground text-xs uppercase">
+                        Status
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {supplier.rawMaterials.map((rm) => (
                       <tr key={rm.id} className="border-b border-border/30">
                         <td className="py-2 font-medium">{rm.name}</td>
-                        <td className="py-2 text-muted-foreground">{rm.category || "—"}</td>
-                        <td className="py-2 text-muted-foreground">{rm.unit || "—"}</td>
-                        <td className="py-2 text-right tabular-nums">{Number(rm.currentStock || 0).toLocaleString()}</td>
+                        <td className="py-2 text-muted-foreground">
+                          {rm.category || "—"}
+                        </td>
+                        <td className="py-2 text-muted-foreground">
+                          {rm.unit || "—"}
+                        </td>
+                        <td className="py-2 text-right tabular-nums">
+                          {Number(rm.currentStock || 0).toLocaleString()}
+                        </td>
                         <td className="py-2">
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${(rm.status || "Active") === "Active" ? "bg-emerald-500/10 text-emerald-600" : "bg-gray-400/10 text-gray-500"}`}>
+                          <span
+                            className={`text-xs px-1.5 py-0.5 rounded ${(rm.status || "Active") === "Active" ? "bg-emerald-500/10 text-emerald-600" : "bg-gray-400/10 text-gray-500"}`}
+                          >
                             {rm.status || "Active"}
                           </span>
                         </td>
@@ -9964,8 +10464,17 @@ function SupplierDetailDialog({ open, onOpenChange, supplier, onEdit }) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button onClick={() => { onOpenChange(false); onEdit(supplier); }}>Edit Supplier</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button
+            onClick={() => {
+              onOpenChange(false);
+              onEdit(supplier);
+            }}
+          >
+            Edit Supplier
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -9973,8 +10482,21 @@ function SupplierDetailDialog({ open, onOpenChange, supplier, onEdit }) {
 }
 
 // =========== BOM FORM DIALOG ===========
-function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], rawMaterials = [] }) {
-  const empty = { productId: "", version: "1.0", description: "", status: "Active", items: [] };
+function BOMFormDialog({
+  open,
+  onOpenChange,
+  initial,
+  onSave,
+  products = [],
+  rawMaterials = [],
+}) {
+  const empty = {
+    productId: "",
+    version: "1.0",
+    description: "",
+    status: "Active",
+    items: [],
+  };
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -9994,14 +10516,20 @@ function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], raw
                 notes: it.notes || "",
               })),
             }
-          : empty
+          : empty,
       );
       setErr("");
     }
   }, [open, initial]);
 
   const addItem = () =>
-    setForm((f) => ({ ...f, items: [...f.items, { rawMaterialId: "", quantityRequired: "", notes: "" }] }));
+    setForm((f) => ({
+      ...f,
+      items: [
+        ...f.items,
+        { rawMaterialId: "", quantityRequired: "", notes: "" },
+      ],
+    }));
 
   const removeItem = (i) =>
     setForm((f) => ({ ...f, items: f.items.filter((_, idx) => idx !== i) }));
@@ -10015,17 +10543,32 @@ function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], raw
 
   const handleSave = async () => {
     setErr("");
-    if (!form.productId) { setErr("Product is required."); return; }
-    if (form.items.length === 0) { setErr("At least one material is required."); return; }
+    if (!form.productId) {
+      setErr("Product is required.");
+      return;
+    }
+    if (form.items.length === 0) {
+      setErr("At least one material is required.");
+      return;
+    }
     for (const it of form.items) {
-      if (!it.rawMaterialId) { setErr("Select a raw material for each row."); return; }
-      if (!it.quantityRequired || Number(it.quantityRequired) <= 0) { setErr("Quantity must be greater than zero."); return; }
+      if (!it.rawMaterialId) {
+        setErr("Select a raw material for each row.");
+        return;
+      }
+      if (!it.quantityRequired || Number(it.quantityRequired) <= 0) {
+        setErr("Quantity must be greater than zero.");
+        return;
+      }
     }
     setSaving(true);
     try {
       await onSave({
         ...form,
-        items: form.items.map((it) => ({ ...it, quantityRequired: Number(it.quantityRequired) })),
+        items: form.items.map((it) => ({
+          ...it,
+          quantityRequired: Number(it.quantityRequired),
+        })),
       });
       onOpenChange(false);
     } catch (e) {
@@ -10042,50 +10585,74 @@ function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], raw
           <DialogTitle>{initial ? "Edit BOM" : "Create BOM"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-5 py-2">
-          {err && <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</div>}
+          {err && (
+            <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2">
+              {err}
+            </div>
+          )}
 
           {/* Header */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Product *</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Product *
+              </label>
               <select
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                 value={form.productId}
-                onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, productId: e.target.value }))
+                }
               >
                 <option value="">— Select Product —</option>
-                {products.filter((p) => p.status === "Active").map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
-                ))}
+                {products
+                  .filter((p) => p.status === "Active")
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.sku})
+                    </option>
+                  ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Version</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Version
+              </label>
               <input
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                 value={form.version}
-                onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, version: e.target.value }))
+                }
                 placeholder="e.g. 1.0"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Status</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Status
+              </label>
               <select
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                 value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, status: e.target.value }))
+                }
               >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
               </select>
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Description
+              </label>
               <textarea
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none"
                 rows={2}
                 value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, description: e.target.value }))
+                }
                 placeholder="Optional description…"
               />
             </div>
@@ -10095,7 +10662,12 @@ function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], raw
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-semibold">Materials</p>
-              <Button size="sm" variant="outline" onClick={addItem} className="h-7 text-xs gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={addItem}
+                className="h-7 text-xs gap-1"
+              >
                 <Plus className="h-3.5 w-3.5" /> Add Material
               </Button>
             </div>
@@ -10110,12 +10682,19 @@ function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], raw
                   <select
                     className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
                     value={it.rawMaterialId}
-                    onChange={(e) => updateItem(i, "rawMaterialId", e.target.value)}
+                    onChange={(e) =>
+                      updateItem(i, "rawMaterialId", e.target.value)
+                    }
                   >
                     <option value="">— Raw Material —</option>
-                    {rawMaterials.filter((r) => (r.status || "Active") === "Active").map((r) => (
-                      <option key={r.id} value={r.id}>{r.name}{r.unit ? ` (${r.unit})` : ""}</option>
-                    ))}
+                    {rawMaterials
+                      .filter((r) => (r.status || "Active") === "Active")
+                      .map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                          {r.unit ? ` (${r.unit})` : ""}
+                        </option>
+                      ))}
                   </select>
                 </div>
                 <div className="col-span-2">
@@ -10126,7 +10705,9 @@ function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], raw
                     className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
                     placeholder="Qty"
                     value={it.quantityRequired}
-                    onChange={(e) => updateItem(i, "quantityRequired", e.target.value)}
+                    onChange={(e) =>
+                      updateItem(i, "quantityRequired", e.target.value)
+                    }
                   />
                 </div>
                 <div className="col-span-4">
@@ -10138,7 +10719,10 @@ function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], raw
                   />
                 </div>
                 <div className="col-span-1 flex justify-center pt-1">
-                  <button onClick={() => removeItem(i)} className="text-rose-500 hover:text-rose-700">
+                  <button
+                    onClick={() => removeItem(i)}
+                    className="text-rose-500 hover:text-rose-700"
+                  >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -10155,7 +10739,13 @@ function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], raw
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
             {initial ? "Save Changes" : "Create BOM"}
@@ -10169,9 +10759,10 @@ function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], raw
 // =========== BOM DETAIL DIALOG ===========
 function BOMDetailDialog({ open, onOpenChange, bom, onEdit }) {
   if (!bom) return null;
-  const statusColor = bom.status === "Active"
-    ? "bg-emerald-100 text-emerald-700"
-    : "bg-slate-100 text-slate-600";
+  const statusColor =
+    bom.status === "Active"
+      ? "bg-emerald-100 text-emerald-700"
+      : "bg-slate-100 text-slate-600";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -10180,9 +10771,15 @@ function BOMDetailDialog({ open, onOpenChange, bom, onEdit }) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <DialogTitle className="text-lg">{bom.bomCode}</DialogTitle>
-              <p className="text-sm text-muted-foreground mt-0.5">{bom.product?.name} — v{bom.version}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {bom.product?.name} — v{bom.version}
+              </p>
             </div>
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColor}`}>{bom.status}</span>
+            <span
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColor}`}
+            >
+              {bom.status}
+            </span>
           </div>
         </DialogHeader>
 
@@ -10199,7 +10796,9 @@ function BOMDetailDialog({ open, onOpenChange, bom, onEdit }) {
           </div>
           {bom.description && (
             <div className="col-span-2 bg-muted/40 rounded-lg p-3">
-              <p className="text-xs text-muted-foreground mb-0.5">Description</p>
+              <p className="text-xs text-muted-foreground mb-0.5">
+                Description
+              </p>
               <p>{bom.description}</p>
             </div>
           )}
@@ -10211,27 +10810,49 @@ function BOMDetailDialog({ open, onOpenChange, bom, onEdit }) {
             Materials {bom.items?.length ? `(${bom.items.length})` : ""}
           </p>
           {!bom.items?.length ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No materials listed.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No materials listed.
+            </p>
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">#</th>
-                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">Raw Material</th>
-                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">Unit</th>
-                    <th className="px-4 py-2 text-right font-medium text-xs text-muted-foreground">Qty Required</th>
-                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">Notes</th>
+                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">
+                      #
+                    </th>
+                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">
+                      Raw Material
+                    </th>
+                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">
+                      Unit
+                    </th>
+                    <th className="px-4 py-2 text-right font-medium text-xs text-muted-foreground">
+                      Qty Required
+                    </th>
+                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">
+                      Notes
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {bom.items.map((it, i) => (
                     <tr key={it.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
-                      <td className="px-4 py-2 font-medium">{it.rawMaterial?.name || "—"}</td>
-                      <td className="px-4 py-2 text-muted-foreground">{it.rawMaterial?.unit || "—"}</td>
-                      <td className="px-4 py-2 text-right font-semibold">{it.quantityRequired}</td>
-                      <td className="px-4 py-2 text-muted-foreground text-xs">{it.notes || "—"}</td>
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {i + 1}
+                      </td>
+                      <td className="px-4 py-2 font-medium">
+                        {it.rawMaterial?.name || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {it.rawMaterial?.unit || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-right font-semibold">
+                        {it.quantityRequired}
+                      </td>
+                      <td className="px-4 py-2 text-muted-foreground text-xs">
+                        {it.notes || "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -10241,8 +10862,15 @@ function BOMDetailDialog({ open, onOpenChange, bom, onEdit }) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button onClick={() => { onOpenChange(false); onEdit(bom); }}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button
+            onClick={() => {
+              onOpenChange(false);
+              onEdit(bom);
+            }}
+          >
             <Edit3 className="h-4 w-4 mr-1" /> Edit BOM
           </Button>
         </DialogFooter>
@@ -10252,8 +10880,19 @@ function BOMDetailDialog({ open, onOpenChange, bom, onEdit }) {
 }
 
 // =========== PRODUCTION ORDER FORM DIALOG ===========
-function ProductionOrderFormDialog({ open, onOpenChange, initial, onSave, products = [] }) {
-  const empty = { productId: "", plannedQuantity: "", plannedDate: "", notes: "" };
+function ProductionOrderFormDialog({
+  open,
+  onOpenChange,
+  initial,
+  onSave,
+  products = [],
+}) {
+  const empty = {
+    productId: "",
+    plannedQuantity: "",
+    plannedDate: "",
+    notes: "",
+  };
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -10279,9 +10918,13 @@ function ProductionOrderFormDialog({ open, onOpenChange, initial, onSave, produc
   }, [open, initial]);
 
   useEffect(() => {
-    if (!form.productId || initial) { setActiveBom(initial?.bom ?? null); return; }
+    if (!form.productId || initial) {
+      setActiveBom(initial?.bom ?? null);
+      return;
+    }
     setBomLoading(true);
-    api.get(`productionorders/active-bom?productId=${form.productId}`)
+    api
+      .get(`productionorders/active-bom?productId=${form.productId}`)
       .then((b) => setActiveBom(b))
       .catch(() => setActiveBom(null))
       .finally(() => setBomLoading(false));
@@ -10289,10 +10932,24 @@ function ProductionOrderFormDialog({ open, onOpenChange, initial, onSave, produc
 
   const handleSave = async () => {
     setErr("");
-    if (!form.productId) { setErr("Product is required."); return; }
-    if (!form.plannedQuantity || Number(form.plannedQuantity) <= 0) { setErr("Planned quantity must be greater than zero."); return; }
-    if (!form.plannedDate) { setErr("Planned date is required."); return; }
-    if (!activeBom && !initial) { setErr("No Active BOM found for this product. Create and activate a BOM first."); return; }
+    if (!form.productId) {
+      setErr("Product is required.");
+      return;
+    }
+    if (!form.plannedQuantity || Number(form.plannedQuantity) <= 0) {
+      setErr("Planned quantity must be greater than zero.");
+      return;
+    }
+    if (!form.plannedDate) {
+      setErr("Planned date is required.");
+      return;
+    }
+    if (!activeBom && !initial) {
+      setErr(
+        "No Active BOM found for this product. Create and activate a BOM first.",
+      );
+      return;
+    }
     setSaving(true);
     try {
       await onSave({ ...form, plannedQuantity: Number(form.plannedQuantity) });
@@ -10308,80 +10965,130 @@ function ProductionOrderFormDialog({ open, onOpenChange, initial, onSave, produc
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{initial ? "Edit Production Order" : "Create Production Order"}</DialogTitle>
+          <DialogTitle>
+            {initial ? "Edit Production Order" : "Create Production Order"}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          {err && <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</div>}
+          {err && (
+            <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2">
+              {err}
+            </div>
+          )}
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Product *</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Product *
+            </label>
             <select
               className="w-full border rounded-md px-3 py-2 text-sm bg-background"
               value={form.productId}
-              onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, productId: e.target.value }))
+              }
               disabled={!!initial}
             >
               <option value="">— Select Product —</option>
-              {products.filter((p) => p.status === "Active").map((p) => (
-                <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
-              ))}
+              {products
+                .filter((p) => p.status === "Active")
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.sku})
+                  </option>
+                ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Active BOM</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Active BOM
+            </label>
             {bomLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Checking BOM…</div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Checking BOM…
+              </div>
             ) : activeBom ? (
               <div className="bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2 text-sm">
-                <span className="font-semibold text-emerald-700">{activeBom.bomCode}</span>
-                {activeBom.version && <span className="text-muted-foreground ml-2">v{activeBom.version}</span>}
+                <span className="font-semibold text-emerald-700">
+                  {activeBom.bomCode}
+                </span>
+                {activeBom.version && (
+                  <span className="text-muted-foreground ml-2">
+                    v{activeBom.version}
+                  </span>
+                )}
               </div>
             ) : form.productId ? (
               <div className="bg-rose-50 border border-rose-200 rounded-md px-3 py-2 text-sm text-rose-600">
-                No Active BOM found. Create and activate a BOM for this product first.
+                No Active BOM found. Create and activate a BOM for this product
+                first.
               </div>
             ) : (
-              <div className="bg-muted/50 rounded-md px-3 py-2 text-sm text-muted-foreground">Select a product to auto-detect its Active BOM.</div>
+              <div className="bg-muted/50 rounded-md px-3 py-2 text-sm text-muted-foreground">
+                Select a product to auto-detect its Active BOM.
+              </div>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Planned Quantity *</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Planned Quantity *
+              </label>
               <input
-                type="number" min="1" step="any"
+                type="number"
+                min="1"
+                step="any"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                 placeholder="e.g. 100"
                 value={form.plannedQuantity}
-                onChange={(e) => setForm((f) => ({ ...f, plannedQuantity: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, plannedQuantity: e.target.value }))
+                }
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Planned Date *</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Planned Date *
+              </label>
               <input
                 type="date"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                 value={form.plannedDate}
-                onChange={(e) => setForm((f) => ({ ...f, plannedDate: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, plannedDate: e.target.value }))
+                }
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Notes
+            </label>
             <textarea
               className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none"
               rows={2}
               value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, notes: e.target.value }))
+              }
               placeholder="Optional notes…"
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || (!!form.productId && !activeBom && !initial)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={saving || (!!form.productId && !activeBom && !initial)}
+          >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
             {initial ? "Save Changes" : "Create Order"}
           </Button>
@@ -10399,17 +11106,26 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
 
   useEffect(() => {
     if (open) {
-      setForm({ actualQuantity: order?.plannedQuantity ?? "", completionNotes: "" });
+      setForm({
+        actualQuantity: order?.plannedQuantity ?? "",
+        completionNotes: "",
+      });
       setErr("");
     }
   }, [open, order]);
 
   const handleComplete = async () => {
     setErr("");
-    if (!form.actualQuantity || Number(form.actualQuantity) <= 0) { setErr("Actual quantity must be greater than zero."); return; }
+    if (!form.actualQuantity || Number(form.actualQuantity) <= 0) {
+      setErr("Actual quantity must be greater than zero.");
+      return;
+    }
     setSaving(true);
     try {
-      await onComplete({ actualQuantity: Number(form.actualQuantity), completionNotes: form.completionNotes });
+      await onComplete({
+        actualQuantity: Number(form.actualQuantity),
+        completionNotes: form.completionNotes,
+      });
       onOpenChange(false);
     } catch (e) {
       setErr(e.message || "Failed to complete production.");
@@ -10424,44 +11140,74 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Complete Production</DialogTitle>
-          <p className="text-sm text-muted-foreground">{order.productionOrderNumber} — {order.product?.name}</p>
+          <p className="text-sm text-muted-foreground">
+            {order.productionOrderNumber} — {order.product?.name}
+          </p>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          {err && <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</div>}
+          {err && (
+            <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2">
+              {err}
+            </div>
+          )}
           <div className="bg-muted/40 rounded-lg p-3 text-sm">
             <p className="text-xs text-muted-foreground mb-1">This will:</p>
             <ul className="space-y-0.5 text-xs text-muted-foreground list-disc list-inside">
               <li>Deduct raw material stock based on BOM × actual quantity</li>
               <li>Increase product inventory by actual quantity</li>
-              <li>Auto-create PRODUCTION_OUT + PRODUCTION_IN stock movements</li>
+              <li>
+                Auto-create PRODUCTION_OUT + PRODUCTION_IN stock movements
+              </li>
               <li>Lock this order as Completed</li>
             </ul>
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Actual Quantity Produced *</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Actual Quantity Produced *
+            </label>
             <input
-              type="number" min="1" step="any"
+              type="number"
+              min="1"
+              step="any"
               className="w-full border rounded-md px-3 py-2 text-sm bg-background"
               value={form.actualQuantity}
-              onChange={(e) => setForm((f) => ({ ...f, actualQuantity: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, actualQuantity: e.target.value }))
+              }
               placeholder="e.g. 100"
             />
-            <p className="text-xs text-muted-foreground mt-1">Planned: {order.plannedQuantity} units</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Planned: {order.plannedQuantity} units
+            </p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Completion Notes</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Completion Notes
+            </label>
             <textarea
               className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none"
               rows={2}
               value={form.completionNotes}
-              onChange={(e) => setForm((f) => ({ ...f, completionNotes: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, completionNotes: e.target.value }))
+              }
               placeholder="Optional notes about this production run…"
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={handleComplete} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleComplete}
+            disabled={saving}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
             Confirm & Complete
           </Button>
@@ -10471,7 +11217,15 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
   );
 }
 
-function ProductionOrderDetailDialog({ open, onOpenChange, order, onEdit, onCancel, onStart, onComplete }) {
+function ProductionOrderDetailDialog({
+  open,
+  onOpenChange,
+  order,
+  onEdit,
+  onCancel,
+  onStart,
+  onComplete,
+}) {
   if (!order) return null;
 
   const STATUS_COLOR = {
@@ -10482,10 +11236,17 @@ function ProductionOrderDetailDialog({ open, onOpenChange, order, onEdit, onCanc
     Completed: "bg-indigo-100 text-indigo-700",
     Cancelled: "bg-rose-100 text-rose-600",
   };
-  const statusColor = STATUS_COLOR[order.status] || "bg-slate-100 text-slate-600";
+  const statusColor =
+    STATUS_COLOR[order.status] || "bg-slate-100 text-slate-600";
   const isLocked = order.status === "Completed" || order.status === "Cancelled";
 
-  const fmtDate = (d) => d ? new Date(d).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "—";
+  const fmtDate = (d) =>
+    d
+      ? new Date(d).toLocaleString("id-ID", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : "—";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -10493,88 +11254,177 @@ function ProductionOrderDetailDialog({ open, onOpenChange, order, onEdit, onCanc
         <DialogHeader>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <DialogTitle className="text-lg">{order.productionOrderNumber}</DialogTitle>
-              <p className="text-sm text-muted-foreground mt-0.5">{order.product?.name} — {order.bom?.bomCode} v{order.bom?.version}</p>
+              <DialogTitle className="text-lg">
+                {order.productionOrderNumber}
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {order.product?.name} — {order.bom?.bomCode} v
+                {order.bom?.version}
+              </p>
             </div>
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${statusColor}`}>{order.status}</span>
+            <span
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${statusColor}`}
+            >
+              {order.status}
+            </span>
           </div>
         </DialogHeader>
 
         {/* Production Information */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Production Information</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            Production Information
+          </p>
           <div className="grid grid-cols-3 gap-3 text-sm">
             {[
-              { label: "Product", val: order.product?.name, sub: order.product?.sku },
-              { label: "Planned Quantity", val: `${order.plannedQuantity?.toLocaleString()} units` },
-              { label: "Actual Quantity", val: order.actualQuantity != null ? `${order.actualQuantity.toLocaleString()} units` : "—" },
-              { label: "Planned Date", val: order.plannedDate ? new Date(order.plannedDate).toLocaleDateString("id-ID") : "—" },
+              {
+                label: "Product",
+                val: order.product?.name,
+                sub: order.product?.sku,
+              },
+              {
+                label: "Planned Quantity",
+                val: `${order.plannedQuantity?.toLocaleString()} units`,
+              },
+              {
+                label: "Actual Quantity",
+                val:
+                  order.actualQuantity != null
+                    ? `${order.actualQuantity.toLocaleString()} units`
+                    : "—",
+              },
+              {
+                label: "Planned Date",
+                val: order.plannedDate
+                  ? new Date(order.plannedDate).toLocaleDateString("id-ID")
+                  : "—",
+              },
               { label: "Started At", val: fmtDate(order.startedAt) },
               { label: "Completed At", val: fmtDate(order.completedAt) },
             ].map((c) => (
               <div key={c.label} className="bg-muted/40 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">{c.label}</p>
+                <p className="text-xs text-muted-foreground mb-0.5">
+                  {c.label}
+                </p>
                 <p className="font-semibold text-sm">{c.val}</p>
-                {c.sub && <p className="text-xs text-muted-foreground">{c.sub}</p>}
+                {c.sub && (
+                  <p className="text-xs text-muted-foreground">{c.sub}</p>
+                )}
               </div>
             ))}
           </div>
           {order.notes && (
             <div className="bg-muted/40 rounded-lg px-3 py-2 text-sm mt-2">
-              <span className="text-xs text-muted-foreground mr-2">Notes:</span>{order.notes}
+              <span className="text-xs text-muted-foreground mr-2">Notes:</span>
+              {order.notes}
             </div>
           )}
         </div>
 
         {/* Readiness banner — only for pre-production states */}
-        {order.requirements?.length > 0 && !["In Production", "Completed", "Cancelled"].includes(order.status) && (
-          <div className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium ${order.isReady ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-            {order.isReady
-              ? <><CheckCircle2 className="h-4 w-4" /> All materials available — Ready for production</>
-              : <><AlertTriangle className="h-4 w-4" /> Some materials are insufficient — Not Ready</>
-            }
-          </div>
-        )}
+        {order.requirements?.length > 0 &&
+          !["In Production", "Completed", "Cancelled"].includes(
+            order.status,
+          ) && (
+            <div
+              className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium ${order.isReady ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}
+            >
+              {order.isReady ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4" /> All materials available —
+                  Ready for production
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-4 w-4" /> Some materials are
+                  insufficient — Not Ready
+                </>
+              )}
+            </div>
+          )}
 
         {/* Material Requirements / Consumption table */}
         <div>
           <p className="text-sm font-semibold mb-2">
-            {order.status === "Completed" ? "Material Consumption" : "Material Requirements"}
-            {order.requirements?.length ? ` (${order.requirements.length} items)` : ""}
+            {order.status === "Completed"
+              ? "Material Consumption"
+              : "Material Requirements"}
+            {order.requirements?.length
+              ? ` (${order.requirements.length} items)`
+              : ""}
           </p>
           {!order.requirements?.length ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No material data available.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No material data available.
+            </p>
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
                     {order.status === "Completed"
-                      ? ["Raw Material", "Unit", "Required Qty", "Consumed Qty"].map((h) => (
-                          <th key={h} className={`px-3 py-2 text-xs font-medium text-muted-foreground ${h.endsWith("Qty") ? "text-right" : "text-left"}`}>{h}</th>
+                      ? [
+                          "Raw Material",
+                          "Unit",
+                          "Required Qty",
+                          "Consumed Qty",
+                        ].map((h) => (
+                          <th
+                            key={h}
+                            className={`px-3 py-2 text-xs font-medium text-muted-foreground ${h.endsWith("Qty") ? "text-right" : "text-left"}`}
+                          >
+                            {h}
+                          </th>
                         ))
-                      : ["Raw Material", "Unit", "Required Qty", "Current Stock", "Shortage", "Status"].map((h) => (
-                          <th key={h} className={`px-3 py-2 text-xs font-medium text-muted-foreground ${["Required Qty", "Current Stock", "Shortage"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
-                        ))
-                    }
+                      : [
+                          "Raw Material",
+                          "Unit",
+                          "Required Qty",
+                          "Current Stock",
+                          "Shortage",
+                          "Status",
+                        ].map((h) => (
+                          <th
+                            key={h}
+                            className={`px-3 py-2 text-xs font-medium text-muted-foreground ${["Required Qty", "Current Stock", "Shortage"].includes(h) ? "text-right" : "text-left"}`}
+                          >
+                            {h}
+                          </th>
+                        ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {order.requirements.map((r) => (
                     <tr key={r.rawMaterialId} className="hover:bg-muted/20">
-                      <td className="px-3 py-2 font-medium">{r.rawMaterial?.name}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{r.rawMaterial?.unit || "—"}</td>
-                      <td className="px-3 py-2 text-right font-semibold">{r.requiredQuantity.toLocaleString()}</td>
+                      <td className="px-3 py-2 font-medium">
+                        {r.rawMaterial?.name}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {r.rawMaterial?.unit || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right font-semibold">
+                        {r.requiredQuantity.toLocaleString()}
+                      </td>
                       {order.status === "Completed" ? (
-                        <td className="px-3 py-2 text-right font-semibold text-rose-600">{r.requiredQuantity.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-rose-600">
+                          {r.requiredQuantity.toLocaleString()}
+                        </td>
                       ) : (
                         <>
-                          <td className="px-3 py-2 text-right">{r.currentStock.toLocaleString()}</td>
-                          <td className={`px-3 py-2 text-right font-semibold ${r.shortage > 0 ? "text-rose-600" : "text-emerald-600"}`}>
-                            {r.shortage > 0 ? `-${r.shortage.toLocaleString()}` : "—"}
+                          <td className="px-3 py-2 text-right">
+                            {r.currentStock.toLocaleString()}
+                          </td>
+                          <td
+                            className={`px-3 py-2 text-right font-semibold ${r.shortage > 0 ? "text-rose-600" : "text-emerald-600"}`}
+                          >
+                            {r.shortage > 0
+                              ? `-${r.shortage.toLocaleString()}`
+                              : "—"}
                           </td>
                           <td className="px-3 py-2">
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.status === "Sufficient" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"}`}>
+                            <span
+                              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.status === "Sufficient" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"}`}
+                            >
                               {r.status}
                             </span>
                           </td>
@@ -10591,32 +11441,65 @@ function ProductionOrderDetailDialog({ open, onOpenChange, order, onEdit, onCanc
         {/* Inventory Impact (Completed only) */}
         {order.status === "Completed" && (
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-            <p className="text-sm font-semibold text-indigo-800 mb-1">Inventory Impact</p>
+            <p className="text-sm font-semibold text-indigo-800 mb-1">
+              Inventory Impact
+            </p>
             <p className="text-sm text-indigo-700">
-              <span className="font-semibold">{order.actualQuantity?.toLocaleString()} units</span> of <span className="font-semibold">{order.product?.name}</span> added to product inventory.
+              <span className="font-semibold">
+                {order.actualQuantity?.toLocaleString()} units
+              </span>{" "}
+              of <span className="font-semibold">{order.product?.name}</span>{" "}
+              added to product inventory.
             </p>
           </div>
         )}
 
         <DialogFooter className="gap-2 flex-wrap">
           {!isLocked && order.status !== "In Production" && (
-            <Button variant="ghost" className="text-rose-500 hover:text-rose-600" onClick={() => { onOpenChange(false); onCancel(order); }}>
+            <Button
+              variant="ghost"
+              className="text-rose-500 hover:text-rose-600"
+              onClick={() => {
+                onOpenChange(false);
+                onCancel(order);
+              }}
+            >
               Cancel Order
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
           {!isLocked && order.status !== "In Production" && (
-            <Button variant="outline" onClick={() => { onOpenChange(false); onEdit(order); }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+                onEdit(order);
+              }}
+            >
               <Edit3 className="h-4 w-4 mr-1" /> Edit
             </Button>
           )}
           {order.status === "Ready" && (
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5" onClick={() => { onOpenChange(false); onStart(order); }}>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+              onClick={() => {
+                onOpenChange(false);
+                onStart(order);
+              }}
+            >
               <Activity className="h-4 w-4" /> Start Production
             </Button>
           )}
           {order.status === "In Production" && (
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5" onClick={() => { onOpenChange(false); onComplete(order); }}>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+              onClick={() => {
+                onOpenChange(false);
+                onComplete(order);
+              }}
+            >
               <PackageCheck className="h-4 w-4" /> Complete Production
             </Button>
           )}
@@ -10641,7 +11524,9 @@ function ProductionResultsModule() {
       const qs = new URLSearchParams();
       const term = q !== undefined ? q : search;
       if (term.trim()) qs.set("search", term.trim());
-      const results = await api.get("productionresults" + (qs.toString() ? "?" + qs.toString() : ""));
+      const results = await api.get(
+        "productionresults" + (qs.toString() ? "?" + qs.toString() : ""),
+      );
       setItems(Array.isArray(results) ? results : []);
     } catch (e) {
       console.error(e);
@@ -10650,9 +11535,14 @@ function ProductionResultsModule() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
-  const handleSearch = (e) => { e.preventDefault(); load(search); };
+  const handleSearch = (e) => {
+    e.preventDefault();
+    load(search);
+  };
 
   const openDetail = async (r) => {
     setDetailResult(null);
@@ -10670,12 +11560,20 @@ function ProductionResultsModule() {
   };
 
   const SH = ({ children }) => (
-    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">{children}</p>
+    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+      {children}
+    </p>
   );
 
   const po = detailResult?.productionOrder;
-  const productionOuts = detailResult?.stockMovements?.filter((m) => m.movementType === "PRODUCTION_OUT") || [];
-  const productionIns = detailResult?.stockMovements?.filter((m) => m.movementType === "PRODUCTION_IN") || [];
+  const productionOuts =
+    detailResult?.stockMovements?.filter(
+      (m) => m.movementType === "PRODUCTION_OUT",
+    ) || [];
+  const productionIns =
+    detailResult?.stockMovements?.filter(
+      (m) => m.movementType === "PRODUCTION_IN",
+    ) || [];
 
   return (
     <div className="space-y-6">
@@ -10683,11 +11581,16 @@ function ProductionResultsModule() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight">Production Results</h1>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase tracking-wider">Read-only</span>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Production Results
+            </h1>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase tracking-wider">
+              Read-only
+            </span>
           </div>
           <p className="text-sm text-[#5F6B7A] font-medium">
-            Immutable audit records of completed production runs — auto-generated from Production Orders.
+            Immutable audit records of completed production runs —
+            auto-generated from Production Orders.
           </p>
         </div>
       </div>
@@ -10703,7 +11606,9 @@ function ProductionResultsModule() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button type="submit" size="sm" variant="secondary">Search</Button>
+        <Button type="submit" size="sm" variant="secondary">
+          Search
+        </Button>
       </form>
 
       {/* Table */}
@@ -10711,15 +11616,30 @@ function ProductionResultsModule() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b">
             <tr>
-              {["Result Number", "Production Order", "Product", "Produced Qty", "Completion Date", ""].map((h) => (
-                <th key={h} className="px-4 py-3 text-left font-medium text-xs text-muted-foreground">{h}</th>
+              {[
+                "Result Number",
+                "Production Order",
+                "Product",
+                "Produced Qty",
+                "Completion Date",
+                "",
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="px-4 py-3 text-left font-medium text-xs text-muted-foreground"
+                >
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y">
             {loading ? (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-muted-foreground text-sm">
+                <td
+                  colSpan={6}
+                  className="p-8 text-center text-muted-foreground text-sm"
+                >
                   Loading production results…
                 </td>
               </tr>
@@ -10727,9 +11647,12 @@ function ProductionResultsModule() {
               <tr>
                 <td colSpan={6} className="p-8 text-center">
                   <ClipboardList className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
-                  <p className="text-muted-foreground text-sm font-medium">No production results found</p>
+                  <p className="text-muted-foreground text-sm font-medium">
+                    No production results found
+                  </p>
                   <p className="text-muted-foreground/60 text-xs mt-1">
-                    Production Results are automatically created when a Production Order is completed.
+                    Production Results are automatically created when a
+                    Production Order is completed.
                   </p>
                 </td>
               </tr>
@@ -10741,7 +11664,9 @@ function ProductionResultsModule() {
                   onClick={() => openDetail(r)}
                 >
                   <td className="px-4 py-3">
-                    <span className="font-mono text-xs font-bold text-indigo-700">{r.resultNumber}</span>
+                    <span className="font-mono text-xs font-bold text-indigo-700">
+                      {r.resultNumber}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <span className="font-mono text-xs font-semibold text-blue-700">
@@ -10749,17 +11674,24 @@ function ProductionResultsModule() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-medium">{r.productionOrder?.product?.name}</p>
-                    <p className="text-xs text-muted-foreground">{r.productionOrder?.product?.sku}</p>
+                    <p className="font-medium">
+                      {r.productionOrder?.product?.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.productionOrder?.product?.sku}
+                    </p>
                   </td>
                   <td className="px-4 py-3">
                     <span className="font-semibold text-emerald-700">
-                      {r.productionOrder?.actualQuantity?.toLocaleString() ?? "—"}
+                      {r.productionOrder?.actualQuantity?.toLocaleString() ??
+                        "—"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">
                     {r.productionOrder?.completedAt
-                      ? new Date(r.productionOrder.completedAt).toLocaleDateString("en-GB", {
+                      ? new Date(
+                          r.productionOrder.completedAt,
+                        ).toLocaleDateString("en-GB", {
                           day: "2-digit",
                           month: "short",
                           year: "numeric",
@@ -10771,7 +11703,10 @@ function ProductionResultsModule() {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={(e) => { e.stopPropagation(); openDetail(r); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openDetail(r);
+                      }}
                     >
                       <ChevronRight className="h-3.5 w-3.5" />
                     </Button>
@@ -10784,37 +11719,53 @@ function ProductionResultsModule() {
       </div>
 
       {/* Detail Dialog */}
-      <Dialog open={showDetail} onOpenChange={(v) => { setShowDetail(v); if (!v) setDetailResult(null); }}>
+      <Dialog
+        open={showDetail}
+        onOpenChange={(v) => {
+          setShowDetail(v);
+          if (!v) setDetailResult(null);
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-indigo-600" />
-              {detailLoading ? "Loading…" : (detailResult?.resultNumber ?? "Production Result")}
+              {detailLoading
+                ? "Loading…"
+                : (detailResult?.resultNumber ?? "Production Result")}
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 ml-1 uppercase tracking-wider">
                 Completed
               </span>
             </DialogTitle>
             <DialogDescription>
-              Production Result — immutable audit record generated from a completed Production Order.
+              Production Result — immutable audit record generated from a
+              completed Production Order.
             </DialogDescription>
           </DialogHeader>
 
           {detailLoading ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">Loading detail…</div>
+            <div className="py-12 text-center text-muted-foreground text-sm">
+              Loading detail…
+            </div>
           ) : detailResult ? (
             <div className="space-y-6 pt-2">
-
               {/* Production Information */}
               <div>
                 <SH>Production Information</SH>
                 <div className="grid grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Result Number</span>
-                    <span className="font-mono font-bold text-indigo-700">{detailResult.resultNumber}</span>
+                    <span className="font-mono font-bold text-indigo-700">
+                      {detailResult.resultNumber}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Production Order</span>
-                    <span className="font-mono font-semibold text-blue-700">{po?.productionOrderNumber}</span>
+                    <span className="text-muted-foreground">
+                      Production Order
+                    </span>
+                    <span className="font-mono font-semibold text-blue-700">
+                      {po?.productionOrderNumber}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Product</span>
@@ -10822,26 +11773,40 @@ function ProductionResultsModule() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">BOM Version</span>
-                    <span className="font-medium">{po?.bom?.bomCode} v{po?.bom?.version}</span>
+                    <span className="font-medium">
+                      {po?.bom?.bomCode} v{po?.bom?.version}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Planned Quantity</span>
-                    <span className="font-semibold">{po?.plannedQuantity?.toLocaleString()}</span>
+                    <span className="text-muted-foreground">
+                      Planned Quantity
+                    </span>
+                    <span className="font-semibold">
+                      {po?.plannedQuantity?.toLocaleString()}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Actual Quantity</span>
-                    <span className="font-bold text-emerald-700">{po?.actualQuantity?.toLocaleString()}</span>
+                    <span className="text-muted-foreground">
+                      Actual Quantity
+                    </span>
+                    <span className="font-bold text-emerald-700">
+                      {po?.actualQuantity?.toLocaleString()}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Started At</span>
                     <span className="text-xs text-right">
-                      {po?.startedAt ? new Date(po.startedAt).toLocaleString("en-GB") : "—"}
+                      {po?.startedAt
+                        ? new Date(po.startedAt).toLocaleString("en-GB")
+                        : "—"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Completed At</span>
                     <span className="text-xs text-right">
-                      {po?.completedAt ? new Date(po.completedAt).toLocaleString("en-GB") : "—"}
+                      {po?.completedAt
+                        ? new Date(po.completedAt).toLocaleString("en-GB")
+                        : "—"}
                     </span>
                   </div>
                 </div>
@@ -10860,17 +11825,25 @@ function ProductionResultsModule() {
                         className="flex items-center justify-between text-sm bg-amber-50/60 border border-amber-100 rounded-lg px-3 py-2.5"
                       >
                         <div>
-                          <span className="font-medium">{m.rawMaterial?.name ?? "—"}</span>
+                          <span className="font-medium">
+                            {m.rawMaterial?.name ?? "—"}
+                          </span>
                           {m.rawMaterial?.unit && (
-                            <span className="text-xs text-muted-foreground ml-1.5">({m.rawMaterial.unit})</span>
+                            <span className="text-xs text-muted-foreground ml-1.5">
+                              ({m.rawMaterial.unit})
+                            </span>
                           )}
                         </div>
-                        <span className="font-bold text-amber-700">{m.quantity?.toLocaleString()} consumed</span>
+                        <span className="font-bold text-amber-700">
+                          {m.quantity?.toLocaleString()} consumed
+                        </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No material consumption records found.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No material consumption records found.
+                  </p>
                 )}
               </div>
 
@@ -10887,19 +11860,25 @@ function ProductionResultsModule() {
                         className="flex items-center justify-between text-sm bg-emerald-50/60 border border-emerald-100 rounded-lg px-3 py-2.5"
                       >
                         <div>
-                          <span className="font-medium">{m.product?.name ?? "—"}</span>
+                          <span className="font-medium">
+                            {m.product?.name ?? "—"}
+                          </span>
                           {m.inventory && (
                             <span className="text-xs text-muted-foreground ml-2">
                               {m.inventory.color} / {m.inventory.size}
                             </span>
                           )}
                         </div>
-                        <span className="font-bold text-emerald-700">+{m.quantity?.toLocaleString()} added</span>
+                        <span className="font-bold text-emerald-700">
+                          +{m.quantity?.toLocaleString()} added
+                        </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No inventory additions recorded.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No inventory additions recorded.
+                  </p>
                 )}
               </div>
 
@@ -10930,26 +11909,34 @@ function ProductionResultsModule() {
                               ? (m.product?.name ?? "Product")
                               : (m.rawMaterial?.name ?? "Material")}
                           </span>
-                          <span className="font-mono text-muted-foreground/60">{m.id.slice(-8)}</span>
+                          <span className="font-mono text-muted-foreground/60">
+                            {m.id.slice(-8)}
+                          </span>
                         </div>
                         <span className="font-semibold">
-                          {m.movementType === "PRODUCTION_IN" ? "+" : "-"}{m.quantity?.toLocaleString()}
+                          {m.movementType === "PRODUCTION_IN" ? "+" : "-"}
+                          {m.quantity?.toLocaleString()}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No stock movement references found.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No stock movement references found.
+                  </p>
                 )}
               </div>
-
             </div>
           ) : (
-            <div className="py-8 text-center text-muted-foreground text-sm">Failed to load detail.</div>
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              Failed to load detail.
+            </div>
           )}
 
           <DialogFooter className="pt-4">
-            <Button variant="outline" onClick={() => setShowDetail(false)}>Close</Button>
+            <Button variant="outline" onClick={() => setShowDetail(false)}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -10979,7 +11966,9 @@ function ProductionOrdersModule() {
       if (statusFilter !== "all") qs.set("status", statusFilter);
       if (search.trim()) qs.set("search", search.trim());
       const [orders, st, prods] = await Promise.all([
-        api.get("productionorders" + (qs.toString() ? "?" + qs.toString() : "")),
+        api.get(
+          "productionorders" + (qs.toString() ? "?" + qs.toString() : ""),
+        ),
         api.get("productionorders/stats"),
         api.get("products"),
       ]);
@@ -10993,9 +11982,14 @@ function ProductionOrdersModule() {
     }
   };
 
-  useEffect(() => { load(); }, [statusFilter]);
+  useEffect(() => {
+    load();
+  }, [statusFilter]);
 
-  const handleSearch = (e) => { e.preventDefault(); load(); };
+  const handleSearch = (e) => {
+    e.preventDefault();
+    load();
+  };
 
   const openDetail = async (o) => {
     const detail = await api.get(`productionorders/${o.id}`);
@@ -11026,7 +12020,12 @@ function ProductionOrdersModule() {
   };
 
   const handleStart = async (o) => {
-    if (!confirm(`Start production for ${o.productionOrderNumber}? This will change the status to "In Production".`)) return;
+    if (
+      !confirm(
+        `Start production for ${o.productionOrderNumber}? This will change the status to "In Production".`,
+      )
+    )
+      return;
     await api.post(`productionorders/${o.id}/start`, {});
     load();
   };
@@ -11043,24 +12042,59 @@ function ProductionOrdersModule() {
   };
 
   const statusBadge = (s) => {
-    const cls = {
-      Draft: "bg-slate-100 text-slate-600",
-      Ready: "bg-emerald-100 text-emerald-700",
-      "Not Ready": "bg-amber-100 text-amber-700",
-      "In Production": "bg-blue-100 text-blue-700",
-      Completed: "bg-indigo-100 text-indigo-700",
-      Cancelled: "bg-rose-100 text-rose-600",
-    }[s] || "bg-slate-100 text-slate-600";
-    return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cls}`}>{s}</span>;
+    const cls =
+      {
+        Draft: "bg-slate-100 text-slate-600",
+        Ready: "bg-emerald-100 text-emerald-700",
+        "Not Ready": "bg-amber-100 text-amber-700",
+        "In Production": "bg-blue-100 text-blue-700",
+        Completed: "bg-indigo-100 text-indigo-700",
+        Cancelled: "bg-rose-100 text-rose-600",
+      }[s] || "bg-slate-100 text-slate-600";
+    return (
+      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cls}`}>
+        {s}
+      </span>
+    );
   };
 
   const STAT_CARDS = [
-    { label: "Total", key: "total", icon: ClipboardList, color: "text-blue-600 bg-blue-50" },
-    { label: "Ready", key: "ready", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50" },
-    { label: "In Production", key: "inProduction", icon: Activity, color: "text-blue-600 bg-blue-50" },
-    { label: "Not Ready", key: "notReady", icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
-    { label: "Completed", key: "completed", icon: PackageCheck, color: "text-indigo-600 bg-indigo-50" },
-    { label: "Cancelled", key: "cancelled", icon: X, color: "text-rose-600 bg-rose-50" },
+    {
+      label: "Total",
+      key: "total",
+      icon: ClipboardList,
+      color: "text-blue-600 bg-blue-50",
+    },
+    {
+      label: "Ready",
+      key: "ready",
+      icon: CheckCircle2,
+      color: "text-emerald-600 bg-emerald-50",
+    },
+    {
+      label: "In Production",
+      key: "inProduction",
+      icon: Activity,
+      color: "text-blue-600 bg-blue-50",
+    },
+    {
+      label: "Not Ready",
+      key: "notReady",
+      icon: AlertTriangle,
+      color: "text-amber-600 bg-amber-50",
+    },
+    {
+      label: "Completed",
+      key: "completed",
+      icon: PackageCheck,
+      color: "text-indigo-600 bg-indigo-50",
+    },
+    {
+      label: "Cancelled",
+      key: "cancelled",
+      icon: X,
+      color: "text-rose-600 bg-rose-50",
+    },
   ];
 
   return (
@@ -11068,10 +12102,20 @@ function ProductionOrdersModule() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Production Orders</h1>
-          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Plan and execute manufacturing runs using Bill of Materials</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Production Orders
+          </h1>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+            Plan and execute manufacturing runs using Bill of Materials
+          </p>
         </div>
-        <Button onClick={() => { setEditing(null); setShowForm(true); }} className="gap-1.5">
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setShowForm(true);
+          }}
+          className="gap-1.5"
+        >
           <Plus className="h-4 w-4" /> Create Order
         </Button>
       </div>
@@ -11079,19 +12123,27 @@ function ProductionOrdersModule() {
       {/* Stats Cards */}
       <div className="grid grid-cols-6 gap-3">
         {STAT_CARDS.map((c) => (
-          <div key={c.label} className="bg-background border rounded-xl p-3 flex flex-col gap-1">
+          <div
+            key={c.label}
+            className="bg-background border rounded-xl p-3 flex flex-col gap-1"
+          >
             <div className={`rounded-md p-1.5 self-start ${c.color}`}>
               <c.icon className="h-4 w-4" />
             </div>
             <p className="text-xl font-bold">{stats?.[c.key] ?? "—"}</p>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide leading-tight">{c.label}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+              {c.label}
+            </p>
           </div>
         ))}
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 min-w-[200px]">
+        <form
+          onSubmit={handleSearch}
+          className="flex items-center gap-2 flex-1 min-w-[200px]"
+        >
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
@@ -11101,7 +12153,9 @@ function ProductionOrdersModule() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button type="submit" size="sm" variant="secondary">Search</Button>
+          <Button type="submit" size="sm" variant="secondary">
+            Search
+          </Button>
         </form>
         <select
           className="border rounded-lg px-3 py-2 text-sm bg-background"
@@ -11123,65 +12177,132 @@ function ProductionOrdersModule() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b">
             <tr>
-              {["Order Number", "Product", "Planned Qty", "Actual Qty", "Planned Date", "Status", "Updated At", ""].map((h) => (
-                <th key={h} className="px-4 py-3 text-left font-medium text-xs text-muted-foreground">{h}</th>
+              {[
+                "Order Number",
+                "Product",
+                "Planned Qty",
+                "Actual Qty",
+                "Planned Date",
+                "Status",
+                "Updated At",
+                "",
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="px-4 py-3 text-left font-medium text-xs text-muted-foreground"
+                >
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y">
             {loading ? (
-              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground text-sm">Loading production orders…</td></tr>
+              <tr>
+                <td
+                  colSpan={8}
+                  className="p-8 text-center text-muted-foreground text-sm"
+                >
+                  Loading production orders…
+                </td>
+              </tr>
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={8} className="p-8 text-center">
                   <Factory className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
-                  <p className="text-muted-foreground text-sm">No production orders found</p>
+                  <p className="text-muted-foreground text-sm">
+                    No production orders found
+                  </p>
                 </td>
               </tr>
-            ) : items.map((o) => (
-              <tr
-                key={o.id}
-                className="hover:bg-muted/30 cursor-pointer transition-colors"
-                onClick={() => openDetail(o)}
-              >
-                <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-700">{o.productionOrderNumber}</td>
-                <td className="px-4 py-3">
-                  <p className="font-medium">{o.product?.name}</p>
-                  <p className="text-xs text-muted-foreground">{o.product?.sku}</p>
-                </td>
-                <td className="px-4 py-3 font-semibold">{o.plannedQuantity?.toLocaleString()}</td>
-                <td className="px-4 py-3 font-semibold text-indigo-700">{o.actualQuantity != null ? o.actualQuantity.toLocaleString() : "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground text-xs">{o.plannedDate ? new Date(o.plannedDate).toLocaleDateString("id-ID") : "—"}</td>
-                <td className="px-4 py-3">{statusBadge(o.status)}</td>
-                <td className="px-4 py-3 text-muted-foreground text-xs">{o.updatedAt ? new Date(o.updatedAt).toLocaleDateString("id-ID") : "—"}</td>
-                <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-1">
-                    {o.status === "Ready" && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs text-blue-700 border-blue-200 hover:bg-blue-50 gap-1" onClick={() => handleStart(o)}>
-                        <Activity className="h-3 w-3" /> Start
-                      </Button>
-                    )}
-                    {o.status === "In Production" && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1" onClick={() => openComplete(o)}>
-                        <PackageCheck className="h-3 w-3" /> Complete
-                      </Button>
-                    )}
-                    {o.status !== "Cancelled" && o.status !== "Completed" && o.status !== "In Production" && o.status !== "Ready" && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(o)}>
-                        <Edit3 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+            ) : (
+              items.map((o) => (
+                <tr
+                  key={o.id}
+                  className="hover:bg-muted/30 cursor-pointer transition-colors"
+                  onClick={() => openDetail(o)}
+                >
+                  <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-700">
+                    {o.productionOrderNumber}
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium">{o.product?.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {o.product?.sku}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 font-semibold">
+                    {o.plannedQuantity?.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-indigo-700">
+                    {o.actualQuantity != null
+                      ? o.actualQuantity.toLocaleString()
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                    {o.plannedDate
+                      ? new Date(o.plannedDate).toLocaleDateString("id-ID")
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3">{statusBadge(o.status)}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                    {o.updatedAt
+                      ? new Date(o.updatedAt).toLocaleDateString("id-ID")
+                      : "—"}
+                  </td>
+                  <td
+                    className="px-4 py-3 text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      {o.status === "Ready" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs text-blue-700 border-blue-200 hover:bg-blue-50 gap-1"
+                          onClick={() => handleStart(o)}
+                        >
+                          <Activity className="h-3 w-3" /> Start
+                        </Button>
+                      )}
+                      {o.status === "In Production" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1"
+                          onClick={() => openComplete(o)}
+                        >
+                          <PackageCheck className="h-3 w-3" /> Complete
+                        </Button>
+                      )}
+                      {o.status !== "Cancelled" &&
+                        o.status !== "Completed" &&
+                        o.status !== "In Production" &&
+                        o.status !== "Ready" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => openEdit(o)}
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       <ProductionOrderFormDialog
         open={showForm}
-        onOpenChange={(v) => { setShowForm(v); if (!v) setEditing(null); }}
+        onOpenChange={(v) => {
+          setShowForm(v);
+          if (!v) setEditing(null);
+        }}
         initial={editing}
         onSave={handleSave}
         products={products}
@@ -11190,14 +12311,26 @@ function ProductionOrdersModule() {
         open={showDetail}
         onOpenChange={setShowDetail}
         order={detailOrder}
-        onEdit={(o) => { setDetailOrder(null); openEdit(o); }}
+        onEdit={(o) => {
+          setDetailOrder(null);
+          openEdit(o);
+        }}
         onCancel={handleCancel}
-        onStart={(o) => { setShowDetail(false); handleStart(o); }}
-        onComplete={(o) => { setShowDetail(false); openComplete(o); }}
+        onStart={(o) => {
+          setShowDetail(false);
+          handleStart(o);
+        }}
+        onComplete={(o) => {
+          setShowDetail(false);
+          openComplete(o);
+        }}
       />
       <CompleteProductionDialog
         open={showComplete}
-        onOpenChange={(v) => { setShowComplete(v); if (!v) setCompleteTarget(null); }}
+        onOpenChange={(v) => {
+          setShowComplete(v);
+          if (!v) setCompleteTarget(null);
+        }}
         order={completeTarget}
         onComplete={handleComplete}
       />
@@ -11242,7 +12375,9 @@ function BOMModule() {
     }
   };
 
-  useEffect(() => { load(); }, [statusFilter]);
+  useEffect(() => {
+    load();
+  }, [statusFilter]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -11276,7 +12411,11 @@ function BOMModule() {
       s === "Active"
         ? "bg-emerald-100 text-emerald-700"
         : "bg-slate-100 text-slate-600";
-    return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cls}`}>{s}</span>;
+    return (
+      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cls}`}>
+        {s}
+      </span>
+    );
   };
 
   return (
@@ -11284,11 +12423,18 @@ function BOMModule() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Bill of Materials (BOM)</h1>
-          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Define material compositions for each product</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Bill of Materials (BOM)
+          </h1>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+            Define material compositions for each product
+          </p>
         </div>
         <Button
-          onClick={() => { setEditing(null); setShowForm(true); }}
+          onClick={() => {
+            setEditing(null);
+            setShowForm(true);
+          }}
           className="gap-1.5"
         >
           <Plus className="h-4 w-4" /> Create BOM
@@ -11298,17 +12444,37 @@ function BOMModule() {
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Total BOMs", value: stats?.total ?? "—", icon: ClipboardList, color: "text-blue-600 bg-blue-50" },
-          { label: "Active", value: stats?.active ?? "—", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50" },
-          { label: "Inactive", value: stats?.inactive ?? "—", icon: Archive, color: "text-slate-600 bg-slate-50" },
+          {
+            label: "Total BOMs",
+            value: stats?.total ?? "—",
+            icon: ClipboardList,
+            color: "text-blue-600 bg-blue-50",
+          },
+          {
+            label: "Active",
+            value: stats?.active ?? "—",
+            icon: CheckCircle2,
+            color: "text-emerald-600 bg-emerald-50",
+          },
+          {
+            label: "Inactive",
+            value: stats?.inactive ?? "—",
+            icon: Archive,
+            color: "text-slate-600 bg-slate-50",
+          },
         ].map((c) => (
-          <div key={c.label} className="bg-background border rounded-xl p-4 flex items-center gap-4">
+          <div
+            key={c.label}
+            className="bg-background border rounded-xl p-4 flex items-center gap-4"
+          >
             <div className={`rounded-lg p-2.5 ${c.color}`}>
               <c.icon className="h-5 w-5" />
             </div>
             <div>
               <p className="text-2xl font-bold">{c.value}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                {c.label}
+              </p>
             </div>
           </div>
         ))}
@@ -11316,7 +12482,10 @@ function BOMModule() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 min-w-[200px]">
+        <form
+          onSubmit={handleSearch}
+          className="flex items-center gap-2 flex-1 min-w-[200px]"
+        >
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
@@ -11326,7 +12495,9 @@ function BOMModule() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button type="submit" size="sm" variant="secondary">Search</Button>
+          <Button type="submit" size="sm" variant="secondary">
+            Search
+          </Button>
         </form>
         <select
           className="border rounded-lg px-3 py-2 text-sm bg-background"
@@ -11344,14 +12515,34 @@ function BOMModule() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b">
             <tr>
-              {["BOM Code", "Product", "Version", "Total Materials", "Status", "Updated At", ""].map((h) => (
-                <th key={h} className="px-4 py-3 text-left font-medium text-xs text-muted-foreground">{h}</th>
+              {[
+                "BOM Code",
+                "Product",
+                "Version",
+                "Total Materials",
+                "Status",
+                "Updated At",
+                "",
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="px-4 py-3 text-left font-medium text-xs text-muted-foreground"
+                >
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y">
             {loading ? (
-              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground text-sm">Loading BOMs…</td></tr>
+              <tr>
+                <td
+                  colSpan={7}
+                  className="p-8 text-center text-muted-foreground text-sm"
+                >
+                  Loading BOMs…
+                </td>
+              </tr>
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-8 text-center">
@@ -11359,39 +12550,60 @@ function BOMModule() {
                   <p className="text-muted-foreground text-sm">No BOMs found</p>
                 </td>
               </tr>
-            ) : items.map((b) => (
-              <tr
-                key={b.id}
-                className="hover:bg-muted/30 cursor-pointer transition-colors"
-                onClick={() => openDetail(b)}
-              >
-                <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-700">{b.bomCode}</td>
-                <td className="px-4 py-3">
-                  <p className="font-medium">{b.product?.name}</p>
-                  <p className="text-xs text-muted-foreground">{b.product?.sku}</p>
-                </td>
-                <td className="px-4 py-3">{b.version}</td>
-                <td className="px-4 py-3 text-center font-semibold">{b._count?.items ?? 0}</td>
-                <td className="px-4 py-3">{statusBadge(b.status)}</td>
-                <td className="px-4 py-3 text-muted-foreground text-xs">
-                  {b.updatedAt ? new Date(b.updatedAt).toLocaleDateString("id-ID") : "—"}
-                </td>
-                <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(b)}>
-                      <Edit3 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            ) : (
+              items.map((b) => (
+                <tr
+                  key={b.id}
+                  className="hover:bg-muted/30 cursor-pointer transition-colors"
+                  onClick={() => openDetail(b)}
+                >
+                  <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-700">
+                    {b.bomCode}
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium">{b.product?.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {b.product?.sku}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3">{b.version}</td>
+                  <td className="px-4 py-3 text-center font-semibold">
+                    {b._count?.items ?? 0}
+                  </td>
+                  <td className="px-4 py-3">{statusBadge(b.status)}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                    {b.updatedAt
+                      ? new Date(b.updatedAt).toLocaleDateString("id-ID")
+                      : "—"}
+                  </td>
+                  <td
+                    className="px-4 py-3 text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => openEdit(b)}
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       <BOMFormDialog
         open={showForm}
-        onOpenChange={(v) => { setShowForm(v); if (!v) setEditing(null); }}
+        onOpenChange={(v) => {
+          setShowForm(v);
+          if (!v) setEditing(null);
+        }}
         initial={editing}
         onSave={handleSave}
         products={products}
@@ -11401,7 +12613,10 @@ function BOMModule() {
         open={showDetail}
         onOpenChange={setShowDetail}
         bom={detailBom}
-        onEdit={(b) => { setDetailBom(null); openEdit(b); }}
+        onEdit={(b) => {
+          setDetailBom(null);
+          openEdit(b);
+        }}
       />
     </div>
   );
@@ -11433,10 +12648,18 @@ function SuppliersModule() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [search, statusFilter]);
+  useEffect(() => {
+    load();
+  }, [search, statusFilter]);
 
-  const openCreate = () => { setEditing(null); setShowForm(true); };
-  const openEdit = (s) => { setEditing(s); setShowForm(true); };
+  const openCreate = () => {
+    setEditing(null);
+    setShowForm(true);
+  };
+  const openEdit = (s) => {
+    setEditing(s);
+    setShowForm(true);
+  };
 
   const openDetail = async (s) => {
     const detail = await api.get(`suppliers/${s.id}`);
@@ -11468,7 +12691,9 @@ function SuppliersModule() {
   const statusBadge = (status) => {
     const isActive = (status || "Active") === "Active";
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? "bg-emerald-500/10 text-emerald-600" : "bg-gray-400/10 text-gray-500"}`}>
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? "bg-emerald-500/10 text-emerald-600" : "bg-gray-400/10 text-gray-500"}`}
+      >
         {status || "Active"}
       </span>
     );
@@ -11478,8 +12703,12 @@ function SuppliersModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Supplier Master</h2>
-          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Manage suppliers for raw material procurement and purchasing</p>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Supplier Master
+          </h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+            Manage suppliers for raw material procurement and purchasing
+          </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />
@@ -11491,20 +12720,32 @@ function SuppliersModule() {
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Suppliers</p>
-            <p className="text-3xl font-semibold mt-1">{loading ? "—" : (stats?.total ?? 0)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Total Suppliers
+            </p>
+            <p className="text-3xl font-semibold mt-1">
+              {loading ? "—" : (stats?.total ?? 0)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">Active</p>
-            <p className="text-3xl font-semibold mt-1 text-emerald-500">{loading ? "—" : (stats?.active ?? 0)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">
+              Active
+            </p>
+            <p className="text-3xl font-semibold mt-1 text-emerald-500">
+              {loading ? "—" : (stats?.active ?? 0)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-gray-400">Inactive</p>
-            <p className="text-3xl font-semibold mt-1 text-gray-400">{loading ? "—" : (stats?.inactive ?? 0)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-gray-400">
+              Inactive
+            </p>
+            <p className="text-3xl font-semibold mt-1 text-gray-400">
+              {loading ? "—" : (stats?.inactive ?? 0)}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -11514,16 +12755,25 @@ function SuppliersModule() {
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[200px]">
-              <p className="text-xs text-muted-foreground mb-1">Search code / name / contact</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Search code / name / contact
+              </p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-9" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
+                <Input
+                  className="pl-9"
+                  placeholder="Search…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
               </div>
             </div>
             <div className="min-w-[150px]">
               <p className="text-xs text-muted-foreground mb-1">Status</p>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
@@ -11531,7 +12781,12 @@ function SuppliersModule() {
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="outline" size="icon" onClick={load} title="Refresh">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={load}
+              title="Refresh"
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -11542,25 +12797,45 @@ function SuppliersModule() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">Loading suppliers…</div>
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              Loading suppliers…
+            </div>
           ) : items.length === 0 ? (
             <div className="p-12 text-center">
               <Truck className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">No suppliers found</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Add your first supplier to get started.</p>
+              <p className="text-muted-foreground text-sm">
+                No suppliers found
+              </p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Add your first supplier to get started.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[rgba(17,24,39,0.04)]">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Code</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Supplier Name</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Contact Person</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Phone</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">City</th>
-                    <th className="text-center px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Raw Materials</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Code
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Supplier Name
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Contact Person
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Phone
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      City
+                    </th>
+                    <th className="text-center px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Raw Materials
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Status
+                    </th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
@@ -11571,23 +12846,46 @@ function SuppliersModule() {
                       className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors cursor-pointer ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
                       onClick={() => openDetail(s)}
                     >
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{s.supplierCode}</td>
-                      <td className="px-4 py-3 font-medium">{s.supplierName}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{s.contactPerson || "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{s.phone || "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{s.city || "—"}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                        {s.supplierCode}
+                      </td>
+                      <td className="px-4 py-3 font-medium">
+                        {s.supplierName}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {s.contactPerson || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {s.phone || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {s.city || "—"}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold">
                           {s._count?.rawMaterials ?? 0}
                         </span>
                       </td>
                       <td className="px-4 py-3">{statusBadge(s.status)}</td>
-                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="px-4 py-3 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => openEdit(s)}
+                          >
                             <Edit3 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600" onClick={() => setDeleteId(s.id)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-rose-500 hover:text-rose-600"
+                            onClick={() => setDeleteId(s.id)}
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -11601,26 +12899,45 @@ function SuppliersModule() {
         </CardContent>
       </Card>
 
-      <SupplierFormDialog open={showForm} onOpenChange={setShowForm} initial={editing} onSave={save} />
+      <SupplierFormDialog
+        open={showForm}
+        onOpenChange={setShowForm}
+        initial={editing}
+        onSave={save}
+      />
       <SupplierDetailDialog
         open={showDetail}
         onOpenChange={setShowDetail}
         supplier={detailSupplier}
-        onEdit={(s) => { setEditing(s); setShowForm(true); }}
+        onEdit={(s) => {
+          setEditing(s);
+          setShowForm(true);
+        }}
       />
 
       {/* Delete Confirmation */}
-      <Dialog open={!!deleteId} onOpenChange={(v) => { if (!v) setDeleteId(null); }}>
+      <Dialog
+        open={!!deleteId}
+        onOpenChange={(v) => {
+          if (!v) setDeleteId(null);
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Delete Supplier</DialogTitle>
             <DialogDescription>
-              This will permanently delete the supplier. Raw materials linked to this supplier will be unlinked but not deleted. This action cannot be undone.
+              This will permanently delete the supplier. Raw materials linked to
+              this supplier will be unlinked but not deleted. This action cannot
+              be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -11632,59 +12949,73 @@ function SuppliersModule() {
 const COMING_SOON_META = {
   stockmovements: {
     title: "Stock Movements",
-    description: "Track all inventory movements including inbound, outbound, transfers, and adjustments across warehouses.",
+    description:
+      "Track all inventory movements including inbound, outbound, transfers, and adjustments across warehouses.",
   },
   suppliers: {
     title: "Suppliers",
-    description: "Manage supplier contacts, purchase terms, lead times, and procurement relationships.",
+    description:
+      "Manage supplier contacts, purchase terms, lead times, and procurement relationships.",
   },
   finishedgoods: {
     title: "Finished Goods",
-    description: "Track completed products ready for sale, including quality checks and storage locations.",
+    description:
+      "Track completed products ready for sale, including quality checks and storage locations.",
   },
   customers: {
     title: "Customers",
-    description: "Manage customer profiles, purchase history, and relationship data.",
+    description:
+      "Manage customer profiles, purchase history, and relationship data.",
   },
   orders: {
     title: "Orders",
-    description: "Create and manage sales orders, track fulfillment status, and handle invoicing.",
+    description:
+      "Create and manage sales orders, track fulfillment status, and handle invoicing.",
   },
   saleschannels: {
     title: "Sales Channels",
-    description: "Configure and monitor sales channels including online stores, marketplaces, and direct sales.",
+    description:
+      "Configure and monitor sales channels including online stores, marketplaces, and direct sales.",
   },
   campaigns: {
     title: "Campaigns",
-    description: "Plan and track marketing campaigns, set goals, assign budgets, and measure performance.",
+    description:
+      "Plan and track marketing campaigns, set goals, assign budgets, and measure performance.",
   },
   productanalytics: {
     title: "Product Analytics",
-    description: "Analyze product performance, best sellers, return rates, and revenue contribution.",
+    description:
+      "Analyze product performance, best sellers, return rates, and revenue contribution.",
   },
   inventoryanalytics: {
     title: "Inventory Analytics",
-    description: "Monitor stock health, turnover rates, shrinkage, and demand forecasting.",
+    description:
+      "Monitor stock health, turnover rates, shrinkage, and demand forecasting.",
   },
   financialanalytics: {
     title: "Financial Analytics",
-    description: "Deep-dive into revenue trends, cost structures, margins, and financial KPIs.",
+    description:
+      "Deep-dive into revenue trends, cost structures, margins, and financial KPIs.",
   },
   marketinganalytics: {
     title: "Marketing Analytics",
-    description: "Measure content reach, creator ROI, campaign conversions, and audience engagement.",
+    description:
+      "Measure content reach, creator ROI, campaign conversions, and audience engagement.",
   },
   executivereports: {
     title: "Executive Reports",
-    description: "High-level business summaries and dashboards for leadership and board reporting.",
+    description:
+      "High-level business summaries and dashboards for leadership and board reporting.",
   },
   users: {
     title: "Users",
-    description: "Manage user accounts, access levels, and team members in the system.",
+    description:
+      "Manage user accounts, access levels, and team members in the system.",
   },
   rolespermissions: {
     title: "Roles & Permissions",
-    description: "Define roles and control access permissions for each module and action.",
+    description:
+      "Define roles and control access permissions for each module and action.",
   },
 };
 
@@ -11696,8 +13027,12 @@ function ComingSoonModule({ pageId }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">{meta.title}</h2>
-        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">{meta.description}</p>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+          {meta.title}
+        </h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+          {meta.description}
+        </p>
       </div>
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-24 gap-5">
@@ -11705,8 +13040,12 @@ function ComingSoonModule({ pageId }) {
             <Sparkles className="h-7 w-7 text-[#5F6B7A]" />
           </div>
           <div className="text-center max-w-sm">
-            <p className="text-lg font-bold tracking-tight text-[#111827]">Coming Soon</p>
-            <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium leading-relaxed">{meta.description}</p>
+            <p className="text-lg font-bold tracking-tight text-[#111827]">
+              Coming Soon
+            </p>
+            <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium leading-relaxed">
+              {meta.description}
+            </p>
           </div>
           <span className="text-[11px] font-bold px-4 py-1.5 rounded-full bg-[#EEF3FA] text-[#5F6B7A] tracking-[0.15em] uppercase border border-[rgba(17,24,39,0.06)]">
             In Development
@@ -11718,9 +13057,15 @@ function ComingSoonModule({ pageId }) {
 }
 
 // =========== CASH FLOW STATEMENT ===========
-function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNavigateToLedger }) {
+function CashFlowStatementModule({
+  onNavigateToCashIn,
+  onNavigateToCashOut,
+  onNavigateToLedger,
+}) {
   const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .split("T")[0];
   const today = now.toISOString().split("T")[0];
 
   const [dateFrom, setDateFrom] = useState(firstOfMonth);
@@ -11747,30 +13092,60 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-[#F7F8FA]">
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Account Code</th>
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Category / COA</th>
-            <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Transactions</th>
-            <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Amount</th>
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+              Account Code
+            </th>
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+              Category / COA
+            </th>
+            <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+              Transactions
+            </th>
+            <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+              Amount
+            </th>
             <th className="px-4 py-3 w-10" />
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">{emptyLabel}</td>
+              <td
+                colSpan={5}
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
+                {emptyLabel}
+              </td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.coaId} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
+              <tr
+                key={row.coaId}
+                className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
+              >
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{row.accountCode}</span>
+                  <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                    {row.accountCode}
+                  </span>
                 </td>
                 <td className="px-4 py-3 font-medium">{row.accountName}</td>
-                <td className="px-4 py-3 text-right text-muted-foreground">{row.count}</td>
-                <td className={`px-4 py-3 text-right font-medium ${colorClass}`}>{fmt(row.amount)}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground">
+                  {row.count}
+                </td>
+                <td
+                  className={`px-4 py-3 text-right font-medium ${colorClass}`}
+                >
+                  {fmt(row.amount)}
+                </td>
                 <td className="px-4 py-3">
                   {onDrillDown && (
-                    <Button variant="ghost" size="icon" className="h-7 w-7" title="View transactions" onClick={onDrillDown}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title="View transactions"
+                      onClick={onDrillDown}
+                    >
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Button>
                   )}
@@ -11788,17 +13163,29 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Cash Flow Statement</h2>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Cash Flow Statement
+          </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Direct method — generated from Cash In and Cash Out transactions
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled title="Export PDF (coming soon)">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Export PDF (coming soon)"
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export PDF
           </Button>
-          <Button variant="outline" size="sm" disabled title="Export Excel (coming soon)">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Export Excel (coming soon)"
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export Excel
           </Button>
@@ -11811,17 +13198,30 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1.5">
               <Label>Date From</Label>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-40" />
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-40"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Date To</Label>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-40" />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-40"
+              />
             </div>
             <Button
               variant="ghost"
               size="sm"
               className="h-9 text-xs"
-              onClick={() => { setDateFrom(firstOfMonth); setDateTo(today); }}
+              onClick={() => {
+                setDateFrom(firstOfMonth);
+                setDateTo(today);
+              }}
             >
               Reset to Current Month
             </Button>
@@ -11836,7 +13236,8 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
           <div>
             <p className="font-semibold text-sm">Balance Validation Warning</p>
             <p className="text-xs mt-0.5 text-rose-400/80">
-              Opening Balance + Cash Inflows − Cash Outflows ≠ Closing Balance · Difference: {fmt(data.validationDiff)}
+              Opening Balance + Cash Inflows − Cash Outflows ≠ Closing Balance ·
+              Difference: {fmt(data.validationDiff)}
             </p>
           </div>
         </div>
@@ -11847,21 +13248,36 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card className="">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Cash Inflows</p>
-              <p className="text-xl font-semibold text-emerald-500 mt-1">{fmt(data.totalInflows)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Total Cash Inflows
+              </p>
+              <p className="text-xl font-semibold text-emerald-500 mt-1">
+                {fmt(data.totalInflows)}
+              </p>
             </CardContent>
           </Card>
           <Card className="">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Cash Outflows</p>
-              <p className="text-xl font-semibold text-rose-400 mt-1">{fmt(data.totalOutflows)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Total Cash Outflows
+              </p>
+              <p className="text-xl font-semibold text-rose-400 mt-1">
+                {fmt(data.totalOutflows)}
+              </p>
             </CardContent>
           </Card>
-          <Card className={`${data.netCashFlow < 0 ? "border-rose-500/40" : ""}`}>
+          <Card
+            className={`${data.netCashFlow < 0 ? "border-rose-500/40" : ""}`}
+          >
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Cash Flow</p>
-              <p className={`text-xl font-semibold mt-1 ${data.netCashFlow >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
-                {data.netCashFlow < 0 ? "-" : ""}{fmt(Math.abs(data.netCashFlow))}
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Net Cash Flow
+              </p>
+              <p
+                className={`text-xl font-semibold mt-1 ${data.netCashFlow >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+              >
+                {data.netCashFlow < 0 ? "-" : ""}
+                {fmt(Math.abs(data.netCashFlow))}
               </p>
             </CardContent>
           </Card>
@@ -11871,7 +13287,9 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Generating cash flow report...</span>
+          <span className="text-sm text-muted-foreground">
+            Generating cash flow report...
+          </span>
         </div>
       ) : data ? (
         <div className="space-y-4">
@@ -11884,9 +13302,17 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
                   Cash Inflows
                 </CardTitle>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-emerald-500">{fmt(data.totalInflows)}</span>
+                  <span className="text-sm font-semibold text-emerald-500">
+                    {fmt(data.totalInflows)}
+                  </span>
                   {onNavigateToCashIn && (
-                    <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={onNavigateToCashIn} title="View Cash In records">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={onNavigateToCashIn}
+                      title="View Cash In records"
+                    >
                       <ExternalLink className="h-3 w-3" />
                       Cash In
                     </Button>
@@ -11915,9 +13341,17 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
                   Cash Outflows
                 </CardTitle>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-rose-400">{fmt(data.totalOutflows)}</span>
+                  <span className="text-sm font-semibold text-rose-400">
+                    {fmt(data.totalOutflows)}
+                  </span>
                   {onNavigateToCashOut && (
-                    <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={onNavigateToCashOut} title="View Cash Out records">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={onNavigateToCashOut}
+                      title="View Cash Out records"
+                    >
                       <ExternalLink className="h-3 w-3" />
                       Cash Out
                     </Button>
@@ -11938,15 +13372,24 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
           </Card>
 
           {/* Net Cash Flow */}
-          <Card className={`border-2 ${data.netCashFlow >= 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}>
+          <Card
+            className={`border-2 ${data.netCashFlow >= 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Net Cash Flow</p>
-                  <p className="text-xs text-muted-foreground">Total Cash Inflows − Total Cash Outflows</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                    Net Cash Flow
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Total Cash Inflows − Total Cash Outflows
+                  </p>
                 </div>
-                <p className={`text-2xl font-bold ${data.netCashFlow >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
-                  {data.netCashFlow < 0 ? "-" : ""}{fmt(Math.abs(data.netCashFlow))}
+                <p
+                  className={`text-2xl font-bold ${data.netCashFlow >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+                >
+                  {data.netCashFlow < 0 ? "-" : ""}
+                  {fmt(Math.abs(data.netCashFlow))}
                 </p>
               </div>
             </CardContent>
@@ -11964,32 +13407,64 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-[#F7F8FA]">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Account</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Opening Balance</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Total In</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Total Out</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Closing Balance</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      Account
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                      Opening Balance
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                      Total In
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                      Total Out
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                      Closing Balance
+                    </th>
                     <th className="px-4 py-3 w-10" />
                   </tr>
                 </thead>
                 <tbody>
                   {data.accountSummary.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">No financial accounts configured</td>
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-sm text-muted-foreground"
+                      >
+                        No financial accounts configured
+                      </td>
                     </tr>
                   ) : (
                     data.accountSummary.map((acc) => (
-                      <tr key={acc.id} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
+                      <tr
+                        key={acc.id}
+                        className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
+                      >
                         <td className="px-4 py-3 font-medium">{acc.name}</td>
-                        <td className="px-4 py-3 text-right text-muted-foreground">{fmt(acc.openingBalance)}</td>
-                        <td className="px-4 py-3 text-right text-emerald-500">{acc.totalIn > 0 ? fmt(acc.totalIn) : "—"}</td>
-                        <td className="px-4 py-3 text-right text-rose-400">{acc.totalOut > 0 ? fmt(acc.totalOut) : "—"}</td>
-                        <td className={`px-4 py-3 text-right font-semibold ${acc.closingBalance >= 0 ? "text-blue-400" : "text-rose-400"}`}>
+                        <td className="px-4 py-3 text-right text-muted-foreground">
+                          {fmt(acc.openingBalance)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-emerald-500">
+                          {acc.totalIn > 0 ? fmt(acc.totalIn) : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right text-rose-400">
+                          {acc.totalOut > 0 ? fmt(acc.totalOut) : "—"}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-right font-semibold ${acc.closingBalance >= 0 ? "text-blue-400" : "text-rose-400"}`}
+                        >
                           {fmt(acc.closingBalance)}
                         </td>
                         <td className="px-4 py-3">
                           {onNavigateToLedger && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View in General Ledger" onClick={() => onNavigateToLedger(null)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="View in General Ledger"
+                              onClick={() => onNavigateToLedger(null)}
+                            >
                               <ExternalLink className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -12003,37 +13478,62 @@ function CashFlowStatementModule({ onNavigateToCashIn, onNavigateToCashOut, onNa
           </Card>
 
           {/* Cash Position Summary */}
-          <Card className={`border-2 ${data.isValid ? "border-blue-500/40 bg-blue-500/5" : "border-rose-500/40 bg-rose-500/5"}`}>
+          <Card
+            className={`border-2 ${data.isValid ? "border-blue-500/40 bg-blue-500/5" : "border-rose-500/40 bg-rose-500/5"}`}
+          >
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Cash Position Summary</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
+                Cash Position Summary
+              </p>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center py-1.5 border-b border-[rgba(17,24,39,0.04)]">
-                  <span className="text-muted-foreground">Opening Cash Position</span>
-                  <span className="font-medium">{fmt(data.openingCashPosition)}</span>
+                  <span className="text-muted-foreground">
+                    Opening Cash Position
+                  </span>
+                  <span className="font-medium">
+                    {fmt(data.openingCashPosition)}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center py-1.5 border-b border-[rgba(17,24,39,0.04)]">
-                  <span className="text-muted-foreground">+ Total Cash Inflows</span>
-                  <span className="font-medium text-emerald-500">{fmt(data.totalInflows)}</span>
+                  <span className="text-muted-foreground">
+                    + Total Cash Inflows
+                  </span>
+                  <span className="font-medium text-emerald-500">
+                    {fmt(data.totalInflows)}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center py-1.5 border-b border-[rgba(17,24,39,0.04)]">
-                  <span className="text-muted-foreground">− Total Cash Outflows</span>
-                  <span className="font-medium text-rose-400">{fmt(data.totalOutflows)}</span>
+                  <span className="text-muted-foreground">
+                    − Total Cash Outflows
+                  </span>
+                  <span className="font-medium text-rose-400">
+                    {fmt(data.totalOutflows)}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center py-1.5 border-b border-[rgba(17,24,39,0.04)]">
                   <span className="text-muted-foreground">= Net Cash Flow</span>
-                  <span className={`font-semibold ${data.netCashFlow >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
-                    {data.netCashFlow < 0 ? "-" : ""}{fmt(Math.abs(data.netCashFlow))}
+                  <span
+                    className={`font-semibold ${data.netCashFlow >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+                  >
+                    {data.netCashFlow < 0 ? "-" : ""}
+                    {fmt(Math.abs(data.netCashFlow))}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 mt-1">
                   <span className="font-semibold">Closing Cash Position</span>
                   <div className="flex items-center gap-2">
-                    <span className={`text-lg font-bold ${data.closingCashPosition >= 0 ? "text-blue-400" : "text-rose-400"}`}>
+                    <span
+                      className={`text-lg font-bold ${data.closingCashPosition >= 0 ? "text-blue-400" : "text-rose-400"}`}
+                    >
                       {fmt(data.closingCashPosition)}
                     </span>
                     <Badge
                       variant="outline"
-                      className={data.isValid ? "border-emerald-500/40 text-emerald-500" : "border-rose-500/40 text-rose-400"}
+                      className={
+                        data.isValid
+                          ? "border-emerald-500/40 text-emerald-500"
+                          : "border-rose-500/40 text-rose-400"
+                      }
                     >
                       {data.isValid ? "Balanced" : "Mismatch"}
                     </Badge>
@@ -12428,7 +13928,9 @@ function App() {
             </button>
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] bg-[#EEF3FA] border border-[rgba(17,24,39,0.05)]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#4FAF73]" />
-              <span className="text-[11px] font-semibold text-[#111827] tracking-wide">LIVE</span>
+              <span className="text-[11px] font-semibold text-[#111827] tracking-wide">
+                LIVE
+              </span>
             </div>
           </div>
         </div>
