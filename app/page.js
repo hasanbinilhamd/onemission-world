@@ -13366,6 +13366,453 @@ function SalesChannelsModule() {
   );
 }
 
+
+// =========== CUSTOMERS ===========
+
+const CUSTOMER_TYPES = ['Individual', 'Reseller', 'School', 'Corporate', 'Community', 'Other'];
+
+function CustomerFormDialog({ open, onOpenChange, initial, salesChannels, onSave }) {
+  const empty = {
+    customerName: '', email: '', phone: '', customerType: 'Individual',
+    preferredSalesChannelId: '', city: '', province: '', country: 'Indonesia',
+    notes: '', status: 'Active',
+  };
+  const [form, setForm] = useState(empty);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    setErrors({});
+    setForm(initial ? {
+      ...empty,
+      ...initial,
+      email: initial.email || '',
+      phone: initial.phone || '',
+      preferredSalesChannelId: initial.preferredSalesChannelId || '',
+    } : empty);
+  }, [initial, open]);
+
+  const up = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: undefined })); };
+
+  const validate = () => {
+    const e = {};
+    if (!form.customerName?.trim()) e.customerName = 'Customer name is required';
+    if (!form.email?.trim() && !form.phone?.trim()) {
+      e.email = 'At least one of Email or Phone is required';
+      e.phone = 'At least one of Email or Phone is required';
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const submit = async () => {
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      const payload = {
+        ...form,
+        email: form.email?.trim() || null,
+        phone: form.phone?.trim() || null,
+        preferredSalesChannelId: form.preferredSalesChannelId || null,
+      };
+      await onSave(payload);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{initial?.id ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
+          <DialogDescription>Manage customer identity and contact information</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-5 py-2">
+          {/* Customer Info */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Customer Information</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Customer Name <span className="text-rose-500">*</span></Label>
+                <Input value={form.customerName} onChange={e => up('customerName', e.target.value)} placeholder="Full name or company name" className={errors.customerName ? 'border-rose-500' : ''} />
+                {errors.customerName && <p className="text-xs text-rose-500">{errors.customerName}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Customer Type</Label>
+                <Select value={form.customerType} onValueChange={v => up('customerType', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CUSTOMER_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={v => up('status', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact Info */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+              Contact Information <span className="text-rose-500 normal-case font-normal">* at least one required</span>
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input value={form.email} onChange={e => up('email', e.target.value)} placeholder="email@example.com" type="email" className={errors.email ? 'border-rose-500' : ''} />
+                {errors.email && <p className="text-xs text-rose-500">{errors.email}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Phone</Label>
+                <Input value={form.phone} onChange={e => up('phone', e.target.value)} placeholder="+62 812 3456 7890" className={errors.phone && !errors.email ? 'border-rose-500' : ''} />
+              </div>
+            </div>
+          </div>
+
+          {/* Location */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Location</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>City</Label>
+                <Input value={form.city} onChange={e => up('city', e.target.value)} placeholder="Jakarta" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Province</Label>
+                <Input value={form.province} onChange={e => up('province', e.target.value)} placeholder="DKI Jakarta" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Country</Label>
+                <Input value={form.country} onChange={e => up('country', e.target.value)} placeholder="Indonesia" />
+              </div>
+            </div>
+          </div>
+
+          {/* Business Info */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Business Information</p>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Preferred Sales Channel</Label>
+                <Select value={form.preferredSalesChannelId || '__none__'} onValueChange={v => up('preferredSalesChannelId', v === '__none__' ? '' : v)}>
+                  <SelectTrigger><SelectValue placeholder="Select channel…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— None —</SelectItem>
+                    {(salesChannels || []).filter(s => s.status === 'Active').map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.channelName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Notes</Label>
+                <Textarea value={form.notes} onChange={e => up('notes', e.target.value)} placeholder="Any additional notes…" rows={3} />
+              </div>
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="mt-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={loading}>
+            {loading ? 'Saving…' : initial?.id ? 'Save Changes' : 'Add Customer'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CustomerDetailDialog({ open, onOpenChange, customer, onEdit }) {
+  if (!customer) return null;
+  const isActive = customer.status === 'Active';
+
+  const Row = ({ label, value }) => (
+    <div className="flex items-start gap-4 py-2.5 border-b border-border/30 last:border-0">
+      <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium w-44 shrink-0 pt-0.5">{label}</span>
+      <span className="text-sm text-foreground font-medium flex-1">{value ?? '—'}</span>
+    </div>
+  );
+
+  const Section = ({ title, children }) => (
+    <div className="mt-4">
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-1">{title}</p>
+      {children}
+    </div>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div>
+            <DialogTitle className="text-lg">{customer.customerName}</DialogTitle>
+            <p className="text-xs text-muted-foreground font-mono mt-0.5">{customer.customerCode}</p>
+          </div>
+        </DialogHeader>
+        <div className="py-1">
+          <Section title="Customer Information">
+            <Row label="Customer Code" value={customer.customerCode} />
+            <Row label="Customer Name" value={customer.customerName} />
+            <Row label="Customer Type" value={customer.customerType} />
+            <Row label="Status" value={
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'}`}>
+                {customer.status}
+              </span>
+            } />
+          </Section>
+
+          <Section title="Contact Information">
+            <Row label="Email" value={customer.email || <span className="text-muted-foreground/50 italic text-xs">Not provided</span>} />
+            <Row label="Phone" value={customer.phone || <span className="text-muted-foreground/50 italic text-xs">Not provided</span>} />
+          </Section>
+
+          <Section title="Location">
+            <Row label="City" value={customer.city || '—'} />
+            <Row label="Province" value={customer.province || '—'} />
+            <Row label="Country" value={customer.country || '—'} />
+          </Section>
+
+          <Section title="Business Information">
+            <Row label="Preferred Channel" value={customer.preferredSalesChannel?.channelName || '—'} />
+            <Row label="Notes" value={customer.notes || '—'} />
+          </Section>
+
+          <Section title="Future Metrics">
+            <div className="py-3 text-center text-sm text-muted-foreground/60 italic">
+              No data available — pending Orders module
+            </div>
+          </Section>
+        </div>
+        <DialogFooter className="mt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => { onOpenChange(false); onEdit(customer); }}>
+            <Edit3 className="h-3.5 w-3.5 mr-1.5" />Edit
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CustomersModule() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [stats, setStats] = useState(null);
+  const [salesChannels, setSalesChannels] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const qs = new URLSearchParams();
+    if (statusFilter !== 'all') qs.append('status', statusFilter);
+    if (typeFilter !== 'all') qs.append('customerType', typeFilter);
+    if (search) qs.append('search', search);
+    const [data, statsData] = await Promise.all([
+      api.get('customers' + (qs.toString() ? '?' + qs.toString() : '')),
+      api.get('customers/stats'),
+    ]);
+    setItems(Array.isArray(data) ? data : []);
+    setStats(statsData && !statsData.error ? statsData : null);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [search, statusFilter, typeFilter]);
+  useEffect(() => {
+    api.get('saleschannels?status=Active').then(d => setSalesChannels(Array.isArray(d) ? d : []));
+  }, []);
+
+  const openCreate = () => { setEditing(null); setShowForm(true); };
+  const openEdit = (c) => { setEditing(c); setShowForm(true); };
+  const openDetail = (c) => { setDetail(c); setShowDetail(true); };
+
+  const save = async (form) => {
+    try {
+      if (editing?.id) {
+        await api.put('customers/' + editing.id, form);
+        toast.success('Customer updated successfully');
+      } else {
+        await api.post('customers', form);
+        toast.success('Customer created successfully');
+      }
+      setShowForm(false);
+      setEditing(null);
+      load();
+    } catch (err) {
+      toast.error(err?.message || 'An error occurred');
+      throw err;
+    }
+  };
+
+  const setInactive = async (id) => {
+    await api.del('customers/' + id);
+    toast.success('Customer set to Inactive');
+    load();
+  };
+
+  const statusBadge = (status) => {
+    const isActive = status === 'Active';
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'}`}>
+        {status}
+      </span>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Customers</h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+            Central customer identity repository across all sales channels
+          </p>
+        </div>
+        <Button onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-2" />Add Customer
+        </Button>
+      </div>
+
+      {/* Dashboard Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Customers</p>
+            <p className="text-3xl font-semibold mt-1">{loading ? '—' : (stats?.total ?? 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">Active</p>
+            <p className="text-3xl font-semibold mt-1 text-emerald-500">{loading ? '—' : (stats?.active ?? 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-gray-400">Inactive</p>
+            <p className="text-3xl font-semibold mt-1 text-gray-400">{loading ? '—' : (stats?.inactive ?? 0)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[220px]">
+              <p className="text-xs text-muted-foreground mb-1">Search code / name / email / phone</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-9" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+            </div>
+            <div className="min-w-[160px]">
+              <p className="text-xs text-muted-foreground mb-1">Customer Type</p>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {CUSTOMER_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[140px]">
+              <p className="text-xs text-muted-foreground mb-1">Status</p>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" size="icon" onClick={load} title="Refresh">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">Loading customers…</div>
+          ) : items.length === 0 ? (
+            <div className="p-12 text-center">
+              <Users className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">No customers found</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Add your first customer to get started.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[rgba(17,24,39,0.04)]">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Code</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Customer Name</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Email</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Phone</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((c, idx) => (
+                    <tr
+                      key={c.id}
+                      className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors cursor-pointer ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}
+                      onClick={() => openDetail(c)}
+                    >
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{c.customerCode}</td>
+                      <td className="px-4 py-3 font-medium">{c.customerName}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{c.email || <span className="italic opacity-40">—</span>}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{c.phone || <span className="italic opacity-40">—</span>}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{c.customerType}</td>
+                      <td className="px-4 py-3">{statusBadge(c.status)}</td>
+                      <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}>
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                          {c.status !== 'Inactive' && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600" onClick={() => setInactive(c.id)} title="Set Inactive">
+                              <Archive className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <CustomerFormDialog open={showForm} onOpenChange={setShowForm} initial={editing} salesChannels={salesChannels} onSave={save} />
+      <CustomerDetailDialog open={showDetail} onOpenChange={setShowDetail} customer={detail} onEdit={c => { setEditing(c); setShowForm(true); }} />
+    </div>
+  );
+}
+
 // =========== COMING SOON PLACEHOLDER ===========
 const COMING_SOON_META = {
   stockmovements: {
@@ -13383,11 +13830,7 @@ const COMING_SOON_META = {
     description:
       "Track completed products ready for sale, including quality checks and storage locations.",
   },
-  customers: {
-    title: "Customers",
-    description:
-      "Manage customer profiles, purchase history, and relationship data.",
-  },
+
   orders: {
     title: "Orders",
     description:
@@ -14097,7 +14540,7 @@ function App() {
     productionresults: <ProductionResultsModule />,
     finishedgoods: <ComingSoonModule pageId="finishedgoods" />,
     // Sales placeholders
-    customers: <ComingSoonModule pageId="customers" />,
+    customers: <CustomersModule />,
     orders: <ComingSoonModule pageId="orders" />,
     saleschannels: <SalesChannelsModule />,
     // Marketing placeholders

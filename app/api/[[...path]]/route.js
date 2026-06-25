@@ -2042,6 +2042,199 @@ async function handle(request, { params }) {
       }
     }
 
+
+    // ─────────── CUSTOMERS ───────────
+    if (segs[0] === 'customers') {
+      // Generate customer code: CUS-0001
+      async function generateCustomerCode() {
+        const existing = await prisma.customer.findMany({
+          select: { customerCode: true },
+          orderBy: { customerCode: 'desc' },
+        });
+        let maxSeq = 0;
+        for (const c of existing) {
+          const m = c.customerCode.match(/CUS-(\d+)/);
+          if (m) { const n = parseInt(m[1], 10); if (n > maxSeq) maxSeq = n; }
+        }
+        return `CUS-${String(maxSeq + 1).padStart(4, '0')}`;
+      }
+
+      // Stats: total, active, inactive
+      if (segs[1] === 'stats' && method === 'GET') {
+        const all = await prisma.customer.findMany({ select: { status: true } });
+        const total = all.length;
+        const active = all.filter(c => c.status === 'Active').length;
+        const inactive = all.filter(c => c.status === 'Inactive').length;
+        return NextResponse.json({ total, active, inactive });
+      }
+
+      // List customers
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const search = url.searchParams.get('search');
+        const status = url.searchParams.get('status');
+        const customerType = url.searchParams.get('customerType');
+
+        const where = {};
+        if (status && status !== 'all') where.status = status;
+        if (customerType && customerType !== 'all') where.customerType = customerType;
+
+        let customers = await prisma.customer.findMany({
+          where,
+          include: { preferredSalesChannel: { select: { id: true, channelName: true, channelCode: true } } },
+          orderBy: { customerCode: 'asc' },
+        });
+
+        if (search) {
+          const q = search.toLowerCase();
+          customers = customers.filter(c =>
+            c.customerCode.toLowerCase().includes(q) ||
+            c.customerName.toLowerCase().includes(q) ||
+            (c.email || '').toLowerCase().includes(q) ||
+            (c.phone || '').toLowerCase().includes(q)
+          );
+        }
+        return NextResponse.json(customers);
+      }
+
+      // Get by ID
+      if (method === 'GET' && segs.length === 2) {
+        const customer = await prisma.customer.findUnique({
+          where: { id: segs[1] },
+          include: { preferredSalesChannel: { select: { id: true, channelName: true, channelCode: true } } },
+        });
+        if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+        return NextResponse.json(customer);
+      }
+
+      // Find by email
+      if (segs[1] === 'find-by-email' && method === 'GET') {
+        const url = new URL(request.url);
+        const email = url.searchParams.get('email');
+        if (!email) return NextResponse.json({ error: 'email param required' }, { status: 400 });
+        const customer = await prisma.customer.findUnique({ where: { email } });
+        return NextResponse.json(customer || null);
+      }
+
+      // Find by phone
+      if (segs[1] === 'find-by-phone' && method === 'GET') {
+        const url = new URL(request.url);
+        const phone = url.searchParams.get('phone');
+        if (!phone) return NextResponse.json({ error: 'phone param required' }, { status: 400 });
+        const customer = await prisma.customer.findUnique({ where: { phone } });
+        return NextResponse.json(customer || null);
+      }
+
+      // Find or create by email/phone (identity matching for future integrations)
+      if (segs[1] === 'find-or-create' && method === 'POST') {
+        const body = await readJson(request);
+        let customer = null;
+        if (body.email) customer = await prisma.customer.findUnique({ where: { email: body.email } });
+        if (!customer && body.phone) customer = await prisma.customer.findUnique({ where: { phone: body.phone } });
+        if (!customer) {
+          if (!body.email && !body.phone)
+            return NextResponse.json({ error: 'At least one of email or phone is required' }, { status: 400 });
+          const customerCode = await generateCustomerCode();
+          customer = await prisma.customer.create({
+            data: {
+              id: uuid(),
+              customerCode,
+              customerName: body.customerName || 'Unknown',
+              email: body.email || null,
+              phone: body.phone || null,
+              customerType: body.customerType || 'Individual',
+              status: 'Active',
+            },
+          });
+        }
+        return NextResponse.json(customer);
+      }
+
+      // Create customer
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+        if (!body.customerName?.trim())
+          return NextResponse.json({ error: 'Customer name is required' }, { status: 400 });
+        if (!body.email && !body.phone)
+          return NextResponse.json({ error: 'At least one of Email or Phone is required' }, { status: 400 });
+
+        // Uniqueness checks
+        if (body.email) {
+          const existing = await prisma.customer.findUnique({ where: { email: body.email.trim() } });
+          if (existing) return NextResponse.json({ error: `Email ${body.email} is already used by ${existing.customerName} (${existing.customerCode})` }, { status: 409 });
+        }
+        if (body.phone) {
+          const existing = await prisma.customer.findUnique({ where: { phone: body.phone.trim() } });
+          if (existing) return NextResponse.json({ error: `Phone ${body.phone} is already used by ${existing.customerName} (${existing.customerCode})` }, { status: 409 });
+        }
+
+        const customerCode = await generateCustomerCode();
+        const customer = await prisma.customer.create({
+          data: {
+            id: uuid(),
+            customerCode,
+            customerName: body.customerName.trim(),
+            email: body.email?.trim() || null,
+            phone: body.phone?.trim() || null,
+            customerType: body.customerType || 'Individual',
+            preferredSalesChannelId: body.preferredSalesChannelId || null,
+            city: body.city || '',
+            province: body.province || '',
+            country: body.country || 'Indonesia',
+            notes: body.notes || '',
+            status: body.status || 'Active',
+          },
+          include: { preferredSalesChannel: { select: { id: true, channelName: true, channelCode: true } } },
+        });
+        return NextResponse.json(customer);
+      }
+
+      // Update customer
+      if (method === 'PUT' && segs.length === 2) {
+        const body = await readJson(request);
+        if (body.customerName !== undefined && !body.customerName?.trim())
+          return NextResponse.json({ error: 'Customer name is required' }, { status: 400 });
+
+        const emailVal = body.email?.trim() || null;
+        const phoneVal = body.phone?.trim() || null;
+
+        if (emailVal === null && phoneVal === null)
+          return NextResponse.json({ error: 'At least one of Email or Phone is required' }, { status: 400 });
+
+        // Uniqueness checks (exclude self)
+        if (emailVal) {
+          const existing = await prisma.customer.findFirst({ where: { email: emailVal, id: { not: segs[1] } } });
+          if (existing) return NextResponse.json({ error: `Email ${emailVal} is already used by ${existing.customerName} (${existing.customerCode})` }, { status: 409 });
+        }
+        if (phoneVal) {
+          const existing = await prisma.customer.findFirst({ where: { phone: phoneVal, id: { not: segs[1] } } });
+          if (existing) return NextResponse.json({ error: `Phone ${phoneVal} is already used by ${existing.customerName} (${existing.customerCode})` }, { status: 409 });
+        }
+
+        const { id: _id, customerCode: _code, createdAt: _ca, updatedAt: _ua, preferredSalesChannel: _psc, ...rest } = body;
+        const updated = await prisma.customer.update({
+          where: { id: segs[1] },
+          data: {
+            ...rest,
+            email: emailVal,
+            phone: phoneVal,
+            preferredSalesChannelId: body.preferredSalesChannelId || null,
+          },
+          include: { preferredSalesChannel: { select: { id: true, channelName: true, channelCode: true } } },
+        });
+        return NextResponse.json(updated);
+      }
+
+      // Soft delete
+      if (method === 'DELETE' && segs.length === 2) {
+        const updated = await prisma.customer.update({
+          where: { id: segs[1] },
+          data: { status: 'Inactive' },
+        });
+        return NextResponse.json(updated);
+      }
+    }
+
     // Public products endpoint
     if (segs[0] === 'public' && segs[1] === 'products' && method === 'GET') {
       const products = await prisma.product.findMany({ where: { status: 'Active' } });

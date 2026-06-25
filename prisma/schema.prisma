@@ -376,7 +376,26 @@ model SalesChannel {
   channelType String
   description String   @default("")
   status      String   @default("Active")
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isDefault   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  customers   Customer[]
+}
+
+model Customer {
+  id                     String        @id
+  customerCode           String        @unique
+  customerName           String
+  email                  String?       @unique
+  phone                  String?       @unique
+  customerType           String        @default("Individual")
+  preferredSalesChannelId String?
+  preferredSalesChannel  SalesChannel? @relation(fields: [preferredSalesChannelId], references: [id])
+  city                   String        @default("")
+  province               String        @default("")
+  country                String        @default("Indonesia")
+  notes                  String        @default("")
+  status                 String        @default("Active")
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 }
