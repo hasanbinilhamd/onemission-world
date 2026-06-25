@@ -357,13 +357,13 @@ const NAV_GROUPS = [
     icon: Factory,
     children: [
       { id: "products", label: "Product Catalog", icon: Package },
-      { id: "inventory", label: "Inventory", icon: Boxes },
       { id: "rawmaterials", label: "Raw Materials", icon: Layers },
-      { id: "stockmovements", label: "Stock Movements", icon: Activity },
       { id: "suppliers", label: "Suppliers", icon: Truck },
       { id: "bom", label: "Bill of Materials (BOM)", icon: FileText },
       { id: "productionorders", label: "Production Orders", icon: Factory },
-      { id: "finishedgoods", label: "Finished Goods", icon: PackageCheck },
+      { id: "productionresults", label: "Production Results", icon: ClipboardList },
+      { id: "inventory", label: "Inventory", icon: Boxes },
+      { id: "stockmovements", label: "Stock Movements", icon: Activity },
     ],
   },
   {
@@ -10626,6 +10626,337 @@ function ProductionOrderDetailDialog({ open, onOpenChange, order, onEdit, onCanc
   );
 }
 
+// =========== PRODUCTION RESULTS MODULE ===========
+function ProductionResultsModule() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [detailResult, setDetailResult] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const load = async (q) => {
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      const term = q !== undefined ? q : search;
+      if (term.trim()) qs.set("search", term.trim());
+      const results = await api.get("productionresults" + (qs.toString() ? "?" + qs.toString() : ""));
+      setItems(Array.isArray(results) ? results : []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleSearch = (e) => { e.preventDefault(); load(search); };
+
+  const openDetail = async (r) => {
+    setDetailResult(null);
+    setDetailLoading(true);
+    setShowDetail(true);
+    try {
+      const detail = await api.get(`productionresults/${r.id}`);
+      setDetailResult(detail);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load production result detail.");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const SH = ({ children }) => (
+    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">{children}</p>
+  );
+
+  const po = detailResult?.productionOrder;
+  const productionOuts = detailResult?.stockMovements?.filter((m) => m.movementType === "PRODUCTION_OUT") || [];
+  const productionIns = detailResult?.stockMovements?.filter((m) => m.movementType === "PRODUCTION_IN") || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold tracking-tight">Production Results</h1>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase tracking-wider">Read-only</span>
+          </div>
+          <p className="text-sm text-[#5F6B7A] font-medium">
+            Immutable audit records of completed production runs — auto-generated from Production Orders.
+          </p>
+        </div>
+      </div>
+
+      {/* Search */}
+      <form onSubmit={handleSearch} className="flex items-center gap-2">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-background"
+            placeholder="Search by result #, PO #, or product…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Button type="submit" size="sm" variant="secondary">Search</Button>
+      </form>
+
+      {/* Table */}
+      <div className="bg-background border rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 border-b">
+            <tr>
+              {["Result Number", "Production Order", "Product", "Produced Qty", "Completion Date", ""].map((h) => (
+                <th key={h} className="px-4 py-3 text-left font-medium text-xs text-muted-foreground">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="p-8 text-center text-muted-foreground text-sm">
+                  Loading production results…
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="p-8 text-center">
+                  <ClipboardList className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+                  <p className="text-muted-foreground text-sm font-medium">No production results found</p>
+                  <p className="text-muted-foreground/60 text-xs mt-1">
+                    Production Results are automatically created when a Production Order is completed.
+                  </p>
+                </td>
+              </tr>
+            ) : (
+              items.map((r) => (
+                <tr
+                  key={r.id}
+                  className="hover:bg-muted/30 cursor-pointer transition-colors"
+                  onClick={() => openDetail(r)}
+                >
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-xs font-bold text-indigo-700">{r.resultNumber}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-xs font-semibold text-blue-700">
+                      {r.productionOrder?.productionOrderNumber}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium">{r.productionOrder?.product?.name}</p>
+                    <p className="text-xs text-muted-foreground">{r.productionOrder?.product?.sku}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="font-semibold text-emerald-700">
+                      {r.productionOrder?.actualQuantity?.toLocaleString() ?? "—"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {r.productionOrder?.completedAt
+                      ? new Date(r.productionOrder.completedAt).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={(e) => { e.stopPropagation(); openDetail(r); }}
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Detail Dialog */}
+      <Dialog open={showDetail} onOpenChange={(v) => { setShowDetail(v); if (!v) setDetailResult(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-indigo-600" />
+              {detailLoading ? "Loading…" : (detailResult?.resultNumber ?? "Production Result")}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 ml-1 uppercase tracking-wider">
+                Completed
+              </span>
+            </DialogTitle>
+            <DialogDescription>
+              Production Result — immutable audit record generated from a completed Production Order.
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailLoading ? (
+            <div className="py-12 text-center text-muted-foreground text-sm">Loading detail…</div>
+          ) : detailResult ? (
+            <div className="space-y-6 pt-2">
+
+              {/* Production Information */}
+              <div>
+                <SH>Production Information</SH>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Result Number</span>
+                    <span className="font-mono font-bold text-indigo-700">{detailResult.resultNumber}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Production Order</span>
+                    <span className="font-mono font-semibold text-blue-700">{po?.productionOrderNumber}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Product</span>
+                    <span className="font-medium">{po?.product?.name}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">BOM Version</span>
+                    <span className="font-medium">{po?.bom?.bomCode} v{po?.bom?.version}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Planned Quantity</span>
+                    <span className="font-semibold">{po?.plannedQuantity?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Actual Quantity</span>
+                    <span className="font-bold text-emerald-700">{po?.actualQuantity?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Started At</span>
+                    <span className="text-xs text-right">
+                      {po?.startedAt ? new Date(po.startedAt).toLocaleString("en-GB") : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Completed At</span>
+                    <span className="text-xs text-right">
+                      {po?.completedAt ? new Date(po.completedAt).toLocaleString("en-GB") : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t" />
+
+              {/* Material Consumption */}
+              <div>
+                <SH>Material Consumption</SH>
+                {productionOuts.length > 0 ? (
+                  <div className="space-y-2">
+                    {productionOuts.map((m) => (
+                      <div
+                        key={m.id}
+                        className="flex items-center justify-between text-sm bg-amber-50/60 border border-amber-100 rounded-lg px-3 py-2.5"
+                      >
+                        <div>
+                          <span className="font-medium">{m.rawMaterial?.name ?? "—"}</span>
+                          {m.rawMaterial?.unit && (
+                            <span className="text-xs text-muted-foreground ml-1.5">({m.rawMaterial.unit})</span>
+                          )}
+                        </div>
+                        <span className="font-bold text-amber-700">{m.quantity?.toLocaleString()} consumed</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No material consumption records found.</p>
+                )}
+              </div>
+
+              <div className="border-t" />
+
+              {/* Inventory Impact */}
+              <div>
+                <SH>Inventory Impact</SH>
+                {productionIns.length > 0 ? (
+                  <div className="space-y-2">
+                    {productionIns.map((m) => (
+                      <div
+                        key={m.id}
+                        className="flex items-center justify-between text-sm bg-emerald-50/60 border border-emerald-100 rounded-lg px-3 py-2.5"
+                      >
+                        <div>
+                          <span className="font-medium">{m.product?.name ?? "—"}</span>
+                          {m.inventory && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {m.inventory.color} / {m.inventory.size}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-bold text-emerald-700">+{m.quantity?.toLocaleString()} added</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No inventory additions recorded.</p>
+                )}
+              </div>
+
+              <div className="border-t" />
+
+              {/* Stock Movement References */}
+              <div>
+                <SH>Stock Movement References</SH>
+                {detailResult.stockMovements?.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {detailResult.stockMovements.map((m) => (
+                      <div
+                        key={m.id}
+                        className="flex items-center justify-between text-xs bg-muted/30 border rounded-lg px-3 py-2"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`font-bold px-1.5 py-0.5 rounded text-[10px] uppercase ${
+                              m.movementType === "PRODUCTION_IN"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {m.movementType === "PRODUCTION_IN" ? "IN" : "OUT"}
+                          </span>
+                          <span className="font-medium">
+                            {m.movementType === "PRODUCTION_IN"
+                              ? (m.product?.name ?? "Product")
+                              : (m.rawMaterial?.name ?? "Material")}
+                          </span>
+                          <span className="font-mono text-muted-foreground/60">{m.id.slice(-8)}</span>
+                        </div>
+                        <span className="font-semibold">
+                          {m.movementType === "PRODUCTION_IN" ? "+" : "-"}{m.quantity?.toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No stock movement references found.</p>
+                )}
+              </div>
+
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground text-sm">Failed to load detail.</div>
+          )}
+
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowDetail(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // =========== PRODUCTION ORDERS MODULE ===========
 function ProductionOrdersModule() {
   const [items, setItems] = useState([]);
@@ -11846,6 +12177,7 @@ function App() {
     suppliers: <SuppliersModule />,
     bom: <BOMModule />,
     productionorders: <ProductionOrdersModule />,
+    productionresults: <ProductionResultsModule />,
     finishedgoods: <ComingSoonModule pageId="finishedgoods" />,
     // Sales placeholders
     customers: <ComingSoonModule pageId="customers" />,
