@@ -368,3 +368,15 @@ model JournalEntryLine {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 }
+
+model SalesChannel {
+  id          String   @id
+  channelCode String   @unique
+  channelName String
+  channelType String
+  description String   @default("")
+  status      String   @default("Active")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

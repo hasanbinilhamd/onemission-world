@@ -14,6 +14,7 @@ import {
   SEED_NOTIFICATIONS,
   SEED_FINANCIAL_ACCOUNTS,
   SEED_COA,
+  SEED_SALES_CHANNELS,
 } from '../lib/seed-data';
 
 const prisma = new PrismaClient();
@@ -73,6 +74,12 @@ async function main() {
   const children = SEED_COA.filter((a) => !!a.parentId);
   await prisma.chartOfAccount.createMany({ data: parents });
   await prisma.chartOfAccount.createMany({ data: children });
+
+  // Seed Sales Channels (only if empty)
+  const scCount = await prisma.salesChannel.count();
+  if (scCount === 0) {
+    await prisma.salesChannel.createMany({ data: SEED_SALES_CHANNELS });
+  }
 
   console.log('Seed completed successfully.');
   console.log(`Super Admin: ${SUPER_ADMIN.email}`);

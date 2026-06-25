@@ -1917,6 +1917,131 @@ async function handle(request, { params }) {
       }
     }
 
+
+    // ─────────── SALES CHANNELS ───────────
+    if (segs[0] === 'saleschannels') {
+      // Generate channel code: SC-0001
+      async function generateChannelCode() {
+        const existing = await prisma.salesChannel.findMany({
+          select: { channelCode: true },
+          orderBy: { channelCode: 'desc' },
+        });
+        let maxSeq = 0;
+        for (const c of existing) {
+          const parts = c.channelCode.split('-');
+          const seq = parseInt(parts[parts.length - 1] || '0', 10);
+          if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+        }
+        return `SC-${String(maxSeq + 1).padStart(4, '0')}`;
+      }
+
+      // Stats
+      if (segs[1] === 'stats' && method === 'GET') {
+        const all = await prisma.salesChannel.findMany({ select: { status: true } });
+        const total = all.length;
+        const active = all.filter(c => c.status === 'Active').length;
+        const inactive = all.filter(c => c.status === 'Inactive').length;
+        return NextResponse.json({ total, active, inactive });
+      }
+
+      // Seed if empty
+      if (segs[1] === 'seed' && method === 'POST') {
+        const count = await prisma.salesChannel.count();
+        if (count > 0) return NextResponse.json({ seeded: false, message: 'Already has data' });
+        const defaults = [
+          { channelName: 'Website', channelType: 'Ecommerce', description: 'Official ONEMISSION website store', status: 'Active', isDefault: true },
+          { channelName: 'Shopee', channelType: 'Marketplace', description: 'Shopee marketplace channel', status: 'Active', isDefault: false },
+          { channelName: 'Tokopedia', channelType: 'Marketplace', description: 'Tokopedia marketplace channel', status: 'Active', isDefault: false },
+          { channelName: 'TikTok Shop', channelType: 'Marketplace', description: 'TikTok Shop channel', status: 'Active', isDefault: false },
+          { channelName: 'Offline Store', channelType: 'Offline Store', description: 'Physical offline retail store', status: 'Active', isDefault: false },
+          { channelName: 'Reseller', channelType: 'Reseller', description: 'Reseller network channel', status: 'Active', isDefault: false },
+          { channelName: 'School Partnership', channelType: 'Partnership', description: 'Sales through school partnership programs', status: 'Active', isDefault: false },
+        ];
+        let seq = 0;
+        for (const d of defaults) {
+          seq++;
+          const code = `SC-${String(seq).padStart(4, '0')}`;
+          await prisma.salesChannel.create({ data: { id: uuid(), channelCode: code, ...d } });
+        }
+        return NextResponse.json({ seeded: true, count: defaults.length });
+      }
+
+      // List
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const search = url.searchParams.get('search');
+        const status = url.searchParams.get('status');
+        const channelType = url.searchParams.get('channelType');
+        const where = {};
+        if (status && status !== 'all') where.status = status;
+        if (channelType && channelType !== 'all') where.channelType = channelType;
+        const channels = await prisma.salesChannel.findMany({
+          where,
+          orderBy: { channelCode: 'asc' },
+        });
+        const result = search
+          ? channels.filter(c => {
+              const q = search.toLowerCase();
+              return c.channelCode.toLowerCase().includes(q)
+                || c.channelName.toLowerCase().includes(q)
+                || c.channelType.toLowerCase().includes(q);
+            })
+          : channels;
+        return NextResponse.json(result);
+      }
+
+      // Get by ID
+      if (method === 'GET' && segs.length === 2) {
+        const channel = await prisma.salesChannel.findUnique({ where: { id: segs[1] } });
+        if (!channel) return NextResponse.json({ error: 'Sales channel not found' }, { status: 404 });
+        return NextResponse.json(channel);
+      }
+
+      // Create
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+        if (!body.channelName?.trim()) return NextResponse.json({ error: 'Channel name is required' }, { status: 400 });
+        if (!body.channelType?.trim()) return NextResponse.json({ error: 'Channel type is required' }, { status: 400 });
+        if (body.isDefault) {
+          await prisma.salesChannel.updateMany({ where: { isDefault: true }, data: { isDefault: false } });
+        }
+        const channelCode = await generateChannelCode();
+        const channel = await prisma.salesChannel.create({
+          data: {
+            id: uuid(),
+            channelCode,
+            channelName: body.channelName.trim(),
+            channelType: body.channelType.trim(),
+            description: body.description || '',
+            status: body.status || 'Active',
+            isDefault: body.isDefault || false,
+          },
+        });
+        return NextResponse.json(channel);
+      }
+
+      // Update
+      if (method === 'PUT' && segs.length === 2) {
+        const body = await readJson(request);
+        if (body.channelName !== undefined && !body.channelName?.trim())
+          return NextResponse.json({ error: 'Channel name is required' }, { status: 400 });
+        if (body.channelType !== undefined && !body.channelType?.trim())
+          return NextResponse.json({ error: 'Channel type is required' }, { status: 400 });
+        if (body.isDefault) {
+          await prisma.salesChannel.updateMany({ where: { isDefault: true, id: { not: segs[1] } }, data: { isDefault: false } });
+        }
+        const { id: _id, channelCode: _code, createdAt: _ca, updatedAt: _ua, ...rest } = body;
+        const updated = await prisma.salesChannel.update({ where: { id: segs[1] }, data: rest });
+        return NextResponse.json(updated);
+      }
+
+      // Soft delete (set Inactive)
+      if (method === 'DELETE' && segs.length === 2) {
+        const updated = await prisma.salesChannel.update({ where: { id: segs[1] }, data: { status: 'Inactive' } });
+        return NextResponse.json(updated);
+      }
+    }
+
     // Public products endpoint
     if (segs[0] === 'public' && segs[1] === 'products' && method === 'GET') {
       const products = await prisma.product.findMany({ where: { status: 'Active' } });

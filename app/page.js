@@ -12945,6 +12945,427 @@ function SuppliersModule() {
   );
 }
 
+
+// =========== SALES CHANNELS ===========
+
+const CHANNEL_TYPES = ['Ecommerce', 'Marketplace', 'Offline Store', 'Reseller', 'Partnership', 'Other'];
+
+function SalesChannelFormDialog({ open, onOpenChange, initial, onSave }) {
+  const empty = {
+    channelName: '',
+    channelType: '',
+    description: '',
+    status: 'Active',
+    isDefault: false,
+  };
+  const [form, setForm] = useState(empty);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    setForm(initial ? { ...empty, ...initial } : empty);
+  }, [initial, open]);
+  const up = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async () => {
+    if (!form.channelName?.trim()) { toast.error('Channel name is required'); return; }
+    if (!form.channelType?.trim()) { toast.error('Channel type is required'); return; }
+    setLoading(true);
+    try {
+      await onSave(form);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{initial?.id ? 'Edit Sales Channel' : 'Add Sales Channel'}</DialogTitle>
+          <DialogDescription>Manage sales channel master data</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Channel Name <span className="text-rose-500">*</span></Label>
+            <Input
+              value={form.channelName || ''}
+              onChange={(e) => up('channelName', e.target.value)}
+              placeholder="e.g. Website, Shopee, TikTok Shop"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Channel Type <span className="text-rose-500">*</span></Label>
+            <Select value={form.channelType || ''} onValueChange={(v) => up('channelType', v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type…" />
+              </SelectTrigger>
+              <SelectContent>
+                {CHANNEL_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={form.status || 'Active'} onValueChange={(v) => up('status', v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea
+              value={form.description || ''}
+              onChange={(e) => up('description', e.target.value)}
+              placeholder="Optional description…"
+              rows={3}
+            />
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <Switch
+              checked={!!form.isDefault}
+              onCheckedChange={(v) => up('isDefault', v)}
+              id="isDefault"
+            />
+            <Label htmlFor="isDefault" className="cursor-pointer">
+              Default Channel
+              <span className="block text-xs text-muted-foreground font-normal mt-0.5">
+                Only one channel can be the default at a time
+              </span>
+            </Label>
+          </div>
+        </div>
+        <DialogFooter className="mt-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={loading || !form.channelName?.trim() || !form.channelType?.trim()}>
+            {loading ? 'Saving…' : initial?.id ? 'Save Changes' : 'Add Channel'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SalesChannelDetailDialog({ open, onOpenChange, channel, onEdit }) {
+  if (!channel) return null;
+  const isActive = (channel.status || 'Active') === 'Active';
+
+  const Row = ({ label, value }) => (
+    <div className="flex items-start gap-4 py-2.5 border-b border-border/30 last:border-0">
+      <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium w-36 shrink-0 pt-0.5">{label}</span>
+      <span className="text-sm text-foreground font-medium flex-1">{value || '—'}</span>
+    </div>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div>
+              <DialogTitle className="text-lg">{channel.channelName}</DialogTitle>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">{channel.channelCode}</p>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="py-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-1">
+            Channel Information
+          </p>
+          <Row label="Channel Code" value={channel.channelCode} />
+          <Row label="Channel Name" value={channel.channelName} />
+          <Row label="Channel Type" value={channel.channelType} />
+          <Row label="Description" value={channel.description} />
+          <Row label="Status" value={
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'}`}>
+              {channel.status || 'Active'}
+            </span>
+          } />
+          <Row label="Default Channel" value={
+            channel.isDefault
+              ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-600">Yes</span>
+              : <span className="text-muted-foreground text-sm">No</span>
+          } />
+        </div>
+        <DialogFooter className="mt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => { onOpenChange(false); onEdit(channel); }}>
+            <Edit3 className="h-3.5 w-3.5 mr-1.5" />
+            Edit
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SalesChannelsModule() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [stats, setStats] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [detailChannel, setDetailChannel] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const qs = new URLSearchParams();
+    if (statusFilter !== 'all') qs.append('status', statusFilter);
+    if (typeFilter !== 'all') qs.append('channelType', typeFilter);
+    if (search) qs.append('search', search);
+    const [data, statsData] = await Promise.all([
+      api.get('saleschannels' + (qs.toString() ? '?' + qs.toString() : '')),
+      api.get('saleschannels/stats'),
+    ]);
+    setItems(Array.isArray(data) ? data : []);
+    setStats(statsData && !statsData.error ? statsData : null);
+    setLoading(false);
+  };
+
+  const seedIfEmpty = async () => {
+    if (seeding) return;
+    setSeeding(true);
+    try {
+      const res = await api.post('saleschannels/seed', {});
+      if (res.seeded) { toast.success(`Seeded ${res.count} default channels`); load(); }
+    } catch (e) { /* ignore */ } finally { setSeeding(false); }
+  };
+
+  useEffect(() => { load(); }, [search, statusFilter, typeFilter]);
+  useEffect(() => {
+    // Auto-seed if no channels exist after initial load
+    if (!loading && items.length === 0 && !stats?.total) { seedIfEmpty(); }
+  }, [loading]);
+
+  const openCreate = () => { setEditing(null); setShowForm(true); };
+  const openEdit = (c) => { setEditing(c); setShowForm(true); };
+  const openDetail = (c) => { setDetailChannel(c); setShowDetail(true); };
+
+  const save = async (form) => {
+    if (editing?.id) {
+      await api.put('saleschannels/' + editing.id, form);
+      toast.success('Sales channel updated');
+    } else {
+      await api.post('saleschannels', form);
+      toast.success('Sales channel created');
+    }
+    setShowForm(false);
+    setEditing(null);
+    load();
+  };
+
+  const setInactive = async (id) => {
+    await api.del('saleschannels/' + id);
+    toast.success('Channel set to Inactive');
+    load();
+  };
+
+  const statusBadge = (status) => {
+    const isActive = (status || 'Active') === 'Active';
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'}`}>
+        {status || 'Active'}
+      </span>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Sales Channels
+          </h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+            Manage sales channels — online stores, marketplaces, and direct sales
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={seedIfEmpty} disabled={seeding}>
+            {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+            Seed Defaults
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Channel
+          </Button>
+        </div>
+      </div>
+
+      {/* Dashboard Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Channels</p>
+            <p className="text-3xl font-semibold mt-1">{loading ? '—' : (stats?.total ?? 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">Active</p>
+            <p className="text-3xl font-semibold mt-1 text-emerald-500">{loading ? '—' : (stats?.active ?? 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-gray-400">Inactive</p>
+            <p className="text-3xl font-semibold mt-1 text-gray-400">{loading ? '—' : (stats?.inactive ?? 0)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-xs text-muted-foreground mb-1">Search code / name / type</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Search…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="min-w-[160px]">
+              <p className="text-xs text-muted-foreground mb-1">Channel Type</p>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {CHANNEL_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[140px]">
+              <p className="text-xs text-muted-foreground mb-1">Status</p>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" size="icon" onClick={load} title="Refresh">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">Loading channels…</div>
+          ) : items.length === 0 ? (
+            <div className="p-12 text-center">
+              <Globe className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">No sales channels found</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Add your first channel or click "Seed Defaults" to load default channels.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[rgba(17,24,39,0.04)]">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Code</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Channel Name</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Channel Type</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Updated At</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((c, idx) => (
+                    <tr
+                      key={c.id}
+                      className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors cursor-pointer ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}
+                      onClick={() => openDetail(c)}
+                    >
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{c.channelCode}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <div className="flex items-center gap-2">
+                          {c.channelName}
+                          {c.isDefault && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-600 uppercase tracking-wide">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{c.channelType}</td>
+                      <td className="px-4 py-3">{statusBadge(c.status)}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('id-ID') : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}>
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                          {c.status !== 'Inactive' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-rose-500 hover:text-rose-600"
+                              onClick={() => setInactive(c.id)}
+                              title="Set Inactive"
+                            >
+                              <Archive className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <SalesChannelFormDialog
+        open={showForm}
+        onOpenChange={setShowForm}
+        initial={editing}
+        onSave={save}
+      />
+      <SalesChannelDetailDialog
+        open={showDetail}
+        onOpenChange={setShowDetail}
+        channel={detailChannel}
+        onEdit={(c) => { setEditing(c); setShowForm(true); }}
+      />
+    </div>
+  );
+}
+
 // =========== COMING SOON PLACEHOLDER ===========
 const COMING_SOON_META = {
   stockmovements: {
@@ -12972,11 +13393,7 @@ const COMING_SOON_META = {
     description:
       "Create and manage sales orders, track fulfillment status, and handle invoicing.",
   },
-  saleschannels: {
-    title: "Sales Channels",
-    description:
-      "Configure and monitor sales channels including online stores, marketplaces, and direct sales.",
-  },
+
   campaigns: {
     title: "Campaigns",
     description:
@@ -13682,7 +14099,7 @@ function App() {
     // Sales placeholders
     customers: <ComingSoonModule pageId="customers" />,
     orders: <ComingSoonModule pageId="orders" />,
-    saleschannels: <ComingSoonModule pageId="saleschannels" />,
+    saleschannels: <SalesChannelsModule />,
     // Marketing placeholders
     campaigns: <ComingSoonModule pageId="campaigns" />,
     // Reports placeholders
