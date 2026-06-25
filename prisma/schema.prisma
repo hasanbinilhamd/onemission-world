@@ -231,10 +231,13 @@ model ProductionOrder {
   bom                   BOM      @relation(fields: [bomId], references: [id])
   plannedQuantity       Float
   plannedDate           String
-  status                String   @default("Draft")
-  notes                 String   @default("")
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  status                String    @default("Draft")
+  notes                 String    @default("")
+  actualQuantity        Float?
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@index([productId])
   @@index([bomId])

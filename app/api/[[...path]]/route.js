@@ -1563,9 +1563,10 @@ async function handle(request, { params }) {
         const draft = all.filter(p => p.status === 'Draft').length;
         const ready = all.filter(p => p.status === 'Ready').length;
         const notReady = all.filter(p => p.status === 'Not Ready').length;
+        const inProduction = all.filter(p => p.status === 'In Production').length;
         const completed = all.filter(p => p.status === 'Completed').length;
         const cancelled = all.filter(p => p.status === 'Cancelled').length;
-        return NextResponse.json({ total, draft, ready, notReady, completed, cancelled });
+        return NextResponse.json({ total, draft, ready, notReady, inProduction, completed, cancelled });
       }
 
       // List
@@ -1690,10 +1691,130 @@ async function handle(request, { params }) {
         return NextResponse.json(order);
       }
 
-      // Update (status/notes/plannedDate/plannedQuantity only)
-      if (method === 'PUT' && segs.length === 2) {
+      // ── Start Production (POST /productionorders/:id/start)
+      if (method === 'POST' && segs.length === 3 && segs[2] === 'start') {
+        const order = await prisma.productionOrder.findUnique({ where: { id: segs[1] } });
+        if (!order) return NextResponse.json({ error: 'Production Order not found' }, { status: 404 });
+        if (order.status !== 'Ready') return NextResponse.json({ error: `Cannot start — current status is "${order.status}". Only Ready orders can be started.` }, { status: 400 });
+        const updated = await prisma.productionOrder.update({
+          where: { id: segs[1] },
+          data: { status: 'In Production', startedAt: new Date() },
+          include: { product: { select: { id: true, name: true, sku: true } }, bom: { select: { id: true, bomCode: true, version: true } } },
+        });
+        return NextResponse.json(updated);
+      }
+
+      // ── Complete Production (POST /productionorders/:id/complete)
+      if (method === 'POST' && segs.length === 3 && segs[2] === 'complete') {
         const body = await readJson(request);
-        const { id: _id, productionOrderNumber: _n, productId: _p, bomId: _b, createdAt: _ca, updatedAt: _ua, product: _pr, bom: _bm, requirements: _r, isReady: _ir, ...rest } = body;
+        const actualQty = Number(body.actualQuantity);
+        if (!actualQty || actualQty <= 0) return NextResponse.json({ error: 'Actual quantity must be greater than zero' }, { status: 400 });
+        const order = await prisma.productionOrder.findUnique({
+          where: { id: segs[1] },
+          include: {
+            bom: { include: { items: { include: { rawMaterial: true } } } },
+          },
+        });
+        if (!order) return NextResponse.json({ error: 'Production Order not found' }, { status: 404 });
+        if (order.status !== 'In Production') return NextResponse.json({ error: `Cannot complete — current status is "${order.status}". Order must be In Production.` }, { status: 400 });
+
+        // Validate stock sufficiency using actual quantity
+        for (const it of order.bom.items) {
+          const needed = it.quantityRequired * actualQty;
+          if ((it.rawMaterial.currentStock ?? 0) < needed) {
+            return NextResponse.json({ error: `Insufficient stock for "${it.rawMaterial.name}". Need ${needed}, have ${it.rawMaterial.currentStock ?? 0}.` }, { status: 400 });
+          }
+        }
+
+        const now = new Date();
+        const movDate = now.toISOString().split('T')[0];
+
+        // Execute all stock changes + movements in a transaction
+        await prisma.$transaction(async (tx) => {
+          // 1. Consume raw materials
+          for (const it of order.bom.items) {
+            const consumed = it.quantityRequired * actualQty;
+            const prev = it.rawMaterial.currentStock ?? 0;
+            const next = prev - consumed;
+            await tx.rawMaterial.update({ where: { id: it.rawMaterialId }, data: { currentStock: next } });
+            await tx.stockMovement.create({
+              data: {
+                id: uuid(),
+                itemType: 'RAW_MATERIAL',
+                rawMaterialId: it.rawMaterialId,
+                movementDate: movDate,
+                movementType: 'PRODUCTION_OUT',
+                quantity: consumed,
+                previousQuantity: prev,
+                newQuantity: next,
+                referenceNumber: order.productionOrderNumber,
+                notes: body.completionNotes || `Production: ${order.productionOrderNumber}`,
+              },
+            });
+          }
+
+          // 2. Increase product inventory (use first inventory entry or create one)
+          const inventoryEntries = await tx.inventory.findMany({ where: { productId: order.productId }, orderBy: { id: 'asc' } });
+          let inv;
+          if (inventoryEntries.length > 0) {
+            inv = inventoryEntries[0];
+            await tx.inventory.update({ where: { id: inv.id }, data: { quantity: inv.quantity + actualQty } });
+          } else {
+            const product = await tx.product.findUnique({ where: { id: order.productId } });
+            inv = await tx.inventory.create({
+              data: {
+                id: uuid(),
+                productId: order.productId,
+                color: (product?.colors?.[0]) || 'Default',
+                size: (product?.sizes?.[0]) || 'Default',
+                quantity: actualQty,
+                threshold: 0,
+                incoming: 0,
+              },
+            });
+          }
+          const prevInv = inventoryEntries.length > 0 ? inventoryEntries[0].quantity : 0;
+          await tx.stockMovement.create({
+            data: {
+              id: uuid(),
+              itemType: 'PRODUCT',
+              productId: order.productId,
+              inventoryId: inv.id,
+              movementDate: movDate,
+              movementType: 'PRODUCTION_IN',
+              quantity: actualQty,
+              previousQuantity: prevInv,
+              newQuantity: prevInv + actualQty,
+              referenceNumber: order.productionOrderNumber,
+              notes: body.completionNotes || `Production: ${order.productionOrderNumber}`,
+            },
+          });
+
+          // 3. Update Production Order
+          await tx.productionOrder.update({
+            where: { id: segs[1] },
+            data: {
+              status: 'Completed',
+              actualQuantity: actualQty,
+              completedAt: now,
+              notes: body.completionNotes ? (order.notes ? order.notes + '\n' + body.completionNotes : body.completionNotes) : order.notes,
+            },
+          });
+        });
+
+        const result = await prisma.productionOrder.findUnique({
+          where: { id: segs[1] },
+          include: { product: { select: { id: true, name: true, sku: true } }, bom: { select: { id: true, bomCode: true, version: true } } },
+        });
+        return NextResponse.json(result);
+      }
+
+      // Update (status/notes/plannedDate/plannedQuantity only — blocked for Completed)
+      if (method === 'PUT' && segs.length === 2) {
+        const current = await prisma.productionOrder.findUnique({ where: { id: segs[1] }, select: { status: true } });
+        if (current?.status === 'Completed') return NextResponse.json({ error: 'Completed Production Orders cannot be edited.' }, { status: 400 });
+        const body = await readJson(request);
+        const { id: _id, productionOrderNumber: _n, productId: _p, bomId: _b, createdAt: _ca, updatedAt: _ua, product: _pr, bom: _bm, requirements: _r, isReady: _ir, startedAt: _sa, completedAt: _ca2, actualQuantity: _aq, ...rest } = body;
         const updated = await prisma.productionOrder.update({
           where: { id: segs[1] },
           data: rest,
@@ -1705,8 +1826,10 @@ async function handle(request, { params }) {
         return NextResponse.json(updated);
       }
 
-      // Cancel (soft status change)
+      // Cancel (soft status change — blocked for Completed)
       if (method === 'DELETE' && segs.length === 2) {
+        const current = await prisma.productionOrder.findUnique({ where: { id: segs[1] }, select: { status: true } });
+        if (current?.status === 'Completed') return NextResponse.json({ error: 'Completed Production Orders cannot be cancelled.' }, { status: 400 });
         const updated = await prisma.productionOrder.update({ where: { id: segs[1] }, data: { status: 'Cancelled' } });
         return NextResponse.json(updated);
       }
