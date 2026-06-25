@@ -9972,6 +9972,487 @@ function SupplierDetailDialog({ open, onOpenChange, supplier, onEdit }) {
   );
 }
 
+// =========== BOM FORM DIALOG ===========
+function BOMFormDialog({ open, onOpenChange, initial, onSave, products = [], rawMaterials = [] }) {
+  const empty = { productId: "", version: "1.0", description: "", status: "Active", items: [] };
+  const [form, setForm] = useState(empty);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setForm(
+        initial
+          ? {
+              productId: initial.productId || "",
+              version: initial.version || "1.0",
+              description: initial.description || "",
+              status: initial.status || "Active",
+              items: (initial.items || []).map((it) => ({
+                rawMaterialId: it.rawMaterialId || it.rawMaterial?.id || "",
+                quantityRequired: it.quantityRequired ?? "",
+                notes: it.notes || "",
+              })),
+            }
+          : empty
+      );
+      setErr("");
+    }
+  }, [open, initial]);
+
+  const addItem = () =>
+    setForm((f) => ({ ...f, items: [...f.items, { rawMaterialId: "", quantityRequired: "", notes: "" }] }));
+
+  const removeItem = (i) =>
+    setForm((f) => ({ ...f, items: f.items.filter((_, idx) => idx !== i) }));
+
+  const updateItem = (i, key, val) =>
+    setForm((f) => {
+      const items = [...f.items];
+      items[i] = { ...items[i], [key]: val };
+      return { ...f, items };
+    });
+
+  const handleSave = async () => {
+    setErr("");
+    if (!form.productId) { setErr("Product is required."); return; }
+    if (form.items.length === 0) { setErr("At least one material is required."); return; }
+    for (const it of form.items) {
+      if (!it.rawMaterialId) { setErr("Select a raw material for each row."); return; }
+      if (!it.quantityRequired || Number(it.quantityRequired) <= 0) { setErr("Quantity must be greater than zero."); return; }
+    }
+    setSaving(true);
+    try {
+      await onSave({
+        ...form,
+        items: form.items.map((it) => ({ ...it, quantityRequired: Number(it.quantityRequired) })),
+      });
+      onOpenChange(false);
+    } catch (e) {
+      setErr(e.message || "Failed to save BOM.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{initial ? "Edit BOM" : "Create BOM"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-5 py-2">
+          {err && <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</div>}
+
+          {/* Header */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Product *</label>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                value={form.productId}
+                onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
+              >
+                <option value="">— Select Product —</option>
+                {products.filter((p) => p.status === "Active").map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Version</label>
+              <input
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                value={form.version}
+                onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))}
+                placeholder="e.g. 1.0"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Status</label>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                value={form.status}
+                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
+              <textarea
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none"
+                rows={2}
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Optional description…"
+              />
+            </div>
+          </div>
+
+          {/* Materials */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold">Materials</p>
+              <Button size="sm" variant="outline" onClick={addItem} className="h-7 text-xs gap-1">
+                <Plus className="h-3.5 w-3.5" /> Add Material
+              </Button>
+            </div>
+            {form.items.length === 0 && (
+              <div className="text-sm text-muted-foreground text-center py-6 border-2 border-dashed rounded-lg">
+                No materials yet. Click "Add Material" to start.
+              </div>
+            )}
+            {form.items.map((it, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-start">
+                <div className="col-span-5">
+                  <select
+                    className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                    value={it.rawMaterialId}
+                    onChange={(e) => updateItem(i, "rawMaterialId", e.target.value)}
+                  >
+                    <option value="">— Raw Material —</option>
+                    {rawMaterials.filter((r) => (r.status || "Active") === "Active").map((r) => (
+                      <option key={r.id} value={r.id}>{r.name}{r.unit ? ` (${r.unit})` : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                    placeholder="Qty"
+                    value={it.quantityRequired}
+                    onChange={(e) => updateItem(i, "quantityRequired", e.target.value)}
+                  />
+                </div>
+                <div className="col-span-4">
+                  <input
+                    className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                    placeholder="Notes (optional)"
+                    value={it.notes}
+                    onChange={(e) => updateItem(i, "notes", e.target.value)}
+                  />
+                </div>
+                <div className="col-span-1 flex justify-center pt-1">
+                  <button onClick={() => removeItem(i)} className="text-rose-500 hover:text-rose-700">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {form.items.length > 0 && (
+              <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground px-1 mt-1">
+                <div className="col-span-5">Raw Material</div>
+                <div className="col-span-2">Qty Required</div>
+                <div className="col-span-4">Notes</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            {initial ? "Save Changes" : "Create BOM"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// =========== BOM DETAIL DIALOG ===========
+function BOMDetailDialog({ open, onOpenChange, bom, onEdit }) {
+  if (!bom) return null;
+  const statusColor = bom.status === "Active"
+    ? "bg-emerald-100 text-emerald-700"
+    : "bg-slate-100 text-slate-600";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle className="text-lg">{bom.bomCode}</DialogTitle>
+              <p className="text-sm text-muted-foreground mt-0.5">{bom.product?.name} — v{bom.version}</p>
+            </div>
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColor}`}>{bom.status}</span>
+          </div>
+        </DialogHeader>
+
+        {/* BOM Info */}
+        <div className="grid grid-cols-2 gap-3 text-sm py-2">
+          <div className="bg-muted/40 rounded-lg p-3">
+            <p className="text-xs text-muted-foreground mb-0.5">Product</p>
+            <p className="font-medium">{bom.product?.name}</p>
+            <p className="text-xs text-muted-foreground">{bom.product?.sku}</p>
+          </div>
+          <div className="bg-muted/40 rounded-lg p-3">
+            <p className="text-xs text-muted-foreground mb-0.5">Version</p>
+            <p className="font-medium">{bom.version}</p>
+          </div>
+          {bom.description && (
+            <div className="col-span-2 bg-muted/40 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground mb-0.5">Description</p>
+              <p>{bom.description}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Materials Table */}
+        <div>
+          <p className="text-sm font-semibold mb-2">
+            Materials {bom.items?.length ? `(${bom.items.length})` : ""}
+          </p>
+          {!bom.items?.length ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No materials listed.</p>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">#</th>
+                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">Raw Material</th>
+                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">Unit</th>
+                    <th className="px-4 py-2 text-right font-medium text-xs text-muted-foreground">Qty Required</th>
+                    <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {bom.items.map((it, i) => (
+                    <tr key={it.id} className="hover:bg-muted/30">
+                      <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
+                      <td className="px-4 py-2 font-medium">{it.rawMaterial?.name || "—"}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{it.rawMaterial?.unit || "—"}</td>
+                      <td className="px-4 py-2 text-right font-semibold">{it.quantityRequired}</td>
+                      <td className="px-4 py-2 text-muted-foreground text-xs">{it.notes || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => { onOpenChange(false); onEdit(bom); }}>
+            <Edit3 className="h-4 w-4 mr-1" /> Edit BOM
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// =========== BOM MODULE ===========
+function BOMModule() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [stats, setStats] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [detailBom, setDetailBom] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [rawMaterials, setRawMaterials] = useState([]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      if (statusFilter !== "all") qs.set("status", statusFilter);
+      if (search.trim()) qs.set("search", search.trim());
+      const [boms, st, prods, rms] = await Promise.all([
+        api.get("bom" + (qs.toString() ? "?" + qs.toString() : "")),
+        api.get("bom/stats"),
+        api.get("products"),
+        api.get("rawmaterials"),
+      ]);
+      setItems(Array.isArray(boms) ? boms : []);
+      setStats(st);
+      setProducts(Array.isArray(prods) ? prods : []);
+      setRawMaterials(Array.isArray(rms) ? rms : []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [statusFilter]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    load();
+  };
+
+  const openEdit = async (b) => {
+    const detail = await api.get(`bom/${b.id}`);
+    setEditing(detail);
+    setShowForm(true);
+  };
+
+  const openDetail = async (b) => {
+    const detail = await api.get(`bom/${b.id}`);
+    setDetailBom(detail);
+    setShowDetail(true);
+  };
+
+  const handleSave = async (data) => {
+    if (editing) {
+      await api.put("bom/" + editing.id, data);
+    } else {
+      await api.post("bom", data);
+    }
+    setEditing(null);
+    load();
+  };
+
+  const statusBadge = (s) => {
+    const cls =
+      s === "Active"
+        ? "bg-emerald-100 text-emerald-700"
+        : "bg-slate-100 text-slate-600";
+    return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cls}`}>{s}</span>;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Bill of Materials (BOM)</h1>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Define material compositions for each product</p>
+        </div>
+        <Button
+          onClick={() => { setEditing(null); setShowForm(true); }}
+          className="gap-1.5"
+        >
+          <Plus className="h-4 w-4" /> Create BOM
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: "Total BOMs", value: stats?.total ?? "—", icon: ClipboardList, color: "text-blue-600 bg-blue-50" },
+          { label: "Active", value: stats?.active ?? "—", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50" },
+          { label: "Inactive", value: stats?.inactive ?? "—", icon: Archive, color: "text-slate-600 bg-slate-50" },
+        ].map((c) => (
+          <div key={c.label} className="bg-background border rounded-xl p-4 flex items-center gap-4">
+            <div className={`rounded-lg p-2.5 ${c.color}`}>
+              <c.icon className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{c.value}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 min-w-[200px]">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-background"
+              placeholder="Search BOM code, product, version…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Button type="submit" size="sm" variant="secondary">Search</Button>
+        </form>
+        <select
+          className="border rounded-lg px-3 py-2 text-sm bg-background"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+
+      {/* Table */}
+      <div className="bg-background border rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 border-b">
+            <tr>
+              {["BOM Code", "Product", "Version", "Total Materials", "Status", "Updated At", ""].map((h) => (
+                <th key={h} className="px-4 py-3 text-left font-medium text-xs text-muted-foreground">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {loading ? (
+              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground text-sm">Loading BOMs…</td></tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="p-8 text-center">
+                  <ClipboardList className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+                  <p className="text-muted-foreground text-sm">No BOMs found</p>
+                </td>
+              </tr>
+            ) : items.map((b) => (
+              <tr
+                key={b.id}
+                className="hover:bg-muted/30 cursor-pointer transition-colors"
+                onClick={() => openDetail(b)}
+              >
+                <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-700">{b.bomCode}</td>
+                <td className="px-4 py-3">
+                  <p className="font-medium">{b.product?.name}</p>
+                  <p className="text-xs text-muted-foreground">{b.product?.sku}</p>
+                </td>
+                <td className="px-4 py-3">{b.version}</td>
+                <td className="px-4 py-3 text-center font-semibold">{b._count?.items ?? 0}</td>
+                <td className="px-4 py-3">{statusBadge(b.status)}</td>
+                <td className="px-4 py-3 text-muted-foreground text-xs">
+                  {b.updatedAt ? new Date(b.updatedAt).toLocaleDateString("id-ID") : "—"}
+                </td>
+                <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(b)}>
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <BOMFormDialog
+        open={showForm}
+        onOpenChange={(v) => { setShowForm(v); if (!v) setEditing(null); }}
+        initial={editing}
+        onSave={handleSave}
+        products={products}
+        rawMaterials={rawMaterials}
+      />
+      <BOMDetailDialog
+        open={showDetail}
+        onOpenChange={setShowDetail}
+        bom={detailBom}
+        onEdit={(b) => { setDetailBom(null); openEdit(b); }}
+      />
+    </div>
+  );
+}
+
 function SuppliersModule() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10202,10 +10683,6 @@ const COMING_SOON_META = {
   suppliers: {
     title: "Suppliers",
     description: "Manage supplier contacts, purchase terms, lead times, and procurement relationships.",
-  },
-  bom: {
-    title: "Bill of Materials (BOM)",
-    description: "Manage product material compositions and manufacturing recipes.",
   },
   productionorders: {
     title: "Production Orders",
@@ -10748,7 +11225,7 @@ function App() {
     // Operations placeholders
     stockmovements: <StockMovementsModule />,
     suppliers: <SuppliersModule />,
-    bom: <ComingSoonModule pageId="bom" />,
+    bom: <BOMModule />,
     productionorders: <ComingSoonModule pageId="productionorders" />,
     finishedgoods: <ComingSoonModule pageId="finishedgoods" />,
     // Sales placeholders

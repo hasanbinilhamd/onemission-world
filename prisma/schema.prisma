@@ -33,6 +33,7 @@ model Product {
   imageUrl       String          @default("")
   inventory      Inventory[]
   stockMovements StockMovement[]
+  boms           BOM[]
 }
 
 model Inventory {
@@ -215,8 +216,38 @@ model RawMaterial {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   stockMovements StockMovement[]
+  bomItems       BOMItem[]
 
   @@index([supplierId])
+}
+
+model BOM {
+  id          String    @id
+  bomCode     String    @unique
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  version     String    @default("1.0")
+  description String    @default("")
+  status      String    @default("Active")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  items       BOMItem[]
+
+  @@index([productId])
+  @@index([status])
+}
+
+model BOMItem {
+  id               String      @id
+  bomId            String
+  bom              BOM         @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  rawMaterialId    String
+  rawMaterial      RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  quantityRequired Float
+  notes            String      @default("")
+
+  @@index([bomId])
+  @@index([rawMaterialId])
 }
 
 model ChartOfAccount {

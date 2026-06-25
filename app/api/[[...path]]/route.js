@@ -50,6 +50,20 @@ async function generateJournalNumber(journalDate) {
 }
 
 // Generate supplier code: SUP-0001
+async function generateBomCode() {
+  const existing = await prisma.bOM.findMany({
+    select: { bomCode: true },
+    orderBy: { bomCode: 'desc' },
+  });
+  let maxSeq = 0;
+  for (const b of existing) {
+    const parts = b.bomCode.split('-');
+    const seq = parseInt(parts[parts.length - 1] || '0', 10);
+    if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+  }
+  return `BOM-${String(maxSeq + 1).padStart(4, '0')}`;
+}
+
 async function generateSupplierCode() {
   const existing = await prisma.supplier.findMany({
     select: { supplierCode: true },
@@ -1397,6 +1411,146 @@ async function handle(request, { params }) {
         }
         await model.delete({ where: { id } });
         return NextResponse.json({ ok: true });
+      }
+    }
+
+    // ─────────── BOM ───────────
+    if (segs[0] === 'bom') {
+      // Stats
+      if (segs[1] === 'stats' && method === 'GET') {
+        const all = await prisma.bOM.findMany({ select: { status: true } });
+        const total = all.length;
+        const active = all.filter(b => b.status === 'Active').length;
+        const inactive = all.filter(b => b.status === 'Inactive').length;
+        return NextResponse.json({ total, active, inactive });
+      }
+
+      // List
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const search = url.searchParams.get('search');
+        const status = url.searchParams.get('status');
+        const where = {};
+        if (status && status !== 'all') where.status = status;
+        const boms = await prisma.bOM.findMany({
+          where,
+          include: {
+            product: { select: { id: true, name: true, sku: true } },
+            _count: { select: { items: true } },
+          },
+          orderBy: { bomCode: 'asc' },
+        });
+        const result = search
+          ? boms.filter(b => {
+              const q = search.toLowerCase();
+              return b.bomCode.toLowerCase().includes(q)
+                || b.product.name.toLowerCase().includes(q)
+                || b.version.toLowerCase().includes(q);
+            })
+          : boms;
+        return NextResponse.json(result);
+      }
+
+      // Get by ID (with items)
+      if (method === 'GET' && segs.length === 2) {
+        const bom = await prisma.bOM.findUnique({
+          where: { id: segs[1] },
+          include: {
+            product: { select: { id: true, name: true, sku: true } },
+            items: {
+              include: { rawMaterial: { select: { id: true, name: true, unit: true, category: true } } },
+              orderBy: { id: 'asc' },
+            },
+          },
+        });
+        if (!bom) return NextResponse.json({ error: 'BOM not found' }, { status: 404 });
+        return NextResponse.json(bom);
+      }
+
+      // Create
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+        if (!body.productId) return NextResponse.json({ error: 'Product is required' }, { status: 400 });
+        if (!Array.isArray(body.items) || body.items.length === 0)
+          return NextResponse.json({ error: 'At least one material is required' }, { status: 400 });
+        for (const it of body.items) {
+          if (!it.rawMaterialId) return NextResponse.json({ error: 'Raw material is required for each item' }, { status: 400 });
+          if (!it.quantityRequired || Number(it.quantityRequired) <= 0)
+            return NextResponse.json({ error: 'Quantity must be greater than zero' }, { status: 400 });
+        }
+        // Enforce one Active BOM per product
+        if ((body.status || 'Active') === 'Active') {
+          const existingActive = await prisma.bOM.findFirst({ where: { productId: body.productId, status: 'Active' } });
+          if (existingActive) return NextResponse.json({ error: 'This product already has an Active BOM. Deactivate it first.' }, { status: 400 });
+        }
+        const bomCode = await generateBomCode();
+        const bom = await prisma.bOM.create({
+          data: {
+            id: uuid(),
+            bomCode,
+            productId: body.productId,
+            version: body.version || '1.0',
+            description: body.description || '',
+            status: body.status || 'Active',
+            items: {
+              create: body.items.map(it => ({
+                id: uuid(),
+                rawMaterialId: it.rawMaterialId,
+                quantityRequired: Number(it.quantityRequired),
+                notes: it.notes || '',
+              })),
+            },
+          },
+          include: {
+            product: { select: { id: true, name: true, sku: true } },
+            items: { include: { rawMaterial: { select: { id: true, name: true, unit: true } } } },
+          },
+        });
+        return NextResponse.json(bom);
+      }
+
+      // Update
+      if (method === 'PUT' && segs.length === 2) {
+        const body = await readJson(request);
+        // Enforce one Active BOM per product
+        if (body.status === 'Active' && body.productId) {
+          const existingActive = await prisma.bOM.findFirst({
+            where: { productId: body.productId, status: 'Active', id: { not: segs[1] } },
+          });
+          if (existingActive) return NextResponse.json({ error: 'This product already has an Active BOM. Deactivate it first.' }, { status: 400 });
+        }
+        const { id: _id, bomCode: _code, createdAt: _ca, updatedAt: _ua, items, product: _p, _count: _cnt, ...rest } = body;
+        // Replace items if provided
+        const bom = await prisma.bOM.update({
+          where: { id: segs[1] },
+          data: {
+            ...rest,
+            ...(items !== undefined
+              ? {
+                  items: {
+                    deleteMany: {},
+                    create: items.map(it => ({
+                      id: uuid(),
+                      rawMaterialId: it.rawMaterialId,
+                      quantityRequired: Number(it.quantityRequired),
+                      notes: it.notes || '',
+                    })),
+                  },
+                }
+              : {}),
+          },
+          include: {
+            product: { select: { id: true, name: true, sku: true } },
+            items: { include: { rawMaterial: { select: { id: true, name: true, unit: true } } } },
+          },
+        });
+        return NextResponse.json(bom);
+      }
+
+      // Soft-delete: set status Inactive (no physical delete)
+      if (method === 'DELETE' && segs.length === 2) {
+        const updated = await prisma.bOM.update({ where: { id: segs[1] }, data: { status: 'Inactive' } });
+        return NextResponse.json(updated);
       }
     }
 
