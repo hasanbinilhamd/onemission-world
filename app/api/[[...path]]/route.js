@@ -1800,6 +1800,23 @@ async function handle(request, { params }) {
               notes: body.completionNotes ? (order.notes ? order.notes + '\n' + body.completionNotes : body.completionNotes) : order.notes,
             },
           });
+
+          // 4. Auto-create Production Result (immutable audit record)
+          const latestPR = await tx.productionResult.findMany({
+            select: { resultNumber: true },
+            orderBy: { resultNumber: 'desc' },
+            take: 1,
+          });
+          let maxPR = 0;
+          if (latestPR.length > 0) {
+            const parts = latestPR[0].resultNumber.split('-');
+            const num = parseInt(parts[1], 10);
+            if (!isNaN(num)) maxPR = num;
+          }
+          const resultNumber = `PR-${String(maxPR + 1).padStart(4, '0')}`;
+          await tx.productionResult.create({
+            data: { id: uuid(), resultNumber, productionOrderId: segs[1] },
+          });
         });
 
         const result = await prisma.productionOrder.findUnique({
@@ -1832,6 +1849,71 @@ async function handle(request, { params }) {
         if (current?.status === 'Completed') return NextResponse.json({ error: 'Completed Production Orders cannot be cancelled.' }, { status: 400 });
         const updated = await prisma.productionOrder.update({ where: { id: segs[1] }, data: { status: 'Cancelled' } });
         return NextResponse.json(updated);
+      }
+    }
+
+    // ─────────── PRODUCTION RESULTS ───────────
+    if (segs[0] === 'productionresults') {
+      // List (GET /productionresults)
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const q = url.searchParams.get('search')?.toLowerCase().trim();
+        const results = await prisma.productionResult.findMany({
+          include: {
+            productionOrder: {
+              include: {
+                product: { select: { id: true, name: true, sku: true } },
+                bom: { select: { id: true, bomCode: true, version: true } },
+              },
+            },
+          },
+          orderBy: { resultNumber: 'desc' },
+        });
+        const filtered = q
+          ? results.filter((r) =>
+              r.resultNumber.toLowerCase().includes(q) ||
+              r.productionOrder?.productionOrderNumber?.toLowerCase().includes(q) ||
+              r.productionOrder?.product?.name?.toLowerCase().includes(q)
+            )
+          : results;
+        return NextResponse.json(filtered);
+      }
+
+      // Detail (GET /productionresults/:id)
+      if (method === 'GET' && segs.length === 2) {
+        const result = await prisma.productionResult.findUnique({
+          where: { id: segs[1] },
+          include: {
+            productionOrder: {
+              include: {
+                product: { select: { id: true, name: true, sku: true } },
+                bom: {
+                  include: {
+                    items: {
+                      include: { rawMaterial: { select: { id: true, name: true, unit: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+        if (!result) return NextResponse.json({ error: 'Production Result not found' }, { status: 404 });
+
+        const movements = await prisma.stockMovement.findMany({
+          where: {
+            referenceNumber: result.productionOrder.productionOrderNumber,
+            movementType: { in: ['PRODUCTION_IN', 'PRODUCTION_OUT'] },
+          },
+          include: {
+            rawMaterial: { select: { id: true, name: true, unit: true } },
+            product: { select: { id: true, name: true } },
+            inventory: { select: { id: true, color: true, size: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        });
+
+        return NextResponse.json({ ...result, stockMovements: movements });
       }
     }
 
