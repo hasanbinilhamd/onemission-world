@@ -10150,7 +10150,7 @@ function SuppliersModule() {
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}>
-                            <Edit className="h-3.5 w-3.5" />
+                            <Edit3 className="h-3.5 w-3.5" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600" onClick={() => setDeleteId(s.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
