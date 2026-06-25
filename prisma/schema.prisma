@@ -31,9 +31,10 @@ model Product {
   sizes          String[]
   notes          String          @default("")
   imageUrl       String          @default("")
-  inventory      Inventory[]
-  stockMovements StockMovement[]
-  boms           BOM[]
+  inventory        Inventory[]
+  stockMovements   StockMovement[]
+  boms             BOM[]
+  productionOrders ProductionOrder[]
 }
 
 model Inventory {
@@ -221,6 +222,25 @@ model RawMaterial {
   @@index([supplierId])
 }
 
+model ProductionOrder {
+  id                    String   @id
+  productionOrderNumber String   @unique
+  productId             String
+  product               Product  @relation(fields: [productId], references: [id])
+  bomId                 String
+  bom                   BOM      @relation(fields: [bomId], references: [id])
+  plannedQuantity       Float
+  plannedDate           String
+  status                String   @default("Draft")
+  notes                 String   @default("")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([productId])
+  @@index([bomId])
+  @@index([status])
+}
+
 model BOM {
   id          String    @id
   bomCode     String    @unique
@@ -231,7 +251,8 @@ model BOM {
   status      String    @default("Active")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  items       BOMItem[]
+  items            BOMItem[]
+  productionOrders ProductionOrder[]
 
   @@index([productId])
   @@index([status])

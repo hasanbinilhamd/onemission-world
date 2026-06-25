@@ -1554,6 +1554,164 @@ async function handle(request, { params }) {
       }
     }
 
+    // ─────────── PRODUCTION ORDERS ───────────
+    if (segs[0] === 'productionorders') {
+      // Stats
+      if (segs[1] === 'stats' && method === 'GET') {
+        const all = await prisma.productionOrder.findMany({ select: { status: true } });
+        const total = all.length;
+        const draft = all.filter(p => p.status === 'Draft').length;
+        const ready = all.filter(p => p.status === 'Ready').length;
+        const notReady = all.filter(p => p.status === 'Not Ready').length;
+        const completed = all.filter(p => p.status === 'Completed').length;
+        const cancelled = all.filter(p => p.status === 'Cancelled').length;
+        return NextResponse.json({ total, draft, ready, notReady, completed, cancelled });
+      }
+
+      // List
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const search = url.searchParams.get('search');
+        const status = url.searchParams.get('status');
+        const where = {};
+        if (status && status !== 'all') where.status = status;
+        const orders = await prisma.productionOrder.findMany({
+          where,
+          include: {
+            product: { select: { id: true, name: true, sku: true } },
+            bom: { select: { id: true, bomCode: true, version: true } },
+          },
+          orderBy: { productionOrderNumber: 'desc' },
+        });
+        const result = search
+          ? orders.filter(o => {
+              const q = search.toLowerCase();
+              return o.productionOrderNumber.toLowerCase().includes(q)
+                || o.product.name.toLowerCase().includes(q);
+            })
+          : orders;
+        return NextResponse.json(result);
+      }
+
+      // Get by ID (with material requirements)
+      if (method === 'GET' && segs.length === 2) {
+        const order = await prisma.productionOrder.findUnique({
+          where: { id: segs[1] },
+          include: {
+            product: { select: { id: true, name: true, sku: true } },
+            bom: {
+              include: {
+                items: {
+                  include: { rawMaterial: { select: { id: true, name: true, unit: true, currentStock: true } } },
+                },
+              },
+            },
+          },
+        });
+        if (!order) return NextResponse.json({ error: 'Production Order not found' }, { status: 404 });
+        // Calculate material requirements
+        const requirements = order.bom.items.map(it => {
+          const required = it.quantityRequired * order.plannedQuantity;
+          const stock = it.rawMaterial.currentStock ?? 0;
+          const shortage = Math.max(0, required - stock);
+          return {
+            rawMaterialId: it.rawMaterialId,
+            rawMaterial: it.rawMaterial,
+            quantityPerUnit: it.quantityRequired,
+            requiredQuantity: required,
+            currentStock: stock,
+            shortage,
+            status: shortage <= 0 ? 'Sufficient' : 'Shortage',
+            notes: it.notes,
+          };
+        });
+        const isReady = requirements.every(r => r.shortage <= 0);
+        return NextResponse.json({ ...order, requirements, isReady });
+      }
+
+      // Get active BOM for a product (helper)
+      if (segs[1] === 'active-bom' && method === 'GET') {
+        const url = new URL(request.url);
+        const productId = url.searchParams.get('productId');
+        if (!productId) return NextResponse.json({ error: 'productId required' }, { status: 400 });
+        const bom = await prisma.bOM.findFirst({
+          where: { productId, status: 'Active' },
+          include: {
+            items: {
+              include: { rawMaterial: { select: { id: true, name: true, unit: true, currentStock: true } } },
+            },
+          },
+        });
+        return NextResponse.json(bom ?? null);
+      }
+
+      // Create
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+        if (!body.productId) return NextResponse.json({ error: 'Product is required' }, { status: 400 });
+        if (!body.plannedQuantity || Number(body.plannedQuantity) <= 0)
+          return NextResponse.json({ error: 'Planned quantity must be greater than zero' }, { status: 400 });
+        if (!body.plannedDate) return NextResponse.json({ error: 'Planned date is required' }, { status: 400 });
+        // Get active BOM
+        const activeBom = await prisma.bOM.findFirst({
+          where: { productId: body.productId, status: 'Active' },
+          include: { items: { include: { rawMaterial: { select: { currentStock: true } } } } },
+        });
+        if (!activeBom) return NextResponse.json({ error: 'No Active BOM found for this product. Create and activate a BOM first.' }, { status: 400 });
+        // Determine readiness
+        const qty = Number(body.plannedQuantity);
+        const isReady = activeBom.items.every(it => (it.rawMaterial.currentStock ?? 0) >= it.quantityRequired * qty);
+        const autoStatus = body.status && body.status !== 'Draft' ? body.status : (isReady ? 'Ready' : 'Not Ready');
+        // Generate PO number
+        const existing = await prisma.productionOrder.findMany({ select: { productionOrderNumber: true }, orderBy: { productionOrderNumber: 'desc' } });
+        let maxSeq = 0;
+        for (const e of existing) {
+          const parts = e.productionOrderNumber.split('-');
+          const seq = parseInt(parts[parts.length - 1] || '0', 10);
+          if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+        }
+        const productionOrderNumber = `PO-${String(maxSeq + 1).padStart(4, '0')}`;
+        const order = await prisma.productionOrder.create({
+          data: {
+            id: uuid(),
+            productionOrderNumber,
+            productId: body.productId,
+            bomId: activeBom.id,
+            plannedQuantity: qty,
+            plannedDate: body.plannedDate,
+            status: autoStatus,
+            notes: body.notes || '',
+          },
+          include: {
+            product: { select: { id: true, name: true, sku: true } },
+            bom: { select: { id: true, bomCode: true, version: true } },
+          },
+        });
+        return NextResponse.json(order);
+      }
+
+      // Update (status/notes/plannedDate/plannedQuantity only)
+      if (method === 'PUT' && segs.length === 2) {
+        const body = await readJson(request);
+        const { id: _id, productionOrderNumber: _n, productId: _p, bomId: _b, createdAt: _ca, updatedAt: _ua, product: _pr, bom: _bm, requirements: _r, isReady: _ir, ...rest } = body;
+        const updated = await prisma.productionOrder.update({
+          where: { id: segs[1] },
+          data: rest,
+          include: {
+            product: { select: { id: true, name: true, sku: true } },
+            bom: { select: { id: true, bomCode: true, version: true } },
+          },
+        });
+        return NextResponse.json(updated);
+      }
+
+      // Cancel (soft status change)
+      if (method === 'DELETE' && segs.length === 2) {
+        const updated = await prisma.productionOrder.update({ where: { id: segs[1] }, data: { status: 'Cancelled' } });
+        return NextResponse.json(updated);
+      }
+    }
+
     // Public products endpoint
     if (segs[0] === 'public' && segs[1] === 'products' && method === 'GET') {
       const products = await prisma.product.findMany({ where: { status: 'Active' } });

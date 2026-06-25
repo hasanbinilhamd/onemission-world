@@ -10251,6 +10251,464 @@ function BOMDetailDialog({ open, onOpenChange, bom, onEdit }) {
   );
 }
 
+// =========== PRODUCTION ORDER FORM DIALOG ===========
+function ProductionOrderFormDialog({ open, onOpenChange, initial, onSave, products = [] }) {
+  const empty = { productId: "", plannedQuantity: "", plannedDate: "", notes: "" };
+  const [form, setForm] = useState(empty);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const [activeBom, setActiveBom] = useState(null);
+  const [bomLoading, setBomLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      if (initial) {
+        setForm({
+          productId: initial.productId || "",
+          plannedQuantity: initial.plannedQuantity ?? "",
+          plannedDate: initial.plannedDate || "",
+          notes: initial.notes || "",
+        });
+        setActiveBom(initial.bom ? { ...initial.bom, items: [] } : null);
+      } else {
+        setForm(empty);
+        setActiveBom(null);
+      }
+      setErr("");
+    }
+  }, [open, initial]);
+
+  useEffect(() => {
+    if (!form.productId || initial) { setActiveBom(initial?.bom ?? null); return; }
+    setBomLoading(true);
+    api.get(`productionorders/active-bom?productId=${form.productId}`)
+      .then((b) => setActiveBom(b))
+      .catch(() => setActiveBom(null))
+      .finally(() => setBomLoading(false));
+  }, [form.productId]);
+
+  const handleSave = async () => {
+    setErr("");
+    if (!form.productId) { setErr("Product is required."); return; }
+    if (!form.plannedQuantity || Number(form.plannedQuantity) <= 0) { setErr("Planned quantity must be greater than zero."); return; }
+    if (!form.plannedDate) { setErr("Planned date is required."); return; }
+    if (!activeBom && !initial) { setErr("No Active BOM found for this product. Create and activate a BOM first."); return; }
+    setSaving(true);
+    try {
+      await onSave({ ...form, plannedQuantity: Number(form.plannedQuantity) });
+      onOpenChange(false);
+    } catch (e) {
+      setErr(e.message || "Failed to save Production Order.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{initial ? "Edit Production Order" : "Create Production Order"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          {err && <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</div>}
+
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Product *</label>
+            <select
+              className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+              value={form.productId}
+              onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
+              disabled={!!initial}
+            >
+              <option value="">— Select Product —</option>
+              {products.filter((p) => p.status === "Active").map((p) => (
+                <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Active BOM</label>
+            {bomLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Checking BOM…</div>
+            ) : activeBom ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2 text-sm">
+                <span className="font-semibold text-emerald-700">{activeBom.bomCode}</span>
+                {activeBom.version && <span className="text-muted-foreground ml-2">v{activeBom.version}</span>}
+              </div>
+            ) : form.productId ? (
+              <div className="bg-rose-50 border border-rose-200 rounded-md px-3 py-2 text-sm text-rose-600">
+                No Active BOM found. Create and activate a BOM for this product first.
+              </div>
+            ) : (
+              <div className="bg-muted/50 rounded-md px-3 py-2 text-sm text-muted-foreground">Select a product to auto-detect its Active BOM.</div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Planned Quantity *</label>
+              <input
+                type="number" min="1" step="any"
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                placeholder="e.g. 100"
+                value={form.plannedQuantity}
+                onChange={(e) => setForm((f) => ({ ...f, plannedQuantity: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Planned Date *</label>
+              <input
+                type="date"
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                value={form.plannedDate}
+                onChange={(e) => setForm((f) => ({ ...f, plannedDate: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
+            <textarea
+              className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none"
+              rows={2}
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              placeholder="Optional notes…"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || (!!form.productId && !activeBom && !initial)}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+            {initial ? "Save Changes" : "Create Order"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// =========== PRODUCTION ORDER DETAIL DIALOG ===========
+function ProductionOrderDetailDialog({ open, onOpenChange, order, onEdit, onCancel }) {
+  if (!order) return null;
+
+  const statusColor = {
+    Draft: "bg-slate-100 text-slate-600",
+    Ready: "bg-emerald-100 text-emerald-700",
+    "Not Ready": "bg-amber-100 text-amber-700",
+    Completed: "bg-blue-100 text-blue-700",
+    Cancelled: "bg-rose-100 text-rose-600",
+  }[order.status] || "bg-slate-100 text-slate-600";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle className="text-lg">{order.productionOrderNumber}</DialogTitle>
+              <p className="text-sm text-muted-foreground mt-0.5">{order.product?.name} — {order.bom?.bomCode} v{order.bom?.version}</p>
+            </div>
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${statusColor}`}>{order.status}</span>
+          </div>
+        </DialogHeader>
+
+        {/* Info grid */}
+        <div className="grid grid-cols-3 gap-3 text-sm py-2">
+          {[
+            { label: "Product", val: order.product?.name, sub: order.product?.sku },
+            { label: "Planned Quantity", val: order.plannedQuantity, sub: "units" },
+            { label: "Planned Date", val: order.plannedDate ? new Date(order.plannedDate).toLocaleDateString("id-ID") : "—" },
+          ].map((c) => (
+            <div key={c.label} className="bg-muted/40 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground mb-0.5">{c.label}</p>
+              <p className="font-semibold">{c.val}</p>
+              {c.sub && <p className="text-xs text-muted-foreground">{c.sub}</p>}
+            </div>
+          ))}
+        </div>
+        {order.notes && (
+          <div className="bg-muted/40 rounded-lg px-3 py-2 text-sm">
+            <span className="text-xs text-muted-foreground mr-2">Notes:</span>{order.notes}
+          </div>
+        )}
+
+        {/* Readiness banner */}
+        {order.requirements?.length > 0 && (
+          <div className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium ${order.isReady ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+            {order.isReady
+              ? <><CheckCircle2 className="h-4 w-4" /> All materials available — Ready for production</>
+              : <><AlertTriangle className="h-4 w-4" /> Some materials are insufficient — Not Ready</>
+            }
+          </div>
+        )}
+
+        {/* Material requirements table */}
+        <div>
+          <p className="text-sm font-semibold mb-2">Material Requirements {order.requirements?.length ? `(${order.requirements.length} items)` : ""}</p>
+          {!order.requirements?.length ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No material requirements calculated.</p>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    {["Raw Material", "Unit", "Required Qty", "Current Stock", "Shortage", "Status"].map((h) => (
+                      <th key={h} className={`px-3 py-2 text-xs font-medium text-muted-foreground ${h === "Required Qty" || h === "Current Stock" || h === "Shortage" ? "text-right" : "text-left"}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {order.requirements.map((r) => (
+                    <tr key={r.rawMaterialId} className="hover:bg-muted/20">
+                      <td className="px-3 py-2 font-medium">{r.rawMaterial?.name}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{r.rawMaterial?.unit || "—"}</td>
+                      <td className="px-3 py-2 text-right font-semibold">{r.requiredQuantity.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right">{r.currentStock.toLocaleString()}</td>
+                      <td className={`px-3 py-2 text-right font-semibold ${r.shortage > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                        {r.shortage > 0 ? `-${r.shortage.toLocaleString()}` : "—"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.status === "Sufficient" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"}`}>
+                          {r.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          {order.status !== "Cancelled" && order.status !== "Completed" && (
+            <Button variant="ghost" className="text-rose-500 hover:text-rose-600" onClick={() => { onOpenChange(false); onCancel(order); }}>
+              Cancel Order
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          {order.status !== "Cancelled" && order.status !== "Completed" && (
+            <Button onClick={() => { onOpenChange(false); onEdit(order); }}>
+              <Edit3 className="h-4 w-4 mr-1" /> Edit
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// =========== PRODUCTION ORDERS MODULE ===========
+function ProductionOrdersModule() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [stats, setStats] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [detailOrder, setDetailOrder] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [products, setProducts] = useState([]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      if (statusFilter !== "all") qs.set("status", statusFilter);
+      if (search.trim()) qs.set("search", search.trim());
+      const [orders, st, prods] = await Promise.all([
+        api.get("productionorders" + (qs.toString() ? "?" + qs.toString() : "")),
+        api.get("productionorders/stats"),
+        api.get("products"),
+      ]);
+      setItems(Array.isArray(orders) ? orders : []);
+      setStats(st);
+      setProducts(Array.isArray(prods) ? prods : []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [statusFilter]);
+
+  const handleSearch = (e) => { e.preventDefault(); load(); };
+
+  const openDetail = async (o) => {
+    const detail = await api.get(`productionorders/${o.id}`);
+    setDetailOrder(detail);
+    setShowDetail(true);
+  };
+
+  const openEdit = async (o) => {
+    const detail = await api.get(`productionorders/${o.id}`);
+    setEditing(detail);
+    setShowForm(true);
+  };
+
+  const handleSave = async (data) => {
+    if (editing) {
+      await api.put("productionorders/" + editing.id, data);
+    } else {
+      await api.post("productionorders", data);
+    }
+    setEditing(null);
+    load();
+  };
+
+  const handleCancel = async (o) => {
+    if (!confirm(`Cancel Production Order ${o.productionOrderNumber}?`)) return;
+    await api.del("productionorders/" + o.id);
+    load();
+  };
+
+  const statusBadge = (s) => {
+    const cls = {
+      Draft: "bg-slate-100 text-slate-600",
+      Ready: "bg-emerald-100 text-emerald-700",
+      "Not Ready": "bg-amber-100 text-amber-700",
+      Completed: "bg-blue-100 text-blue-700",
+      Cancelled: "bg-rose-100 text-rose-600",
+    }[s] || "bg-slate-100 text-slate-600";
+    return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cls}`}>{s}</span>;
+  };
+
+  const STAT_CARDS = [
+    { label: "Total", key: "total", icon: ClipboardList, color: "text-blue-600 bg-blue-50" },
+    { label: "Ready", key: "ready", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50" },
+    { label: "Not Ready", key: "notReady", icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
+    { label: "Draft", key: "draft", icon: FileText, color: "text-slate-600 bg-slate-50" },
+    { label: "Completed", key: "completed", icon: PackageCheck, color: "text-indigo-600 bg-indigo-50" },
+    { label: "Cancelled", key: "cancelled", icon: X, color: "text-rose-600 bg-rose-50" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Production Orders</h1>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Plan manufacturing runs using Bill of Materials</p>
+        </div>
+        <Button onClick={() => { setEditing(null); setShowForm(true); }} className="gap-1.5">
+          <Plus className="h-4 w-4" /> Create Order
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-6 gap-3">
+        {STAT_CARDS.map((c) => (
+          <div key={c.label} className="bg-background border rounded-xl p-3 flex flex-col gap-1">
+            <div className={`rounded-md p-1.5 self-start ${c.color}`}>
+              <c.icon className="h-4 w-4" />
+            </div>
+            <p className="text-xl font-bold">{stats?.[c.key] ?? "—"}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide leading-tight">{c.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 min-w-[200px]">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-background"
+              placeholder="Search order number, product…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Button type="submit" size="sm" variant="secondary">Search</Button>
+        </form>
+        <select
+          className="border rounded-lg px-3 py-2 text-sm bg-background"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All Status</option>
+          <option value="Draft">Draft</option>
+          <option value="Ready">Ready</option>
+          <option value="Not Ready">Not Ready</option>
+          <option value="Completed">Completed</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+
+      {/* Table */}
+      <div className="bg-background border rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 border-b">
+            <tr>
+              {["Order Number", "Product", "Planned Qty", "Planned Date", "BOM", "Status", "Updated At", ""].map((h) => (
+                <th key={h} className="px-4 py-3 text-left font-medium text-xs text-muted-foreground">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {loading ? (
+              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground text-sm">Loading production orders…</td></tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="p-8 text-center">
+                  <Factory className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+                  <p className="text-muted-foreground text-sm">No production orders found</p>
+                </td>
+              </tr>
+            ) : items.map((o) => (
+              <tr
+                key={o.id}
+                className="hover:bg-muted/30 cursor-pointer transition-colors"
+                onClick={() => openDetail(o)}
+              >
+                <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-700">{o.productionOrderNumber}</td>
+                <td className="px-4 py-3">
+                  <p className="font-medium">{o.product?.name}</p>
+                  <p className="text-xs text-muted-foreground">{o.product?.sku}</p>
+                </td>
+                <td className="px-4 py-3 font-semibold">{o.plannedQuantity?.toLocaleString()}</td>
+                <td className="px-4 py-3 text-muted-foreground text-xs">{o.plannedDate ? new Date(o.plannedDate).toLocaleDateString("id-ID") : "—"}</td>
+                <td className="px-4 py-3 font-mono text-xs">{o.bom?.bomCode}</td>
+                <td className="px-4 py-3">{statusBadge(o.status)}</td>
+                <td className="px-4 py-3 text-muted-foreground text-xs">{o.updatedAt ? new Date(o.updatedAt).toLocaleDateString("id-ID") : "—"}</td>
+                <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  {o.status !== "Cancelled" && o.status !== "Completed" && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(o)}>
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <ProductionOrderFormDialog
+        open={showForm}
+        onOpenChange={(v) => { setShowForm(v); if (!v) setEditing(null); }}
+        initial={editing}
+        onSave={handleSave}
+        products={products}
+      />
+      <ProductionOrderDetailDialog
+        open={showDetail}
+        onOpenChange={setShowDetail}
+        order={detailOrder}
+        onEdit={(o) => { setDetailOrder(null); openEdit(o); }}
+        onCancel={handleCancel}
+      />
+    </div>
+  );
+}
+
 // =========== BOM MODULE ===========
 function BOMModule() {
   const [items, setItems] = useState([]);
@@ -10683,10 +11141,6 @@ const COMING_SOON_META = {
   suppliers: {
     title: "Suppliers",
     description: "Manage supplier contacts, purchase terms, lead times, and procurement relationships.",
-  },
-  productionorders: {
-    title: "Production Orders",
-    description: "Plan and track manufacturing runs, assign resources, and monitor production progress.",
   },
   finishedgoods: {
     title: "Finished Goods",
@@ -11226,7 +11680,7 @@ function App() {
     stockmovements: <StockMovementsModule />,
     suppliers: <SuppliersModule />,
     bom: <BOMModule />,
-    productionorders: <ComingSoonModule pageId="productionorders" />,
+    productionorders: <ProductionOrdersModule />,
     finishedgoods: <ComingSoonModule pageId="finishedgoods" />,
     // Sales placeholders
     customers: <ComingSoonModule pageId="customers" />,
