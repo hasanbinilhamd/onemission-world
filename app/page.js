@@ -2148,6 +2148,18 @@ const MOVEMENT_TYPES = [
     color: "text-purple-400",
     bg: "bg-purple-500/10 text-purple-400",
   },
+  {
+    value: "PRODUCTION_IN",
+    label: "Production In",
+    color: "text-teal-400",
+    bg: "bg-teal-500/10 text-teal-400",
+  },
+  {
+    value: "PRODUCTION_OUT",
+    label: "Production Out",
+    color: "text-amber-400",
+    bg: "bg-amber-500/10 text-amber-400",
+  },
 ];
 
 function movementTypeMeta(type) {
@@ -2160,7 +2172,17 @@ function movementTypeMeta(type) {
 }
 
 function isInboundType(type) {
-  return ["MANUAL_IN", "ADJUSTMENT_IN", "OPENING"].includes(type);
+  return ["MANUAL_IN", "ADJUSTMENT_IN", "OPENING", "PRODUCTION_IN"].includes(type);
+}
+
+// Derives a business-level Movement Source label from the low-level movementType.
+// Extensible: add new sources here as future modules (Purchase Receipt, Sales Order, etc.) are implemented.
+function movementSourceMeta(movementType) {
+  if (movementType === "PRODUCTION_IN" || movementType === "PRODUCTION_OUT") {
+    return { label: "Production Result", bg: "bg-amber-500/10 text-amber-600" };
+  }
+  // MANUAL_IN, MANUAL_OUT, ADJUSTMENT_IN, ADJUSTMENT_OUT, OPENING
+  return { label: "Stock Adjustment", bg: "bg-slate-500/10 text-slate-500" };
 }
 
 function StockMovementAdjustDialog({
@@ -2168,13 +2190,10 @@ function StockMovementAdjustDialog({
   onOpenChange,
   inventory,
   products,
-  rawMaterials,
   onSave,
 }) {
   const makeEmpty = () => ({
-    itemType: "PRODUCT",
     inventoryId: "",
-    rawMaterialId: "",
     movementType: "MANUAL_IN",
     quantity: "",
     notes: "",
@@ -2185,16 +2204,8 @@ function StockMovementAdjustDialog({
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const invItem =
-    form.itemType === "PRODUCT"
-      ? inventory.find((i) => i.id === form.inventoryId)
-      : null;
-  const rawMat =
-    form.itemType === "RAW_MATERIAL"
-      ? rawMaterials.find((r) => r.id === form.rawMaterialId)
-      : null;
-  const currentStock =
-    form.itemType === "PRODUCT" ? invItem?.quantity : rawMat?.currentStock;
+  const invItem = inventory.find((i) => i.id === form.inventoryId);
+  const currentStock = invItem?.quantity;
 
   const handleOpen = (val) => {
     if (val) {
@@ -2206,10 +2217,7 @@ function StockMovementAdjustDialog({
 
   const validate = () => {
     const e = {};
-    if (form.itemType === "PRODUCT" && !form.inventoryId)
-      e.inventoryId = "Select a stock item";
-    if (form.itemType === "RAW_MATERIAL" && !form.rawMaterialId)
-      e.rawMaterialId = "Select a raw material";
+    if (!form.inventoryId) e.inventoryId = "Select a stock item";
     if (!form.movementType) e.movementType = "Select movement type";
     const qty = Number(form.quantity);
     if (!form.quantity || isNaN(qty) || qty <= 0)
@@ -2227,17 +2235,13 @@ function StockMovementAdjustDialog({
     setLoading(true);
     try {
       const body = {
+        inventoryId: form.inventoryId,
         movementType: form.movementType,
         quantity: Number(form.quantity),
         notes: form.notes,
         referenceNumber: form.referenceNumber,
         movementDate: form.movementDate,
       };
-      if (form.itemType === "RAW_MATERIAL") {
-        body.rawMaterialId = form.rawMaterialId;
-      } else {
-        body.inventoryId = form.inventoryId;
-      }
       await api.post("stockmovements", body);
       toast.success("Stock movement recorded");
       onSave();
@@ -2250,14 +2254,7 @@ function StockMovementAdjustDialog({
   };
 
   const set = (k, v) => {
-    setForm((f) => {
-      const next = { ...f, [k]: v };
-      if (k === "itemType") {
-        next.inventoryId = "";
-        next.rawMaterialId = "";
-      }
-      return next;
-    });
+    setForm((f) => ({ ...f, [k]: v }));
     setErrors((e) => ({ ...e, [k]: undefined }));
   };
 
@@ -2267,90 +2264,40 @@ function StockMovementAdjustDialog({
         <DialogHeader>
           <DialogTitle>Manual Stock Adjustment</DialogTitle>
           <DialogDescription>
-            Record a manual inbound or outbound stock movement for products or
-            raw materials.
+            Record a manual inbound or outbound stock adjustment for a product inventory item.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          {/* Item Type selector */}
+          {/* Stock item selector */}
           <div className="space-y-1">
-            <label className="text-sm font-medium">Item Type</label>
+            <label className="text-sm font-medium">
+              Stock Item (Product · Color · Size)
+            </label>
             <Select
-              value={form.itemType}
-              onValueChange={(v) => set("itemType", v)}
+              value={form.inventoryId}
+              onValueChange={(v) => set("inventoryId", v)}
             >
-              <SelectTrigger>
-                <SelectValue />
+              <SelectTrigger
+                className={errors.inventoryId ? "border-red-500" : ""}
+              >
+                <SelectValue placeholder="Select stock item…" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="PRODUCT">Product (Inventory)</SelectItem>
-                <SelectItem value="RAW_MATERIAL">Raw Material</SelectItem>
+                {inventory.map((inv) => {
+                  const p = products.find((pr) => pr.id === inv.productId);
+                  return (
+                    <SelectItem key={inv.id} value={inv.id}>
+                      {p ? p.name : inv.productId} · {inv.color} · {inv.size}{" "}
+                      (stock: {inv.quantity})
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
+            {errors.inventoryId && (
+              <p className="text-xs text-red-500">{errors.inventoryId}</p>
+            )}
           </div>
-
-          {/* Product stock item selector */}
-          {form.itemType === "PRODUCT" && (
-            <div className="space-y-1">
-              <label className="text-sm font-medium">
-                Stock Item (Product · Color · Size)
-              </label>
-              <Select
-                value={form.inventoryId}
-                onValueChange={(v) => set("inventoryId", v)}
-              >
-                <SelectTrigger
-                  className={errors.inventoryId ? "border-red-500" : ""}
-                >
-                  <SelectValue placeholder="Select stock item…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {inventory.map((inv) => {
-                    const p = products.find((pr) => pr.id === inv.productId);
-                    return (
-                      <SelectItem key={inv.id} value={inv.id}>
-                        {p ? p.name : inv.productId} · {inv.color} · {inv.size}{" "}
-                        (stock: {inv.quantity})
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              {errors.inventoryId && (
-                <p className="text-xs text-red-500">{errors.inventoryId}</p>
-              )}
-            </div>
-          )}
-
-          {/* Raw Material selector */}
-          {form.itemType === "RAW_MATERIAL" && (
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Raw Material</label>
-              <Select
-                value={form.rawMaterialId}
-                onValueChange={(v) => set("rawMaterialId", v)}
-              >
-                <SelectTrigger
-                  className={errors.rawMaterialId ? "border-red-500" : ""}
-                >
-                  <SelectValue placeholder="Select raw material…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {rawMaterials.map((rm) => (
-                    <SelectItem key={rm.id} value={rm.id}>
-                      {rm.name}
-                      {rm.category ? ` · ${rm.category}` : ""} (stock:{" "}
-                      {rm.currentStock || 0}
-                      {rm.unit ? " " + rm.unit : ""})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.rawMaterialId && (
-                <p className="text-xs text-red-500">{errors.rawMaterialId}</p>
-              )}
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -2478,12 +2425,10 @@ function StockMovementsModule() {
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
   const [inventory, setInventory] = useState([]);
-  const [rawMaterials, setRawMaterials] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [itemTypeFilter, setItemTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState(firstOfMonth);
   const [dateTo, setDateTo] = useState(today);
   const [showAdjust, setShowAdjust] = useState(false);
@@ -2492,7 +2437,6 @@ function StockMovementsModule() {
     const p = new URLSearchParams();
     if (search) p.append("search", search);
     if (typeFilter !== "all") p.append("type", typeFilter);
-    if (itemTypeFilter !== "all") p.append("itemType", itemTypeFilter);
     if (dateFrom) p.append("from", dateFrom);
     if (dateTo) p.append("to", dateTo);
     return p.toString();
@@ -2501,24 +2445,22 @@ function StockMovementsModule() {
   const load = async () => {
     setLoading(true);
     const qs = buildParams();
-    const [data, statsData, prods, inv, rms] = await Promise.all([
+    const [data, statsData, prods, inv] = await Promise.all([
       api.get("stockmovements" + (qs ? "?" + qs : "")),
       api.get("stockmovements/stats" + (qs ? "?" + qs : "")),
       api.get("products"),
       api.get("inventory"),
-      api.get("rawmaterials"),
     ]);
     setItems(Array.isArray(data) ? data : []);
     setStats(statsData && !statsData.error ? statsData : null);
     setProducts(Array.isArray(prods) ? prods : []);
     setInventory(Array.isArray(inv) ? inv : []);
-    setRawMaterials(Array.isArray(rms) ? rms : []);
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-  }, [search, typeFilter, itemTypeFilter, dateFrom, dateTo]);
+  }, [search, typeFilter, dateFrom, dateTo]);
 
   const netChange = stats ? stats.totalIn - stats.totalOut : 0;
 
@@ -2533,7 +2475,7 @@ function StockMovementsModule() {
             Stock Movement Ledger
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Unified immutable record of all product and raw material movements
+            Inventory movement history — adjustments and production results
           </p>
         </div>
         <Button onClick={() => setShowAdjust(true)}>
@@ -2557,22 +2499,22 @@ function StockMovementsModule() {
         <Card>
           <CardContent className="pt-5 pb-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Product Movements
+              Stock Adjustments
             </p>
             <p className="text-2xl font-semibold mt-1 text-blue-500">
-              {loading ? "—" : (stats?.productMovements ?? 0).toLocaleString()}
+              {loading ? "—" : (stats?.adjustmentMovements ?? 0).toLocaleString()}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Raw Material Movements
+              Production Results
             </p>
-            <p className="text-2xl font-semibold mt-1 text-purple-500">
+            <p className="text-2xl font-semibold mt-1 text-amber-500">
               {loading
                 ? "—"
-                : (stats?.rawMaterialMovements ?? 0).toLocaleString()}
+                : (stats?.productionMovements ?? 0).toLocaleString()}
             </p>
           </CardContent>
         </Card>
@@ -2627,19 +2569,6 @@ function StockMovementsModule() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-            </div>
-            <div className="min-w-[160px]">
-              <p className="text-xs text-muted-foreground mb-1">Item Type</p>
-              <Select value={itemTypeFilter} onValueChange={setItemTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Items</SelectItem>
-                  <SelectItem value="PRODUCT">Product</SelectItem>
-                  <SelectItem value="RAW_MATERIAL">Raw Material</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="min-w-[170px]">
               <p className="text-xs text-muted-foreground mb-1">
@@ -2719,13 +2648,13 @@ function StockMovementsModule() {
                       Reference
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Item Type
+                      Movement Source
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
                       Item Name
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Variant / Detail
+                      Variant
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
                       Movement Type
@@ -2747,8 +2676,8 @@ function StockMovementsModule() {
                 <tbody>
                   {items.map((m, idx) => {
                     const meta = movementTypeMeta(m.movementType);
+                    const sourceMeta = movementSourceMeta(m.movementType);
                     const inbound = isInboundType(m.movementType);
-                    const isProduct = (m.itemType || "PRODUCT") === "PRODUCT";
                     return (
                       <tr
                         key={m.id}
@@ -2762,38 +2691,23 @@ function StockMovementsModule() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isProduct ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"}`}
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${sourceMeta.bg}`}
                           >
-                            {isProduct ? "PRODUCT" : "RAW MAT"}
+                            {sourceMeta.label}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          {isProduct ? (
-                            <>
-                              <p className="font-medium leading-none">
-                                {m.product?.name || "—"}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {m.product?.sku}
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="font-medium leading-none">
-                                {m.rawMaterial?.name || "—"}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {m.rawMaterial?.category || ""}
-                              </p>
-                            </>
-                          )}
+                          <p className="font-medium leading-none">
+                            {m.product?.name || "—"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {m.product?.sku}
+                          </p>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
-                          {isProduct
-                            ? m.inventory
-                              ? `${m.inventory.color} / ${m.inventory.size}`
-                              : "—"
-                            : m.rawMaterial?.unit || "—"}
+                          {m.inventory
+                            ? `${m.inventory.color} / ${m.inventory.size}`
+                            : "—"}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -2832,7 +2746,6 @@ function StockMovementsModule() {
         onOpenChange={setShowAdjust}
         inventory={inventory}
         products={products}
-        rawMaterials={rawMaterials}
         onSave={load}
       />
     </div>
