@@ -1211,20 +1211,20 @@ async function handle(request, { params }) {
         const from = url.searchParams.get('from');
         const to = url.searchParams.get('to');
         const type = url.searchParams.get('type');
-        const itemType = url.searchParams.get('itemType');
         const where = {};
         if (from || to) { where.movementDate = {}; if (from) where.movementDate.gte = from; if (to) where.movementDate.lte = to; }
         if (type) where.movementType = type;
-        if (itemType && itemType !== 'all') where.itemType = itemType;
-        const movements = await prisma.stockMovement.findMany({ where, select: { movementType: true, quantity: true, itemType: true } });
+        // Raw Materials are master data — always exclude their movements from the inventory timeline
+        where.itemType = { not: 'RAW_MATERIAL' };
+        const movements = await prisma.stockMovement.findMany({ where, select: { movementType: true, quantity: true } });
         const totalMovements = movements.length;
-        const inTypes = ['ADJUSTMENT_IN', 'MANUAL_IN', 'OPENING'];
-        const outTypes = ['ADJUSTMENT_OUT', 'MANUAL_OUT'];
+        const inTypes = ['ADJUSTMENT_IN', 'MANUAL_IN', 'OPENING', 'PRODUCTION_IN'];
+        const outTypes = ['ADJUSTMENT_OUT', 'MANUAL_OUT', 'PRODUCTION_OUT'];
         const totalIn = movements.filter(m => inTypes.includes(m.movementType)).reduce((s, m) => s + m.quantity, 0);
         const totalOut = movements.filter(m => outTypes.includes(m.movementType)).reduce((s, m) => s + m.quantity, 0);
-        const productMovements = movements.filter(m => (m.itemType || 'PRODUCT') === 'PRODUCT').length;
-        const rawMaterialMovements = movements.filter(m => m.itemType === 'RAW_MATERIAL').length;
-        return NextResponse.json({ totalMovements, totalIn, totalOut, productMovements, rawMaterialMovements });
+        const adjustmentMovements = movements.filter(m => [...inTypes.slice(0,3), ...outTypes.slice(0,2)].includes(m.movementType)).length;
+        const productionMovements = movements.filter(m => m.movementType === 'PRODUCTION_IN' || m.movementType === 'PRODUCTION_OUT').length;
+        return NextResponse.json({ totalMovements, totalIn, totalOut, adjustmentMovements, productionMovements });
       }
 
       // List
@@ -1234,17 +1234,17 @@ async function handle(request, { params }) {
         const to = url.searchParams.get('to');
         const type = url.searchParams.get('type');
         const search = url.searchParams.get('search');
-        const itemType = url.searchParams.get('itemType');
         const where = {};
         if (from || to) { where.movementDate = {}; if (from) where.movementDate.gte = from; if (to) where.movementDate.lte = to; }
         if (type) where.movementType = type;
-        if (itemType && itemType !== 'all') where.itemType = itemType;
+        // Raw Materials are master data — always exclude their movements from the inventory timeline.
+        // Historical records remain in the database but are not surfaced in the UI.
+        where.itemType = { not: 'RAW_MATERIAL' };
         const movements = await prisma.stockMovement.findMany({
           where,
           include: {
             product: { select: { id: true, name: true, sku: true } },
             inventory: { select: { color: true, size: true } },
-            rawMaterial: { select: { id: true, name: true, category: true, unit: true } },
           },
           orderBy: [{ movementDate: 'desc' }, { createdAt: 'desc' }],
         });
@@ -1253,7 +1253,6 @@ async function handle(request, { params }) {
               const s = search.toLowerCase();
               return (m.product?.name || '').toLowerCase().includes(s)
                 || (m.product?.sku || '').toLowerCase().includes(s)
-                || (m.rawMaterial?.name || '').toLowerCase().includes(s)
                 || (m.referenceNumber || '').toLowerCase().includes(s);
             })
           : movements;
