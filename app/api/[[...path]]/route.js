@@ -1347,37 +1347,16 @@ async function handle(request, { params }) {
       }
     }
 
-    // ---------- RAW MATERIALS PUT — intercept to auto-create StockMovement ----------
+    // ---------- RAW MATERIALS PUT — update master data only, no Stock Movement ----------
+    // Raw Materials is master data. Creating or updating a Raw Material must NOT generate
+    // any Stock Movement record. Stock Movements for raw materials are only created via
+    // explicit manual adjustments through the /stockmovements endpoint.
     if (segs[0] === 'rawmaterials' && method === 'PUT' && segs.length === 2) {
       const id = segs[1];
       const body = await readJson(request);
       const current = await prisma.rawMaterial.findUnique({ where: { id } });
       if (!current) return NextResponse.json({ error: 'Raw material not found' }, { status: 404 });
-
-      const prevStock = current.currentStock || 0;
-      const newStock = body.currentStock !== undefined ? Number(body.currentStock) : prevStock;
       const updated = await prisma.rawMaterial.update({ where: { id }, data: body });
-
-      if (Math.abs(newStock - prevStock) > 0.0001) {
-        const delta = newStock - prevStock;
-        const movementType = delta > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
-        const today = new Date().toISOString().split('T')[0];
-        const ref = await generateStockMovementRef(today);
-        await prisma.stockMovement.create({
-          data: {
-            id: uuid(),
-            itemType: 'RAW_MATERIAL',
-            rawMaterialId: id,
-            movementDate: today,
-            movementType,
-            quantity: Math.abs(delta),
-            previousQuantity: prevStock,
-            newQuantity: newStock,
-            notes: 'Auto-recorded from raw material stock adjustment',
-            referenceNumber: ref,
-          },
-        });
-      }
       return NextResponse.json(updated);
     }
 
