@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { normalizeShippingError, shippingService } from '@/lib/shipping';
 import { v4 as uuid } from 'uuid';
 
 const COLLECTION_MODELS = {
@@ -24,6 +25,14 @@ async function readJson(request) {
   } catch {
     return {};
   }
+}
+
+function buildShippingErrorResponse(error) {
+  const normalized = normalizeShippingError(error);
+  return NextResponse.json(
+    { error: normalized.message },
+    { status: normalized.statusCode || 500 }
+  );
 }
 
 // Generate journal number: JR-YYYYMM-00001
@@ -125,6 +134,53 @@ async function handle(request, { params }) {
       const user = await prisma.user.findFirst({ where: { email, password } });
       if (!user) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       return NextResponse.json({ user });
+    }
+
+    // ---------- SHIPPING ----------
+    if (segs[0] === 'shipping') {
+      if (segs[1] === 'provinces' && method === 'GET') {
+        try {
+          const provinces = await shippingService.getProvinces();
+          return NextResponse.json(provinces);
+        } catch (error) {
+          return buildShippingErrorResponse(error);
+        }
+      }
+
+      if (segs[1] === 'cities' && method === 'GET') {
+        const url = new URL(request.url);
+        const provinceId = url.searchParams.get('province_id');
+
+        try {
+          const cities = await shippingService.getCities(provinceId);
+          return NextResponse.json(cities);
+        } catch (error) {
+          return buildShippingErrorResponse(error);
+        }
+      }
+
+      if (segs[1] === 'districts' && method === 'GET') {
+        const url = new URL(request.url);
+        const cityId = url.searchParams.get('city_id');
+
+        try {
+          const districts = await shippingService.getDistricts(cityId);
+          return NextResponse.json(districts);
+        } catch (error) {
+          return buildShippingErrorResponse(error);
+        }
+      }
+
+      if (segs[1] === 'cost' && method === 'POST') {
+        const body = await readJson(request);
+
+        try {
+          const costs = await shippingService.getShippingCost(body);
+          return NextResponse.json(costs);
+        } catch (error) {
+          return buildShippingErrorResponse(error);
+        }
+      }
     }
 
     // ---------- USERS ----------
