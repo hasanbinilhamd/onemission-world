@@ -12,6 +12,7 @@
         "db:seed": "prisma db seed",
         "test:checkout": "tsx --tsconfig jsconfig.json --test tests/checkout-session.test.js",
         "test:payment-attempt": "tsx --tsconfig jsconfig.json --test tests/payment-attempt.test.js",
+        "test:order": "tsx --tsconfig jsconfig.json --test tests/order-service.test.js",
         "postinstall": "prisma generate"
     },
     "prisma": {

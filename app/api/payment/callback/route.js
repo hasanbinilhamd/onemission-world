@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import '@/lib/order';
 import { normalizePaymentAttemptError, paymentAttemptService } from '@/lib/payment-attempt';
 
 function buildPaymentAttemptErrorResponse(error) {

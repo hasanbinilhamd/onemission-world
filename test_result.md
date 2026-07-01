@@ -102,52 +102,52 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Implement Midtrans payment confirmation on top of the existing PaymentAttempt lifecycle without modifying Checkout, Shipping, Inventory, Finance, or Order modules."
+user_problem_statement: "Create the Order domain in ONEMISSION HQ so a PAID PaymentAttempt produces exactly one immutable Order without touching Checkout, Shipping, Inventory, or Finance logic."
 backend:
-  - task: "Midtrans notification signature verification"
+  - task: "Order persistence model"
     implemented: true
     working: true
-    file: "lib/payment-attempt/providers/midtrans-provider.js"
+    file: "prisma/schema.prisma"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added Midtrans notification signature verification and internal status normalization without exposing vendor-specific responses to the application layer."
-  - task: "PaymentAttempt confirmation lifecycle"
+        comment: "Added Order and OrderItem persistence with 1:1 PaymentAttempt and CheckoutSession uniqueness plus immutable item snapshot fields."
+  - task: "Order creation service"
     implemented: true
     working: true
-    file: "lib/payment-attempt/service.js"
+    file: "lib/order/service.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Implemented idempotent Midtrans notification handling, status transition validation, duplicate callback safety, and an empty onPaymentConfirmed extension hook for the next sprint."
-  - task: "Payment confirmation callback API"
+        comment: "Implemented OrderService.createFromCheckoutSession() with paid-attempt validation, checkout validation reuse, immutable snapshot copying, and duplicate-safe order reuse."
+  - task: "Payment confirmation order hook"
     implemented: true
     working: true
-    file: "app/api/payment/callback/route.js"
+    file: "lib/order/index.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added POST /api/payment/callback and delegated all confirmation logic to the existing paymentAttemptService."
-  - task: "Payment confirmation automated tests"
+        comment: "Connected the existing payment confirmation hook to OrderService through a side-effect registration without redesigning the frozen payment architecture."
+  - task: "Order automated tests"
     implemented: true
     working: true
-    file: "tests/payment-attempt.test.js"
+    file: "tests/order-service.test.js"
     stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added tests for valid signature, invalid signature, duplicate callback, pending notification, settlement notification, expired notification, failed notification, and invalid payment attempt reference."
+        comment: "Added tests for successful order creation, duplicate-safe reuse, snapshot integrity, invalid checkout, invalid payment attempt, and unpaid attempt rejection."
   - task: "Project verification"
     implemented: true
     working: true
@@ -158,21 +158,21 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run test:payment-attempt, npm run test:checkout, and npm run build all succeed after payment confirmation implementation."
+        comment: "Verified npm run test:order, npm run test:payment-attempt, and npm run build all succeed after introducing the Order domain."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 8
+  test_sequence: 9
   run_ui: false
 test_plan:
   current_focus:
-    - "Midtrans notification signature verification"
-    - "PaymentAttempt confirmation lifecycle"
-    - "Payment confirmation callback API"
+    - "Order persistence model"
+    - "Order creation service"
+    - "Payment confirmation order hook"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "Midtrans payment confirmation is now connected to the existing PaymentAttempt lifecycle with signature verification, safe idempotent callback handling, valid status transitions, and a callback route prepared for the next order-conversion sprint."
+    message: "Order creation is now attached to the paid PaymentAttempt lifecycle. A paid payment attempt creates exactly one immutable order, duplicate callbacks stay safe, and no inventory or finance logic was introduced."
