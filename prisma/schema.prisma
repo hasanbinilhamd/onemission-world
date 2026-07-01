@@ -441,6 +441,7 @@ model CheckoutSession {
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   items               CheckoutSessionItem[]
+  paymentAttempts     PaymentAttempt[]
 
   @@index([customerId])
   @@index([salesChannelId])
@@ -470,4 +471,25 @@ model CheckoutSessionItem {
   @@index([checkoutId])
   @@index([productId])
   @@index([variantId])
+}
+
+model PaymentAttempt {
+  id                    String          @id
+  attemptNumber         String          @unique
+  checkoutSessionId     String
+  checkoutSession       CheckoutSession @relation(fields: [checkoutSessionId], references: [id], onDelete: Cascade)
+  provider              String
+  providerReference     String          @default("")
+  providerTransactionId String          @default("")
+  snapToken             String          @default("")
+  snapRedirectUrl       String          @default("")
+  status                String          @default("CREATED")
+  grossAmount           Float
+  currency              String          @default("IDR")
+  expiresAt             DateTime
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([checkoutSessionId])
+  @@index([status])
 }

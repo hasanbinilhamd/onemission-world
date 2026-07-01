@@ -102,42 +102,9 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Finalize ONEMISSION HQ checkout session integrity before Midtrans integration."
+user_problem_statement: "Add the Payment Attempt foundation to ONEMISSION HQ without changing Checkout, Shipping, Inventory, or the existing architecture."
 backend:
-  - task: "Inventory availability validation"
-    implemented: true
-    working: true
-    file: "lib/checkout/service.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Checkout creation now rejects inactive products, inactive variants, mismatched variants, and quantities that exceed available inventory without deducting stock."
-  - task: "Checkout expiration and status enforcement"
-    implemented: true
-    working: true
-    file: "lib/checkout/service.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Checkout retrieval and payment preparation now reject expired, cancelled, completed, and other invalid checkout states while preserving expired sessions in storage."
-  - task: "Checkout processing lock and idempotency"
-    implemented: true
-    working: true
-    file: "lib/checkout/service.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Added processingKey and processingStartedAt support so the same checkout session cannot be processed concurrently and repeated requests with the same processing key stay idempotent."
-  - task: "Immutable snapshot persistence"
+  - task: "PaymentAttempt persistence model"
     implemented: true
     working: true
     file: "prisma/schema.prisma"
@@ -147,18 +114,40 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Extended checkout persistence with immutable customer, sales channel, product image, weight, currency, and shipping snapshot fields so historical sessions remain self-contained."
-  - task: "Checkout integrity tests"
+        comment: "Added PaymentAttempt model with CheckoutSession 1:N relation, reusable fields for future providers, and a partial unique index for one active attempt per checkout session."
+  - task: "PaymentAttempt service foundation"
     implemented: true
     working: true
-    file: "tests/checkout-session.test.js"
+    file: "lib/payment-attempt/service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Implemented PaymentAttemptService with checkout validation reuse, active-attempt reuse, duplicate prevention, and idempotent behavior without introducing Midtrans calls."
+  - task: "Payment attempt API endpoint"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Exposed POST /api/payment-attempt through the existing catch-all route and delegated all logic to the new paymentAttemptService while preserving the repository response format."
+  - task: "Payment attempt automated tests"
+    implemented: true
+    working: true
+    file: "tests/payment-attempt.test.js"
     stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added tests for inactive product, inactive variant, insufficient inventory, invalid shipping, expired checkout, invalid checkout status, double processing, idempotency, and immutable snapshot reads."
+        comment: "Added tests for valid attempt creation, active-attempt reuse, expired checkout rejection, invalid status rejection, and duplicate collision reuse behavior."
   - task: "Project verification"
     implemented: true
     working: true
@@ -169,21 +158,21 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run test:checkout and npm run build both succeed after checkout finalization changes."
+        comment: "Verified npm run test:payment-attempt, npm run test:checkout, and npm run build all succeed after adding the Payment Attempt foundation."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 5
+  test_sequence: 6
   run_ui: false
 test_plan:
   current_focus:
-    - "Inventory availability validation"
-    - "Checkout processing lock and idempotency"
-    - "Immutable snapshot persistence"
+    - "PaymentAttempt persistence model"
+    - "PaymentAttempt service foundation"
+    - "Payment attempt API endpoint"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "Checkout finalization is complete with stronger inventory validation, immutable self-contained snapshots, expiration enforcement, processing lock support, idempotent preparation flow, and passing automated tests."
+    message: "Payment Attempt foundation is now in place with idempotent creation, active-attempt reuse, unique-lock protection, and a new POST /api/payment-attempt endpoint, ready for Midtrans Snap integration in the next sprint."
