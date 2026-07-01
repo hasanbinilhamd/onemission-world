@@ -46,6 +46,7 @@ model Inventory {
   quantity       Int
   threshold      Int
   incoming       Int
+  status         String          @default("Active")
   stockMovements StockMovement[]
 }
 
@@ -412,6 +413,8 @@ model CheckoutSession {
   discount            Float                 @default(0)
   tax                 Float                 @default(0)
   grandTotal          Float                 @default(0)
+  recipientName       String                @default("")
+  phone               String                @default("")
   originDistrict      String
   destinationDistrict String
   courier             String
@@ -438,19 +441,22 @@ model CheckoutSession {
 }
 
 model CheckoutSessionItem {
-  id          String          @id
-  checkoutId  String
-  checkout    CheckoutSession @relation(fields: [checkoutId], references: [id], onDelete: Cascade)
-  productId   String
-  variantId   String
-  productName String
-  variantName String
-  sku         String
-  qty         Int
-  price       Float
-  subtotal    Float
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id           String          @id
+  checkoutId   String
+  checkout     CheckoutSession @relation(fields: [checkoutId], references: [id], onDelete: Cascade)
+  productId    String
+  variantId    String
+  productName  String
+  variantName  String
+  productImage String          @default("")
+  weight       Float           @default(0)
+  sku          String
+  qty          Int
+  price        Float
+  currency     String          @default("IDR")
+  subtotal     Float
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   @@index([checkoutId])
   @@index([productId])

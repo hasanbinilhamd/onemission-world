@@ -102,65 +102,77 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Implement Checkout Session and Draft Order APIs in ONEMISSION HQ for future Midtrans preparation without creating a final order."
+user_problem_statement: "Strengthen ONEMISSION HQ checkout session validation and immutable snapshots before Midtrans integration."
 backend:
-  - task: "Checkout session domain models"
+  - task: "Checkout product and variant validation"
     implemented: true
-    working: "NA"
-    file: "prisma/schema.prisma"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Added CheckoutSession and CheckoutSessionItem models plus a Prisma migration for draft order persistence. Runtime validation requires a reachable database."
-  - task: "Checkout service module"
-    implemented: true
-    working: "NA"
+    working: true
     file: "lib/checkout/service.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-      - working: "NA"
+      - working: true
         agent: "main"
-        comment: "Implemented checkout validation, reusable totals calculation, shipping reuse, and draft session creation without payment or inventory mutation."
-  - task: "Checkout session API endpoint"
+        comment: "Added explicit product active validation, variant ownership validation, variant active validation, and insufficient inventory rejection before draft session creation."
+  - task: "Checkout immutable snapshot integrity"
     implemented: true
-    working: "NA"
-    file: "app/api/[[...path]]/route.js"
+    working: true
+    file: "prisma/schema.prisma"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-      - working: "NA"
+      - working: true
         agent: "main"
-        comment: "Exposed POST /api/checkout/session through the existing catch-all API route and delegated all draft-order logic to checkoutService."
-  - task: "Project build verification"
+        comment: "Extended checkout persistence with recipient, phone, productImage, weight, and currency snapshot fields while preserving draft-order architecture."
+  - task: "Checkout expiration guard"
     implemented: true
     working: true
-    file: "test_result.md"
+    file: "lib/checkout/service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added checkout session expiration validation for future payment attempts and automatic status transition to EXPIRED when the session is already stale."
+  - task: "Checkout automated tests"
+    implemented: true
+    working: true
+    file: "tests/checkout-session.test.js"
     stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run build succeeds after introducing the checkout module and Prisma schema changes."
+        comment: "Added mock-based tests for inactive product, inactive variant, insufficient inventory, expired checkout session, snapshot integrity, and shipping unavailability."
+  - task: "Project verification"
+    implemented: true
+    working: true
+    file: "package.json"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Verified npm run test:checkout and npm run build both succeed after the checkout validation hardening changes."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 4
   run_ui: false
 test_plan:
   current_focus:
-    - "Checkout session domain models"
-    - "Checkout session API endpoint"
+    - "Checkout product and variant validation"
+    - "Checkout immutable snapshot integrity"
+    - "Checkout expiration guard"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "Checkout draft-order support was added in ONEMISSION HQ with a new checkout module, persistence schema, and POST /api/checkout/session route. Full runtime endpoint testing is pending a reachable PostgreSQL instance."
+    message: "Checkout session validation was strengthened with inventory-aware variant checks, immutable snapshots, expiration guarding for future payment attempts, and mock-backed automated tests without introducing Midtrans or order conversion."

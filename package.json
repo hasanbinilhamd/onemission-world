@@ -10,6 +10,7 @@
         "start": "next start",
         "db:migrate": "prisma migrate dev",
         "db:seed": "prisma db seed",
+        "test:checkout": "tsx --tsconfig jsconfig.json --test tests/checkout-session.test.js",
         "postinstall": "prisma generate"
     },
     "prisma": {

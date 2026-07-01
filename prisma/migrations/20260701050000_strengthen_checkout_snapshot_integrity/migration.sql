@@ -1,0 +1,14 @@
+-- AlterTable
+ALTER TABLE "Inventory"
+ADD COLUMN "status" TEXT NOT NULL DEFAULT 'Active';
+
+-- AlterTable
+ALTER TABLE "CheckoutSession"
+ADD COLUMN "recipientName" TEXT NOT NULL DEFAULT '',
+ADD COLUMN "phone" TEXT NOT NULL DEFAULT '';
+
+-- AlterTable
+ALTER TABLE "CheckoutSessionItem"
+ADD COLUMN "productImage" TEXT NOT NULL DEFAULT '',
+ADD COLUMN "weight" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN "currency" TEXT NOT NULL DEFAULT 'IDR';
