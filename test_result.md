@@ -102,20 +102,9 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Integrate Midtrans Snap into the existing PaymentAttempt module without changing Checkout, Shipping, Inventory, or the existing architecture."
+user_problem_statement: "Implement Midtrans payment confirmation on top of the existing PaymentAttempt lifecycle without modifying Checkout, Shipping, Inventory, Finance, or Order modules."
 backend:
-  - task: "Midtrans payment configuration"
-    implemented: true
-    working: true
-    file: ".env.example"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Added Midtrans environment variables and a payment-attempt configuration module that reads provider settings without hardcoding credentials."
-  - task: "Midtrans provider integration"
+  - task: "Midtrans notification signature verification"
     implemented: true
     working: true
     file: "lib/payment-attempt/providers/midtrans-provider.js"
@@ -125,8 +114,8 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Implemented Midtrans Snap request generation from immutable checkout snapshots and safe provider error normalization without introducing callbacks or signature verification."
-  - task: "Payment attempt snap token generation"
+        comment: "Added Midtrans notification signature verification and internal status normalization without exposing vendor-specific responses to the application layer."
+  - task: "PaymentAttempt confirmation lifecycle"
     implemented: true
     working: true
     file: "lib/payment-attempt/service.js"
@@ -136,19 +125,19 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Extended PaymentAttemptService to validate attempt state, reuse existing snap tokens, persist Midtrans snap data, and transition CREATED attempts to PENDING."
-  - task: "Snap token API route"
+        comment: "Implemented idempotent Midtrans notification handling, status transition validation, duplicate callback safety, and an empty onPaymentConfirmed extension hook for the next sprint."
+  - task: "Payment confirmation callback API"
     implemented: true
     working: true
-    file: "app/api/payment-attempt/[id]/snap/route.js"
+    file: "app/api/payment/callback/route.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added POST /api/payment-attempt/{id}/snap as a dedicated route that delegates all business logic to the existing paymentAttemptService."
-  - task: "Payment attempt automated tests"
+        comment: "Added POST /api/payment/callback and delegated all confirmation logic to the existing paymentAttemptService."
+  - task: "Payment confirmation automated tests"
     implemented: true
     working: true
     file: "tests/payment-attempt.test.js"
@@ -158,7 +147,7 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Added tests for snap token generation, token reuse, invalid attempt status, expired checkout rejection, active-attempt reuse, and duplicate collision behavior using mocked provider results."
+        comment: "Added tests for valid signature, invalid signature, duplicate callback, pending notification, settlement notification, expired notification, failed notification, and invalid payment attempt reference."
   - task: "Project verification"
     implemented: true
     working: true
@@ -169,21 +158,21 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run test:payment-attempt, npm run test:checkout, and npm run build all succeed after Midtrans Snap integration changes."
+        comment: "Verified npm run test:payment-attempt, npm run test:checkout, and npm run build all succeed after payment confirmation implementation."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 7
+  test_sequence: 8
   run_ui: false
 test_plan:
   current_focus:
-    - "Midtrans provider integration"
-    - "Payment attempt snap token generation"
-    - "Snap token API route"
+    - "Midtrans notification signature verification"
+    - "PaymentAttempt confirmation lifecycle"
+    - "Payment confirmation callback API"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "Midtrans Snap integration is now connected to the existing PaymentAttempt module. Snap tokens are generated from immutable checkout snapshots, persisted idempotently, and exposed through POST /api/payment-attempt/{id}/snap without touching Checkout, Shipping, or Inventory architecture."
+    message: "Midtrans payment confirmation is now connected to the existing PaymentAttempt lifecycle with signature verification, safe idempotent callback handling, valid status transitions, and a callback route prepared for the next order-conversion sprint."
