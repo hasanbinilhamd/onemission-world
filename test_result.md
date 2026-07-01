@@ -102,53 +102,42 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Complete the ONEMISSION HQ Shipping Gateway so Commerce can consume internal shipping APIs without knowing RajaOngkir."
+user_problem_statement: "Implement Checkout Session and Draft Order APIs in ONEMISSION HQ for future Midtrans preparation without creating a final order."
 backend:
-  - task: "Shipping module service and provider foundation"
+  - task: "Checkout session domain models"
     implemented: true
-    working: true
-    file: "lib/shipping/index.js"
+    working: "NA"
+    file: "prisma/schema.prisma"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-      - working: true
+      - working: "NA"
         agent: "main"
-        comment: "Reused the existing shipping module foundation with config, cache, service, mock provider, RajaOngkir provider, and shared error handling."
-  - task: "Shipping API response finalization"
+        comment: "Added CheckoutSession and CheckoutSessionItem models plus a Prisma migration for draft order persistence. Runtime validation requires a reachable database."
+  - task: "Checkout service module"
     implemented: true
-    working: true
+    working: "NA"
+    file: "lib/checkout/service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented checkout validation, reusable totals calculation, shipping reuse, and draft session creation without payment or inventory mutation."
+  - task: "Checkout session API endpoint"
+    implemented: true
+    working: "NA"
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-      - working: true
+      - working: "NA"
         agent: "main"
-        comment: "Updated shipping endpoints to return standardized success, message, and data responses while still calling ShippingService only."
-  - task: "Shipping API validation and normalization"
-    implemented: true
-    working: true
-    file: "lib/shipping/mappers.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Extended the existing mappers for reusable API DTO normalization and aligned the cost endpoint with camelCase request fields."
-  - task: "Shipping endpoint documentation"
-    implemented: true
-    working: true
-    file: "lib/shipping/README.md"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Documented each shipping endpoint including request shape, validation rules, success payload, and possible errors."
-  - task: "Shipping gateway smoke validation"
+        comment: "Exposed POST /api/checkout/session through the existing catch-all API route and delegated all draft-order logic to checkoutService."
+  - task: "Project build verification"
     implemented: true
     working: true
     file: "test_result.md"
@@ -158,20 +147,20 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run build succeeds and smoke-tested shipping provinces, cities, districts, success cost response, and validation failure response against the mock provider."
+        comment: "Verified npm run build succeeds after introducing the checkout module and Prisma schema changes."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 test_plan:
   current_focus:
-    - "Shipping API response finalization"
-    - "Shipping gateway smoke validation"
+    - "Checkout session domain models"
+    - "Checkout session API endpoint"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "Completed the HQ Shipping Gateway by reusing the existing shipping module, exposing standardized internal APIs, keeping provider abstraction intact, and validating the endpoints with mock-backed smoke tests."
+    message: "Checkout draft-order support was added in ONEMISSION HQ with a new checkout module, persistence schema, and POST /api/checkout/session route. Full runtime endpoint testing is pending a reachable PostgreSQL instance."

@@ -370,32 +370,89 @@ model JournalEntryLine {
 }
 
 model SalesChannel {
-  id          String   @id
-  channelCode String   @unique
-  channelName String
-  channelType String
-  description String   @default("")
-  status      String   @default("Active")
-  isDefault   Boolean    @default(false)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  customers   Customer[]
+  id               String            @id
+  channelCode      String            @unique
+  channelName      String
+  channelType      String
+  description      String            @default("")
+  status           String            @default("Active")
+  isDefault        Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  customers        Customer[]
 }
 
 model Customer {
-  id                     String        @id
-  customerCode           String        @unique
-  customerName           String
-  email                  String?       @unique
-  phone                  String?       @unique
-  customerType           String        @default("Individual")
+  id                      String        @id
+  customerCode            String        @unique
+  customerName            String
+  email                   String?       @unique
+  phone                   String?       @unique
+  customerType            String        @default("Individual")
   preferredSalesChannelId String?
-  preferredSalesChannel  SalesChannel? @relation(fields: [preferredSalesChannelId], references: [id])
-  city                   String        @default("")
-  province               String        @default("")
-  country                String        @default("Indonesia")
-  notes                  String        @default("")
-  status                 String        @default("Active")
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
+  preferredSalesChannel   SalesChannel? @relation(fields: [preferredSalesChannelId], references: [id])
+  city                    String        @default("")
+  province                String        @default("")
+  country                 String        @default("Indonesia")
+  notes                   String        @default("")
+  status                  String        @default("Active")
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+}
+
+model CheckoutSession {
+  id                  String                @id
+  checkoutNumber      String                @unique
+  status              String                @default("DRAFT")
+  customerId          String
+  salesChannelId      String
+  currency            String                @default("IDR")
+  subtotal            Float                 @default(0)
+  shippingCost        Float                 @default(0)
+  discount            Float                 @default(0)
+  tax                 Float                 @default(0)
+  grandTotal          Float                 @default(0)
+  originDistrict      String
+  destinationDistrict String
+  courier             String
+  courierService      String
+  shippingDescription String                @default("")
+  estimatedDelivery   String                @default("")
+  provinceId          String
+  provinceName        String                @default("")
+  cityId              String
+  cityName            String                @default("")
+  districtId          String
+  districtName        String                @default("")
+  postalCode          String                @default("")
+  streetAddress       String                @default("")
+  expiresAt           DateTime
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  items               CheckoutSessionItem[]
+
+  @@index([customerId])
+  @@index([salesChannelId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model CheckoutSessionItem {
+  id          String          @id
+  checkoutId  String
+  checkout    CheckoutSession @relation(fields: [checkoutId], references: [id], onDelete: Cascade)
+  productId   String
+  variantId   String
+  productName String
+  variantName String
+  sku         String
+  qty         Int
+  price       Float
+  subtotal    Float
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([checkoutId])
+  @@index([productId])
+  @@index([variantId])
 }

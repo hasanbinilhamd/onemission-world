@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkoutService, normalizeCheckoutError } from '@/lib/checkout';
 import { prisma } from '@/lib/prisma';
 import { normalizeShippingError, shippingService } from '@/lib/shipping';
 import { v4 as uuid } from 'uuid';
@@ -29,6 +30,14 @@ async function readJson(request) {
 
 function buildShippingErrorResponse(error) {
   const normalized = normalizeShippingError(error);
+  return NextResponse.json(
+    { error: normalized.message },
+    { status: normalized.statusCode || 500 }
+  );
+}
+
+function buildCheckoutErrorResponse(error) {
+  const normalized = normalizeCheckoutError(error);
   return NextResponse.json(
     { error: normalized.message },
     { status: normalized.statusCode || 500 }
@@ -188,6 +197,18 @@ async function handle(request, { params }) {
         } catch (error) {
           return buildShippingErrorResponse(error);
         }
+      }
+    }
+
+    // ---------- CHECKOUT ----------
+    if (segs[0] === 'checkout' && segs[1] === 'session' && method === 'POST') {
+      const body = await readJson(request);
+
+      try {
+        const session = await checkoutService.createCheckoutSession(body);
+        return NextResponse.json(session);
+      } catch (error) {
+        return buildCheckoutErrorResponse(error);
       }
     }
 
