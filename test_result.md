@@ -102,20 +102,31 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Add the Payment Attempt foundation to ONEMISSION HQ without changing Checkout, Shipping, Inventory, or the existing architecture."
+user_problem_statement: "Integrate Midtrans Snap into the existing PaymentAttempt module without changing Checkout, Shipping, Inventory, or the existing architecture."
 backend:
-  - task: "PaymentAttempt persistence model"
+  - task: "Midtrans payment configuration"
     implemented: true
     working: true
-    file: "prisma/schema.prisma"
+    file: ".env.example"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added PaymentAttempt model with CheckoutSession 1:N relation, reusable fields for future providers, and a partial unique index for one active attempt per checkout session."
-  - task: "PaymentAttempt service foundation"
+        comment: "Added Midtrans environment variables and a payment-attempt configuration module that reads provider settings without hardcoding credentials."
+  - task: "Midtrans provider integration"
+    implemented: true
+    working: true
+    file: "lib/payment-attempt/providers/midtrans-provider.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Implemented Midtrans Snap request generation from immutable checkout snapshots and safe provider error normalization without introducing callbacks or signature verification."
+  - task: "Payment attempt snap token generation"
     implemented: true
     working: true
     file: "lib/payment-attempt/service.js"
@@ -125,18 +136,18 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Implemented PaymentAttemptService with checkout validation reuse, active-attempt reuse, duplicate prevention, and idempotent behavior without introducing Midtrans calls."
-  - task: "Payment attempt API endpoint"
+        comment: "Extended PaymentAttemptService to validate attempt state, reuse existing snap tokens, persist Midtrans snap data, and transition CREATED attempts to PENDING."
+  - task: "Snap token API route"
     implemented: true
     working: true
-    file: "app/api/[[...path]]/route.js"
+    file: "app/api/payment-attempt/[id]/snap/route.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Exposed POST /api/payment-attempt through the existing catch-all route and delegated all logic to the new paymentAttemptService while preserving the repository response format."
+        comment: "Added POST /api/payment-attempt/{id}/snap as a dedicated route that delegates all business logic to the existing paymentAttemptService."
   - task: "Payment attempt automated tests"
     implemented: true
     working: true
@@ -147,7 +158,7 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Added tests for valid attempt creation, active-attempt reuse, expired checkout rejection, invalid status rejection, and duplicate collision reuse behavior."
+        comment: "Added tests for snap token generation, token reuse, invalid attempt status, expired checkout rejection, active-attempt reuse, and duplicate collision behavior using mocked provider results."
   - task: "Project verification"
     implemented: true
     working: true
@@ -158,21 +169,21 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run test:payment-attempt, npm run test:checkout, and npm run build all succeed after adding the Payment Attempt foundation."
+        comment: "Verified npm run test:payment-attempt, npm run test:checkout, and npm run build all succeed after Midtrans Snap integration changes."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 6
+  test_sequence: 7
   run_ui: false
 test_plan:
   current_focus:
-    - "PaymentAttempt persistence model"
-    - "PaymentAttempt service foundation"
-    - "Payment attempt API endpoint"
+    - "Midtrans provider integration"
+    - "Payment attempt snap token generation"
+    - "Snap token API route"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "Payment Attempt foundation is now in place with idempotent creation, active-attempt reuse, unique-lock protection, and a new POST /api/payment-attempt endpoint, ready for Midtrans Snap integration in the next sprint."
+    message: "Midtrans Snap integration is now connected to the existing PaymentAttempt module. Snap tokens are generated from immutable checkout snapshots, persisted idempotently, and exposed through POST /api/payment-attempt/{id}/snap without touching Checkout, Shipping, or Inventory architecture."

@@ -7,12 +7,37 @@ function createService({
   checkoutSessionStatus = 'DRAFT',
   existingAttempt = null,
   createError = null,
+  paymentProviderResult = null,
 } = {}) {
   const checkoutSession = {
     id: 'checkout-1',
     checkoutNumber: 'CHK-202607-00001',
     status: checkoutSessionStatus,
     currency: 'IDR',
+    customer: {
+      customerName: 'John Doe',
+      email: 'john@example.com',
+      phone: '+628123456789',
+    },
+    shipping: {
+      recipientName: 'John Doe',
+      phone: '+628123456789',
+      address: {
+        streetAddress: 'Example Street 123',
+        city: 'Bandung',
+        postalCode: '40135',
+      },
+    },
+    items: [
+      {
+        productId: 'product-1',
+        variantId: 'variant-1',
+        productName: 'Toonhub Figurine',
+        variantName: 'Onyx / Default',
+        price: 250000,
+        quantity: 2,
+      },
+    ],
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     totals: {
       grandTotal: 518000,
@@ -57,6 +82,7 @@ function createService({
     paymentAttempt: {
       findMany: async () => [],
       findFirst: async () => store.activeAttempt,
+      findUnique: async ({ where }) => (where.id === store.activeAttempt?.id ? store.activeAttempt : null),
       create: async ({ data }) => {
         if (createError) {
           throw createError;
@@ -70,12 +96,34 @@ function createService({
         store.activeAttempt = created;
         return created;
       },
+      update: async ({ where, data }) => {
+        if (!store.activeAttempt || where.id !== store.activeAttempt.id) {
+          throw new Error('Attempt not found');
+        }
+
+        store.activeAttempt = {
+          ...store.activeAttempt,
+          ...data,
+          updatedAt: new Date('2026-07-01T00:05:00.000Z'),
+        };
+        return store.activeAttempt;
+      },
+    },
+  };
+
+  const paymentProvider = {
+    createPaymentSession: async () => paymentProviderResult || {
+      providerReference: 'PAY-202607-00001',
+      providerTransactionId: 'midtrans-transaction-id',
+      snapToken: 'snap-token-123',
+      snapRedirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
     },
   };
 
   const service = new PaymentAttemptService({
     prismaClient,
     checkout,
+    paymentProvider,
     idGenerator: () => 'payment-attempt-id',
     nowFactory: () => new Date('2026-07-01T00:00:00.000Z'),
   });
@@ -161,4 +209,81 @@ test('returns the existing active payment attempt when a duplicate create collid
 
   assert.equal(result.id, 'attempt-1');
   assert.equal(result.status, 'PENDING');
+});
+
+test('generates and persists a snap token for a created payment attempt', async () => {
+  const existingAttempt = {
+    id: 'attempt-1',
+    attemptNumber: 'PAY-202607-00001',
+    checkoutSessionId: 'checkout-1',
+    provider: 'MIDTRANS',
+    providerReference: '',
+    providerTransactionId: '',
+    snapToken: '',
+    snapRedirectUrl: '',
+    status: 'CREATED',
+    grossAmount: 518000,
+    currency: 'IDR',
+    expiresAt: new Date('2026-07-02T00:00:00.000Z'),
+    createdAt: new Date('2026-07-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+  };
+
+  const { service } = createService({ existingAttempt });
+  const result = await service.generateSnapToken({ paymentAttemptId: 'attempt-1' });
+
+  assert.equal(result.status, 'PENDING');
+  assert.equal(result.snapToken, 'snap-token-123');
+  assert.equal(result.providerReference, 'PAY-202607-00001');
+});
+
+test('reuses the existing snap token when it already exists', async () => {
+  const existingAttempt = {
+    id: 'attempt-1',
+    attemptNumber: 'PAY-202607-00001',
+    checkoutSessionId: 'checkout-1',
+    provider: 'MIDTRANS',
+    providerReference: 'PAY-202607-00001',
+    providerTransactionId: 'midtrans-transaction-id',
+    snapToken: 'snap-token-123',
+    snapRedirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
+    status: 'PENDING',
+    grossAmount: 518000,
+    currency: 'IDR',
+    expiresAt: new Date('2026-07-02T00:00:00.000Z'),
+    createdAt: new Date('2026-07-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+  };
+
+  const { service } = createService({ existingAttempt });
+  const result = await service.generateSnapToken({ paymentAttemptId: 'attempt-1' });
+
+  assert.equal(result.snapToken, 'snap-token-123');
+  assert.equal(result.status, 'PENDING');
+});
+
+test('rejects snap generation for invalid payment attempt status', async () => {
+  const existingAttempt = {
+    id: 'attempt-1',
+    attemptNumber: 'PAY-202607-00001',
+    checkoutSessionId: 'checkout-1',
+    provider: 'MIDTRANS',
+    providerReference: '',
+    providerTransactionId: '',
+    snapToken: '',
+    snapRedirectUrl: '',
+    status: 'FAILED',
+    grossAmount: 518000,
+    currency: 'IDR',
+    expiresAt: new Date('2026-07-02T00:00:00.000Z'),
+    createdAt: new Date('2026-07-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+  };
+
+  const { service } = createService({ existingAttempt });
+
+  await assert.rejects(
+    service.generateSnapToken({ paymentAttemptId: 'attempt-1' }),
+    (error) => error.code === 'PAYMENT_ATTEMPT_INVALID_STATUS',
+  );
 });
