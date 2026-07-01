@@ -100,7 +100,9 @@
 
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
-#====================================================================================================user_problem_statement: "Implement a reusable Shipping module in ONEMISSION HQ as the gateway to RajaOngkir for future Commerce integration."
+#====================================================================================================
+
+user_problem_statement: "Complete the ONEMISSION HQ Shipping Gateway so Commerce can consume internal shipping APIs without knowing RajaOngkir."
 backend:
   - task: "Shipping module service and provider foundation"
     implemented: true
@@ -112,8 +114,8 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Implemented shipping configuration, cache, provider selection, service layer, mock provider, and RajaOngkir provider with normalized responses and safe error handling."
-  - task: "Shipping API endpoints"
+        comment: "Reused the existing shipping module foundation with config, cache, service, mock provider, RajaOngkir provider, and shared error handling."
+  - task: "Shipping API response finalization"
     implemented: true
     working: true
     file: "app/api/[[...path]]/route.js"
@@ -123,8 +125,30 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Added GET /shipping/provinces, GET /shipping/cities, GET /shipping/districts, and POST /shipping/cost using the existing catch-all routing convention and standard JSON response format."
-  - task: "Shipping module smoke validation"
+        comment: "Updated shipping endpoints to return standardized success, message, and data responses while still calling ShippingService only."
+  - task: "Shipping API validation and normalization"
+    implemented: true
+    working: true
+    file: "lib/shipping/mappers.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Extended the existing mappers for reusable API DTO normalization and aligned the cost endpoint with camelCase request fields."
+  - task: "Shipping endpoint documentation"
+    implemented: true
+    working: true
+    file: "lib/shipping/README.md"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Documented each shipping endpoint including request shape, validation rules, success payload, and possible errors."
+  - task: "Shipping gateway smoke validation"
     implemented: true
     working: true
     file: "test_result.md"
@@ -134,20 +158,20 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run build succeeds and smoke-tested provinces, cities, districts, and cost endpoints against the mock provider using a local Next.js server."
+        comment: "Verified npm run build succeeds and smoke-tested shipping provinces, cities, districts, success cost response, and validation failure response against the mock provider."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
   run_ui: false
 test_plan:
   current_focus:
-    - "Shipping module service and provider foundation"
-    - "Shipping API endpoints"
+    - "Shipping API response finalization"
+    - "Shipping gateway smoke validation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "Shipping gateway foundation was implemented in ONEMISSION HQ with RajaOngkir and mock providers, 7-day location caching, environment-based configuration, and successful smoke validation via the existing API route."
+    message: "Completed the HQ Shipping Gateway by reusing the existing shipping module, exposing standardized internal APIs, keeping provider abstraction intact, and validating the endpoints with mock-backed smoke tests."
