@@ -102,9 +102,9 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Strengthen ONEMISSION HQ checkout session validation and immutable snapshots before Midtrans integration."
+user_problem_statement: "Finalize ONEMISSION HQ checkout session integrity before Midtrans integration."
 backend:
-  - task: "Checkout product and variant validation"
+  - task: "Inventory availability validation"
     implemented: true
     working: true
     file: "lib/checkout/service.js"
@@ -114,8 +114,30 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Added explicit product active validation, variant ownership validation, variant active validation, and insufficient inventory rejection before draft session creation."
-  - task: "Checkout immutable snapshot integrity"
+        comment: "Checkout creation now rejects inactive products, inactive variants, mismatched variants, and quantities that exceed available inventory without deducting stock."
+  - task: "Checkout expiration and status enforcement"
+    implemented: true
+    working: true
+    file: "lib/checkout/service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Checkout retrieval and payment preparation now reject expired, cancelled, completed, and other invalid checkout states while preserving expired sessions in storage."
+  - task: "Checkout processing lock and idempotency"
+    implemented: true
+    working: true
+    file: "lib/checkout/service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added processingKey and processingStartedAt support so the same checkout session cannot be processed concurrently and repeated requests with the same processing key stay idempotent."
+  - task: "Immutable snapshot persistence"
     implemented: true
     working: true
     file: "prisma/schema.prisma"
@@ -125,19 +147,8 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Extended checkout persistence with recipient, phone, productImage, weight, and currency snapshot fields while preserving draft-order architecture."
-  - task: "Checkout expiration guard"
-    implemented: true
-    working: true
-    file: "lib/checkout/service.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Added checkout session expiration validation for future payment attempts and automatic status transition to EXPIRED when the session is already stale."
-  - task: "Checkout automated tests"
+        comment: "Extended checkout persistence with immutable customer, sales channel, product image, weight, currency, and shipping snapshot fields so historical sessions remain self-contained."
+  - task: "Checkout integrity tests"
     implemented: true
     working: true
     file: "tests/checkout-session.test.js"
@@ -147,32 +158,32 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Added mock-based tests for inactive product, inactive variant, insufficient inventory, expired checkout session, snapshot integrity, and shipping unavailability."
+        comment: "Added tests for inactive product, inactive variant, insufficient inventory, invalid shipping, expired checkout, invalid checkout status, double processing, idempotency, and immutable snapshot reads."
   - task: "Project verification"
     implemented: true
     working: true
-    file: "package.json"
+    file: "test_result.md"
     stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run test:checkout and npm run build both succeed after the checkout validation hardening changes."
+        comment: "Verified npm run test:checkout and npm run build both succeed after checkout finalization changes."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 4
+  test_sequence: 5
   run_ui: false
 test_plan:
   current_focus:
-    - "Checkout product and variant validation"
-    - "Checkout immutable snapshot integrity"
-    - "Checkout expiration guard"
+    - "Inventory availability validation"
+    - "Checkout processing lock and idempotency"
+    - "Immutable snapshot persistence"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "Checkout session validation was strengthened with inventory-aware variant checks, immutable snapshots, expiration guarding for future payment attempts, and mock-backed automated tests without introducing Midtrans or order conversion."
+    message: "Checkout finalization is complete with stronger inventory validation, immutable self-contained snapshots, expiration enforcement, processing lock support, idempotent preparation flow, and passing automated tests."

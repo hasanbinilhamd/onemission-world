@@ -406,7 +406,13 @@ model CheckoutSession {
   checkoutNumber      String                @unique
   status              String                @default("DRAFT")
   customerId          String
+  customerCode        String                @default("")
+  customerName        String                @default("")
+  customerEmail       String                @default("")
+  customerPhone       String                @default("")
   salesChannelId      String
+  salesChannelCode    String                @default("")
+  salesChannelName    String                @default("")
   currency            String                @default("IDR")
   subtotal            Float                 @default(0)
   shippingCost        Float                 @default(0)
@@ -429,6 +435,8 @@ model CheckoutSession {
   districtName        String                @default("")
   postalCode          String                @default("")
   streetAddress       String                @default("")
+  processingKey       String?
+  processingStartedAt DateTime?
   expiresAt           DateTime
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
@@ -438,6 +446,7 @@ model CheckoutSession {
   @@index([salesChannelId])
   @@index([status])
   @@index([expiresAt])
+  @@index([processingKey])
 }
 
 model CheckoutSessionItem {

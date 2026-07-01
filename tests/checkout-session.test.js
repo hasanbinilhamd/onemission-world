@@ -8,6 +8,8 @@ function createCheckoutService({
   variantQuantity = 10,
   shippingRates,
   expiresAt,
+  sessionStatus = 'DRAFT',
+  processingKey = null,
 } = {}) {
   const customer = {
     id: 'customer-1',
@@ -44,15 +46,60 @@ function createCheckoutService({
   };
 
   const sessionStore = {
-    current: expiresAt
-      ? {
-          id: 'checkout-1',
-          checkoutNumber: 'CHK-202607-00001',
-          status: 'DRAFT',
-          expiresAt,
-          items: [],
-        }
-      : null,
+    current: {
+      id: 'checkout-1',
+      checkoutNumber: 'CHK-202607-00001',
+      status: sessionStatus,
+      customerId: customer.id,
+      customerCode: customer.customerCode,
+      customerName: customer.customerName,
+      customerEmail: customer.email,
+      customerPhone: customer.phone,
+      salesChannelId: salesChannel.id,
+      salesChannelCode: salesChannel.channelCode,
+      salesChannelName: salesChannel.channelName,
+      currency: 'IDR',
+      subtotal: 500000,
+      shippingCost: 18000,
+      discount: 0,
+      tax: 0,
+      grandTotal: 518000,
+      recipientName: 'John Doe',
+      phone: '+628123456789',
+      originDistrict: '1391',
+      destinationDistrict: '1376',
+      courier: 'JNE',
+      courierService: 'REG',
+      shippingDescription: 'JNE Regular Service',
+      estimatedDelivery: '2-3 Days',
+      provinceId: '9',
+      provinceName: 'Jawa Barat',
+      cityId: '23',
+      cityName: 'Bandung',
+      districtId: '1376',
+      districtName: 'Coblong',
+      postalCode: '40135',
+      streetAddress: 'Example Street 123',
+      processingKey,
+      processingStartedAt: processingKey ? new Date('2026-07-01T00:00:00.000Z') : null,
+      expiresAt: expiresAt || new Date('2026-07-02T00:00:00.000Z'),
+      createdAt: new Date('2026-07-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+      items: [{
+        id: 'item-1',
+        productId: 'product-1',
+        variantId: 'variant-1',
+        productName: 'Toonhub Figurine',
+        variantName: 'Onyx / Default',
+        productImage: 'https://example.com/product.png',
+        weight: 500,
+        sku: 'OM-FIG-001',
+        qty: 2,
+        price: 250000,
+        currency: 'IDR',
+        subtotal: 500000,
+      }],
+    },
     updateCalls: [],
   };
 
@@ -82,6 +129,19 @@ function createCheckoutService({
         sessionStore.updateCalls.push({ where, data });
         sessionStore.current = { ...sessionStore.current, ...data };
         return sessionStore.current;
+      },
+      updateMany: async ({ where, data }) => {
+        if (
+          sessionStore.current
+          && where.id === sessionStore.current.id
+          && sessionStore.current.status === where.status
+          && sessionStore.current.processingKey === where.processingKey
+        ) {
+          sessionStore.current = { ...sessionStore.current, ...data };
+          return { count: 1 };
+        }
+
+        return { count: 0 };
       },
     },
   };
@@ -171,18 +231,63 @@ test('rejects insufficient inventory during checkout validation', async () => {
   );
 });
 
-test('rejects expired checkout sessions before payment attempts', async () => {
+test('rejects invalid shipping during checkout validation', async () => {
+  const { service } = createCheckoutService({
+    shippingRates: [{
+      courier: 'JNE',
+      service: 'YES',
+      description: 'JNE Yakin Esok Sampai',
+      estimated_delivery: '1 Day',
+      cost: 30000,
+    }],
+  });
+
+  await assert.rejects(
+    service.createCheckoutSession(validPayload),
+    (error) => error.code === 'CHECKOUT_SHIPPING_RATE_INVALID',
+  );
+});
+
+test('rejects expired checkout sessions during retrieval and payment preparation', async () => {
   const { service, sessionStore } = createCheckoutService({
     expiresAt: new Date('2026-06-30T00:00:00.000Z'),
   });
+
+  await assert.rejects(
+    service.getCheckoutSessionById('checkout-1'),
+    (error) => error.code === 'CHECKOUT_SESSION_EXPIRED',
+  );
 
   await assert.rejects(
     service.getCheckoutSessionForPayment('checkout-1'),
     (error) => error.code === 'CHECKOUT_SESSION_EXPIRED',
   );
 
-  assert.equal(sessionStore.updateCalls.length, 1);
   assert.equal(sessionStore.updateCalls[0].data.status, 'EXPIRED');
+});
+
+test('rejects invalid checkout status before continuing', async () => {
+  const { service } = createCheckoutService({ sessionStatus: 'CANCELLED' });
+
+  await assert.rejects(
+    service.getCheckoutSessionForPayment('checkout-1'),
+    (error) => error.code === 'CHECKOUT_INVALID_STATUS',
+  );
+});
+
+test('prevents double processing and preserves idempotency', async () => {
+  const { service } = createCheckoutService();
+
+  const firstLock = await service.beginCheckoutProcessing('checkout-1', 'processing-key-1');
+  assert.equal(firstLock.processingKey, 'processing-key-1');
+
+  const repeatedLock = await service.beginCheckoutProcessing('checkout-1', 'processing-key-1');
+  assert.equal(repeatedLock.processingKey, 'processing-key-1');
+
+  await assert.rejects(
+    service.beginCheckoutProcessing('checkout-1', 'processing-key-2'),
+    (error) => error.code === 'CHECKOUT_ALREADY_PROCESSING',
+  );
 });
 
 test('stores immutable product, shipping, and price snapshots', async () => {
@@ -197,17 +302,20 @@ test('stores immutable product, shipping, and price snapshots', async () => {
   assert.equal(session.shipping.recipientName, 'John Doe');
   assert.equal(session.shipping.phone, '+628123456789');
   assert.equal(session.shipping.address.province, 'Jawa Barat');
+  assert.equal(session.customer.customerName, 'John Doe');
+  assert.equal(session.salesChannel.channelName, 'Website');
   assert.equal(session.totals.subtotal, 500000);
   assert.equal(session.totals.shipping, 18000);
   assert.equal(session.totals.grandTotal, 518000);
   assert.equal(session.currency, 'IDR');
 });
 
-test('rejects shipping validation when shipping rates are unavailable', async () => {
-  const { service } = createCheckoutService({ shippingRates: [] });
+test('returns immutable snapshots when retrieving checkout session', async () => {
+  const { service } = createCheckoutService();
+  const session = await service.getCheckoutSessionById('checkout-1');
 
-  await assert.rejects(
-    service.createCheckoutSession(validPayload),
-    (error) => error.code === 'CHECKOUT_SHIPPING_UNAVAILABLE',
-  );
+  assert.equal(session.items[0].productName, 'Toonhub Figurine');
+  assert.equal(session.items[0].price, 250000);
+  assert.equal(session.shipping.address.streetAddress, 'Example Street 123');
+  assert.equal(session.totals.shippingCost, 18000);
 });

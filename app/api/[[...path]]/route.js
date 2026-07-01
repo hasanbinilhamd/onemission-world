@@ -201,11 +201,20 @@ async function handle(request, { params }) {
     }
 
     // ---------- CHECKOUT ----------
-    if (segs[0] === 'checkout' && segs[1] === 'session' && method === 'POST') {
+    if (segs[0] === 'checkout' && segs[1] === 'session' && method === 'POST' && segs.length === 2) {
       const body = await readJson(request);
 
       try {
         const session = await checkoutService.createCheckoutSession(body);
+        return NextResponse.json(session);
+      } catch (error) {
+        return buildCheckoutErrorResponse(error);
+      }
+    }
+
+    if (segs[0] === 'checkout' && segs[1] === 'session' && method === 'GET' && segs.length === 3) {
+      try {
+        const session = await checkoutService.getCheckoutSessionById(segs[2]);
         return NextResponse.json(session);
       } catch (error) {
         return buildCheckoutErrorResponse(error);
