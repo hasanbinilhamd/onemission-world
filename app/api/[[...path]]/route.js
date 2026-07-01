@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { normalizeShippingError, shippingService } from '@/lib/shipping';
-import {
-  mapCityApiResponse,
-  mapDistrictApiResponse,
-  mapProvinceApiResponse,
-  mapShippingCostApiResponse,
-} from '@/lib/shipping/mappers';
 import { v4 as uuid } from 'uuid';
 
 const COLLECTION_MODELS = {
@@ -33,22 +27,10 @@ async function readJson(request) {
   }
 }
 
-function buildShippingSuccessResponse(message, data) {
-  return NextResponse.json({
-    success: true,
-    message,
-    data,
-  });
-}
-
 function buildShippingErrorResponse(error) {
   const normalized = normalizeShippingError(error);
   return NextResponse.json(
-    {
-      success: false,
-      message: normalized.message,
-      data: null,
-    },
+    { error: normalized.message },
     { status: normalized.statusCode || 500 }
   );
 }
@@ -159,10 +141,7 @@ async function handle(request, { params }) {
       if (segs[1] === 'provinces' && method === 'GET') {
         try {
           const provinces = await shippingService.getProvinces();
-          return buildShippingSuccessResponse(
-            'Shipping provinces retrieved successfully.',
-            provinces.map(mapProvinceApiResponse)
-          );
+          return NextResponse.json(provinces);
         } catch (error) {
           return buildShippingErrorResponse(error);
         }
@@ -170,14 +149,11 @@ async function handle(request, { params }) {
 
       if (segs[1] === 'cities' && method === 'GET') {
         const url = new URL(request.url);
-        const provinceId = url.searchParams.get('province_id');
+        const provinceId = url.searchParams.get('provinceId');
 
         try {
           const cities = await shippingService.getCities(provinceId);
-          return buildShippingSuccessResponse(
-            'Shipping cities retrieved successfully.',
-            cities.map(mapCityApiResponse)
-          );
+          return NextResponse.json(cities);
         } catch (error) {
           return buildShippingErrorResponse(error);
         }
@@ -185,14 +161,11 @@ async function handle(request, { params }) {
 
       if (segs[1] === 'districts' && method === 'GET') {
         const url = new URL(request.url);
-        const cityId = url.searchParams.get('city_id');
+        const cityId = url.searchParams.get('cityId');
 
         try {
           const districts = await shippingService.getDistricts(cityId);
-          return buildShippingSuccessResponse(
-            'Shipping districts retrieved successfully.',
-            districts.map(mapDistrictApiResponse)
-          );
+          return NextResponse.json(districts);
         } catch (error) {
           return buildShippingErrorResponse(error);
         }
@@ -200,18 +173,18 @@ async function handle(request, { params }) {
 
       if (segs[1] === 'cost' && method === 'POST') {
         const body = await readJson(request);
+        const calculateShippingCost = typeof shippingService.calculateShippingCost === 'function'
+          ? shippingService.calculateShippingCost.bind(shippingService)
+          : shippingService.getShippingCost.bind(shippingService);
 
         try {
-          const costs = await shippingService.getShippingCost({
+          const costs = await calculateShippingCost({
             originDistrict: body.originDistrict,
             destinationDistrict: body.destinationDistrict,
             weight: body.weight,
             courier: body.courier,
           });
-          return buildShippingSuccessResponse(
-            'Shipping cost retrieved successfully.',
-            costs.map(mapShippingCostApiResponse)
-          );
+          return NextResponse.json(costs);
         } catch (error) {
           return buildShippingErrorResponse(error);
         }
