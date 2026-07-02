@@ -102,41 +102,41 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Fix checkout shipping validation so district-based shipping cost validation surfaces the real error instead of returning a generic 500 response."
+user_problem_statement: "Align the Midtrans Snap adapter with a simplified internal payload contract so Snap token generation succeeds without changing Checkout, PaymentAttempt APIs, or Commerce."
 backend:
-  - task: "Checkout shipping request diagnostics"
+  - task: "Midtrans provider payload adapter"
     implemented: true
     working: true
-    file: "lib/checkout/service.js"
+    file: "lib/payment-attempt/providers/midtrans-provider.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added temporary diagnostics before shipping cost validation to log originDistrict, destinationDistrict, courier, weight, service, description, cost, and any validation failure returned from ShippingService."
-  - task: "Shipping cost validation diagnostics"
+        comment: "Refactored the Midtrans provider to accept a simplified internal payload, split customer names automatically, build the official Snap payload internally, and log exact Midtrans 400 response bodies during development."
+  - task: "PaymentAttempt simplified provider contract"
     implemented: true
     working: true
-    file: "lib/shipping/service.js"
+    file: "lib/payment-attempt/service.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added explicit validation failure logs inside ShippingService.getShippingCost so early exits now reveal which required field or weight check failed before RajaOngkir is called."
-  - task: "Checkout error status propagation"
+        comment: "Updated PaymentAttemptService to send the simplified payload contract to MidtransProvider while keeping existing PaymentAttempt APIs unchanged."
+  - task: "Payment configuration alignment"
     implemented: true
     working: true
-    file: "lib/checkout/errors.js"
+    file: "lib/payment-attempt/config.js"
     stuck_count: 0
-    priority: "high"
+    priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Updated checkout error normalization to preserve statusCode and message from validation errors so shipping validation failures return HTTP 400 instead of a generic HTTP 500."
+        comment: "Extended payment configuration with provider display naming and callback base URL resolution used only inside the Midtrans adapter layer."
   - task: "Project verification"
     implemented: true
     working: true
@@ -147,21 +147,21 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run build succeeds after adding checkout and shipping validation diagnostics."
+        comment: "Verified npm run test:payment-attempt and npm run build both succeed after the Midtrans Snap adapter alignment changes."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 13
+  test_sequence: 14
   run_ui: false
 test_plan:
   current_focus:
-    - "Checkout shipping request diagnostics"
-    - "Shipping cost validation diagnostics"
-    - "Checkout error status propagation"
+    - "Midtrans provider payload adapter"
+    - "PaymentAttempt simplified provider contract"
+    - "Payment configuration alignment"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "Checkout shipping validation now logs the outgoing shipping cost request fields and exact validation failures, while checkout routes preserve HTTP 400 responses for validation issues instead of collapsing them into generic 500 errors."
+    message: "The Midtrans Snap adapter now accepts a simplified internal payload, transforms it into the official Snap request inside the provider, preserves PaymentAttempt APIs, and logs exact Midtrans 400 response bodies for easier diagnosis."
