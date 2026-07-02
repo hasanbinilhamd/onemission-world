@@ -102,52 +102,63 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Create the Order domain in ONEMISSION HQ so a PAID PaymentAttempt produces exactly one immutable Order without touching Checkout, Shipping, Inventory, or Finance logic."
+user_problem_statement: "Prepare ONEMISSION HQ for repeated User Acceptance Testing with deterministic data, Postman assets, helper scripts, and end-to-end HQ payment flow documentation."
 backend:
-  - task: "Order persistence model"
+  - task: "UAT deterministic seed"
     implemented: true
     working: true
-    file: "prisma/schema.prisma"
+    file: "testing/seeds/uat-seed.ts"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added Order and OrderItem persistence with 1:1 PaymentAttempt and CheckoutSession uniqueness plus immutable item snapshot fields."
-  - task: "Order creation service"
+        comment: "Added an idempotent UAT seed script that upserts deterministic customer, sales channel, product, and inventory records for repeatable test runs."
+  - task: "UAT helper endpoints"
     implemented: true
     working: true
-    file: "lib/order/service.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Implemented OrderService.createFromCheckoutSession() with paid-attempt validation, checkout validation reuse, immutable snapshot copying, and duplicate-safe order reuse."
-  - task: "Payment confirmation order hook"
-    implemented: true
-    working: true
-    file: "lib/order/index.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Connected the existing payment confirmation hook to OrderService through a side-effect registration without redesigning the frozen payment architecture."
-  - task: "Order automated tests"
-    implemented: true
-    working: true
-    file: "tests/order-service.test.js"
+    file: "app/api/health/route.js"
     stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added tests for successful order creation, duplicate-safe reuse, snapshot integrity, invalid checkout, invalid payment attempt, and unpaid attempt rejection."
+        comment: "Added read-only helper endpoints for health, payment attempt lookup, order retrieval, and order items to support repeated UAT execution without modifying business modules."
+  - task: "Postman collection and environment"
+    implemented: true
+    working: true
+    file: "testing/postman/onemission-hq-uat.collection.json"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Created a complete ONEMISSION HQ UAT Postman collection and local environment covering Health, Shipping, Checkout, Payment, Midtrans, Order, and Negative Tests folders."
+  - task: "UAT documentation"
+    implemented: true
+    working: true
+    file: "docs/UAT.md"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Documented prerequisites, environment variables, helper scripts, request execution order, expected outcomes, and the full UAT checklist for Midtrans Sandbox certification."
+  - task: "UAT helper scripts"
+    implemented: true
+    working: true
+    file: "package.json"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added npm run seed:uat and npm run test:uat without removing or altering existing scripts."
   - task: "Project verification"
     implemented: true
     working: true
@@ -158,21 +169,21 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run test:order, npm run test:payment-attempt, and npm run build all succeed after introducing the Order domain."
+        comment: "Verified npm run test:uat and npm run build both succeed after adding the UAT testing infrastructure."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 9
+  test_sequence: 10
   run_ui: false
 test_plan:
   current_focus:
-    - "Order persistence model"
-    - "Order creation service"
-    - "Payment confirmation order hook"
+    - "UAT deterministic seed"
+    - "Postman collection and environment"
+    - "UAT documentation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "Order creation is now attached to the paid PaymentAttempt lifecycle. A paid payment attempt creates exactly one immutable order, duplicate callbacks stay safe, and no inventory or finance logic was introduced."
+    message: "The repository is now prepared for HQ certification with deterministic UAT seed data, helper read-only endpoints, Postman assets, helper scripts, and complete sandbox payment flow documentation."

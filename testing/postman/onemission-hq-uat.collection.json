@@ -1,0 +1,389 @@
+{
+  "info": {
+    "_postman_id": "f0a9e5a5-5f72-4ee7-b0f9-54711f4a437c",
+    "name": "ONEMISSION HQ UAT",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "User Acceptance Testing collection for ONEMISSION HQ checkout, payment, callback, and order verification flows."
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shipping",
+      "item": [
+        {
+          "name": "Get Provinces",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/shipping/provinces",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shipping", "provinces"]
+            }
+          }
+        },
+        {
+          "name": "Get Cities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/shipping/cities?provinceId=9",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shipping", "cities"],
+              "query": [
+                { "key": "provinceId", "value": "9" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Calculate Shipping Cost",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"originDistrict\": \"1391\",\n  \"destinationDistrict\": \"1376\",\n  \"weight\": 1000,\n  \"courier\": \"jne\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/shipping/cost",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shipping", "cost"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Checkout",
+      "item": [
+        {
+          "name": "Create Checkout Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response && response.id) {",
+                  "  pm.environment.set('checkoutSessionId', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"salesChannelId\": \"uat-sales-channel-website\",\n  \"currency\": \"IDR\",\n  \"discount\": 0,\n  \"tax\": 0,\n  \"courier\": \"jne\",\n  \"items\": [\n    {\n      \"productId\": \"uat-product-training-jersey\",\n      \"variantId\": \"{{variantId}}\",\n      \"qty\": 2,\n      \"weight\": 500\n    }\n  ],\n  \"shipping\": {\n    \"originDistrict\": \"1391\",\n    \"destinationDistrict\": \"1376\",\n    \"weight\": 1000,\n    \"cost\": 18000,\n    \"service\": \"REG\",\n    \"description\": \"JNE Regular Service\",\n    \"estimatedDelivery\": \"2-3 Days\"\n  },\n  \"address\": {\n    \"recipientName\": \"John Doe\",\n    \"phone\": \"+628123456789\",\n    \"provinceId\": \"9\",\n    \"cityId\": \"23\",\n    \"districtId\": \"1376\",\n    \"postalCode\": \"40135\",\n    \"streetAddress\": \"Example Street 123\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/checkout/session",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "checkout", "session"]
+            }
+          }
+        },
+        {
+          "name": "Get Checkout Session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/checkout/session/{{checkoutSessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "checkout", "session", "{{checkoutSessionId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Create Payment Attempt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response && response.id) {",
+                  "  pm.environment.set('paymentAttemptId', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkoutSessionId\": \"{{checkoutSessionId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payment-attempt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment-attempt"]
+            }
+          }
+        },
+        {
+          "name": "Generate Snap Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response && response.snapToken) {",
+                  "  pm.environment.set('snapToken', response.snapToken);",
+                  "}",
+                  "if (response && response.providerReference) {",
+                  "  pm.environment.set('providerReference', response.providerReference);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payment-attempt/{{paymentAttemptId}}/snap",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment-attempt", "{{paymentAttemptId}}", "snap"]
+            }
+          }
+        },
+        {
+          "name": "Get Payment Attempt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response && response.providerReference) {",
+                  "  pm.environment.set('providerReference', response.providerReference);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payment-attempt/{{paymentAttemptId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment-attempt", "{{paymentAttemptId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Midtrans",
+      "item": [
+        {
+          "name": "Payment Callback (Sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_status\": \"settlement\",\n  \"status_code\": \"200\",\n  \"order_id\": \"{{providerReference}}\",\n  \"transaction_id\": \"replace-with-midtrans-transaction-id\",\n  \"gross_amount\": \"518000.00\",\n  \"signature_key\": \"replace-with-valid-signature\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payment/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment", "callback"]
+            },
+            "description": "Use this request to replay a real Midtrans callback payload. Replace transaction_id and signature_key with valid sandbox values."
+          }
+        },
+        {
+          "name": "Duplicate Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_status\": \"settlement\",\n  \"status_code\": \"200\",\n  \"order_id\": \"{{providerReference}}\",\n  \"transaction_id\": \"replace-with-midtrans-transaction-id\",\n  \"gross_amount\": \"518000.00\",\n  \"signature_key\": \"replace-with-valid-signature\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payment/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment", "callback"]
+            },
+            "description": "Replay the same valid callback payload again. The payment attempt must stay PAID and the order must remain unique."
+          }
+        },
+        {
+          "name": "Invalid Signature Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_status\": \"settlement\",\n  \"status_code\": \"200\",\n  \"order_id\": \"{{providerReference}}\",\n  \"transaction_id\": \"replace-with-midtrans-transaction-id\",\n  \"gross_amount\": \"518000.00\",\n  \"signature_key\": \"invalid-signature\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payment/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment", "callback"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Order",
+      "item": [
+        {
+          "name": "Get Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response && response.id) {",
+                  "  pm.environment.set('orderId', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Order Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}", "items"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Negative Tests",
+      "item": [
+        {
+          "name": "Expired Checkout",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/checkout/session/replace-with-expired-checkout-session-id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "checkout", "session", "replace-with-expired-checkout-session-id"]
+            },
+            "description": "Replace the path parameter with a real expired checkout session ID."
+          }
+        },
+        {
+          "name": "Duplicate PaymentAttempt",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkoutSessionId\": \"{{checkoutSessionId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payment-attempt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment-attempt"]
+            },
+            "description": "Run this request twice for the same checkoutSessionId. The second response must reuse the existing active payment attempt."
+          }
+        },
+        {
+          "name": "Invalid Checkout ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkoutSessionId\": \"invalid-checkout-id\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payment-attempt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment-attempt"]
+            }
+          }
+        },
+        {
+          "name": "Invalid PaymentAttempt ID",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payment-attempt/invalid-payment-attempt-id/snap",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment-attempt", "invalid-payment-attempt-id", "snap"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
