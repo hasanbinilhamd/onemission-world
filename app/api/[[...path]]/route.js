@@ -182,7 +182,7 @@ async function handle(request, { params }) {
         const cityId = url.searchParams.get('cityId');
 
         try {
-          const districts = await shippingService.getDistricts(cityId);
+          const districts = await districtService.getDistricts(cityId);
           return NextResponse.json(districts);
         } catch (error) {
           return buildShippingErrorResponse(error);

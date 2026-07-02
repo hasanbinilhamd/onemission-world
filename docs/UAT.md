@@ -7,13 +7,17 @@ This guide prepares the ONEMISSION HQ repository for repeated User Acceptance Te
 The UAT flow covers:
 
 1. Seed deterministic test data
-2. Create a checkout session
-3. Create a payment attempt
-4. Generate a Midtrans Snap token
-5. Complete payment in Midtrans Sandbox
-6. Receive Midtrans callback
-7. Verify payment attempt and order records
-8. Replay callback safely
+2. Load provinces
+3. Load cities
+4. Load districts
+5. Calculate shipping cost
+6. Create a checkout session
+7. Create a payment attempt
+8. Generate a Midtrans Snap token
+9. Complete payment in Midtrans Sandbox
+10. Receive Midtrans callback
+11. Verify payment attempt and order records
+12. Replay callback safely
 
 ## Prerequisites
 
@@ -109,6 +113,22 @@ The local environment contains these variables:
 - `snapToken`
 - `providerReference`
 
+## Shipping Flow
+
+Province
+
+↓
+
+City
+
+↓
+
+District
+
+↓
+
+Calculate Shipping
+
 ## Request Execution Guide
 
 ### 1. Health → Get Health Check
@@ -145,7 +165,20 @@ The local environment contains these variables:
 - HTTP `200`
 - Bandung city data is returned
 
-### 4. Shipping → Calculate Shipping Cost
+### 4. Shipping → Get Districts
+
+**Request**
+
+`GET {{baseUrl}}/api/shipping/districts?cityId=23`
+
+**Expected Result**
+
+- HTTP `200`
+- District list is returned
+- `Coblong` should be present in mock mode
+- Response contains `id`, `cityId`, `name`, `code`, and `provider`
+
+### 5. Shipping → Calculate Shipping Cost
 
 **Request**
 
@@ -157,7 +190,7 @@ The local environment contains these variables:
 - At least one shipping option is returned
 - JNE should be present when mock shipping is active
 
-### 5. Checkout → Create Checkout Session
+### 6. Checkout → Create Checkout Session
 
 **Request**
 
@@ -170,7 +203,7 @@ The local environment contains these variables:
 - Postman stores `checkoutSessionId`
 - Checkout status is `DRAFT`
 
-### 6. Checkout → Get Checkout Session
+### 7. Checkout → Get Checkout Session
 
 **Request**
 
@@ -182,7 +215,7 @@ The local environment contains these variables:
 - Immutable checkout snapshot is returned
 - Product, shipping, and totals match the creation step
 
-### 7. Payment → Create Payment Attempt
+### 8. Payment → Create Payment Attempt
 
 **Request**
 
@@ -194,7 +227,7 @@ The local environment contains these variables:
 - Payment attempt status is `CREATED`
 - Postman stores `paymentAttemptId`
 
-### 8. Payment → Generate Snap Token
+### 9. Payment → Generate Snap Token
 
 **Request**
 
@@ -207,7 +240,7 @@ The local environment contains these variables:
 - `snapToken` exists
 - `providerReference` is stored for later callback checks
 
-### 9. Payment → Get Payment Attempt
+### 10. Payment → Get Payment Attempt
 
 **Request**
 
@@ -219,7 +252,7 @@ The local environment contains these variables:
 - Snap token and redirect URL are persisted
 - Status remains `PENDING` before callback
 
-### 10. Midtrans Sandbox Payment
+### 11. Midtrans Sandbox Payment
 
 Open Midtrans Sandbox using the returned `snapRedirectUrl` or load the Snap widget using `snapToken` from Commerce in the future.
 
@@ -228,7 +261,7 @@ Open Midtrans Sandbox using the returned `snapRedirectUrl` or load the Snap widg
 - Payment is completed successfully in sandbox
 - Midtrans sends a callback to your exposed callback URL
 
-### 11. Midtrans → Payment Callback (Sample)
+### 12. Midtrans → Payment Callback (Sample)
 
 Use this request only if you need to replay or simulate a callback manually.
 
@@ -242,7 +275,7 @@ Use this request only if you need to replay or simulate a callback manually.
 - PaymentAttempt moves to `PAID` when the payload and signature are valid
 - Exactly one Order is created
 
-### 12. Midtrans → Duplicate Callback
+### 13. Midtrans → Duplicate Callback
 
 Replay the exact same callback body.
 
@@ -253,7 +286,7 @@ Replay the exact same callback body.
 - Still exactly one Order exists
 - No duplicate Order is created
 
-### 13. Midtrans → Invalid Signature Callback
+### 14. Midtrans → Invalid Signature Callback
 
 Send the callback with an invalid `signature_key`.
 
@@ -263,7 +296,7 @@ Send the callback with an invalid `signature_key`.
 - PaymentAttempt status is unchanged
 - No new Order is created
 
-### 14. Order → Get Order
+### 15. Order → Get Order
 
 **Request**
 
@@ -275,7 +308,7 @@ Send the callback with an invalid `signature_key`.
 - One order exists for the paid payment attempt
 - Status should be `READY_FOR_FULFILLMENT`
 
-### 15. Order → Get Order Items
+### 16. Order → Get Order Items
 
 **Request**
 
@@ -303,13 +336,45 @@ Seed data
 
 ### Step 2
 
+Load Province
+
+**Expected**
+
+- Province list is available
+
+### Step 3
+
+Load City
+
+**Expected**
+
+- City list is available for selected province
+
+### Step 4
+
+Load District
+
+**Expected**
+
+- District list is available for selected city
+
+### Step 5
+
+Calculate Shipping
+
+**Expected**
+
+- Shipping options are returned using district identifiers
+
+### Step 6
+
 Create Checkout Session
 
 **Expected**
 
 - Checkout Session status = `DRAFT`
 
-### Step 3
+### Step 7
 
 Create Payment Attempt
 
@@ -317,7 +382,7 @@ Create Payment Attempt
 
 - PaymentAttempt status = `CREATED`
 
-### Step 4
+### Step 8
 
 Generate Snap Token
 
@@ -326,7 +391,7 @@ Generate Snap Token
 - PaymentAttempt status = `PENDING`
 - `snapToken` exists
 
-### Step 5
+### Step 9
 
 Open Midtrans Sandbox and complete payment
 
@@ -334,7 +399,7 @@ Open Midtrans Sandbox and complete payment
 
 - Midtrans accepts the payment in sandbox
 
-### Step 6
+### Step 10
 
 Receive Callback
 
@@ -342,7 +407,7 @@ Receive Callback
 
 - PaymentAttempt status = `PAID`
 
-### Step 7
+### Step 11
 
 Verify Order
 
@@ -351,7 +416,7 @@ Verify Order
 - Exactly one Order exists
 - Exactly correct Order Items exist
 
-### Step 8
+### Step 12
 
 Repeat Callback
 

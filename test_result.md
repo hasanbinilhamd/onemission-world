@@ -102,88 +102,77 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Prepare ONEMISSION HQ for repeated User Acceptance Testing with deterministic data, Postman assets, helper scripts, and end-to-end HQ payment flow documentation."
+user_problem_statement: "Extend the ONEMISSION HQ Shipping module with District support for UAT and RajaOngkir district-based shipping cost calculation."
 backend:
-  - task: "UAT deterministic seed"
+  - task: "Shipping district endpoint"
     implemented: true
     working: true
-    file: "testing/seeds/uat-seed.ts"
+    file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added an idempotent UAT seed script that upserts deterministic customer, sales channel, product, and inventory records for repeatable test runs."
-  - task: "UAT helper endpoints"
+        comment: "Updated GET /api/shipping/districts to use a dedicated DistrictService and return normalized district DTOs."
+  - task: "Shipping district service"
     implemented: true
     working: true
-    file: "app/api/health/route.js"
+    file: "lib/shipping/district-service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added DistrictService to validate cityId, reuse existing ShippingService.getDistricts(), and return provider-aware normalized district objects."
+  - task: "Shipping district DTO normalization"
+    implemented: true
+    working: true
+    file: "lib/shipping/mappers.js"
     stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added read-only helper endpoints for health, payment attempt lookup, order retrieval, and order items to support repeated UAT execution without modifying business modules."
-  - task: "Postman collection and environment"
+        comment: "Extended district API mapper to include id, cityId, name, code, and provider without exposing raw provider data."
+  - task: "UAT district coverage"
     implemented: true
     working: true
     file: "testing/postman/onemission-hq-uat.collection.json"
     stuck_count: 0
-    priority: "high"
+    priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Created a complete ONEMISSION HQ UAT Postman collection and local environment covering Health, Shipping, Checkout, Payment, Midtrans, Order, and Negative Tests folders."
-  - task: "UAT documentation"
+        comment: "Added Get Districts request to the UAT Postman collection and updated UAT documentation to reflect Province → City → District → Calculate Shipping flow."
+  - task: "Project verification"
     implemented: true
     working: true
     file: "docs/UAT.md"
     stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Documented prerequisites, environment variables, helper scripts, request execution order, expected outcomes, and the full UAT checklist for Midtrans Sandbox certification."
-  - task: "UAT helper scripts"
-    implemented: true
-    working: true
-    file: "package.json"
-    stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added npm run seed:uat and npm run test:uat without removing or altering existing scripts."
-  - task: "Project verification"
-    implemented: true
-    working: true
-    file: "test_result.md"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Verified npm run test:uat and npm run build both succeed after adding the UAT testing infrastructure."
+        comment: "Verified npm run build succeeds after adding district support."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 10
+  test_sequence: 11
   run_ui: false
 test_plan:
   current_focus:
-    - "UAT deterministic seed"
-    - "Postman collection and environment"
-    - "UAT documentation"
+    - "Shipping district endpoint"
+    - "Shipping district service"
+    - "UAT district coverage"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "The repository is now prepared for HQ certification with deterministic UAT seed data, helper read-only endpoints, Postman assets, helper scripts, and complete sandbox payment flow documentation."
+    message: "District support has been added to the Shipping module with a dedicated endpoint, normalized DTOs, updated Postman coverage, and refreshed UAT documentation for district-based shipping cost flows."

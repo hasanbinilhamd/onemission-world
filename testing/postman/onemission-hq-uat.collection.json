@@ -54,6 +54,21 @@
           }
         },
         {
+          "name": "Get Districts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/shipping/districts?cityId=23",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shipping", "districts"],
+              "query": [
+                { "key": "cityId", "value": "23" }
+              ]
+            }
+          }
+        },
+        {
           "name": "Calculate Shipping Cost",
           "request": {
             "method": "POST",
