@@ -102,52 +102,41 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Add district support to the ONEMISSION HQ Shipping module so UAT can use district-based RajaOngkir shipping calculation."
+user_problem_statement: "Fix checkout shipping validation so district-based shipping cost validation surfaces the real error instead of returning a generic 500 response."
 backend:
-  - task: "Shipping district endpoint"
+  - task: "Checkout shipping request diagnostics"
     implemented: true
     working: true
-    file: "app/api/[[...path]]/route.js"
+    file: "lib/checkout/service.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Exposed GET /api/shipping/districts with required cityId query handling and reused the shipping error strategy."
-  - task: "Shipping district service"
+        comment: "Added temporary diagnostics before shipping cost validation to log originDistrict, destinationDistrict, courier, weight, service, description, cost, and any validation failure returned from ShippingService."
+  - task: "Shipping cost validation diagnostics"
     implemented: true
     working: true
-    file: "lib/shipping/district-service.js"
+    file: "lib/shipping/service.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Added DistrictService to validate cityId, call the existing ShippingService, and return normalized district DTOs without redesigning Shipping architecture."
-  - task: "Shipping cost courier normalization"
+        comment: "Added explicit validation failure logs inside ShippingService.getShippingCost so early exits now reveal which required field or weight check failed before RajaOngkir is called."
+  - task: "Checkout error status propagation"
     implemented: true
     working: true
-    file: "lib/shipping/mappers.js"
+    file: "lib/checkout/errors.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Fixed the shipping mapping layer so courier always carries the provider code while courierName preserves the display label, resolving checkout shipping-rate validation failures."
-  - task: "UAT shipping documentation and collection"
-    implemented: true
-    working: true
-    file: "docs/UAT.md"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Updated the Postman collection with Get Districts and documented the Province → City → District → Calculate Shipping flow in the UAT guide."
+        comment: "Updated checkout error normalization to preserve statusCode and message from validation errors so shipping validation failures return HTTP 400 instead of a generic HTTP 500."
   - task: "Project verification"
     implemented: true
     working: true
@@ -158,21 +147,21 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run test:checkout and npm run build both succeed after shipping district support and courier normalization changes."
+        comment: "Verified npm run build succeeds after adding checkout and shipping validation diagnostics."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 12
+  test_sequence: 13
   run_ui: false
 test_plan:
   current_focus:
-    - "Shipping district endpoint"
-    - "Shipping district service"
-    - "Shipping cost courier normalization"
+    - "Checkout shipping request diagnostics"
+    - "Shipping cost validation diagnostics"
+    - "Checkout error status propagation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "District support and courier-code normalization are now in place for the Shipping module, allowing checkout session validation to work correctly with RajaOngkir district-based rates during UAT."
+    message: "Checkout shipping validation now logs the outgoing shipping cost request fields and exact validation failures, while checkout routes preserve HTTP 400 responses for validation issues instead of collapsing them into generic 500 errors."
