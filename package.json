@@ -10,9 +10,11 @@
         "start": "next start",
         "db:migrate": "prisma migrate dev",
         "db:seed": "prisma db seed",
+        "seed:uat": "tsx testing/seeds/uat-seed.ts",
         "test:checkout": "tsx --tsconfig jsconfig.json --test tests/checkout-session.test.js",
         "test:payment-attempt": "tsx --tsconfig jsconfig.json --test tests/payment-attempt.test.js",
         "test:order": "tsx --tsconfig jsconfig.json --test tests/order-service.test.js",
+        "test:uat": "npm run test:checkout && npm run test:payment-attempt && npm run test:order",
         "postinstall": "prisma generate"
     },
     "prisma": {

@@ -1,0 +1,17 @@
+{
+  "id": "9fdd3f7f-b37a-4f43-86ef-f9c7cfde7d27",
+  "name": "ONEMISSION HQ Local Environment",
+  "values": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "enabled": true },
+    { "key": "checkoutSessionId", "value": "", "enabled": true },
+    { "key": "paymentAttemptId", "value": "", "enabled": true },
+    { "key": "orderId", "value": "", "enabled": true },
+    { "key": "customerId", "value": "uat-customer-john-doe", "enabled": true },
+    { "key": "variantId", "value": "uat-variant-training-jersey-black-xl", "enabled": true },
+    { "key": "snapToken", "value": "", "enabled": true },
+    { "key": "providerReference", "value": "", "enabled": true }
+  ],
+  "_postman_variable_scope": "environment",
+  "_postman_exported_at": "2026-07-01T00:00:00.000Z",
+  "_postman_exported_using": "Arena Agent"
+}
