@@ -8,17 +8,42 @@ function createOrderService({
   existingOrder = null,
   checkoutMissing = false,
   paymentAttemptMissing = false,
+  inventoryQuantity = 20,
 } = {}) {
   const checkoutSession = {
     id: 'checkout-1',
     checkoutNumber: 'CHK-202607-00001',
-    customer: {
-      id: 'customer-1',
-    },
-    salesChannel: {
-      id: 'channel-1',
-    },
+    status: 'PAID',
+    customerId: 'customer-1',
+    customerCode: 'CUS-0001',
+    customerName: 'John Doe',
+    customerEmail: 'john@example.com',
+    customerPhone: '+628123456789',
+    salesChannelId: 'channel-1',
+    salesChannelCode: 'SC-0001',
+    salesChannelName: 'Website',
+    recipientName: 'John Doe',
+    phone: '+628123456789',
+    originDistrict: '1391',
+    destinationDistrict: '1376',
+    courier: 'jne',
+    courierService: 'REG',
+    shippingDescription: 'JNE Regular Service',
+    estimatedDelivery: '2-3 Days',
+    provinceId: '9',
+    provinceName: 'Jawa Barat',
+    cityId: '23',
+    cityName: 'Bandung',
+    districtId: '1376',
+    districtName: 'Coblong',
+    postalCode: '40135',
+    streetAddress: 'Example Street 123',
     currency: 'IDR',
+    subtotal: 500000,
+    discount: 0,
+    shippingCost: 18000,
+    tax: 0,
+    grandTotal: 518000,
     totals: {
       subtotal: 500000,
       discount: 0,
@@ -50,11 +75,18 @@ function createOrderService({
         id: 'attempt-1',
         attemptNumber: 'PAY-202607-00001',
         checkoutSessionId: 'checkout-1',
+        providerReference: 'PAY-202607-00001',
         status: paymentAttemptStatus,
       };
 
   const store = {
     existingOrder,
+    inventory: {
+      id: 'variant-1',
+      quantity: inventoryQuantity,
+      status: 'Active',
+    },
+    publishedEvents: [],
   };
 
   const paymentAttemptService = {
@@ -71,21 +103,16 @@ function createOrderService({
     },
   };
 
-  const checkoutService = {
-    getCheckoutSessionById: async (checkoutSessionId) => {
-      if (checkoutMissing || checkoutSessionId !== checkoutSession.id) {
-        throw new OrderError({
-          message: 'Checkout session was not found.',
-          statusCode: 404,
-          code: 'CHECKOUT_SESSION_NOT_FOUND',
-        });
-      }
-
-      return checkoutSession;
-    },
-  };
-
   const prismaClient = {
+    checkoutSession: {
+      findUnique: async ({ where }) => {
+        if (checkoutMissing || where.id !== checkoutSession.id) {
+          return null;
+        }
+
+        return checkoutSession;
+      },
+    },
     order: {
       findMany: async () => [],
       findFirst: async () => store.existingOrder,
@@ -100,12 +127,31 @@ function createOrderService({
         return created;
       },
     },
+    inventory: {
+      findUnique: async ({ where }) => (where.id === store.inventory.id ? { ...store.inventory } : null),
+      update: async ({ where, data }) => {
+        if (where.id !== store.inventory.id) {
+          throw new Error('Inventory not found');
+        }
+
+        store.inventory.quantity = data.quantity;
+        return { ...store.inventory };
+      },
+    },
+    $transaction: async (callback) => callback(prismaClient),
+  };
+
+  const eventPublisher = {
+    publish: async (eventName, payload) => {
+      store.publishedEvents.push({ eventName, payload });
+    },
   };
 
   const service = new OrderService({
     prismaClient,
-    checkout: checkoutService,
+    checkout: {},
     paymentAttempt: paymentAttemptService,
+    eventPublisher,
     idGenerator: () => 'generated-id',
     nowFactory: () => new Date('2026-07-01T00:00:00.000Z'),
   });
@@ -143,11 +189,12 @@ test('reuses the existing order for duplicate callbacks', async () => {
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
   };
 
-  const { service } = createOrderService({ existingOrder });
+  const { service, store } = createOrderService({ existingOrder });
   const order = await service.createFromCheckoutSession({ paymentAttemptId: 'attempt-1' });
 
   assert.equal(order.id, 'order-1');
   assert.equal(order.orderNumber, 'ORD-202607-00001');
+  assert.equal(store.inventory.quantity, 20);
 });
 
 test('copies immutable checkout item snapshots into order items', async () => {
@@ -161,6 +208,22 @@ test('copies immutable checkout item snapshots into order items', async () => {
   assert.equal(order.items[0].weight, 500);
   assert.equal(order.items[0].quantity, 2);
   assert.equal(order.items[0].subtotal, 500000);
+});
+
+test('commits inventory exactly once during successful order creation', async () => {
+  const { service, store } = createOrderService();
+  await service.createFromCheckoutSession({ paymentAttemptId: 'attempt-1' });
+
+  assert.equal(store.inventory.quantity, 18);
+});
+
+test('publishes order and inventory domain events', async () => {
+  const { service, store } = createOrderService();
+  await service.createFromCheckoutSession({ paymentAttemptId: 'attempt-1' });
+
+  assert.equal(store.publishedEvents.length, 2);
+  assert.equal(store.publishedEvents[0].eventName, 'OrderCreated');
+  assert.equal(store.publishedEvents[1].eventName, 'InventoryCommitted');
 });
 
 test('rejects invalid checkout sessions', async () => {

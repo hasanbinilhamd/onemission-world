@@ -49,6 +49,8 @@ function createService({
   const store = {
     activeAttempt: existingAttempt,
     confirmedCount: 0,
+    checkoutStatus: checkoutSessionStatus,
+    checkoutUpdateCalls: [],
   };
 
   const checkout = {
@@ -118,6 +120,30 @@ function createService({
         return store.activeAttempt;
       },
     },
+    checkoutSession: {
+      findUnique: async ({ where }) => {
+        if (where.id !== checkoutSession.id) {
+          return null;
+        }
+
+        return {
+          ...checkoutSession,
+          status: store.checkoutStatus,
+        };
+      },
+      update: async ({ where, data }) => {
+        if (where.id !== checkoutSession.id) {
+          throw new Error('Checkout session not found');
+        }
+
+        store.checkoutStatus = data.status;
+        store.checkoutUpdateCalls.push(data);
+        return {
+          ...checkoutSession,
+          status: store.checkoutStatus,
+        };
+      },
+    },
   };
 
   const paymentProvider = {
@@ -126,6 +152,9 @@ function createService({
       providerTransactionId: 'midtrans-transaction-id',
       snapToken: 'snap-token-123',
       snapRedirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
+      redirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
+      providerName: 'Midtrans Snap',
+      createdAt: '2026-07-01T00:00:00.000Z',
     },
     verifyNotificationSignature: async () => {
       if (invalidSignature) {
@@ -259,6 +288,7 @@ test('generates and persists a snap token for a created payment attempt', async 
   assert.equal(result.status, 'PENDING');
   assert.equal(result.snapToken, 'snap-token-123');
   assert.equal(result.providerReference, 'PAY-202607-00001');
+  assert.equal(result.providerTransactionId, 'midtrans-transaction-id');
 });
 
 test('reuses the existing snap token when it already exists', async () => {
@@ -334,6 +364,11 @@ test('accepts a valid midtrans signature and marks payment attempt as paid', asy
     providerReference: 'PAY-202607-00001',
     providerTransactionId: 'midtrans-trx-1',
     internalStatus: 'PAID',
+    fraudStatus: 'accept',
+    paymentType: 'bank_transfer',
+    transactionTime: new Date('2026-07-01T01:00:00.000Z'),
+    settlementTime: new Date('2026-07-01T01:05:00.000Z'),
+    providerPayload: { transaction_status: 'settlement' },
   };
 
   const { service, store } = createService({ existingAttempt, notification });
@@ -341,6 +376,10 @@ test('accepts a valid midtrans signature and marks payment attempt as paid', asy
 
   assert.equal(result.status, 'PAID');
   assert.equal(result.providerTransactionId, 'midtrans-trx-1');
+  assert.equal(result.fraudStatus, 'accept');
+  assert.equal(result.paymentType, 'bank_transfer');
+  assert.equal(store.checkoutUpdateCalls.length, 1);
+  assert.equal(store.checkoutUpdateCalls[0].status, 'PAID');
   assert.equal(store.confirmedCount, 1);
 });
 
@@ -398,13 +437,19 @@ test('keeps duplicate paid callbacks idempotent', async () => {
     providerReference: 'PAY-202607-00001',
     providerTransactionId: 'midtrans-trx-1',
     internalStatus: 'PAID',
+    fraudStatus: 'accept',
+    paymentType: 'bank_transfer',
+    transactionTime: new Date('2026-07-01T01:00:00.000Z'),
+    settlementTime: new Date('2026-07-01T01:05:00.000Z'),
+    providerPayload: { transaction_status: 'settlement' },
   };
 
   const { service, store } = createService({ existingAttempt, notification });
   const result = await service.handleMidtransNotification(notification);
 
   assert.equal(result.status, 'PAID');
-  assert.equal(store.confirmedCount, 0);
+  assert.equal(store.confirmedCount, 1);
+  assert.equal(store.checkoutUpdateCalls.length, 1);
 });
 
 test('maps pending notification to pending status', async () => {
@@ -429,6 +474,7 @@ test('maps pending notification to pending status', async () => {
     providerReference: 'PAY-202607-00001',
     providerTransactionId: 'midtrans-trx-2',
     internalStatus: 'PENDING',
+    providerPayload: { transaction_status: 'pending' },
   };
 
   const { service } = createService({ existingAttempt, notification });
@@ -459,6 +505,7 @@ test('maps expired notification to expired status', async () => {
     providerReference: 'PAY-202607-00001',
     providerTransactionId: 'midtrans-trx-3',
     internalStatus: 'EXPIRED',
+    providerPayload: { transaction_status: 'expire' },
   };
 
   const { service } = createService({ existingAttempt, notification });
@@ -489,6 +536,7 @@ test('maps failed notification to failed status', async () => {
     providerReference: 'PAY-202607-00001',
     providerTransactionId: 'midtrans-trx-4',
     internalStatus: 'FAILED',
+    providerPayload: { transaction_status: 'deny' },
   };
 
   const { service } = createService({ existingAttempt, notification });

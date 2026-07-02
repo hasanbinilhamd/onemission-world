@@ -487,6 +487,11 @@ model PaymentAttempt {
   status                String          @default("CREATED")
   grossAmount           Float
   currency              String          @default("IDR")
+  fraudStatus           String          @default("")
+  paymentType           String          @default("")
+  transactionTime       DateTime?
+  settlementTime        DateTime?
+  providerPayload       Json?
   expiresAt             DateTime
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
@@ -497,24 +502,47 @@ model PaymentAttempt {
 }
 
 model Order {
-  id                String      @id
-  orderNumber       String      @unique
-  checkoutSessionId String      @unique
-  checkoutSession   CheckoutSession @relation(fields: [checkoutSessionId], references: [id], onDelete: Cascade)
-  paymentAttemptId  String      @unique
-  paymentAttempt    PaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Cascade)
-  customerId        String
-  salesChannelId    String
-  status            String      @default("READY_FOR_FULFILLMENT")
-  currency          String      @default("IDR")
-  subtotal          Float       @default(0)
-  discount          Float       @default(0)
-  shippingCost      Float       @default(0)
-  tax               Float       @default(0)
-  grandTotal        Float       @default(0)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  items             OrderItem[]
+  id                  String      @id
+  orderNumber         String      @unique
+  checkoutSessionId   String      @unique
+  checkoutSession     CheckoutSession @relation(fields: [checkoutSessionId], references: [id], onDelete: Cascade)
+  paymentAttemptId    String      @unique
+  paymentAttempt      PaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Cascade)
+  paymentReference    String      @default("")
+  customerId          String
+  customerCode        String      @default("")
+  customerName        String      @default("")
+  customerEmail       String      @default("")
+  customerPhone       String      @default("")
+  salesChannelId      String
+  salesChannelCode    String      @default("")
+  salesChannelName    String      @default("")
+  recipientName       String      @default("")
+  recipientPhone      String      @default("")
+  originDistrict      String      @default("")
+  destinationDistrict String      @default("")
+  courier             String      @default("")
+  courierService      String      @default("")
+  shippingDescription String      @default("")
+  estimatedDelivery   String      @default("")
+  provinceId          String      @default("")
+  provinceName        String      @default("")
+  cityId              String      @default("")
+  cityName            String      @default("")
+  districtId          String      @default("")
+  districtName        String      @default("")
+  postalCode          String      @default("")
+  streetAddress       String      @default("")
+  status              String      @default("READY_FOR_FULFILLMENT")
+  currency            String      @default("IDR")
+  subtotal            Float       @default(0)
+  discount            Float       @default(0)
+  shippingCost        Float       @default(0)
+  tax                 Float       @default(0)
+  grandTotal          Float       @default(0)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  items               OrderItem[]
 
   @@index([customerId])
   @@index([salesChannelId])

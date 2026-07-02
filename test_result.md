@@ -102,20 +102,20 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Align the Midtrans Snap adapter with a simplified internal payload contract so Snap token generation succeeds without changing Checkout, PaymentAttempt APIs, or Commerce."
+user_problem_statement: "Implement the Midtrans notification workflow so successful payment confirmation updates PaymentAttempt, marks Checkout as paid, creates exactly one Order, commits inventory once, and publishes domain events."
 backend:
-  - task: "Midtrans provider payload adapter"
+  - task: "Midtrans notification webhook"
     implemented: true
     working: true
-    file: "lib/payment-attempt/providers/midtrans-provider.js"
+    file: "app/api/payments/midtrans/notification/route.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Refactored the Midtrans provider to accept a simplified internal payload, split customer names automatically, build the official Snap payload internally, and log exact Midtrans 400 response bodies during development."
-  - task: "PaymentAttempt simplified provider contract"
+        comment: "Added POST /api/payments/midtrans/notification and delegated all business behavior to the existing payment confirmation flow."
+  - task: "PaymentAttempt notification lifecycle"
     implemented: true
     working: true
     file: "lib/payment-attempt/service.js"
@@ -125,18 +125,40 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Updated PaymentAttemptService to send the simplified payload contract to MidtransProvider while keeping existing PaymentAttempt APIs unchanged."
-  - task: "Payment configuration alignment"
+        comment: "Updated Midtrans notification processing to verify signatures, update extended payment fields, move Checkout to PAID, publish PaymentSettled, and safely ignore duplicate notifications."
+  - task: "Order creation and inventory commit"
     implemented: true
     working: true
-    file: "lib/payment-attempt/config.js"
+    file: "lib/order/service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "OrderService now creates one immutable order from paid checkout snapshots, deducts inventory once inside a transaction, and publishes OrderCreated plus InventoryCommitted events."
+  - task: "Payment and order persistence updates"
+    implemented: true
+    working: true
+    file: "prisma/schema.prisma"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Extended PaymentAttempt with fraud, provider payload, and timing fields, and extended Order with customer, sales channel, shipping, and payment snapshot fields required by post-payment processing."
+  - task: "Automated tests"
+    implemented: true
+    working: true
+    file: "tests/payment-attempt.test.js"
     stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Extended payment configuration with provider display naming and callback base URL resolution used only inside the Midtrans adapter layer."
+        comment: "Expanded payment-attempt tests for webhook flows and order tests for snapshot integrity, inventory commit, and event publishing."
   - task: "Project verification"
     implemented: true
     working: true
@@ -147,21 +169,21 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run test:payment-attempt and npm run build both succeed after the Midtrans Snap adapter alignment changes."
+        comment: "Verified npm run test:payment-attempt, npm run test:order, and npm run build all succeed after the notification, order, and inventory commit workflow changes."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 14
+  test_sequence: 15
   run_ui: false
 test_plan:
   current_focus:
-    - "Midtrans provider payload adapter"
-    - "PaymentAttempt simplified provider contract"
-    - "Payment configuration alignment"
+    - "Midtrans notification webhook"
+    - "PaymentAttempt notification lifecycle"
+    - "Order creation and inventory commit"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "The Midtrans Snap adapter now accepts a simplified internal payload, transforms it into the official Snap request inside the provider, preserves PaymentAttempt APIs, and logs exact Midtrans 400 response bodies for easier diagnosis."
+    message: "Midtrans payment confirmation now updates PaymentAttempt, marks Checkout as PAID, creates exactly one Order, commits inventory once, and publishes domain events without touching Commerce or Shipping modules."
