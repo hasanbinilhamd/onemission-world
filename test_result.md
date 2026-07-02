@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Extend the ONEMISSION HQ Shipping module with District support for UAT and RajaOngkir district-based shipping cost calculation."
+user_problem_statement: "Add district support to the ONEMISSION HQ Shipping module so UAT can use district-based RajaOngkir shipping calculation."
 backend:
   - task: "Shipping district endpoint"
     implemented: true
@@ -114,7 +114,7 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Updated GET /api/shipping/districts to use a dedicated DistrictService and return normalized district DTOs."
+        comment: "Exposed GET /api/shipping/districts with required cityId query handling and reused the shipping error strategy."
   - task: "Shipping district service"
     implemented: true
     working: true
@@ -125,30 +125,19 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Added DistrictService to validate cityId, reuse existing ShippingService.getDistricts(), and return provider-aware normalized district objects."
-  - task: "Shipping district DTO normalization"
+        comment: "Added DistrictService to validate cityId, call the existing ShippingService, and return normalized district DTOs without redesigning Shipping architecture."
+  - task: "Shipping cost courier normalization"
     implemented: true
     working: true
     file: "lib/shipping/mappers.js"
     stuck_count: 0
-    priority: "medium"
+    priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Extended district API mapper to include id, cityId, name, code, and provider without exposing raw provider data."
-  - task: "UAT district coverage"
-    implemented: true
-    working: true
-    file: "testing/postman/onemission-hq-uat.collection.json"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Added Get Districts request to the UAT Postman collection and updated UAT documentation to reflect Province → City → District → Calculate Shipping flow."
-  - task: "Project verification"
+        comment: "Fixed the shipping mapping layer so courier always carries the provider code while courierName preserves the display label, resolving checkout shipping-rate validation failures."
+  - task: "UAT shipping documentation and collection"
     implemented: true
     working: true
     file: "docs/UAT.md"
@@ -158,21 +147,32 @@ backend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Verified npm run build succeeds after adding district support."
+        comment: "Updated the Postman collection with Get Districts and documented the Province → City → District → Calculate Shipping flow in the UAT guide."
+  - task: "Project verification"
+    implemented: true
+    working: true
+    file: "test_result.md"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Verified npm run test:checkout and npm run build both succeed after shipping district support and courier normalization changes."
 frontend: []
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 11
+  test_sequence: 12
   run_ui: false
 test_plan:
   current_focus:
     - "Shipping district endpoint"
     - "Shipping district service"
-    - "UAT district coverage"
+    - "Shipping cost courier normalization"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 agent_communication:
   - agent: "main"
-    message: "District support has been added to the Shipping module with a dedicated endpoint, normalized DTOs, updated Postman coverage, and refreshed UAT documentation for district-based shipping cost flows."
+    message: "District support and courier-code normalization are now in place for the Shipping module, allowing checkout session validation to work correctly with RajaOngkir district-based rates during UAT."
