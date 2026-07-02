@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { checkoutService, normalizeCheckoutError } from '@/lib/checkout';
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
+import { districtService } from '@/lib/shipping/district-service';
 import { normalizeShippingError, shippingService } from '@/lib/shipping';
 import { v4 as uuid } from 'uuid';
 
