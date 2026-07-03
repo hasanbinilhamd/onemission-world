@@ -1,0 +1,18 @@
+{
+  "id": "d8a2f4bb-4dc7-4f4e-bb3d-9f3a38dc7f90",
+  "name": "ONEMISSION Commerce Product API Local Environment",
+  "values": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "enabled": true },
+    { "key": "page", "value": "1", "enabled": true },
+    { "key": "limit", "value": "12", "enabled": true },
+    { "key": "searchQuery", "value": "jersey", "enabled": true },
+    { "key": "categorySlug", "value": "", "enabled": true },
+    { "key": "productSlug", "value": "", "enabled": true },
+    { "key": "outOfStockSlug", "value": "", "enabled": true },
+    { "key": "minPrice", "value": "50000", "enabled": true },
+    { "key": "maxPrice", "value": "500000", "enabled": true }
+  ],
+  "_postman_variable_scope": "environment",
+  "_postman_exported_at": "2026-07-03T00:00:00.000Z",
+  "_postman_exported_using": "Arena Agent"
+}

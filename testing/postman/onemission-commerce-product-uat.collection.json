@@ -1,0 +1,461 @@
+{
+  "info": {
+    "_postman_id": "c7e9b2be-7598-4d47-a26e-9dbbb3d02f3f",
+    "name": "ONEMISSION Commerce Product API UAT",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "User Acceptance Testing collection for ONEMISSION HQ Commerce Product API. This collection validates product listing, detail, category, featured, new arrival, and search endpoints without consuming Product Management endpoints directly."
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Commerce Products",
+      "item": [
+        {
+          "name": "Get Product Listing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });",
+                  "pm.test('Response contains pagination object', function () { pm.expect(response.pagination).to.be.an('object'); });",
+                  "pm.test('Response contains filters object', function () { pm.expect(response.filters).to.be.an('object'); });",
+                  "if (response.data && response.data.length > 0) {",
+                  "  pm.environment.set('productSlug', response.data[0].slug);",
+                  "  pm.environment.set('categorySlug', response.data[0].category);",
+                  "}",
+                  "const outOfStock = (response.data || []).find((item) => item.stockStatus === 'OUT_OF_STOCK');",
+                  "if (outOfStock) { pm.environment.set('outOfStockSlug', outOfStock.slug); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products?page={{page}}&limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products"],
+              "query": [
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product Listing - Search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products?search={{searchQuery}}&page={{page}}&limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products"],
+              "query": [
+                { "key": "search", "value": "{{searchQuery}}" },
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product Listing - Category Filter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products?category={{categorySlug}}&page={{page}}&limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products"],
+              "query": [
+                { "key": "category", "value": "{{categorySlug}}" },
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            },
+            "description": "Run 'Get Product Listing' first so categorySlug can be captured automatically."
+          }
+        },
+        {
+          "name": "Get Product Listing - Featured",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products?featured=true&page={{page}}&limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products"],
+              "query": [
+                { "key": "featured", "value": "true" },
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product Listing - New Arrival",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products?newArrival=true&page={{page}}&limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products"],
+              "query": [
+                { "key": "newArrival", "value": "true" },
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product Listing - Price Range",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products?minPrice={{minPrice}}&maxPrice={{maxPrice}}&page={{page}}&limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products"],
+              "query": [
+                { "key": "minPrice", "value": "{{minPrice}}" },
+                { "key": "maxPrice", "value": "{{maxPrice}}" },
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product Listing - In Stock Only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products?inStock=true&page={{page}}&limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products"],
+              "query": [
+                { "key": "inStock", "value": "true" },
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product Listing - Out Of Stock Only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products?inStock=false&page={{page}}&limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products"],
+              "query": [
+                { "key": "inStock", "value": "false" },
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product Detail By Slug",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains product data object', function () { pm.expect(response.data).to.be.an('object'); });",
+                  "pm.test('Response returns the requested slug', function () { pm.expect(response.data.slug).to.eql(pm.environment.get('productSlug')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products/{{productSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products", "{{productSlug}}"]
+            },
+            "description": "Run 'Get Product Listing' first so productSlug can be captured automatically."
+          }
+        },
+        {
+          "name": "Get Featured Products Endpoint",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products/featured?limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products", "featured"],
+              "query": [
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get New Arrivals Endpoint",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products/new-arrivals?limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products", "new-arrivals"],
+              "query": [
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Products Endpoint",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products/search?q={{searchQuery}}&page={{page}}&limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products", "search"],
+              "query": [
+                { "key": "q", "value": "{{searchQuery}}" },
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Commerce Categories",
+      "item": [
+        {
+          "name": "Get Categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const response = pm.response.json();",
+                  "pm.test('Response contains data array', function () { pm.expect(Array.isArray(response.data)).to.eql(true); });",
+                  "if (response.data && response.data.length > 0) {",
+                  "  pm.environment.set('categorySlug', response.data[0].slug);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "categories"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Negative Tests",
+      "item": [
+        {
+          "name": "Invalid Product Slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products/invalid-product-slug",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products", "invalid-product-slug"]
+            }
+          }
+        },
+        {
+          "name": "Invalid Category Filter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/commerce/products?category=invalid-category&page={{page}}&limit={{limit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "commerce", "products"],
+              "query": [
+                { "key": "category", "value": "invalid-category" },
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
