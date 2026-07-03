@@ -487,8 +487,10 @@ model PaymentAttempt {
   status                String          @default("CREATED")
   grossAmount           Float
   currency              String          @default("IDR")
-  fraudStatus           String          @default("")
   paymentType           String          @default("")
+  issuer                String          @default("")
+  acquirer              String          @default("")
+  fraudStatus           String          @default("")
   transactionTime       DateTime?
   settlementTime        DateTime?
   providerPayload       Json?

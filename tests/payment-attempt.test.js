@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PaymentAttemptService } from '../lib/payment-attempt/service.js';
+import { MidtransProvider } from '../lib/payment-attempt/providers/midtrans-provider.js';
 import { PaymentAttemptError } from '../lib/payment-attempt/errors.js';
 
 function createService({
   checkoutSessionStatus = 'DRAFT',
   existingAttempt = null,
+  existingOrder = null,
   createError = null,
   paymentProviderResult = null,
   notification = null,
@@ -48,9 +50,11 @@ function createService({
 
   const store = {
     activeAttempt: existingAttempt,
+    existingOrder,
     confirmedCount: 0,
     checkoutStatus: checkoutSessionStatus,
     checkoutUpdateCalls: [],
+    publishedEvents: [],
   };
 
   const checkout = {
@@ -101,6 +105,13 @@ function createService({
 
         const created = {
           ...data,
+          issuer: data.issuer || '',
+          acquirer: data.acquirer || '',
+          fraudStatus: data.fraudStatus || '',
+          paymentType: data.paymentType || '',
+          transactionTime: data.transactionTime || null,
+          settlementTime: data.settlementTime || null,
+          providerPayload: data.providerPayload || null,
           createdAt: new Date('2026-07-01T00:00:00.000Z'),
           updatedAt: new Date('2026-07-01T00:00:00.000Z'),
         };
@@ -144,6 +155,19 @@ function createService({
         };
       },
     },
+    order: {
+      findFirst: async ({ where } = {}) => {
+        if (!store.existingOrder) {
+          return null;
+        }
+
+        if (where?.paymentAttemptId && where.paymentAttemptId !== store.existingOrder.paymentAttemptId) {
+          return null;
+        }
+
+        return store.existingOrder;
+      },
+    },
   };
 
   const paymentProvider = {
@@ -169,16 +193,24 @@ function createService({
     normalizeNotification: async () => notification,
   };
 
+  const eventPublisher = {
+    publish: async (eventName, payload) => {
+      store.publishedEvents.push({ eventName, payload });
+    },
+  };
+
   const service = new PaymentAttemptService({
     prismaClient,
     checkout,
     paymentProvider,
+    eventPublisher,
     idGenerator: () => 'payment-attempt-id',
     nowFactory: () => new Date('2026-07-01T00:00:00.000Z'),
   });
 
   service.onPaymentConfirmed = async () => {
     store.confirmedCount += 1;
+    return store.existingOrder || null;
   };
 
   return { service, store };
@@ -208,6 +240,13 @@ test('reuses an existing active payment attempt', async () => {
     status: 'CREATED',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -252,6 +291,13 @@ test('returns the existing active payment attempt when a duplicate create collid
     status: 'PENDING',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -277,6 +323,13 @@ test('generates and persists a snap token for a created payment attempt', async 
     status: 'CREATED',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -304,6 +357,13 @@ test('reuses the existing snap token when it already exists', async () => {
     status: 'PENDING',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -329,6 +389,13 @@ test('rejects snap generation for invalid payment attempt status', async () => {
     status: 'FAILED',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -342,7 +409,13 @@ test('rejects snap generation for invalid payment attempt status', async () => {
   );
 });
 
-test('accepts a valid midtrans signature and marks payment attempt as paid', async () => {
+test('accepts a valid midtrans signature and stores complete payment audit information', async () => {
+  const existingOrder = {
+    id: 'order-1',
+    paymentAttemptId: 'attempt-1',
+    orderNumber: 'ORD-202607-00001',
+  };
+
   const existingAttempt = {
     id: 'attempt-1',
     attemptNumber: 'PAY-202607-00001',
@@ -355,6 +428,13 @@ test('accepts a valid midtrans signature and marks payment attempt as paid', asy
     status: 'PENDING',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -364,22 +444,38 @@ test('accepts a valid midtrans signature and marks payment attempt as paid', asy
     providerReference: 'PAY-202607-00001',
     providerTransactionId: 'midtrans-trx-1',
     internalStatus: 'PAID',
+    grossAmount: 518000,
+    currency: 'IDR',
+    paymentType: 'qris',
+    issuer: 'linkaja',
+    acquirer: 'gopay',
     fraudStatus: 'accept',
-    paymentType: 'bank_transfer',
     transactionTime: new Date('2026-07-01T01:00:00.000Z'),
     settlementTime: new Date('2026-07-01T01:05:00.000Z'),
-    providerPayload: { transaction_status: 'settlement' },
+    providerPayload: {
+      transaction_status: 'settlement',
+      payment_type: 'qris',
+      issuer: 'linkaja',
+      acquirer: 'gopay',
+    },
   };
 
-  const { service, store } = createService({ existingAttempt, notification });
+  const { service, store } = createService({ existingAttempt, existingOrder, notification });
   const result = await service.handleMidtransNotification(notification);
 
   assert.equal(result.status, 'PAID');
   assert.equal(result.providerTransactionId, 'midtrans-trx-1');
+  assert.equal(result.grossAmount, 518000);
+  assert.equal(result.currency, 'IDR');
+  assert.equal(result.paymentType, 'qris');
+  assert.equal(result.issuer, 'linkaja');
+  assert.equal(result.acquirer, 'gopay');
   assert.equal(result.fraudStatus, 'accept');
-  assert.equal(result.paymentType, 'bank_transfer');
+  assert.deepEqual(result.providerPayload, notification.providerPayload);
   assert.equal(store.checkoutUpdateCalls.length, 1);
   assert.equal(store.checkoutUpdateCalls[0].status, 'PAID');
+  assert.equal(store.publishedEvents.length, 1);
+  assert.equal(store.publishedEvents[0].eventName, 'PaymentSettled');
   assert.equal(store.confirmedCount, 1);
 });
 
@@ -396,6 +492,13 @@ test('rejects invalid midtrans signatures', async () => {
     status: 'PENDING',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -415,7 +518,13 @@ test('rejects invalid midtrans signatures', async () => {
   );
 });
 
-test('keeps duplicate paid callbacks idempotent', async () => {
+test('keeps duplicate paid callbacks idempotent while refreshing audit fields', async () => {
+  const existingOrder = {
+    id: 'order-1',
+    paymentAttemptId: 'attempt-1',
+    orderNumber: 'ORD-202607-00001',
+  };
+
   const existingAttempt = {
     id: 'attempt-1',
     attemptNumber: 'PAY-202607-00001',
@@ -428,6 +537,13 @@ test('keeps duplicate paid callbacks idempotent', async () => {
     status: 'PAID',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -437,19 +553,33 @@ test('keeps duplicate paid callbacks idempotent', async () => {
     providerReference: 'PAY-202607-00001',
     providerTransactionId: 'midtrans-trx-1',
     internalStatus: 'PAID',
+    grossAmount: 518000,
+    currency: 'IDR',
+    paymentType: 'qris',
+    issuer: 'linkaja',
+    acquirer: 'gopay',
     fraudStatus: 'accept',
-    paymentType: 'bank_transfer',
     transactionTime: new Date('2026-07-01T01:00:00.000Z'),
     settlementTime: new Date('2026-07-01T01:05:00.000Z'),
-    providerPayload: { transaction_status: 'settlement' },
+    providerPayload: { transaction_status: 'settlement', payment_type: 'qris' },
   };
 
-  const { service, store } = createService({ existingAttempt, notification });
+  const { service, store } = createService({
+    checkoutSessionStatus: 'PAID',
+    existingAttempt,
+    existingOrder,
+    notification,
+  });
   const result = await service.handleMidtransNotification(notification);
 
   assert.equal(result.status, 'PAID');
-  assert.equal(store.confirmedCount, 1);
-  assert.equal(store.checkoutUpdateCalls.length, 1);
+  assert.equal(result.paymentType, 'qris');
+  assert.equal(result.issuer, 'linkaja');
+  assert.equal(result.acquirer, 'gopay');
+  assert.equal(result.fraudStatus, 'accept');
+  assert.equal(store.confirmedCount, 0);
+  assert.equal(store.publishedEvents.length, 0);
+  assert.equal(store.checkoutUpdateCalls.length, 0);
 });
 
 test('maps pending notification to pending status', async () => {
@@ -465,6 +595,13 @@ test('maps pending notification to pending status', async () => {
     status: 'CREATED',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -496,6 +633,13 @@ test('maps expired notification to expired status', async () => {
     status: 'PENDING',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -527,6 +671,13 @@ test('maps failed notification to failed status', async () => {
     status: 'PENDING',
     grossAmount: 518000,
     currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
     expiresAt: new Date('2026-07-02T00:00:00.000Z'),
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
@@ -552,4 +703,36 @@ test('rejects callback for an invalid payment attempt reference', async () => {
     service.handleMidtransNotification({ providerReference: 'missing-reference' }),
     (error) => error.code === 'PAYMENT_ATTEMPT_NOT_FOUND',
   );
+});
+
+test('normalizes complete midtrans webhook audit fields', async () => {
+  const provider = new MidtransProvider();
+  const result = await provider.normalizeNotification({
+    order_id: 'PAY-202607-00006',
+    transaction_id: 'trx-123',
+    transaction_status: 'settlement',
+    status_code: '200',
+    gross_amount: '508000.00',
+    currency: 'IDR',
+    payment_type: 'qris',
+    issuer: 'linkaja',
+    acquirer: 'gopay',
+    fraud_status: 'accept',
+    transaction_time: '2026-07-03 10:15:00 +0700',
+    settlement_time: '2026-07-03 10:16:00 +0700',
+    signature_key: 'signature',
+  });
+
+  assert.equal(result.providerReference, 'PAY-202607-00006');
+  assert.equal(result.providerTransactionId, 'trx-123');
+  assert.equal(result.internalStatus, 'PAID');
+  assert.equal(result.grossAmount, 508000);
+  assert.equal(result.currency, 'IDR');
+  assert.equal(result.paymentType, 'qris');
+  assert.equal(result.issuer, 'linkaja');
+  assert.equal(result.acquirer, 'gopay');
+  assert.equal(result.fraudStatus, 'accept');
+  assert.ok(result.transactionTime instanceof Date);
+  assert.ok(result.settlementTime instanceof Date);
+  assert.equal(result.providerPayload.payment_type, 'qris');
 });
