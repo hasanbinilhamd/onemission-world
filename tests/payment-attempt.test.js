@@ -12,6 +12,7 @@ function createService({
   paymentProviderResult = null,
   notification = null,
   invalidSignature = false,
+  providerReferenceGenerator = () => 'X8D4FQ',
 } = {}) {
   const checkoutSession = {
     id: 'checkout-1',
@@ -55,6 +56,8 @@ function createService({
     checkoutStatus: checkoutSessionStatus,
     checkoutUpdateCalls: [],
     publishedEvents: [],
+    providerRequestPayload: null,
+    providerReferenceAtRequestTime: '',
   };
 
   const checkout = {
@@ -171,14 +174,19 @@ function createService({
   };
 
   const paymentProvider = {
-    createPaymentSession: async () => paymentProviderResult || {
-      providerReference: 'PAY-202607-00001',
-      providerTransactionId: 'midtrans-transaction-id',
-      snapToken: 'snap-token-123',
-      snapRedirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
-      redirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
-      providerName: 'Midtrans Snap',
-      createdAt: '2026-07-01T00:00:00.000Z',
+    createPaymentSession: async (payload) => {
+      store.providerRequestPayload = payload;
+      store.providerReferenceAtRequestTime = store.activeAttempt?.providerReference || '';
+
+      return paymentProviderResult || {
+        providerReference: payload.order_number,
+        providerTransactionId: 'midtrans-transaction-id',
+        snapToken: 'snap-token-123',
+        snapRedirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
+        redirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
+        providerName: 'Midtrans Snap',
+        createdAt: '2026-07-01T00:00:00.000Z',
+      };
     },
     verifyNotificationSignature: async () => {
       if (invalidSignature) {
@@ -206,6 +214,7 @@ function createService({
     eventPublisher,
     idGenerator: () => 'payment-attempt-id',
     nowFactory: () => new Date('2026-07-01T00:00:00.000Z'),
+    providerReferenceGenerator,
   });
 
   service.onPaymentConfirmed = async () => {
@@ -335,13 +344,51 @@ test('generates and persists a snap token for a created payment attempt', async 
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
   };
 
-  const { service } = createService({ existingAttempt });
+  const { service, store } = createService({ existingAttempt });
   const result = await service.generateSnapToken({ paymentAttemptId: 'attempt-1' });
 
   assert.equal(result.status, 'PENDING');
   assert.equal(result.snapToken, 'snap-token-123');
-  assert.equal(result.providerReference, 'PAY-202607-00001');
+  assert.equal(result.providerReference, 'PAY-202607-00001-X8D4FQ');
   assert.equal(result.providerTransactionId, 'midtrans-transaction-id');
+  assert.equal(store.providerRequestPayload.order_number, 'PAY-202607-00001-X8D4FQ');
+  assert.equal(store.providerReferenceAtRequestTime, 'PAY-202607-00001-X8D4FQ');
+});
+
+test('reuses the existing provider reference when generating snap token again', async () => {
+  const existingAttempt = {
+    id: 'attempt-1',
+    attemptNumber: 'PAY-202607-00001',
+    checkoutSessionId: 'checkout-1',
+    provider: 'MIDTRANS',
+    providerReference: 'PAY-202607-00001-KEEP12',
+    providerTransactionId: '',
+    snapToken: '',
+    snapRedirectUrl: '',
+    status: 'CREATED',
+    grossAmount: 518000,
+    currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
+    expiresAt: new Date('2026-07-02T00:00:00.000Z'),
+    createdAt: new Date('2026-07-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+  };
+
+  const { service, store } = createService({
+    existingAttempt,
+    providerReferenceGenerator: () => 'NEW999',
+  });
+  const result = await service.generateSnapToken({ paymentAttemptId: 'attempt-1' });
+
+  assert.equal(result.providerReference, 'PAY-202607-00001-KEEP12');
+  assert.equal(store.providerRequestPayload.order_number, 'PAY-202607-00001-KEEP12');
+  assert.equal(store.providerReferenceAtRequestTime, 'PAY-202607-00001-KEEP12');
 });
 
 test('reuses the existing snap token when it already exists', async () => {
@@ -401,7 +448,7 @@ test('rejects snap generation for invalid payment attempt status', async () => {
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
   };
 
-  const { service } = createService({ existingAttempt });
+  const { service, store } = createService({ existingAttempt });
 
   await assert.rejects(
     service.generateSnapToken({ paymentAttemptId: 'attempt-1' }),
