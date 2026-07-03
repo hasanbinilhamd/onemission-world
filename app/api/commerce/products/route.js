@@ -1,0 +1,25 @@
+import { NextResponse } from 'next/server';
+import { commerceProductService, normalizeCommerceProductError } from '@/lib/commerce';
+
+function buildCommerceErrorResponse(error) {
+  const normalized = normalizeCommerceProductError(error);
+  return NextResponse.json(
+    { error: normalized.message },
+    { status: normalized.statusCode || 500 },
+  );
+}
+
+export async function GET(request) {
+  const url = new URL(request.url);
+  const query = Object.fromEntries(url.searchParams.entries());
+
+  try {
+    const response = await commerceProductService.listProducts({
+      query,
+      baseUrl: url.origin,
+    });
+    return NextResponse.json(response);
+  } catch (error) {
+    return buildCommerceErrorResponse(error);
+  }
+}
