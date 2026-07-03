@@ -42,6 +42,7 @@ Set the following variables before starting the server:
 - `MIDTRANS_SERVER_KEY`
 - `MIDTRANS_CLIENT_KEY`
 - `MIDTRANS_IS_PRODUCTION`
+- `MIDTRANS_TIMEOUT`
 
 Suggested local values are already documented in `.env.example`.
 
@@ -251,6 +252,17 @@ Calculate Shipping
 - HTTP `200`
 - Snap token and redirect URL are persisted
 - Status remains `PENDING` before callback
+
+### Snap Failure Troubleshooting
+
+If Snap generation fails:
+
+- `providerReference` remains persisted on the PaymentAttempt
+- Checkout status does not change
+- PaymentAttempt status does not change
+- Retrying the same PaymentAttempt reuses the same `providerReference`
+- Inspect structured `SNAP_REQUEST_FAILED` logs in the server output
+- Review `lib/payment-attempt/README.md` for detailed failure categories and troubleshooting steps
 
 ### 11. Midtrans Sandbox Payment
 

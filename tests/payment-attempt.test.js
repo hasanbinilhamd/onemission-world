@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PaymentAttemptService } from '../lib/payment-attempt/service.js';
+import { paymentAttemptConfig } from '../lib/payment-attempt/config.js';
 import { MidtransProvider } from '../lib/payment-attempt/providers/midtrans-provider.js';
 import { PaymentAttemptError } from '../lib/payment-attempt/errors.js';
 
@@ -9,6 +10,7 @@ function createService({
   existingAttempt = null,
   existingOrder = null,
   createError = null,
+  createPaymentSessionError = null,
   paymentProviderResult = null,
   notification = null,
   invalidSignature = false,
@@ -178,6 +180,10 @@ function createService({
       store.providerRequestPayload = payload;
       store.providerReferenceAtRequestTime = store.activeAttempt?.providerReference || '';
 
+      if (createPaymentSessionError) {
+        throw createPaymentSessionError;
+      }
+
       return paymentProviderResult || {
         providerReference: payload.order_number,
         providerTransactionId: 'midtrans-transaction-id',
@@ -186,6 +192,7 @@ function createService({
         redirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
         providerName: 'Midtrans Snap',
         createdAt: '2026-07-01T00:00:00.000Z',
+        httpStatus: 201,
       };
     },
     verifyNotificationSignature: async () => {
@@ -389,6 +396,102 @@ test('reuses the existing provider reference when generating snap token again', 
   assert.equal(result.providerReference, 'PAY-202607-00001-KEEP12');
   assert.equal(store.providerRequestPayload.order_number, 'PAY-202607-00001-KEEP12');
   assert.equal(store.providerReferenceAtRequestTime, 'PAY-202607-00001-KEEP12');
+});
+
+test('preserves provider reference and payment attempt state when snap generation times out', async () => {
+  const existingAttempt = {
+    id: 'attempt-1',
+    attemptNumber: 'PAY-202607-00001',
+    checkoutSessionId: 'checkout-1',
+    provider: 'MIDTRANS',
+    providerReference: '',
+    providerTransactionId: '',
+    snapToken: '',
+    snapRedirectUrl: '',
+    status: 'CREATED',
+    grossAmount: 518000,
+    currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
+    expiresAt: new Date('2026-07-02T00:00:00.000Z'),
+    createdAt: new Date('2026-07-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+  };
+
+  const { service, store } = createService({
+    existingAttempt,
+    createPaymentSessionError: Object.assign(new PaymentAttemptError({
+      message: 'Midtrans request timed out.',
+      statusCode: 504,
+      code: 'PAYMENT_ATTEMPT_PROVIDER_TIMEOUT',
+    }), {
+      httpStatus: null,
+      providerMessage: 'Request timed out while waiting for Midtrans Snap.',
+    }),
+  });
+
+  await assert.rejects(
+    service.generateSnapToken({ paymentAttemptId: 'attempt-1' }),
+    (error) => error.code === 'PAYMENT_ATTEMPT_PROVIDER_TIMEOUT',
+  );
+
+  assert.equal(store.activeAttempt.providerReference, 'PAY-202607-00001-X8D4FQ');
+  assert.equal(store.activeAttempt.status, 'CREATED');
+  assert.equal(store.activeAttempt.snapToken, '');
+  assert.equal(store.checkoutUpdateCalls.length, 0);
+});
+
+test('classifies duplicate provider reference conflicts without mutating snap state', async () => {
+  const existingAttempt = {
+    id: 'attempt-1',
+    attemptNumber: 'PAY-202607-00001',
+    checkoutSessionId: 'checkout-1',
+    provider: 'MIDTRANS',
+    providerReference: 'PAY-202607-00001-KEEP12',
+    providerTransactionId: '',
+    snapToken: '',
+    snapRedirectUrl: '',
+    status: 'CREATED',
+    grossAmount: 518000,
+    currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
+    expiresAt: new Date('2026-07-02T00:00:00.000Z'),
+    createdAt: new Date('2026-07-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+  };
+
+  const { service, store } = createService({
+    existingAttempt,
+    createPaymentSessionError: Object.assign(new PaymentAttemptError({
+      message: 'Payment reference is already registered at the provider.',
+      statusCode: 409,
+      code: 'PAYMENT_ATTEMPT_PROVIDER_REFERENCE_CONFLICT',
+    }), {
+      httpStatus: 400,
+      providerMessage: 'transaction_details.order_id has already been taken',
+    }),
+  });
+
+  await assert.rejects(
+    service.generateSnapToken({ paymentAttemptId: 'attempt-1' }),
+    (error) => error.code === 'PAYMENT_ATTEMPT_PROVIDER_REFERENCE_CONFLICT',
+  );
+
+  assert.equal(store.activeAttempt.providerReference, 'PAY-202607-00001-KEEP12');
+  assert.equal(store.activeAttempt.status, 'CREATED');
+  assert.equal(store.activeAttempt.snapToken, '');
+  assert.equal(store.checkoutUpdateCalls.length, 0);
 });
 
 test('reuses the existing snap token when it already exists', async () => {
@@ -782,4 +885,72 @@ test('normalizes complete midtrans webhook audit fields', async () => {
   assert.ok(result.transactionTime instanceof Date);
   assert.ok(result.settlementTime instanceof Date);
   assert.equal(result.providerPayload.payment_type, 'qris');
+});
+
+test('classifies duplicate order_id responses from midtrans snap', async () => {
+  const originalFetch = global.fetch;
+  const originalServerKey = paymentAttemptConfig.midtransServerKey;
+
+  try {
+    paymentAttemptConfig.midtransServerKey = 'midtrans-server-key';
+    global.fetch = async () => ({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({
+        status_message: 'transaction_details.order_id has already been taken',
+      }),
+    });
+
+    const provider = new MidtransProvider();
+
+    await assert.rejects(
+      provider.createPaymentSession({
+        order_number: 'PAY-202607-00006-X8D4FQ',
+        gross_amount: 508000,
+        first_name: 'John',
+        last_name: 'Doe',
+        email: 'john@example.com',
+        phone: '+628123456789',
+        created_at: new Date('2026-07-03T10:00:00.000Z'),
+        customer_name: 'John Doe',
+      }),
+      (error) => error.code === 'PAYMENT_ATTEMPT_PROVIDER_REFERENCE_CONFLICT' && error.httpStatus === 400,
+    );
+  } finally {
+    paymentAttemptConfig.midtransServerKey = originalServerKey;
+    global.fetch = originalFetch;
+  }
+});
+
+test('classifies snap network timeouts from midtrans', async () => {
+  const originalFetch = global.fetch;
+  const originalServerKey = paymentAttemptConfig.midtransServerKey;
+
+  try {
+    paymentAttemptConfig.midtransServerKey = 'midtrans-server-key';
+    global.fetch = async () => {
+      const error = new Error('The operation was aborted.');
+      error.name = 'AbortError';
+      throw error;
+    };
+
+    const provider = new MidtransProvider();
+
+    await assert.rejects(
+      provider.createPaymentSession({
+        order_number: 'PAY-202607-00006-X8D4FQ',
+        gross_amount: 508000,
+        first_name: 'John',
+        last_name: 'Doe',
+        email: 'john@example.com',
+        phone: '+628123456789',
+        created_at: new Date('2026-07-03T10:00:00.000Z'),
+        customer_name: 'John Doe',
+      }),
+      (error) => error.code === 'PAYMENT_ATTEMPT_PROVIDER_TIMEOUT' && error.statusCode === 504,
+    );
+  } finally {
+    paymentAttemptConfig.midtransServerKey = originalServerKey;
+    global.fetch = originalFetch;
+  }
 });
