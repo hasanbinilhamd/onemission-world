@@ -536,6 +536,11 @@ model Order {
   postalCode          String      @default("")
   streetAddress       String      @default("")
   status              String      @default("READY_FOR_FULFILLMENT")
+  fulfillmentStatus   String      @default("PENDING")
+  shipmentCourier     String      @default("")
+  shipmentService     String      @default("")
+  trackingNumber      String      @default("")
+  shippingDate        DateTime?
   currency            String      @default("IDR")
   subtotal            Float       @default(0)
   discount            Float       @default(0)
@@ -545,10 +550,12 @@ model Order {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
   items               OrderItem[]
+  timelines           OrderTimeline[]
 
   @@index([customerId])
   @@index([salesChannelId])
   @@index([status])
+  @@index([fulfillmentStatus])
 }
 
 model OrderItem {
@@ -572,4 +579,17 @@ model OrderItem {
   @@index([orderId])
   @@index([productId])
   @@index([variantId])
+}
+
+model OrderTimeline {
+  id        String   @id
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  eventName String
+  updatedBy String   @default("")
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([createdAt])
 }

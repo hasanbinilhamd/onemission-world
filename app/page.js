@@ -77,6 +77,7 @@ import {
   ProductGridSkeleton,
   InventorySkeleton,
 } from "@/components/onemission/skeletons";
+import { OrdersModule } from "@/components/onemission/orders-module";
 
 // Normalize Indonesian phone number for wa.me link
 function whatsappUrl(phone) {
@@ -14454,7 +14455,7 @@ function App() {
     finishedgoods: <ComingSoonModule pageId="finishedgoods" />,
     // Sales placeholders
     customers: <CustomersModule />,
-    orders: <ComingSoonModule pageId="orders" />,
+    orders: <OrdersModule user={user} />,
     saleschannels: <SalesChannelsModule />,
     // Marketing placeholders
     campaigns: <ComingSoonModule pageId="campaigns" />,
