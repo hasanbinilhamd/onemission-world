@@ -1,9 +1,6 @@
-import { NextResponse } from "next/server";
-import "@/lib/order";
-import {
-  normalizePaymentAttemptError,
-  paymentAttemptService,
-} from "@/lib/payment-attempt";
+import { NextResponse } from 'next/server';
+import '@/lib/order';
+import { normalizePaymentAttemptError, paymentAttemptService } from '@/lib/payment-attempt';
 
 function buildPaymentAttemptErrorResponse(error) {
   const normalized = normalizePaymentAttemptError(error);
@@ -14,34 +11,12 @@ function buildPaymentAttemptErrorResponse(error) {
 }
 
 export async function POST(request) {
-  console.log("========== MIDTRANS WEBHOOK ==========");
-
-  const payload = await request.json();
-
-  console.log("Payload:", payload);
+  const payload = await request.json().catch(() => ({}));
 
   try {
-    const attempt =
-      await paymentAttemptService.handleMidtransNotification(payload);
-
-    console.log("Webhook Result:", attempt);
-
+    const attempt = await paymentAttemptService.handleMidtransNotification(payload);
     return NextResponse.json(attempt);
   } catch (error) {
-    console.error(error);
-
     return buildPaymentAttemptErrorResponse(error);
   }
 }
-
-// export async function POST(request) {
-//   const payload = await request.json().catch(() => ({}));
-
-//   try {
-//     const attempt =
-//       await paymentAttemptService.handleMidtransNotification(payload);
-//     return NextResponse.json(attempt);
-//   } catch (error) {
-//     return buildPaymentAttemptErrorResponse(error);
-//   }
-// }

@@ -6,7 +6,7 @@ function buildPaymentAttemptErrorResponse(error) {
   const normalized = normalizePaymentAttemptError(error);
   return NextResponse.json(
     { error: normalized.message },
-    { status: normalized.statusCode || 500 }
+    { status: normalized.statusCode || 500 },
   );
 }
 

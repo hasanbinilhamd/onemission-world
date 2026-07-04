@@ -226,7 +226,14 @@ function createService({
 
   service.onPaymentConfirmed = async () => {
     store.confirmedCount += 1;
-    return store.existingOrder || null;
+    if (!store.existingOrder) {
+      store.existingOrder = {
+        id: 'order-1',
+        paymentAttemptId: store.activeAttempt?.id || 'attempt-1',
+        orderNumber: 'ORD-202607-00001',
+      };
+    }
+    return store.existingOrder;
   };
 
   return { service, store };
@@ -560,12 +567,6 @@ test('rejects snap generation for invalid payment attempt status', async () => {
 });
 
 test('accepts a valid midtrans signature and stores complete payment audit information', async () => {
-  const existingOrder = {
-    id: 'order-1',
-    paymentAttemptId: 'attempt-1',
-    orderNumber: 'ORD-202607-00001',
-  };
-
   const existingAttempt = {
     id: 'attempt-1',
     attemptNumber: 'PAY-202607-00001',
@@ -610,7 +611,7 @@ test('accepts a valid midtrans signature and stores complete payment audit infor
     },
   };
 
-  const { service, store } = createService({ existingAttempt, existingOrder, notification });
+  const { service, store } = createService({ existingAttempt, notification });
   const result = await service.handleMidtransNotification(notification);
 
   assert.equal(result.status, 'PAID');
@@ -666,6 +667,60 @@ test('rejects invalid midtrans signatures', async () => {
     service.handleMidtransNotification(notification),
     (error) => error.code === 'PAYMENT_ATTEMPT_INVALID_SIGNATURE',
   );
+});
+
+test('recovers order creation when payment is already paid but the order is still missing', async () => {
+  const existingAttempt = {
+    id: 'attempt-1',
+    attemptNumber: 'PAY-202607-00001',
+    checkoutSessionId: 'checkout-1',
+    provider: 'MIDTRANS',
+    providerReference: 'PAY-202607-00001',
+    providerTransactionId: 'midtrans-trx-1',
+    snapToken: 'snap-token-123',
+    snapRedirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
+    status: 'PAID',
+    grossAmount: 518000,
+    currency: 'IDR',
+    issuer: '',
+    acquirer: '',
+    fraudStatus: '',
+    paymentType: '',
+    transactionTime: null,
+    settlementTime: null,
+    providerPayload: null,
+    expiresAt: new Date('2026-07-02T00:00:00.000Z'),
+    createdAt: new Date('2026-07-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+  };
+
+  const notification = {
+    providerReference: 'PAY-202607-00001',
+    providerTransactionId: 'midtrans-trx-1',
+    internalStatus: 'PAID',
+    grossAmount: 518000,
+    currency: 'IDR',
+    paymentType: 'qris',
+    issuer: 'linkaja',
+    acquirer: 'gopay',
+    fraudStatus: 'accept',
+    transactionTime: new Date('2026-07-01T01:00:00.000Z'),
+    settlementTime: new Date('2026-07-01T01:05:00.000Z'),
+    providerPayload: { transaction_status: 'settlement', payment_type: 'qris' },
+  };
+
+  const { service, store } = createService({
+    checkoutSessionStatus: 'PAID',
+    existingAttempt,
+    existingOrder: null,
+    notification,
+  });
+  const result = await service.handleMidtransNotification(notification);
+
+  assert.equal(result.status, 'PAID');
+  assert.equal(store.confirmedCount, 1);
+  assert.equal(store.publishedEvents.length, 0);
+  assert.equal(store.existingOrder?.orderNumber, 'ORD-202607-00001');
 });
 
 test('keeps duplicate paid callbacks idempotent while refreshing audit fields', async () => {

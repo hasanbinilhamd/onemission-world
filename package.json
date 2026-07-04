@@ -3,9 +3,10 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "cross-env NODE_OPTIONS=--max-old-space-size=512 next dev --hostname 0.0.0.0 --port 3000",
-        "dev:no-reload": "cross-env NODE_OPTIONS=--max-old-space-size=512 next dev --hostname 0.0.0.0 --port 3000",
-        "dev:webpack": "cross-env NODE_OPTIONS=--max-old-space-size=512 next dev --hostname 0.0.0.0 --port 3000",
+        "prisma:generate": "prisma generate",
+        "dev": "npm run prisma:generate && cross-env NODE_OPTIONS=--max-old-space-size=512 next dev --hostname 0.0.0.0 --port 3000",
+        "dev:no-reload": "npm run prisma:generate && cross-env NODE_OPTIONS=--max-old-space-size=512 next dev --hostname 0.0.0.0 --port 3000",
+        "dev:webpack": "npm run prisma:generate && cross-env NODE_OPTIONS=--max-old-space-size=512 next dev --hostname 0.0.0.0 --port 3000",
         "build": "prisma generate && next build",
         "start": "next start",
         "db:migrate": "prisma migrate dev",
