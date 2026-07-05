@@ -179,6 +179,112 @@ function createOrderService({
     timelineCreateCalls: [],
   };
 
+  const matchesStringFilter = (value, filter) => {
+    const subject = String(value || '').toLowerCase();
+
+    if (typeof filter === 'string') {
+      return subject === filter.toLowerCase();
+    }
+
+    if (filter?.contains !== undefined) {
+      return subject.includes(String(filter.contains || '').toLowerCase());
+    }
+
+    if (filter?.equals !== undefined) {
+      return subject === String(filter.equals || '').toLowerCase();
+    }
+
+    return true;
+  };
+
+  const matchesOrderWhere = (order, where = {}) => {
+    if (!where || Object.keys(where).length === 0) {
+      return true;
+    }
+
+    if (Array.isArray(where.OR) && where.OR.length > 0 && !where.OR.some((entry) => matchesOrderWhere(order, entry))) {
+      return false;
+    }
+
+    if (Array.isArray(where.AND) && where.AND.length > 0 && !where.AND.every((entry) => matchesOrderWhere(order, entry))) {
+      return false;
+    }
+
+    if (where.orderNumber && !matchesStringFilter(order.orderNumber, where.orderNumber)) {
+      return false;
+    }
+
+    if (where.customerName && !matchesStringFilter(order.customerName, where.customerName)) {
+      return false;
+    }
+
+    if (where.customerEmail && !matchesStringFilter(order.customerEmail, where.customerEmail)) {
+      return false;
+    }
+
+    if (where.trackingNumber && !matchesStringFilter(order.trackingNumber, where.trackingNumber)) {
+      return false;
+    }
+
+    if (where.shipmentCourier && !matchesStringFilter(order.shipmentCourier, where.shipmentCourier)) {
+      return false;
+    }
+
+    if (where.courier && !matchesStringFilter(order.courier, where.courier)) {
+      return false;
+    }
+
+    if (where.paymentAttemptId && order.paymentAttemptId !== where.paymentAttemptId) {
+      return false;
+    }
+
+    if (where.checkoutSessionId && order.checkoutSessionId !== where.checkoutSessionId) {
+      return false;
+    }
+
+    if (where.fulfillmentStatus && order.fulfillmentStatus !== where.fulfillmentStatus) {
+      return false;
+    }
+
+    if (where.paymentAttempt?.status && order.paymentAttempt?.status !== where.paymentAttempt.status) {
+      return false;
+    }
+
+    if (where.createdAt?.gte && new Date(order.createdAt).getTime() < new Date(where.createdAt.gte).getTime()) {
+      return false;
+    }
+
+    if (where.createdAt?.lte && new Date(order.createdAt).getTime() > new Date(where.createdAt.lte).getTime()) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const sortOrders = (orders, orderBy = {}) => {
+    const [[field, direction]] = Object.entries(orderBy);
+    if (!field) {
+      return orders;
+    }
+
+    const modifier = direction === 'asc' ? 1 : -1;
+
+    return [...orders].sort((left, right) => {
+      const leftValue = left[field];
+      const rightValue = right[field];
+
+      if (leftValue instanceof Date || rightValue instanceof Date) {
+        return (new Date(leftValue).getTime() - new Date(rightValue).getTime()) * modifier;
+      }
+
+      if (typeof leftValue === 'number' || typeof rightValue === 'number') {
+        return (Number(leftValue || 0) - Number(rightValue || 0)) * modifier;
+      }
+
+      return String(leftValue || '').localeCompare(String(rightValue || '')) * modifier;
+    });
+  };
+
   const paymentAttemptService = {
     getPaymentAttemptById: async (paymentAttemptId) => {
       if (!paymentAttempt || paymentAttemptId !== paymentAttempt.id) {
@@ -204,49 +310,20 @@ function createOrderService({
       },
     },
     order: {
-      count: async ({ where } = {}) => {
-        if (!where?.OR?.length) {
-          return store.orders.length;
-        }
+      count: async ({ where } = {}) => store.orders.filter((order) => matchesOrderWhere(order, where)).length,
+      findMany: async ({ where, select, skip = 0, take = store.orders.length, orderBy } = {}) => {
+        const filteredOrders = sortOrders(
+          store.orders.filter((order) => matchesOrderWhere(order, where)),
+          orderBy,
+        );
 
-        return store.orders.filter((order) => where.OR.some((entry) => {
-          if (entry.orderNumber?.contains) {
-            return order.orderNumber.includes(entry.orderNumber.contains);
-          }
-          if (entry.customerName?.contains) {
-            return order.customerName.includes(entry.customerName.contains);
-          }
-          if (entry.customerEmail?.contains) {
-            return order.customerEmail.includes(entry.customerEmail.contains);
-          }
-          if (entry.customerPhone?.contains) {
-            return order.customerPhone.includes(entry.customerPhone.contains);
-          }
-          if (entry.paymentReference?.contains) {
-            return order.paymentReference.includes(entry.paymentReference.contains);
-          }
-          if (entry.trackingNumber?.contains) {
-            return order.trackingNumber.includes(entry.trackingNumber.contains);
-          }
-          return false;
-        })).length;
-      },
-      findMany: async ({ select, skip = 0, take = store.orders.length } = {}) => {
         if (select?.orderNumber) {
-          return store.orders.map((order) => ({ orderNumber: order.orderNumber }));
+          return filteredOrders.map((order) => ({ orderNumber: order.orderNumber }));
         }
 
-        return store.orders.slice(skip, skip + take);
+        return filteredOrders.slice(skip, skip + take);
       },
-      findFirst: async ({ where } = {}) => {
-        if (!store.existingOrder || !where?.OR) {
-          return store.existingOrder;
-        }
-
-        return where.OR.some((entry) => entry.paymentAttemptId === store.existingOrder.paymentAttemptId || entry.checkoutSessionId === store.existingOrder.checkoutSessionId)
-          ? store.existingOrder
-          : null;
-      },
+      findFirst: async ({ where } = {}) => store.orders.find((order) => matchesOrderWhere(order, where)) || null,
       findUnique: async ({ where }) => store.orders.find((order) => order.id === where.id) || null,
       create: async ({ data }) => {
         const created = {
@@ -408,6 +485,71 @@ test('returns detailed order information with payment data', async () => {
   assert.equal(order.payment.attemptNumber, 'PAY-202607-00001');
   assert.equal(order.payment.paymentMethod, 'qris');
   assert.equal(order.timeline.length, 1);
+});
+
+test('lists customer orders using exact customer email matching', async () => {
+  const newestOrder = createExistingOrder();
+  const olderOrder = {
+    ...createExistingOrder(),
+    id: 'order-2',
+    orderNumber: 'ORD-202606-00002',
+    createdAt: new Date('2026-06-20T00:00:00.000Z'),
+    updatedAt: new Date('2026-06-20T00:00:00.000Z'),
+  };
+  const otherCustomerOrder = {
+    ...createExistingOrder(),
+    id: 'order-3',
+    orderNumber: 'ORD-202606-00003',
+    customerEmail: 'other@example.com',
+    createdAt: new Date('2026-06-10T00:00:00.000Z'),
+    updatedAt: new Date('2026-06-10T00:00:00.000Z'),
+  };
+
+  const { service } = createOrderService({
+    existingOrder: newestOrder,
+    listOrders: [olderOrder, newestOrder, otherCustomerOrder],
+  });
+
+  const response = await service.listOrdersByCustomerEmail({
+    email: 'JOHN@EXAMPLE.COM',
+    page: 1,
+    limit: 10,
+  });
+
+  assert.equal(response.data.length, 2);
+  assert.equal(response.data[0].orderNumber, 'ORD-202607-00001');
+  assert.equal(response.data[1].orderNumber, 'ORD-202606-00002');
+  assert.equal(response.pagination.totalItems, 2);
+  assert.equal(response.filters.email, 'john@example.com');
+});
+
+test('retrieves an order by public order number', async () => {
+  const existingOrder = createExistingOrder();
+  const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+  const order = await service.getOrderByNumber('ord-202607-00001');
+
+  assert.equal(order.orderNumber, 'ORD-202607-00001');
+  assert.equal(order.payment.attemptNumber, 'PAY-202607-00001');
+  assert.equal(order.items.length, 1);
+});
+
+test('tracks an order only when email and order number both match', async () => {
+  const existingOrder = createExistingOrder();
+  const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+  const order = await service.trackOrder({
+    email: 'john@example.com',
+    orderNumber: 'ORD-202607-00001',
+  });
+
+  assert.equal(order.orderNumber, 'ORD-202607-00001');
+
+  await assert.rejects(
+    service.trackOrder({
+      email: 'other@example.com',
+      orderNumber: 'ORD-202607-00001',
+    }),
+    (error) => error.code === 'ORDER_NOT_FOUND',
+  );
 });
 
 test('updates fulfillment status with a valid transition', async () => {
