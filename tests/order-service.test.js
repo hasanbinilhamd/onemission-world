@@ -155,6 +155,15 @@ function createOrderService({
         attemptNumber: 'PAY-202607-00001',
         checkoutSessionId: 'checkout-1',
         providerReference: 'PAY-202607-00001',
+        provider: 'MIDTRANS',
+        providerTransactionId: 'midtrans-trx-1',
+        paymentType: 'qris',
+        issuer: 'linkaja',
+        acquirer: 'gopay',
+        transactionTime: new Date('2026-07-01T01:00:00.000Z'),
+        settlementTime: new Date('2026-07-01T01:05:00.000Z'),
+        grossAmount: 518000,
+        currency: 'IDR',
         status: paymentAttemptStatus,
       };
 
@@ -412,6 +421,7 @@ test('updates fulfillment status with a valid transition', async () => {
   });
 
   assert.equal(order.fulfillmentStatus, 'PROCESSING');
+  assert.equal(order.fulfillmentStatusLabel, 'PROCESSING');
   assert.equal(order.timeline[order.timeline.length - 1].eventName, 'Processing');
   assert.equal(order.timeline[order.timeline.length - 1].updatedBy, 'Warehouse Admin');
 });
@@ -435,6 +445,20 @@ test('stores shipment information when the order is shipped', async () => {
   assert.equal(order.shipment.trackingNumber, 'JNE-123456789');
 });
 
+test('rejects shipped transition without shipment information', async () => {
+  const existingOrder = createExistingOrder({ fulfillmentStatus: 'PACKED' });
+  const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+
+  await assert.rejects(
+    service.updateFulfillmentStatus({
+      orderId: 'order-1',
+      fulfillmentStatus: 'SHIPPED',
+      updatedBy: 'Warehouse Admin',
+    }),
+    (error) => error.code === 'ORDER_SHIPMENT_INFORMATION_REQUIRED',
+  );
+});
+
 test('rejects invalid fulfillment transitions', async () => {
   const existingOrder = createExistingOrder();
   const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
@@ -442,25 +466,20 @@ test('rejects invalid fulfillment transitions', async () => {
   await assert.rejects(
     service.updateFulfillmentStatus({
       orderId: 'order-1',
-      fulfillmentStatus: 'DELIVERED',
+      fulfillmentStatus: 'COMPLETED',
       updatedBy: 'Warehouse Admin',
     }),
     (error) => error.code === 'ORDER_FULFILLMENT_TRANSITION_INVALID',
   );
 });
 
-test('rejects cancellation after the order has been shipped', async () => {
-  const existingOrder = createExistingOrder({ fulfillmentStatus: 'SHIPPED' });
+test('maps pending fulfillment status to ready for fulfillment label', async () => {
+  const existingOrder = createExistingOrder({ fulfillmentStatus: 'PENDING' });
   const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+  const order = await service.getOrderById('order-1');
 
-  await assert.rejects(
-    service.updateFulfillmentStatus({
-      orderId: 'order-1',
-      fulfillmentStatus: 'CANCELLED',
-      updatedBy: 'Warehouse Admin',
-    }),
-    (error) => error.code === 'ORDER_FULFILLMENT_TRANSITION_INVALID',
-  );
+  assert.equal(order.fulfillmentStatus, 'PENDING');
+  assert.equal(order.fulfillmentStatusLabel, 'READY_FOR_FULFILLMENT');
 });
 
 test('rejects invalid checkout sessions', async () => {

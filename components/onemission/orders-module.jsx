@@ -33,13 +33,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 const FULFILLMENT_STATUSES = [
-  "PENDING",
-  "PROCESSING",
-  "PACKED",
-  "SHIPPED",
-  "DELIVERED",
-  "COMPLETED",
-  "CANCELLED",
+  { value: "READY_FOR_FULFILLMENT", label: "Ready For Fulfillment" },
+  { value: "PROCESSING", label: "Processing" },
+  { value: "PACKED", label: "Packed" },
+  { value: "SHIPPED", label: "Shipped" },
+  { value: "COMPLETED", label: "Completed" },
 ];
 
 const SORT_OPTIONS = [
@@ -58,7 +56,7 @@ const DEFAULT_SORT = SORT_OPTIONS[0].value;
 const DEFAULT_LIMIT = 10;
 
 const ordersApi = {
-  async list({ page, limit, search, sortBy, sortOrder }) {
+  async list({ page, limit, search, sortBy, sortOrder, paymentStatus, fulfillmentStatus, startDate, endDate, courier }) {
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),
@@ -66,9 +64,12 @@ const ordersApi = {
       sortOrder,
     });
 
-    if (search) {
-      params.set("search", search);
-    }
+    if (search) params.set("search", search);
+    if (paymentStatus) params.set("paymentStatus", paymentStatus);
+    if (fulfillmentStatus) params.set("fulfillmentStatus", fulfillmentStatus);
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    if (courier) params.set("courier", courier);
 
     const response = await fetch(`/api/orders?${params.toString()}`);
     return response.json();
@@ -118,18 +119,16 @@ function paymentStatusBadge(status) {
 
 function fulfillmentStatusBadge(status) {
   const styles = {
-    PENDING: "bg-slate-500/10 text-slate-600",
+    READY_FOR_FULFILLMENT: "bg-slate-500/10 text-slate-600",
     PROCESSING: "bg-blue-500/10 text-blue-600",
     PACKED: "bg-violet-500/10 text-violet-600",
     SHIPPED: "bg-amber-500/10 text-amber-600",
-    DELIVERED: "bg-emerald-500/10 text-emerald-600",
     COMPLETED: "bg-emerald-600/10 text-emerald-700",
-    CANCELLED: "bg-rose-500/10 text-rose-600",
   };
 
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[status] || "bg-muted text-foreground"}`}>
-      {status || "PENDING"}
+      {status || "READY_FOR_FULFILLMENT"}
     </span>
   );
 }
@@ -296,9 +295,8 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
             <DetailRow label="Payment Method" value={order.payment?.paymentMethod} />
             <DetailRow label="Issuer" value={order.payment?.issuer} />
             <DetailRow label="Acquirer" value={order.payment?.acquirer} />
-            <DetailRow label="Transaction Time" value={fmtDateTime(order.payment?.transactionTime)} />
             <DetailRow label="Settlement Time" value={fmtDateTime(order.payment?.settlementTime)} />
-            <DetailRow label="Gross Amount" value={fmtCurrency(order.payment?.grossAmount)} />
+            <DetailRow label="Grand Total" value={fmtCurrency(order.grandTotal)} />
           </DetailSection>
 
           <DetailSection title="Summary">
@@ -317,7 +315,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {FULFILLMENT_STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                      <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -330,7 +328,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
                 <Label>Notes</Label>
                 <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional notes for the timeline entry..." rows={3} />
               </div>
-              {showShipmentForm && (
+              {showShipmentForm ? (
                 <>
                   <div className="space-y-1.5">
                     <Label>Shipment Courier</Label>
@@ -349,7 +347,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
                     <Input type="datetime-local" value={shippingDate} onChange={(event) => setShippingDate(event.target.value)} />
                   </div>
                 </>
-              )}
+              ) : null}
             </div>
           </DetailSection>
 
@@ -394,27 +392,46 @@ export function OrdersModule({ user }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [sortValue, setSortValue] = useState(DEFAULT_SORT);
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
+  const [fulfillmentStatusFilter, setFulfillmentStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [courierFilter, setCourierFilter] = useState("");
   const [detailOrder, setDetailOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: DEFAULT_LIMIT, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
+  const [summary, setSummary] = useState({ readyForFulfillment: 0, processing: 0, packed: 0, shipped: 0, completed: 0 });
 
   const [sortBy, sortOrder] = useMemo(() => sortValue.split(":"), [sortValue]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const result = await ordersApi.list({ page, limit, search, sortBy, sortOrder });
+    const result = await ordersApi.list({
+      page,
+      limit,
+      search,
+      sortBy,
+      sortOrder,
+      paymentStatus: paymentStatusFilter === "all" ? "" : paymentStatusFilter,
+      fulfillmentStatus: fulfillmentStatusFilter === "all" ? "" : fulfillmentStatusFilter,
+      startDate: dateFrom,
+      endDate: dateTo,
+      courier: courierFilter,
+    });
     if (result?.error) {
       toast.error(result.error);
       setItems([]);
       setPagination({ page: 1, limit: DEFAULT_LIMIT, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
+      setSummary({ readyForFulfillment: 0, processing: 0, packed: 0, shipped: 0, completed: 0 });
       setLoading(false);
       return;
     }
 
     setItems(Array.isArray(result?.data) ? result.data : []);
     setPagination(result?.pagination || { page: 1, limit, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
+    setSummary(result?.summary || { readyForFulfillment: 0, processing: 0, packed: 0, shipped: 0, completed: 0 });
     setLoading(false);
-  }, [limit, page, search, sortBy, sortOrder]);
+  }, [courierFilter, dateFrom, dateTo, fulfillmentStatusFilter, limit, page, paymentStatusFilter, search, sortBy, sortOrder]);
 
   useEffect(() => {
     load();
@@ -422,7 +439,7 @@ export function OrdersModule({ user }) {
 
   useEffect(() => {
     setPage(1);
-  }, [search, sortValue, limit]);
+  }, [search, sortValue, limit, paymentStatusFilter, fulfillmentStatusFilter, dateFrom, dateTo, courierFilter]);
 
   const openDetail = async (orderId) => {
     const result = await ordersApi.getById(orderId);
@@ -443,10 +460,12 @@ export function OrdersModule({ user }) {
             ...item,
             paymentStatus: updatedOrder.payment?.status || item.paymentStatus,
             fulfillmentStatus: updatedOrder.fulfillmentStatus,
+            fulfillmentStatusLabel: updatedOrder.fulfillmentStatusLabel,
             totalItems: updatedOrder.items?.length || item.totalItems,
           }
         : item
     )));
+    load();
   };
 
   return (
@@ -465,11 +484,36 @@ export function OrdersModule({ user }) {
         </Button>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        {[
+          { label: "Ready For Fulfillment", value: summary.readyForFulfillment, icon: PackageCheck },
+          { label: "Processing", value: summary.processing, icon: Loader2 },
+          { label: "Packed", value: summary.packed, icon: PackageCheck },
+          { label: "Shipped", value: summary.shipped, icon: Truck },
+          { label: "Completed", value: summary.completed, icon: CheckCircle2 },
+        ].map((card) => {
+          const Icon = card.icon;
+          return (
+            <Card key={card.label}>
+              <CardContent className="pt-5 pb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{card.label}</p>
+                  <p className="text-3xl font-semibold mt-1">{loading ? '—' : card.value}</p>
+                </div>
+                <div className="w-11 h-11 rounded-2xl bg-muted/40 flex items-center justify-center">
+                  <Icon className={`h-5 w-5 ${card.label === 'Processing' && loading ? 'animate-spin' : ''}`} />
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="flex flex-wrap gap-3 items-end">
-            <div className="flex-1 min-w-[220px]">
-              <p className="text-xs text-muted-foreground mb-1">Search order / customer / reference</p>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-end">
+            <div className="lg:col-span-2">
+              <p className="text-xs text-muted-foreground mb-1">Search order / customer / email / tracking</p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -480,7 +524,48 @@ export function OrdersModule({ user }) {
                 />
               </div>
             </div>
-            <div className="min-w-[190px]">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Payment Status</p>
+              <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Payment Statuses</SelectItem>
+                  <SelectItem value="PAID">PAID</SelectItem>
+                  <SelectItem value="PENDING">PENDING</SelectItem>
+                  <SelectItem value="FAILED">FAILED</SelectItem>
+                  <SelectItem value="EXPIRED">EXPIRED</SelectItem>
+                  <SelectItem value="CREATED">CREATED</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Fulfillment Status</p>
+              <Select value={fulfillmentStatusFilter} onValueChange={setFulfillmentStatusFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Fulfillment Statuses</SelectItem>
+                  {FULFILLMENT_STATUSES.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Courier</p>
+              <Input value={courierFilter} onChange={(event) => setCourierFilter(event.target.value)} placeholder="e.g. JNE" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mt-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Date From</p>
+              <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Date To</p>
+              <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+            </div>
+            <div>
               <p className="text-xs text-muted-foreground mb-1">Sort</p>
               <Select value={sortValue} onValueChange={setSortValue}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -491,16 +576,21 @@ export function OrdersModule({ user }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="min-w-[120px]">
-              <p className="text-xs text-muted-foreground mb-1">Page Size</p>
-              <Select value={String(limit)} onValueChange={(value) => setLimit(Number(value))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground mb-1">Page Size</p>
+                <Select value={String(limit)} onValueChange={(value) => setLimit(Number(value))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button variant="outline" size="icon" onClick={load} title="Refresh Orders">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -544,7 +634,7 @@ export function OrdersModule({ user }) {
                       <td className="px-4 py-3 font-medium">{order.customerName}</td>
                       <td className="px-4 py-3 text-right font-medium">{fmtCurrency(order.totalAmount)}</td>
                       <td className="px-4 py-3">{paymentStatusBadge(order.paymentStatus)}</td>
-                      <td className="px-4 py-3">{fulfillmentStatusBadge(order.fulfillmentStatus)}</td>
+                      <td className="px-4 py-3">{fulfillmentStatusBadge(order.fulfillmentStatusLabel || order.fulfillmentStatus)}</td>
                       <td className="px-4 py-3 text-right">{order.totalItems}</td>
                     </tr>
                   ))}

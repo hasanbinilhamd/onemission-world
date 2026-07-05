@@ -19,6 +19,11 @@ export async function GET(request) {
       search: url.searchParams.get('search') || '',
       sortBy: url.searchParams.get('sortBy') || 'createdAt',
       sortOrder: url.searchParams.get('sortOrder') || 'desc',
+      paymentStatus: url.searchParams.get('paymentStatus') || '',
+      fulfillmentStatus: url.searchParams.get('fulfillmentStatus') || '',
+      startDate: url.searchParams.get('startDate') || '',
+      endDate: url.searchParams.get('endDate') || '',
+      courier: url.searchParams.get('courier') || '',
     });
 
     return NextResponse.json(response);
