@@ -384,21 +384,47 @@ model SalesChannel {
 }
 
 model Customer {
-  id                      String        @id
-  customerCode            String        @unique
+  id                      String            @id
+  customerCode            String            @unique
   customerName            String
-  email                   String?       @unique
-  phone                   String?       @unique
-  customerType            String        @default("Individual")
+  email                   String?           @unique
+  phone                   String?           @unique
+  passwordHash            String?
+  googleId                String?           @unique
+  emailVerified           Boolean           @default(false)
+  avatarUrl               String?
+  lastLoginAt             DateTime?
+  authProvider            String            @default("LOCAL")
+  customerType            String            @default("Individual")
   preferredSalesChannelId String?
-  preferredSalesChannel   SalesChannel? @relation(fields: [preferredSalesChannelId], references: [id])
-  city                    String        @default("")
-  province                String        @default("")
-  country                 String        @default("Indonesia")
-  notes                   String        @default("")
-  status                  String        @default("Active")
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
+  preferredSalesChannel   SalesChannel?     @relation(fields: [preferredSalesChannelId], references: [id])
+  city                    String            @default("")
+  province                String            @default("")
+  country                 String            @default("Indonesia")
+  notes                   String            @default("")
+  status                  String            @default("Active")
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  sessions                CustomerSession[]
+}
+
+model CustomerSession {
+  id               String   @id
+  customerId       String
+  customer         Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  refreshTokenHash String
+  device           String   @default("")
+  browser          String   @default("")
+  ipAddress        String   @default("")
+  userAgent        String   @default("")
+  expiresAt        DateTime
+  lastUsedAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  revokedAt        DateTime?
+
+  @@index([customerId])
+  @@index([expiresAt])
+  @@index([revokedAt])
 }
 
 model CheckoutSession {
