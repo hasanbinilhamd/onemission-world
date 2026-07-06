@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { customerAuthService, normalizeCustomerAuthError } from '@/lib/customer-auth';
+import { normalizeCustomerAuthError } from '@/lib/customer-auth';
+import { authenticateCustomerWithGoogle } from '@/lib/customer-auth/providers/google';
 
 function buildCustomerAuthErrorResponse(error) {
   const normalized = normalizeCustomerAuthError(error);
@@ -13,7 +14,7 @@ export async function POST(request) {
   const payload = await request.json().catch(() => ({}));
 
   try {
-    const response = await customerAuthService.loginWithGoogle({
+    const response = await authenticateCustomerWithGoogle({
       idToken: payload.idToken,
       device: payload.device,
       request,
