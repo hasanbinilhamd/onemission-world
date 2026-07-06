@@ -12,6 +12,10 @@ import {
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  FULFILLMENT_STATUS,
+  FULFILLMENT_STATUS_OPTIONS,
+} from "@/lib/order/lifecycle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -33,13 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-const FULFILLMENT_STATUSES = [
-  { value: "READY_FOR_FULFILLMENT", label: "Ready For Fulfillment" },
-  { value: "PROCESSING", label: "Processing" },
-  { value: "PACKED", label: "Packed" },
-  { value: "SHIPPED", label: "Shipped" },
-  { value: "COMPLETED", label: "Completed" },
-];
+const FULFILLMENT_STATUSES = FULFILLMENT_STATUS_OPTIONS;
 
 const SORT_OPTIONS = [
   { value: "createdAt:desc", label: "Newest" },
@@ -120,11 +118,29 @@ function paymentStatusBadge(status) {
 
 function fulfillmentStatusBadge(status) {
   const styles = {
+    PENDING: "bg-slate-500/10 text-slate-600",
+    PICKING: "bg-blue-500/10 text-blue-600",
+    PACKING: "bg-violet-500/10 text-violet-600",
+    READY_TO_SHIP: "bg-cyan-500/10 text-cyan-700",
+    SHIPPED: "bg-amber-500/10 text-amber-600",
+    DELIVERED: "bg-emerald-600/10 text-emerald-700",
+  };
+
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[status] || "bg-muted text-foreground"}`}>
+      {status || "PENDING"}
+    </span>
+  );
+}
+
+function orderStatusBadge(status) {
+  const styles = {
     READY_FOR_FULFILLMENT: "bg-slate-500/10 text-slate-600",
     PROCESSING: "bg-blue-500/10 text-blue-600",
-    PACKED: "bg-violet-500/10 text-violet-600",
     SHIPPED: "bg-amber-500/10 text-amber-600",
     COMPLETED: "bg-emerald-600/10 text-emerald-700",
+    CANCELLED: "bg-rose-500/10 text-rose-600",
+    REFUNDED: "bg-fuchsia-500/10 text-fuchsia-600",
   };
 
   return (
@@ -159,7 +175,7 @@ function DetailSection({ title, children }) {
 }
 
 function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
-  const [fulfillmentStatus, setFulfillmentStatus] = useState("PENDING");
+  const [fulfillmentStatus, setFulfillmentStatus] = useState(FULFILLMENT_STATUS.PENDING);
   const [updatedBy, setUpdatedBy] = useState(userName || "HQ Admin");
   const [notes, setNotes] = useState("");
   const [shipmentCourier, setShipmentCourier] = useState("");
@@ -170,7 +186,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
 
   useEffect(() => {
     if (!order || !open) return;
-    setFulfillmentStatus(order.fulfillmentStatus || "PENDING");
+    setFulfillmentStatus(order.fulfillmentStatus || FULFILLMENT_STATUS.PENDING);
     setUpdatedBy(userName || "HQ Admin");
     setNotes("");
     setShipmentCourier(order.shipment?.courier || "");
@@ -179,7 +195,8 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
     setShippingDate(order.shipment?.shippingDate ? new Date(order.shipment.shippingDate).toISOString().slice(0, 16) : "");
   }, [order, open, userName]);
 
-  const showShipmentForm = fulfillmentStatus === "SHIPPED" || order?.fulfillmentStatus === "SHIPPED";
+  const showShipmentForm = [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(fulfillmentStatus)
+    || [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(order?.fulfillmentStatus);
 
   const saveFulfillment = async () => {
     if (!order?.id) return;
@@ -225,8 +242,9 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
                 {fmtDateTime(order.createdAt)}
               </DialogDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               {paymentStatusBadge(order.payment?.status)}
+              {orderStatusBadge(order.status)}
               {fulfillmentStatusBadge(order.fulfillmentStatus)}
             </div>
           </div>
@@ -301,6 +319,8 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
           </DetailSection>
 
           <DetailSection title="Summary">
+            <DetailRow label="Order Status" value={orderStatusBadge(order.status)} />
+            <DetailRow label="Fulfillment Status" value={fulfillmentStatusBadge(order.fulfillmentStatus)} />
             <DetailRow label="Subtotal" value={fmtCurrency(order.subtotal)} />
             <DetailRow label="Shipping" value={fmtCurrency(order.shippingCost)} />
             <DetailRow label="Discount" value={fmtCurrency(order.discount)} />
@@ -401,7 +421,7 @@ export function OrdersModule({ user }) {
   const [detailOrder, setDetailOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: DEFAULT_LIMIT, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
-  const [summary, setSummary] = useState({ readyForFulfillment: 0, processing: 0, packed: 0, shipped: 0, completed: 0 });
+  const [summary, setSummary] = useState({ pending: 0, picking: 0, packing: 0, readyToShip: 0, shipped: 0, delivered: 0 });
 
   const [sortBy, sortOrder] = useMemo(() => sortValue.split(":"), [sortValue]);
 
@@ -423,14 +443,14 @@ export function OrdersModule({ user }) {
       toast.error(result.error);
       setItems([]);
       setPagination({ page: 1, limit: DEFAULT_LIMIT, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
-      setSummary({ readyForFulfillment: 0, processing: 0, packed: 0, shipped: 0, completed: 0 });
+      setSummary({ pending: 0, picking: 0, packing: 0, readyToShip: 0, shipped: 0, delivered: 0 });
       setLoading(false);
       return;
     }
 
     setItems(Array.isArray(result?.data) ? result.data : []);
     setPagination(result?.pagination || { page: 1, limit, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
-    setSummary(result?.summary || { readyForFulfillment: 0, processing: 0, packed: 0, shipped: 0, completed: 0 });
+    setSummary(result?.summary || { pending: 0, picking: 0, packing: 0, readyToShip: 0, shipped: 0, delivered: 0 });
     setLoading(false);
   }, [courierFilter, dateFrom, dateTo, fulfillmentStatusFilter, limit, page, paymentStatusFilter, search, sortBy, sortOrder]);
 
@@ -485,13 +505,14 @@ export function OrdersModule({ user }) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
         {[
-          { label: "Ready For Fulfillment", value: summary.readyForFulfillment, icon: PackageCheck },
-          { label: "Processing", value: summary.processing, icon: Loader2 },
-          { label: "Packed", value: summary.packed, icon: PackageCheck },
+          { label: "Pending", value: summary.pending, icon: PackageCheck },
+          { label: "Picking", value: summary.picking, icon: Loader2 },
+          { label: "Packing", value: summary.packing, icon: PackageCheck },
+          { label: "Ready To Ship", value: summary.readyToShip, icon: Truck },
           { label: "Shipped", value: summary.shipped, icon: Truck },
-          { label: "Completed", value: summary.completed, icon: CheckCircle2 },
+          { label: "Delivered", value: summary.delivered, icon: CheckCircle2 },
         ].map((card) => {
           const Icon = card.icon;
           return (
@@ -502,7 +523,7 @@ export function OrdersModule({ user }) {
                   <p className="text-3xl font-semibold mt-1">{loading ? '—' : card.value}</p>
                 </div>
                 <div className="w-11 h-11 rounded-2xl bg-muted/40 flex items-center justify-center">
-                  <Icon className={`h-5 w-5 ${card.label === 'Processing' && loading ? 'animate-spin' : ''}`} />
+                  <Icon className={`h-5 w-5 ${card.label === 'Picking' && loading ? 'animate-spin' : ''}`} />
                 </div>
               </CardContent>
             </Card>

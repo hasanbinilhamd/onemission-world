@@ -4,7 +4,12 @@ import { OrderService } from '../lib/order/service.js';
 import { OrderError } from '../lib/order/errors.js';
 
 function createExistingOrder({
+  status = 'READY_FOR_FULFILLMENT',
   fulfillmentStatus = 'PENDING',
+  shipmentCourier = '',
+  shipmentService = '',
+  trackingNumber = '',
+  shippingDate = null,
   timelines = [],
 } = {}) {
   return {
@@ -37,12 +42,12 @@ function createExistingOrder({
     districtName: 'Coblong',
     postalCode: '40135',
     streetAddress: 'Example Street 123',
-    status: 'READY_FOR_FULFILLMENT',
+    status,
     fulfillmentStatus,
-    shipmentCourier: '',
-    shipmentService: '',
-    trackingNumber: '',
-    shippingDate: null,
+    shipmentCourier,
+    shipmentService,
+    trackingNumber,
+    shippingDate,
     currency: 'IDR',
     subtotal: 500000,
     discount: 0,
@@ -463,8 +468,11 @@ test('lists orders with payment and fulfillment summaries', async () => {
 
   assert.equal(response.data.length, 1);
   assert.equal(response.data[0].paymentStatus, 'PAID');
+  assert.equal(response.data[0].status, 'READY_FOR_FULFILLMENT');
   assert.equal(response.data[0].fulfillmentStatus, 'PENDING');
   assert.equal(response.data[0].totalItems, 1);
+  assert.equal(response.summary.pending, 1);
+  assert.equal(response.summary.picking, 0);
 });
 
 test('returns detailed order information with payment data', async () => {
@@ -484,6 +492,7 @@ test('returns detailed order information with payment data', async () => {
   assert.equal(order.shipping.recipientName, 'John Doe');
   assert.equal(order.payment.attemptNumber, 'PAY-202607-00001');
   assert.equal(order.payment.paymentMethod, 'qris');
+  assert.equal(order.status, 'READY_FOR_FULFILLMENT');
   assert.equal(order.timeline.length, 1);
 });
 
@@ -552,24 +561,49 @@ test('tracks an order only when email and order number both match', async () => 
   );
 });
 
-test('updates fulfillment status with a valid transition', async () => {
+test('updates fulfillment status with a valid transition and synchronizes the business status', async () => {
   const existingOrder = createExistingOrder();
   const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
   const order = await service.updateFulfillmentStatus({
     orderId: 'order-1',
-    fulfillmentStatus: 'PROCESSING',
+    fulfillmentStatus: 'PICKING',
     updatedBy: 'Warehouse Admin',
-    notes: 'Started processing.',
+    notes: 'Started picking.',
   });
 
-  assert.equal(order.fulfillmentStatus, 'PROCESSING');
-  assert.equal(order.fulfillmentStatusLabel, 'PROCESSING');
-  assert.equal(order.timeline[order.timeline.length - 1].eventName, 'Processing');
-  assert.equal(order.timeline[order.timeline.length - 1].updatedBy, 'Warehouse Admin');
+  assert.equal(order.fulfillmentStatus, 'PICKING');
+  assert.equal(order.fulfillmentStatusLabel, 'PICKING');
+  assert.equal(order.status, 'PROCESSING');
+  assert.equal(order.timeline.length, 2);
+  assert.equal(order.timeline[0].eventName, 'PICKING_STARTED');
+  assert.equal(order.timeline[0].updatedBy, 'Warehouse Admin');
+  assert.equal(order.timeline[1].eventName, 'ORDER_STATUS_PROCESSING');
+});
+
+test('keeps the business status in processing while warehouse packing advances', async () => {
+  const existingOrder = createExistingOrder({
+    status: 'PROCESSING',
+    fulfillmentStatus: 'PICKING',
+  });
+  const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+  const order = await service.updateFulfillmentStatus({
+    orderId: 'order-1',
+    fulfillmentStatus: 'PACKING',
+    updatedBy: 'Warehouse Admin',
+    notes: 'Packing items now.',
+  });
+
+  assert.equal(order.fulfillmentStatus, 'PACKING');
+  assert.equal(order.status, 'PROCESSING');
+  assert.equal(order.timeline.length, 1);
+  assert.equal(order.timeline[0].eventName, 'PACKING_STARTED');
 });
 
 test('stores shipment information when the order is shipped', async () => {
-  const existingOrder = createExistingOrder({ fulfillmentStatus: 'PACKED' });
+  const existingOrder = createExistingOrder({
+    status: 'PROCESSING',
+    fulfillmentStatus: 'READY_TO_SHIP',
+  });
   const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
   const order = await service.updateFulfillmentStatus({
     orderId: 'order-1',
@@ -582,13 +616,42 @@ test('stores shipment information when the order is shipped', async () => {
   });
 
   assert.equal(order.fulfillmentStatus, 'SHIPPED');
+  assert.equal(order.status, 'SHIPPED');
   assert.equal(order.shipment.courier, 'JNE');
   assert.equal(order.shipment.service, 'REG');
   assert.equal(order.shipment.trackingNumber, 'JNE-123456789');
+  assert.equal(order.timeline[0].eventName, 'ORDER_SHIPPED');
+  assert.equal(order.timeline[1].eventName, 'ORDER_STATUS_SHIPPED');
+});
+
+test('synchronizes the business status to completed when the order is delivered', async () => {
+  const existingOrder = createExistingOrder({
+    status: 'SHIPPED',
+    fulfillmentStatus: 'SHIPPED',
+    shipmentCourier: 'JNE',
+    shipmentService: 'REG',
+    trackingNumber: 'JNE-123456789',
+    shippingDate: new Date('2026-07-02T10:00:00.000Z'),
+  });
+  const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+  const order = await service.updateFulfillmentStatus({
+    orderId: 'order-1',
+    fulfillmentStatus: 'DELIVERED',
+    updatedBy: 'Warehouse Admin',
+    notes: 'Delivered to customer.',
+  });
+
+  assert.equal(order.fulfillmentStatus, 'DELIVERED');
+  assert.equal(order.status, 'COMPLETED');
+  assert.equal(order.timeline[0].eventName, 'ORDER_DELIVERED');
+  assert.equal(order.timeline[1].eventName, 'ORDER_STATUS_COMPLETED');
 });
 
 test('rejects shipped transition without shipment information', async () => {
-  const existingOrder = createExistingOrder({ fulfillmentStatus: 'PACKED' });
+  const existingOrder = createExistingOrder({
+    status: 'PROCESSING',
+    fulfillmentStatus: 'READY_TO_SHIP',
+  });
   const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
 
   await assert.rejects(
@@ -608,20 +671,23 @@ test('rejects invalid fulfillment transitions', async () => {
   await assert.rejects(
     service.updateFulfillmentStatus({
       orderId: 'order-1',
-      fulfillmentStatus: 'COMPLETED',
+      fulfillmentStatus: 'DELIVERED',
       updatedBy: 'Warehouse Admin',
     }),
     (error) => error.code === 'ORDER_FULFILLMENT_TRANSITION_INVALID',
   );
 });
 
-test('maps pending fulfillment status to ready for fulfillment label', async () => {
-  const existingOrder = createExistingOrder({ fulfillmentStatus: 'PENDING' });
+test('normalizes legacy fulfillment statuses into the new warehouse lifecycle', async () => {
+  const existingOrder = createExistingOrder({
+    fulfillmentStatus: 'PACKED',
+  });
   const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
   const order = await service.getOrderById('order-1');
 
-  assert.equal(order.fulfillmentStatus, 'PENDING');
-  assert.equal(order.fulfillmentStatusLabel, 'READY_FOR_FULFILLMENT');
+  assert.equal(order.fulfillmentStatus, 'READY_TO_SHIP');
+  assert.equal(order.fulfillmentStatusLabel, 'READY_TO_SHIP');
+  assert.equal(order.status, 'PROCESSING');
 });
 
 test('rejects invalid checkout sessions', async () => {
