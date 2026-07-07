@@ -100,6 +100,8 @@ function createOrderService({
   paymentAttemptMissing = false,
   inventoryQuantity = 20,
   listOrders = null,
+  inventoryReservationError = null,
+  inventoryReserved = existingOrder ? true : false,
 } = {}) {
   const checkoutSession = {
     id: 'checkout-1',
@@ -182,7 +184,18 @@ function createOrderService({
     },
     publishedEvents: [],
     timelineCreateCalls: [],
+    stockMovements: [],
   };
+
+  if (inventoryReserved && existingOrder?.items?.length) {
+    store.stockMovements = existingOrder.items.map((item) => ({
+      id: `order-reservation-${existingOrder.id}-${item.id}`,
+      inventoryId: item.variantId,
+      productId: item.productId,
+      referenceNumber: existingOrder.orderNumber,
+      movementType: 'ORDER_RESERVATION',
+    }));
+  }
 
   const matchesStringFilter = (value, filter) => {
     const subject = String(value || '').toLowerCase();
@@ -377,18 +390,44 @@ function createOrderService({
         return { count: data.length };
       },
     },
+    stockMovement: {
+      findUnique: ({ where }) => Promise.resolve(store.stockMovements.find((movement) => movement.id === where.id) || null),
+      create: ({ data }) => Promise.resolve().then(() => {
+        if (inventoryReservationError) {
+          throw inventoryReservationError;
+        }
+
+        const created = {
+          ...data,
+          createdAt: new Date('2026-07-01T00:20:00.000Z'),
+          updatedAt: new Date('2026-07-01T00:20:00.000Z'),
+        };
+        store.stockMovements.push(created);
+        return created;
+      }),
+    },
     inventory: {
-      findUnique: async ({ where }) => (where.id === store.inventory.id ? { ...store.inventory } : null),
-      update: async ({ where, data }) => {
+      findUnique: ({ where }) => Promise.resolve(where.id === store.inventory.id ? { ...store.inventory } : null),
+      update: ({ where, data }) => Promise.resolve().then(() => {
         if (where.id !== store.inventory.id) {
           throw new Error('Inventory not found');
         }
 
+        if (inventoryReservationError) {
+          throw inventoryReservationError;
+        }
+
         store.inventory.quantity = data.quantity;
         return { ...store.inventory };
-      },
+      }),
     },
-    $transaction: async (callback) => callback(prismaClient),
+    $transaction: async (input) => {
+      if (Array.isArray(input)) {
+        return Promise.all(input);
+      }
+
+      return input(prismaClient);
+    },
   };
 
   const eventPublisher = {
@@ -459,6 +498,44 @@ test('publishes order and inventory domain events', async () => {
   assert.equal(store.publishedEvents.length, 2);
   assert.equal(store.publishedEvents[0].eventName, 'OrderCreated');
   assert.equal(store.publishedEvents[1].eventName, 'InventoryCommitted');
+});
+
+test('creates inventory stock movements during reservation', async () => {
+  const { service, store } = createOrderService();
+  await service.createFromCheckoutSession({ paymentAttemptId: 'attempt-1' });
+
+  assert.equal(store.stockMovements.length, 1);
+  assert.equal(store.stockMovements[0].movementType, 'ORDER_RESERVATION');
+  assert.equal(store.stockMovements[0].referenceNumber, 'ORD-202607-00001');
+});
+
+test('keeps the paid order when inventory reservation fails and allows retry', async () => {
+  const initial = createOrderService({
+    inventoryReservationError: new Error('Transaction already closed'),
+    inventoryReserved: false,
+  });
+
+  await assert.rejects(
+    initial.service.createFromCheckoutSession({ paymentAttemptId: 'attempt-1' }),
+    (error) => error.code === 'ORDER_INVENTORY_RESERVATION_RETRY_REQUIRED',
+  );
+
+  assert.equal(initial.store.existingOrder?.orderNumber, 'ORD-202607-00001');
+  assert.equal(initial.store.inventory.quantity, 20);
+  assert.equal(initial.store.stockMovements.length, 0);
+
+  const retry = createOrderService({
+    existingOrder: initial.store.existingOrder,
+    listOrders: [initial.store.existingOrder],
+    inventoryReserved: false,
+  });
+  const recoveredOrder = await retry.service.createFromCheckoutSession({ paymentAttemptId: 'attempt-1' });
+
+  assert.equal(recoveredOrder.orderNumber, 'ORD-202607-00001');
+  assert.equal(recoveredOrder.__meta.action, 'FOUND');
+  assert.equal(recoveredOrder.__meta.inventoryCommitted, true);
+  assert.equal(retry.store.inventory.quantity, 18);
+  assert.equal(retry.store.stockMovements.length, 1);
 });
 
 test('lists orders with payment and fulfillment summaries', async () => {
