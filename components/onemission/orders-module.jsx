@@ -239,7 +239,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
             <div>
               <DialogTitle className="text-lg">{order.orderNumber}</DialogTitle>
               <DialogDescription>
-                {fmtDateTime(order.createdAt)}
+                {order.publicOrderNumber} • {fmtDateTime(order.createdAt)}
               </DialogDescription>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -319,6 +319,8 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
           </DetailSection>
 
           <DetailSection title="Summary">
+            <DetailRow label="Internal Order Number" value={order.orderNumber} />
+            <DetailRow label="Public Order Number" value={order.publicOrderNumber} />
             <DetailRow label="Order Status" value={orderStatusBadge(order.status)} />
             <DetailRow label="Fulfillment Status" value={fulfillmentStatusBadge(order.fulfillmentStatus)} />
             <DetailRow label="Subtotal" value={fmtCurrency(order.subtotal)} />
@@ -535,12 +537,12 @@ export function OrdersModule({ user }) {
         <CardContent className="pt-4 pb-4">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-end">
             <div className="lg:col-span-2">
-              <p className="text-xs text-muted-foreground mb-1">Search order / customer / email / tracking</p>
+              <p className="text-xs text-muted-foreground mb-1">Search internal order / public order / customer / email / tracking</p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Search…"
+                  placeholder="Search internal order, public order, customer, email, or tracking…"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
@@ -635,7 +637,8 @@ export function OrdersModule({ user }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[rgba(17,24,39,0.04)]">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Order Number</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Internal Order Number</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Public Order Number</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Order Date</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Customer Name</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Total Amount</th>
@@ -652,6 +655,7 @@ export function OrdersModule({ user }) {
                       onClick={() => openDetail(order.id)}
                     >
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{order.orderNumber}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-foreground">{order.publicOrderNumber}</td>
                       <td className="px-4 py-3 text-muted-foreground">{fmtDateTime(order.orderDate)}</td>
                       <td className="px-4 py-3 font-medium">{order.customerName}</td>
                       <td className="px-4 py-3 text-right font-medium">{fmtCurrency(order.totalAmount)}</td>

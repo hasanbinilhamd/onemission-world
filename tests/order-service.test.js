@@ -5,6 +5,7 @@ import { OrderError } from '../lib/order/errors.js';
 
 function createExistingOrder({
   status = 'READY_FOR_FULFILLMENT',
+  publicOrderNumber = 'OM-H8LPW-XZ99F',
   fulfillmentStatus = 'PENDING',
   shipmentCourier = '',
   shipmentService = '',
@@ -15,6 +16,7 @@ function createExistingOrder({
   return {
     id: 'order-1',
     orderNumber: 'ORD-202607-00001',
+    publicOrderNumber,
     checkoutSessionId: 'checkout-1',
     paymentAttemptId: 'attempt-1',
     paymentReference: 'PAY-202607-00001',
@@ -229,6 +231,10 @@ function createOrderService({
     }
 
     if (where.orderNumber && !matchesStringFilter(order.orderNumber, where.orderNumber)) {
+      return false;
+    }
+
+    if (where.publicOrderNumber && !matchesStringFilter(order.publicOrderNumber, where.publicOrderNumber)) {
       return false;
     }
 
@@ -453,6 +459,7 @@ test('creates an order from a paid payment attempt', async () => {
 
   assert.equal(order.paymentAttemptId, 'attempt-1');
   assert.equal(order.checkoutSessionId, 'checkout-1');
+  assert.match(order.publicOrderNumber, /^OM-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{5}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{5}$/);
   assert.equal(order.status, 'READY_FOR_FULFILLMENT');
   assert.equal(order.fulfillmentStatus, 'PENDING');
   assert.equal(order.grandTotal, 518000);
@@ -468,6 +475,7 @@ test('reuses the existing order for duplicate callbacks', async () => {
 
   assert.equal(order.id, 'order-1');
   assert.equal(order.orderNumber, 'ORD-202607-00001');
+  assert.equal(order.publicOrderNumber, 'OM-H8LPW-XZ99F');
   assert.equal(store.inventory.quantity, 20);
 });
 
@@ -545,6 +553,7 @@ test('lists orders with payment and fulfillment summaries', async () => {
 
   assert.equal(response.data.length, 1);
   assert.equal(response.data[0].paymentStatus, 'PAID');
+  assert.equal(response.data[0].publicOrderNumber, 'OM-H8LPW-XZ99F');
   assert.equal(response.data[0].status, 'READY_FOR_FULFILLMENT');
   assert.equal(response.data[0].fulfillmentStatus, 'PENDING');
   assert.equal(response.data[0].totalItems, 1);
@@ -569,6 +578,7 @@ test('returns detailed order information with payment data', async () => {
   assert.equal(order.shipping.recipientName, 'John Doe');
   assert.equal(order.payment.attemptNumber, 'PAY-202607-00001');
   assert.equal(order.payment.paymentMethod, 'qris');
+  assert.equal(order.publicOrderNumber, 'OM-H8LPW-XZ99F');
   assert.equal(order.status, 'READY_FOR_FULFILLMENT');
   assert.equal(order.timeline.length, 1);
 });
@@ -579,6 +589,7 @@ test('lists customer orders using exact customer email matching', async () => {
     ...createExistingOrder(),
     id: 'order-2',
     orderNumber: 'ORD-202606-00002',
+    publicOrderNumber: 'OM-PLM8Q-ZX7TR',
     createdAt: new Date('2026-06-20T00:00:00.000Z'),
     updatedAt: new Date('2026-06-20T00:00:00.000Z'),
   };
@@ -586,6 +597,7 @@ test('lists customer orders using exact customer email matching', async () => {
     ...createExistingOrder(),
     id: 'order-3',
     orderNumber: 'ORD-202606-00003',
+    publicOrderNumber: 'OM-RTY74-QW8ZX',
     customerEmail: 'other@example.com',
     createdAt: new Date('2026-06-10T00:00:00.000Z'),
     updatedAt: new Date('2026-06-10T00:00:00.000Z'),
@@ -604,17 +616,28 @@ test('lists customer orders using exact customer email matching', async () => {
 
   assert.equal(response.data.length, 2);
   assert.equal(response.data[0].orderNumber, 'ORD-202607-00001');
+  assert.equal(response.data[0].publicOrderNumber, 'OM-H8LPW-XZ99F');
   assert.equal(response.data[1].orderNumber, 'ORD-202606-00002');
   assert.equal(response.pagination.totalItems, 2);
   assert.equal(response.filters.email, 'john@example.com');
 });
 
+test('supports searching orders by public order number in HQ', async () => {
+  const existingOrder = createExistingOrder();
+  const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+  const response = await service.listOrders({ page: 1, limit: 10, search: 'OM-H8LPW' });
+
+  assert.equal(response.data.length, 1);
+  assert.equal(response.data[0].publicOrderNumber, 'OM-H8LPW-XZ99F');
+});
+
 test('retrieves an order by public order number', async () => {
   const existingOrder = createExistingOrder();
   const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
-  const order = await service.getOrderByNumber('ord-202607-00001');
+  const order = await service.getOrderByNumber('om-h8lpw-xz99f');
 
   assert.equal(order.orderNumber, 'ORD-202607-00001');
+  assert.equal(order.publicOrderNumber, 'OM-H8LPW-XZ99F');
   assert.equal(order.payment.attemptNumber, 'PAY-202607-00001');
   assert.equal(order.items.length, 1);
 });
@@ -624,15 +647,16 @@ test('tracks an order only when email and order number both match', async () => 
   const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
   const order = await service.trackOrder({
     email: 'john@example.com',
-    orderNumber: 'ORD-202607-00001',
+    orderNumber: 'OM-H8LPW-XZ99F',
   });
 
   assert.equal(order.orderNumber, 'ORD-202607-00001');
+  assert.equal(order.publicOrderNumber, 'OM-H8LPW-XZ99F');
 
   await assert.rejects(
     service.trackOrder({
       email: 'other@example.com',
-      orderNumber: 'ORD-202607-00001',
+      orderNumber: 'OM-H8LPW-XZ99F',
     }),
     (error) => error.code === 'ORDER_NOT_FOUND',
   );

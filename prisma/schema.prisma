@@ -562,6 +562,7 @@ model PaymentAttempt {
 model Order {
   id                  String      @id
   orderNumber         String      @unique
+  publicOrderNumber   String      @unique
   checkoutSessionId   String      @unique
   checkoutSession     CheckoutSession @relation(fields: [checkoutSessionId], references: [id], onDelete: Cascade)
   paymentAttemptId    String      @unique
