@@ -398,14 +398,44 @@ model Customer {
   customerType            String            @default("Individual")
   preferredSalesChannelId String?
   preferredSalesChannel   SalesChannel?     @relation(fields: [preferredSalesChannelId], references: [id])
-  city                    String            @default("")
+  provinceId              String            @default("")
   province                String            @default("")
+  cityId                  String            @default("")
+  city                    String            @default("")
+  districtId              String            @default("")
+  district                String            @default("")
+  postalCode              String            @default("")
+  streetAddress           String            @default("")
   country                 String            @default("Indonesia")
   notes                   String            @default("")
   status                  String            @default("Active")
   createdAt               DateTime          @default(now())
   updatedAt               DateTime          @updatedAt
   sessions                CustomerSession[]
+  addresses               CustomerAddress[]
+}
+
+model CustomerAddress {
+  id            String   @id
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  recipientName String
+  phoneNumber   String
+  provinceId    String
+  province      String
+  cityId        String
+  city          String
+  districtId    String
+  district      String
+  postalCode    String
+  streetAddress String
+  notes         String   @default("")
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([customerId, isDefault])
 }
 
 model CustomerSession {
