@@ -43,6 +43,8 @@ Set the following variables before starting the server:
 - `MIDTRANS_CLIENT_KEY`
 - `MIDTRANS_IS_PRODUCTION`
 - `MIDTRANS_TIMEOUT`
+- `HQ_URL`
+- `COMMERCE_URL`
 
 Suggested local values are already documented in `.env.example`.
 
@@ -80,11 +82,7 @@ The seed prepares:
 npm run dev
 ```
 
-The default local base URL is:
-
-```text
-http://localhost:3000
-```
+The default local base URL is the value configured in `HQ_URL`.
 
 ## Optional Automated Verification
 
