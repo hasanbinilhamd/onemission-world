@@ -390,6 +390,8 @@ model Customer {
   email                   String?           @unique
   phone                   String?           @unique
   passwordHash            String?
+  passwordResetToken      String?
+  passwordResetTokenExpiresAt DateTime?
   googleId                String?           @unique
   emailVerified           Boolean           @default(false)
   avatarUrl               String?
@@ -413,6 +415,9 @@ model Customer {
   updatedAt               DateTime          @updatedAt
   sessions                CustomerSession[]
   addresses               CustomerAddress[]
+
+  @@index([passwordResetToken])
+  @@index([passwordResetTokenExpiresAt])
 }
 
 model CustomerAddress {
