@@ -1788,8 +1788,6 @@ function InventoryModule() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      // Silently repair any products that are missing inventory rows
-      await api.post("products/repair-inventory", {}).catch(() => {});
       setItems(await api.get("inventory"));
       setProducts(await api.get("products"));
       setLoading(false);
@@ -1811,19 +1809,6 @@ function InventoryModule() {
     await api.put("inventory/" + item.id, updated);
     setItems((arr) => arr.map((i) => (i.id === item.id ? updated : i)));
     toast.success("Stock updated");
-  };
-
-  const createItem = async (productId, color, size) => {
-    const created = await api.post("inventory", {
-      productId,
-      color,
-      size,
-      quantity: 0,
-      threshold: 5,
-      incoming: 0,
-    });
-    setItems((arr) => [...arr, created]);
-    toast.success(`${color} / ${size} initialized`);
   };
 
   const filtered =
@@ -1991,14 +1976,9 @@ function InventoryModule() {
                                   <p className="text-xl font-semibold text-muted-foreground/30">
                                     —
                                   </p>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-full text-[10px] mt-2"
-                                    onClick={() => createItem(pid, color, size)}
-                                  >
-                                    + Init
-                                  </Button>
+                                  <p className="mt-2 text-[10px] text-muted-foreground/70">
+                                    Inventory row not initialized
+                                  </p>
                                 </div>
                               );
                             }

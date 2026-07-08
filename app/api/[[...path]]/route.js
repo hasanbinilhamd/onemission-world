@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma';
 import { districtService } from '@/lib/shipping/district-service';
 import { normalizeShippingError, shippingService } from '@/lib/shipping';
 import { v4 as uuid } from 'uuid';
+import {
+  ensureInventoryRowsForProduct,
+  repairAllProductInventoryRows,
+} from '@/lib/inventory/lifecycle';
 
 const COLLECTION_MODELS = {
   products: 'product',
@@ -1216,74 +1220,60 @@ async function handle(request, { params }) {
       });
     }
 
-    // ---------- PRODUCTS — special POST: auto-create inventory rows ----------
+    // ---------- PRODUCTS — special POST: create inventory rows during product lifecycle ----------
     if (segs[0] === 'products' && method === 'POST' && segs.length === 1) {
       const body = await readJson(request);
       const productId = uuid();
-      const colors = Array.isArray(body.colors) ? body.colors : [];
-      const sizes = Array.isArray(body.sizes) ? body.sizes : [];
-
-      const inventoryRecords = [];
-      for (const color of colors) {
-        for (const size of sizes) {
-          inventoryRecords.push({
-            id: uuid(),
-            productId,
-            color,
-            size,
-            quantity: 0,
-            threshold: 5,
-            incoming: 0,
-          });
-        }
-      }
 
       const product = await prisma.$transaction(async (tx) => {
         const created = await tx.product.create({ data: { id: productId, ...body } });
-        if (inventoryRecords.length > 0) {
-          await tx.inventory.createMany({ data: inventoryRecords });
-        }
+        await ensureInventoryRowsForProduct(tx, {
+          productId: created.id,
+          colors: created.colors,
+          sizes: created.sizes,
+        });
         return created;
       });
 
       return NextResponse.json(product);
     }
 
-    // ---------- PRODUCTS — repair-inventory: create missing rows for all products ----------
-    if (segs[0] === 'products' && segs[1] === 'repair-inventory' && method === 'POST') {
-      const products = await prisma.product.findMany();
-      const existingInv = await prisma.inventory.findMany({
-        select: { productId: true, color: true, size: true },
+    // ---------- PRODUCTS — special PUT: add only missing inventory rows for new colors or sizes ----------
+    if (segs[0] === 'products' && method === 'PUT' && segs.length === 2) {
+      const body = await readJson(request);
+      const updatedProduct = await prisma.product.update({
+        where: { id: segs[1] },
+        data: body,
       });
 
-      const existingSet = new Set(existingInv.map((i) => `${i.productId}::${i.color}::${i.size}`));
-      const toCreate = [];
+      await ensureInventoryRowsForProduct(prisma, {
+        productId: updatedProduct.id,
+        colors: updatedProduct.colors,
+        sizes: updatedProduct.sizes,
+      });
 
-      for (const p of products) {
-        const colors = Array.isArray(p.colors) ? p.colors : [];
-        const sizes = Array.isArray(p.sizes) ? p.sizes : [];
-        for (const color of colors) {
-          for (const size of sizes) {
-            if (!existingSet.has(`${p.id}::${color}::${size}`)) {
-              toCreate.push({
-                id: uuid(),
-                productId: p.id,
-                color,
-                size,
-                quantity: 0,
-                threshold: 5,
-                incoming: 0,
-              });
-            }
-          }
-        }
-      }
+      return NextResponse.json(updatedProduct);
+    }
 
-      if (toCreate.length > 0) {
-        await prisma.inventory.createMany({ data: toCreate });
-      }
+    // ---------- PRODUCTS — repair-inventory: maintenance-only, idempotent and concurrency-safe ----------
+    if (segs[0] === 'products' && segs[1] === 'repair-inventory' && method === 'POST') {
+      const products = await prisma.product.findMany({
+        select: {
+          id: true,
+          colors: true,
+          sizes: true,
+        },
+      });
 
-      return NextResponse.json({ created: toCreate.length, repaired: products.length });
+      const result = await repairAllProductInventoryRows(prisma, { products });
+      return NextResponse.json(result);
+    }
+
+    // ---------- INVENTORY POST — blocked to keep inventory generation inside the product lifecycle ----------
+    if (segs[0] === 'inventory' && method === 'POST' && segs.length === 1) {
+      return NextResponse.json({
+        error: 'Inventory rows are created only through product create, product update, or the manual repair inventory maintenance endpoint.',
+      }, { status: 405 });
     }
 
     // ---------- INVENTORY PUT — intercept to auto-create StockMovement ----------
@@ -1856,18 +1846,7 @@ async function handle(request, { params }) {
             inv = inventoryEntries[0];
             await tx.inventory.update({ where: { id: inv.id }, data: { quantity: inv.quantity + actualQty } });
           } else {
-            const product = await tx.product.findUnique({ where: { id: order.productId } });
-            inv = await tx.inventory.create({
-              data: {
-                id: uuid(),
-                productId: order.productId,
-                color: (product?.colors?.[0]) || 'Default',
-                size: (product?.sizes?.[0]) || 'Default',
-                quantity: actualQty,
-                threshold: 0,
-                incoming: 0,
-              },
-            });
+            throw new Error('Inventory rows are missing for this product. Run the manual repair inventory maintenance endpoint before completing production.');
           }
           const prevInv = inventoryEntries.length > 0 ? inventoryEntries[0].quantity : 0;
           await tx.stockMovement.create({

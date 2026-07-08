@@ -48,6 +48,8 @@ model Inventory {
   incoming       Int
   status         String          @default("Active")
   stockMovements StockMovement[]
+
+  @@unique([productId, color, size])
 }
 
 model StockMovement {
