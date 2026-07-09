@@ -195,8 +195,11 @@ function createOrderService({
       id: `order-reservation-${existingOrder.id}-${item.id}`,
       inventoryId: item.variantId,
       productId: item.productId,
-      referenceNumber: existingOrder.orderNumber,
-      movementType: 'ORDER_RESERVATION',
+      referenceType: 'ORDER',
+      referenceId: existingOrder.id,
+      referenceNumber: existingOrder.publicOrderNumber,
+      performedBy: 'SYSTEM',
+      movementType: 'SALE',
     }));
   }
 
@@ -526,11 +529,15 @@ test('publishes order and inventory domain events', async () => {
 
 test('creates inventory stock movements during reservation', async () => {
   const { service, store } = createOrderService();
-  await service.createFromCheckoutSession({ paymentAttemptId: 'attempt-1' });
+  const order = await service.createFromCheckoutSession({ paymentAttemptId: 'attempt-1' });
 
   assert.equal(store.stockMovements.length, 1);
-  assert.equal(store.stockMovements[0].movementType, 'ORDER_RESERVATION');
-  assert.equal(store.stockMovements[0].referenceNumber, 'ORD-202607-00001');
+  assert.equal(store.stockMovements[0].movementType, 'SALE');
+  assert.equal(store.stockMovements[0].referenceType, 'ORDER');
+  assert.equal(store.stockMovements[0].referenceId, 'generated-id');
+  assert.equal(store.stockMovements[0].referenceNumber, order.publicOrderNumber);
+  assert.equal(store.stockMovements[0].performedBy, 'SYSTEM');
+  assert.equal(store.stockMovements[0].quantityChanged, 2);
 });
 
 test('keeps the paid order when inventory reservation fails and allows retry', async () => {

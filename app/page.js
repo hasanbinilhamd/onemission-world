@@ -1794,10 +1794,27 @@ function InventoryModule() {
     })();
   }, []);
 
+  const resolvePerformedBy = () => {
+    if (typeof window === 'undefined') return 'SYSTEM';
+    try {
+      const rawUser = window.localStorage.getItem('om_user');
+      if (!rawUser) return 'SYSTEM';
+      const parsedUser = JSON.parse(rawUser);
+      return parsedUser?.email || parsedUser?.name || parsedUser?.id || 'SYSTEM';
+    } catch {
+      return 'SYSTEM';
+    }
+  };
+
   const adjust = async (item, delta) => {
-    const updated = { ...item, quantity: Math.max(0, item.quantity + delta) };
+    const updated = {
+      ...item,
+      quantity: Math.max(0, item.quantity + delta),
+      performedBy: resolvePerformedBy(),
+      reason: 'Manual inventory adjustment',
+    };
     await api.put("inventory/" + item.id, updated);
-    setItems((arr) => arr.map((i) => (i.id === item.id ? updated : i)));
+    setItems((arr) => arr.map((i) => (i.id === item.id ? { ...i, quantity: updated.quantity } : i)));
   };
 
   const [editQty, setEditQty] = useState({});
@@ -1805,9 +1822,14 @@ function InventoryModule() {
   const setStock = async (item, newQty) => {
     const qty = Math.max(0, Math.floor(Number(newQty)));
     if (isNaN(qty)) return;
-    const updated = { ...item, quantity: qty };
+    const updated = {
+      ...item,
+      quantity: qty,
+      performedBy: resolvePerformedBy(),
+      reason: 'Manual inventory adjustment',
+    };
     await api.put("inventory/" + item.id, updated);
-    setItems((arr) => arr.map((i) => (i.id === item.id ? updated : i)));
+    setItems((arr) => arr.map((i) => (i.id === item.id ? { ...i, quantity: updated.quantity } : i)));
     toast.success("Stock updated");
   };
 
@@ -2099,6 +2121,24 @@ function InventoryModule() {
 
 // =========== STOCK MOVEMENTS ===========
 const MOVEMENT_TYPES = [
+  {
+    value: "SALE",
+    label: "Sale",
+    color: "text-rose-400",
+    bg: "bg-rose-500/10 text-rose-400",
+  },
+  {
+    value: "MANUAL_ADJUSTMENT",
+    label: "Manual Adjustment",
+    color: "text-blue-400",
+    bg: "bg-blue-500/10 text-blue-400",
+  },
+  {
+    value: "INITIAL_STOCK",
+    label: "Initial Stock",
+    color: "text-purple-400",
+    bg: "bg-purple-500/10 text-purple-400",
+  },
   {
     value: "MANUAL_IN",
     label: "Manual In",

@@ -10,6 +10,12 @@ import {
   ensureInventoryRowsForProduct,
   repairAllProductInventoryRows,
 } from '@/lib/inventory/lifecycle';
+import {
+  INVENTORY_MOVEMENT_TYPE,
+  INVENTORY_PERFORMED_BY,
+  INVENTORY_REFERENCE_TYPE,
+  inventoryMovementService,
+} from '@/lib/inventory/movement-service';
 
 const COLLECTION_MODELS = {
   products: 'product',
@@ -1277,39 +1283,40 @@ async function handle(request, { params }) {
       }, { status: 405 });
     }
 
-    // ---------- INVENTORY PUT — intercept to auto-create StockMovement ----------
+    // ---------- INVENTORY PUT — manual quantity adjustments must always create a movement ----------
     if (segs[0] === 'inventory' && method === 'PUT' && segs.length === 2) {
       const id = segs[1];
       const body = await readJson(request);
       const current = await prisma.inventory.findUnique({ where: { id } });
       if (!current) return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 });
 
-      const prevQty = current.quantity;
-      const newQty = body.quantity !== undefined ? Number(body.quantity) : prevQty;
-      const updated = await prisma.inventory.update({ where: { id }, data: body });
-
-      if (newQty !== prevQty) {
-        const delta = newQty - prevQty;
-        const movementType = delta > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
-        const today = new Date().toISOString().split('T')[0];
-        const ref = await generateStockMovementRef(today);
-        await prisma.stockMovement.create({
-          data: {
-            id: uuid(),
-            itemType: 'PRODUCT',
-            inventoryId: id,
-            productId: current.productId,
-            movementDate: today,
-            movementType,
-            quantity: Math.abs(delta),
-            previousQuantity: prevQty,
-            newQuantity: newQty,
-            notes: 'Auto-recorded from inventory adjustment',
-            referenceNumber: ref,
-          },
-        });
+      const nextQuantity = body.quantity !== undefined ? Number(body.quantity) : current.quantity;
+      if (!Number.isFinite(nextQuantity)) {
+        return NextResponse.json({ error: 'Inventory quantity is invalid.' }, { status: 400 });
       }
-      return NextResponse.json(updated);
+      if (nextQuantity < 0) {
+        return NextResponse.json({ error: 'Inventory quantity cannot be negative.' }, { status: 400 });
+      }
+
+      const inventoryData = {};
+      if (body.threshold !== undefined) inventoryData.threshold = Number(body.threshold);
+      if (body.incoming !== undefined) inventoryData.incoming = Number(body.incoming);
+      if (body.status !== undefined) inventoryData.status = body.status;
+
+      const referenceNumber = await generateStockMovementRef(new Date().toISOString().split('T')[0]);
+      const result = await inventoryMovementService.updateInventoryQuantity({
+        inventoryId: id,
+        nextQuantity,
+        movementType: INVENTORY_MOVEMENT_TYPE.MANUAL_ADJUSTMENT,
+        referenceType: INVENTORY_REFERENCE_TYPE.INVENTORY,
+        referenceId: id,
+        referenceNumber,
+        performedBy: String(body.performedBy || body.updatedBy || INVENTORY_PERFORMED_BY.SYSTEM),
+        notes: String(body.reason || body.notes || 'Manual inventory adjustment'),
+        inventoryData,
+      });
+
+      return NextResponse.json(result.inventory);
     }
 
     // ---------- STOCK MOVEMENTS ----------
@@ -1325,14 +1332,44 @@ async function handle(request, { params }) {
         if (type) where.movementType = type;
         // Raw Materials are master data — always exclude their movements from the inventory timeline
         where.itemType = { not: 'RAW_MATERIAL' };
-        const movements = await prisma.stockMovement.findMany({ where, select: { movementType: true, quantity: true } });
+        const movements = await prisma.stockMovement.findMany({
+          where,
+          select: {
+            movementType: true,
+            quantityChanged: true,
+            quantity: true,
+            previousQuantity: true,
+            newQuantity: true,
+          },
+        });
         const totalMovements = movements.length;
-        const inTypes = ['ADJUSTMENT_IN', 'MANUAL_IN', 'OPENING', 'PRODUCTION_IN'];
-        const outTypes = ['ADJUSTMENT_OUT', 'MANUAL_OUT', 'PRODUCTION_OUT'];
-        const totalIn = movements.filter(m => inTypes.includes(m.movementType)).reduce((s, m) => s + m.quantity, 0);
-        const totalOut = movements.filter(m => outTypes.includes(m.movementType)).reduce((s, m) => s + m.quantity, 0);
-        const adjustmentMovements = movements.filter(m => [...inTypes.slice(0,3), ...outTypes.slice(0,2)].includes(m.movementType)).length;
-        const productionMovements = movements.filter(m => m.movementType === 'PRODUCTION_IN' || m.movementType === 'PRODUCTION_OUT').length;
+        const inTypes = ['ADJUSTMENT_IN', 'MANUAL_IN', 'OPENING', 'PRODUCTION_IN', 'INITIAL_STOCK'];
+        const outTypes = ['ADJUSTMENT_OUT', 'MANUAL_OUT', 'PRODUCTION_OUT', 'SALE'];
+        const resolveQuantityChanged = (movement) => Number(movement.quantityChanged || movement.quantity || 0);
+        const isInboundMovement = (movement) => {
+          if (movement.movementType === INVENTORY_MOVEMENT_TYPE.MANUAL_ADJUSTMENT || movement.movementType === INVENTORY_MOVEMENT_TYPE.STOCK_OPNAME) {
+            return Number(movement.newQuantity || 0) > Number(movement.previousQuantity || 0);
+          }
+          return inTypes.includes(movement.movementType);
+        };
+        const isOutboundMovement = (movement) => {
+          if (movement.movementType === INVENTORY_MOVEMENT_TYPE.MANUAL_ADJUSTMENT || movement.movementType === INVENTORY_MOVEMENT_TYPE.STOCK_OPNAME) {
+            return Number(movement.newQuantity || 0) < Number(movement.previousQuantity || 0);
+          }
+          return outTypes.includes(movement.movementType);
+        };
+        const totalIn = movements.filter(isInboundMovement).reduce((sum, movement) => sum + resolveQuantityChanged(movement), 0);
+        const totalOut = movements.filter(isOutboundMovement).reduce((sum, movement) => sum + resolveQuantityChanged(movement), 0);
+        const adjustmentMovements = movements.filter((movement) => (
+          movement.movementType === INVENTORY_MOVEMENT_TYPE.MANUAL_ADJUSTMENT
+          || movement.movementType === 'ADJUSTMENT_IN'
+          || movement.movementType === 'ADJUSTMENT_OUT'
+          || movement.movementType === 'MANUAL_IN'
+          || movement.movementType === 'MANUAL_OUT'
+          || movement.movementType === 'OPENING'
+          || movement.movementType === 'INITIAL_STOCK'
+        )).length;
+        const productionMovements = movements.filter((movement) => movement.movementType === 'PRODUCTION_IN' || movement.movementType === 'PRODUCTION_OUT').length;
         return NextResponse.json({ totalMovements, totalIn, totalOut, adjustmentMovements, productionMovements });
       }
 
@@ -1405,10 +1442,14 @@ async function handle(request, { params }) {
                 movementDate,
                 movementType: body.movementType,
                 quantity: qty,
+                quantityChanged: qty,
                 previousQuantity: prevQty,
                 newQuantity: newQty,
                 notes: body.notes || '',
+                referenceType: INVENTORY_REFERENCE_TYPE.RAW_MATERIAL,
+                referenceId: body.rawMaterialId,
                 referenceNumber: ref,
+                performedBy: String(body.createdBy || INVENTORY_PERFORMED_BY.SYSTEM),
               },
             }),
             prisma.rawMaterial.update({ where: { id: body.rawMaterialId }, data: { currentStock: newQty } }),
@@ -1440,13 +1481,19 @@ async function handle(request, { params }) {
               itemType: 'PRODUCT',
               inventoryId: body.inventoryId,
               productId: inv.productId,
+              color: inv.color,
+              size: inv.size,
               movementDate,
               movementType: body.movementType,
               quantity: qty,
+              quantityChanged: qty,
               previousQuantity: prevQty,
               newQuantity: newQty,
-              notes: body.notes || '',
+              notes: body.notes || 'Manual inventory adjustment',
+              referenceType: INVENTORY_REFERENCE_TYPE.MANUAL,
+              referenceId: body.inventoryId,
               referenceNumber: ref,
+              performedBy: String(body.createdBy || INVENTORY_PERFORMED_BY.SYSTEM),
             },
           }),
           prisma.inventory.update({ where: { id: body.inventoryId }, data: { quantity: newQty } }),
@@ -1832,9 +1879,13 @@ async function handle(request, { params }) {
                 movementDate: movDate,
                 movementType: 'PRODUCTION_OUT',
                 quantity: consumed,
+                quantityChanged: consumed,
                 previousQuantity: prev,
                 newQuantity: next,
+                referenceType: INVENTORY_REFERENCE_TYPE.PRODUCTION_ORDER,
+                referenceId: order.id,
                 referenceNumber: order.productionOrderNumber,
+                performedBy: INVENTORY_PERFORMED_BY.SYSTEM,
                 notes: body.completionNotes || `Production: ${order.productionOrderNumber}`,
               },
             });
@@ -1856,12 +1907,18 @@ async function handle(request, { params }) {
               itemType: 'PRODUCT',
               productId: order.productId,
               inventoryId: inv.id,
+              color: inv.color,
+              size: inv.size,
               movementDate: movDate,
               movementType: 'PRODUCTION_IN',
               quantity: actualQty,
+              quantityChanged: actualQty,
               previousQuantity: prevInv,
               newQuantity: prevInv + actualQty,
+              referenceType: INVENTORY_REFERENCE_TYPE.PRODUCTION_ORDER,
+              referenceId: order.id,
               referenceNumber: order.productionOrderNumber,
+              performedBy: INVENTORY_PERFORMED_BY.SYSTEM,
               notes: body.completionNotes || `Production: ${order.productionOrderNumber}`,
             },
           });
