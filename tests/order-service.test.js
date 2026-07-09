@@ -187,6 +187,7 @@ function createOrderService({
     publishedEvents: [],
     timelineCreateCalls: [],
     stockMovements: [],
+    sentOrderEmails: [],
   };
 
   if (inventoryReserved && existingOrder?.items?.length) {
@@ -442,10 +443,23 @@ function createOrderService({
     },
   };
 
+  const emailPublisher = {
+    sendOrderConfirmationEmail: async ({ order }) => {
+      store.sentOrderEmails.push({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        publicOrderNumber: order.publicOrderNumber,
+        customerEmail: order.customerEmail,
+      });
+      return { skipped: false };
+    },
+  };
+
   const service = new OrderService({
     prismaClient,
     paymentAttempt: paymentAttemptService,
     eventPublisher,
+    orderEmail: emailPublisher,
     idGenerator: () => 'generated-id',
     nowFactory: () => new Date('2026-07-01T00:00:00.000Z'),
   });
@@ -454,7 +468,7 @@ function createOrderService({
 }
 
 test('creates an order from a paid payment attempt', async () => {
-  const { service } = createOrderService();
+  const { service, store } = createOrderService();
   const order = await service.createFromCheckoutSession({ paymentAttemptId: 'attempt-1' });
 
   assert.equal(order.paymentAttemptId, 'attempt-1');
@@ -466,6 +480,8 @@ test('creates an order from a paid payment attempt', async () => {
   assert.equal(order.timeline.length, 2);
   assert.equal(order.timeline[0].eventName, 'Order Created');
   assert.equal(order.timeline[1].eventName, 'Payment Received');
+  assert.equal(store.sentOrderEmails.length, 1);
+  assert.equal(store.sentOrderEmails[0].publicOrderNumber, order.publicOrderNumber);
 });
 
 test('reuses the existing order for duplicate callbacks', async () => {

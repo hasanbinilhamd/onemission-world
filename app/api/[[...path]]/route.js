@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkoutService, normalizeCheckoutError } from '@/lib/checkout';
+import { generateCustomerCode } from '@/lib/customer-auth/customer-number';
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
 import { districtService } from '@/lib/shipping/district-service';
@@ -2120,20 +2121,6 @@ async function handle(request, { params }) {
 
     // ─────────── CUSTOMERS ───────────
     if (segs[0] === 'customers') {
-      // Generate customer code: CUS-0001
-      async function generateCustomerCode() {
-        const existing = await prisma.customer.findMany({
-          select: { customerCode: true },
-          orderBy: { customerCode: 'desc' },
-        });
-        let maxSeq = 0;
-        for (const c of existing) {
-          const m = c.customerCode.match(/CUS-(\d+)/);
-          if (m) { const n = parseInt(m[1], 10); if (n > maxSeq) maxSeq = n; }
-        }
-        return `CUS-${String(maxSeq + 1).padStart(4, '0')}`;
-      }
-
       // Stats: total, active, inactive
       if (segs[1] === 'stats' && method === 'GET') {
         const all = await prisma.customer.findMany({ select: { status: true } });
@@ -2209,7 +2196,7 @@ async function handle(request, { params }) {
         if (!customer) {
           if (!body.email && !body.phone)
             return NextResponse.json({ error: 'At least one of email or phone is required' }, { status: 400 });
-          const customerCode = await generateCustomerCode();
+          const customerCode = await generateCustomerCode(prisma);
           customer = await prisma.customer.create({
             data: {
               id: uuid(),
@@ -2243,7 +2230,7 @@ async function handle(request, { params }) {
           if (existing) return NextResponse.json({ error: `Phone ${body.phone} is already used by ${existing.customerName} (${existing.customerCode})` }, { status: 409 });
         }
 
-        const customerCode = await generateCustomerCode();
+        const customerCode = await generateCustomerCode(prisma);
         const customer = await prisma.customer.create({
           data: {
             id: uuid(),

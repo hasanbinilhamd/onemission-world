@@ -611,6 +611,7 @@ model Order {
   shippingCost        Float       @default(0)
   tax                 Float       @default(0)
   grandTotal          Float       @default(0)
+  orderConfirmationEmailSentAt DateTime?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
   items               OrderItem[]
