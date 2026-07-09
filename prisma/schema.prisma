@@ -396,6 +396,7 @@ model Customer {
   passwordResetTokenExpiresAt DateTime?
   googleId                String?           @unique
   emailVerified           Boolean           @default(false)
+  emailVerifiedAt         DateTime?
   avatarUrl               String?
   lastLoginAt             DateTime?
   authProvider            String            @default("LOCAL")
@@ -462,6 +463,32 @@ model CustomerSession {
   @@index([customerId])
   @@index([expiresAt])
   @@index([revokedAt])
+}
+
+enum VerificationType {
+  REGISTER
+  RESET_PASSWORD
+  CHANGE_EMAIL
+  LOGIN_OTP
+}
+
+model VerificationToken {
+  id          String           @id @default(cuid())
+  type        VerificationType
+  identifier  String
+  otpHash     String
+  payload     Json?
+  expiresAt   DateTime
+  attempts    Int              @default(0)
+  resendCount Int              @default(0)
+  verifiedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([type, identifier])
+  @@index([identifier])
+  @@index([type])
+  @@index([expiresAt])
 }
 
 model CheckoutSession {

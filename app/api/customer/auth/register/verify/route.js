@@ -13,11 +13,11 @@ export async function POST(request) {
   const payload = await request.json().catch(() => ({}));
 
   try {
-    const response = await customerAuthService.requestRegistrationVerification({
-      customerName: payload.customerName,
+    const response = await customerAuthService.verifyRegistrationOtp({
       email: payload.email,
-      phone: payload.phone,
-      password: payload.password,
+      otp: payload.otp,
+      device: payload.device,
+      request,
     });
 
     return NextResponse.json(response);
