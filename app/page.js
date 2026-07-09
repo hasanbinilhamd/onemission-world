@@ -168,6 +168,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip as AppTooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -2192,18 +2198,67 @@ function movementTypeMeta(type) {
   );
 }
 
-function isInboundType(type) {
-  return ["MANUAL_IN", "ADJUSTMENT_IN", "OPENING", "PRODUCTION_IN"].includes(type);
+function movementTypeIcon(type) {
+  if (type === "SALE") return ShoppingCart;
+  if (type === "MANUAL_ADJUSTMENT") return Edit3;
+  if (type === "PURCHASE_RECEIPT") return Package;
+  if (type === "RETURN") return RefreshCw;
+  if (type === "PRODUCTION_IN" || type === "PRODUCTION_OUT") return Factory;
+  if (type === "INITIAL_STOCK" || type === "OPENING") return PackageCheck;
+  return SettingsIcon;
 }
 
-// Derives a business-level Movement Source label from the low-level movementType.
-// Extensible: add new sources here as future modules (Purchase Receipt, Sales Order, etc.) are implemented.
-function movementSourceMeta(movementType) {
-  if (movementType === "PRODUCTION_IN" || movementType === "PRODUCTION_OUT") {
-    return { label: "Production Result", bg: "bg-amber-500/10 text-amber-600" };
+function movementSourceMeta(movement) {
+  const referenceType = String(movement?.referenceType || "").trim().toUpperCase();
+  const movementType = String(movement?.movementType || "").trim().toUpperCase();
+  const performedBy = String(movement?.performedBy || "").trim().toUpperCase();
+
+  if (referenceType === "ORDER") {
+    return { key: "ORDER", label: "Order", bg: "bg-emerald-500/10 text-emerald-700" };
   }
-  // MANUAL_IN, MANUAL_OUT, ADJUSTMENT_IN, ADJUSTMENT_OUT, OPENING
-  return { label: "Stock Adjustment", bg: "bg-slate-500/10 text-slate-500" };
+
+  if (referenceType === "PRODUCTION_ORDER" || movementType === "PRODUCTION_IN" || movementType === "PRODUCTION_OUT") {
+    return { key: "PRODUCTION", label: "Production", bg: "bg-amber-500/10 text-amber-700" };
+  }
+
+  if (referenceType === "INVENTORY" || movementType === "MANUAL_ADJUSTMENT" || movementType.startsWith("MANUAL_") || movementType.startsWith("ADJUSTMENT_")) {
+    return { key: "INVENTORY", label: "Inventory", bg: "bg-blue-500/10 text-blue-700" };
+  }
+
+  if (referenceType === "PURCHASE") {
+    return { key: "PURCHASE", label: "Purchase", bg: "bg-purple-500/10 text-purple-700" };
+  }
+
+  if (referenceType === "RETURN") {
+    return { key: "RETURN", label: "Return", bg: "bg-cyan-500/10 text-cyan-700" };
+  }
+
+  if (referenceType === "SEED" || performedBy === "SYSTEM") {
+    return { key: "SYSTEM", label: "System", bg: "bg-slate-500/10 text-slate-700" };
+  }
+
+  return { key: "OTHER", label: "System", bg: "bg-slate-500/10 text-slate-700" };
+}
+
+function movementDelta(movement) {
+  return Number(movement?.newQuantity || 0) - Number(movement?.previousQuantity || 0);
+}
+
+function movementDeltaClassName(delta) {
+  if (delta > 0) return "text-emerald-500";
+  if (delta < 0) return "text-rose-400";
+  return "text-muted-foreground";
+}
+
+function formatMovementDelta(delta) {
+  const value = Math.abs(Number(delta || 0)).toLocaleString("id-ID", { maximumFractionDigits: 4 });
+  if (delta > 0) return `+${value}`;
+  if (delta < 0) return `-${value}`;
+  return "0";
+}
+
+function formatBalanceTransition(previousQuantity, newQuantity) {
+  return `${Number(previousQuantity || 0).toLocaleString("id-ID", { maximumFractionDigits: 4 })} → ${Number(newQuantity || 0).toLocaleString("id-ID", { maximumFractionDigits: 4 })}`;
 }
 
 function StockMovementAdjustDialog({
@@ -2436,7 +2491,7 @@ function StockMovementAdjustDialog({
   );
 }
 
-function StockMovementsModule() {
+function StockMovementsModule({ onOpenOrderReference = () => {} }) {
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     .toISOString()
@@ -2446,34 +2501,32 @@ function StockMovementsModule() {
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
   const [inventory, setInventory] = useState([]);
-  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState(firstOfMonth);
   const [dateTo, setDateTo] = useState(today);
   const [showAdjust, setShowAdjust] = useState(false);
 
   const buildParams = () => {
-    const p = new URLSearchParams();
-    if (search) p.append("search", search);
-    if (typeFilter !== "all") p.append("type", typeFilter);
-    if (dateFrom) p.append("from", dateFrom);
-    if (dateTo) p.append("to", dateTo);
-    return p.toString();
+    const params = new URLSearchParams();
+    if (search) params.append("search", search);
+    if (typeFilter !== "all") params.append("type", typeFilter);
+    if (dateFrom) params.append("from", dateFrom);
+    if (dateTo) params.append("to", dateTo);
+    return params.toString();
   };
 
   const load = async () => {
     setLoading(true);
     const qs = buildParams();
-    const [data, statsData, prods, inv] = await Promise.all([
+    const [data, prods, inv] = await Promise.all([
       api.get("stockmovements" + (qs ? "?" + qs : "")),
-      api.get("stockmovements/stats" + (qs ? "?" + qs : "")),
       api.get("products"),
       api.get("inventory"),
     ]);
     setItems(Array.isArray(data) ? data : []);
-    setStats(statsData && !statsData.error ? statsData : null);
     setProducts(Array.isArray(prods) ? prods : []);
     setInventory(Array.isArray(inv) ? inv : []);
     setLoading(false);
@@ -2483,10 +2536,70 @@ function StockMovementsModule() {
     load();
   }, [search, typeFilter, dateFrom, dateTo]);
 
-  const netChange = stats ? stats.totalIn - stats.totalOut : 0;
+  const filteredItems = useMemo(() => {
+    if (sourceFilter === "all") {
+      return items;
+    }
 
-  const fmtQty = (n) =>
-    Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 4 });
+    return items.filter((movement) => movementSourceMeta(movement).key === sourceFilter);
+  }, [items, sourceFilter]);
+
+  const stats = useMemo(() => {
+    const summary = {
+      totalMovements: filteredItems.length,
+      adjustmentMovements: 0,
+      productionMovements: 0,
+      totalIn: 0,
+      totalOut: 0,
+    };
+
+    for (const movement of filteredItems) {
+      const delta = movementDelta(movement);
+      if (delta > 0) {
+        summary.totalIn += delta;
+      } else if (delta < 0) {
+        summary.totalOut += Math.abs(delta);
+      }
+
+      if (["MANUAL_ADJUSTMENT", "MANUAL_IN", "MANUAL_OUT", "ADJUSTMENT_IN", "ADJUSTMENT_OUT", "INITIAL_STOCK", "OPENING", "STOCK_OPNAME"].includes(movement.movementType)) {
+        summary.adjustmentMovements += 1;
+      }
+
+      if (["PRODUCTION_IN", "PRODUCTION_OUT"].includes(movement.movementType)) {
+        summary.productionMovements += 1;
+      }
+    }
+
+    return summary;
+  }, [filteredItems]);
+
+  const sourceOptions = useMemo(() => ([
+    { value: "all", label: "All Sources" },
+    { value: "ORDER", label: "Order" },
+    { value: "INVENTORY", label: "Inventory" },
+    { value: "PRODUCTION", label: "Production" },
+    { value: "PURCHASE", label: "Purchase" },
+    { value: "RETURN", label: "Return" },
+    { value: "SYSTEM", label: "System" },
+  ]), []);
+
+  const netChange = stats.totalIn - stats.totalOut;
+
+  const fmtQty = (value) => Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 4 });
+
+  const handleReferenceClick = (movement) => {
+    const referenceNumber = String(movement.referenceNumber || "").trim();
+    if (!referenceNumber) {
+      return;
+    }
+
+    const source = movementSourceMeta(movement);
+    if (source.key === "ORDER") {
+      onOpenOrderReference(referenceNumber);
+    }
+  };
+
+  const canOpenReference = (movement) => movementSourceMeta(movement).key === "ORDER" && Boolean(String(movement.referenceNumber || "").trim());
 
   return (
     <div className="space-y-6">
@@ -2496,7 +2609,7 @@ function StockMovementsModule() {
             Stock Movement Ledger
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Inventory movement history — adjustments and production results
+            Inventory movement history with cleaner source, delta, and reference visibility.
           </p>
         </div>
         <Button onClick={() => setShowAdjust(true)}>
@@ -2505,259 +2618,192 @@ function StockMovementsModule() {
         </Button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Total Movements
-            </p>
-            <p className="text-2xl font-semibold mt-1">
-              {loading ? "—" : (stats?.totalMovements ?? 0).toLocaleString()}
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Movements</p>
+            <p className="text-2xl font-semibold mt-1">{loading ? "—" : stats.totalMovements.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Stock Adjustments
-            </p>
-            <p className="text-2xl font-semibold mt-1 text-blue-500">
-              {loading ? "—" : (stats?.adjustmentMovements ?? 0).toLocaleString()}
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Stock Adjustments</p>
+            <p className="text-2xl font-semibold mt-1 text-blue-500">{loading ? "—" : stats.adjustmentMovements.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Production Results
-            </p>
-            <p className="text-2xl font-semibold mt-1 text-amber-500">
-              {loading
-                ? "—"
-                : (stats?.productionMovements ?? 0).toLocaleString()}
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Production Results</p>
+            <p className="text-2xl font-semibold mt-1 text-amber-500">{loading ? "—" : stats.productionMovements.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">
-              Inbound
-            </p>
-            <p className="text-2xl font-semibold mt-1 text-emerald-500">
-              {loading ? "—" : "+" + fmtQty(stats?.totalIn)}
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">Inbound</p>
+            <p className="text-2xl font-semibold mt-1 text-emerald-500">{loading ? "—" : `+${fmtQty(stats.totalIn)}`}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">
-              Outbound
-            </p>
-            <p className="text-2xl font-semibold mt-1 text-rose-400">
-              {loading ? "—" : "−" + fmtQty(stats?.totalOut)}
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">Outbound</p>
+            <p className="text-2xl font-semibold mt-1 text-rose-400">{loading ? "—" : `-${fmtQty(stats.totalOut)}`}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Net Change
-            </p>
-            <p
-              className={`text-2xl font-semibold mt-1 ${netChange >= 0 ? "text-emerald-500" : "text-rose-400"}`}
-            >
-              {loading ? "—" : (netChange >= 0 ? "+" : "") + fmtQty(netChange)}
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Change</p>
+            <p className={`text-2xl font-semibold mt-1 ${movementDeltaClassName(netChange)}`}>
+              {loading ? "—" : formatMovementDelta(netChange)}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="flex flex-wrap gap-3 items-end">
-            <div className="flex-1 min-w-[180px]">
-              <p className="text-xs text-muted-foreground mb-1">
-                Search item / SKU / reference
-              </p>
+          <div className="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
+            <div className="lg:col-span-2">
+              <p className="text-xs text-muted-foreground mb-1">Search item / SKU / reference</p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  placeholder="Search…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+                <Input className="pl-9" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
             </div>
-            <div className="min-w-[170px]">
-              <p className="text-xs text-muted-foreground mb-1">
-                Movement Type
-              </p>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Movement Source</p>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {sourceOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Movement Type</p>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  {MOVEMENT_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
+                  {MOVEMENT_TYPES.map((typeOption) => (
+                    <SelectItem key={typeOption.value} value={typeOption.value}>{typeOption.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Date From</p>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-36"
-              />
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Date To</p>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-36"
-              />
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full" />
             </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={load}
-              title="Refresh"
-            >
+          </div>
+
+          <div className="flex items-center justify-end mt-3">
+            <Button variant="outline" size="icon" onClick={load} title="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Ledger Table */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">
-              Loading movements…
-            </div>
-          ) : items.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">Loading movements…</div>
+          ) : filteredItems.length === 0 ? (
             <div className="p-12 text-center">
               <Activity className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">
-                No stock movements found
-              </p>
-              <p className="text-xs text-muted-foreground/60 mt-1">
-                Movements are recorded automatically when inventory is adjusted,
-                or manually via the button above.
-              </p>
+              <p className="text-muted-foreground text-sm">No stock movements found</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Movements are recorded automatically whenever inventory changes.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[rgba(17,24,39,0.04)]">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Reference
-                    </th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Movement Source
-                    </th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Item Name
-                    </th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Variant
-                    </th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Movement Type
-                    </th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Qty
-                    </th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Before
-                    </th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      After
-                    </th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                      Notes
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((m, idx) => {
-                    const meta = movementTypeMeta(m.movementType);
-                    const sourceMeta = movementSourceMeta(m.movementType);
-                    const inbound = isInboundType(m.movementType);
-                    return (
-                      <tr
-                        key={m.id}
-                        className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
-                      >
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {m.movementDate}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                          {m.referenceNumber || "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${sourceMeta.bg}`}
-                          >
-                            {sourceMeta.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="font-medium leading-none">
-                            {m.product?.name || "—"}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {m.product?.sku}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {m.inventory
-                            ? `${m.inventory.color} / ${m.inventory.size}`
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${meta.bg}`}
-                          >
-                            {meta.label}
-                          </span>
-                        </td>
-                        <td
-                          className={`px-4 py-3 text-right font-semibold tabular-nums ${inbound ? "text-emerald-400" : "text-rose-400"}`}
+            <TooltipProvider>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[rgba(17,24,39,0.04)]">
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Date</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Reference</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Movement Source</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Item Name</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Variant</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Movement Type</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Delta</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Balance</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredItems.map((movement, index) => {
+                      const typeMeta = movementTypeMeta(movement.movementType);
+                      const sourceMeta = movementSourceMeta(movement);
+                      const delta = movementDelta(movement);
+                      const TypeIcon = movementTypeIcon(movement.movementType);
+                      const notes = String(movement.notes || "").trim();
+                      const variantLabel = movement.inventory
+                        ? `${movement.inventory.color} / ${movement.inventory.size}`
+                        : [movement.color, movement.size].filter(Boolean).join(" / ") || "—";
+
+                      return (
+                        <tr
+                          key={movement.id}
+                          className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors ${index % 2 === 0 ? "" : "bg-muted/10"}`}
                         >
-                          {inbound ? "+" : "−"}
-                          {fmtQty(m.quantity)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
-                          {fmtQty(m.previousQuantity)}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium tabular-nums">
-                          {fmtQty(m.newQuantity)}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs max-w-[200px] truncate">
-                          {m.notes || "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{movement.movementDate}</td>
+                          <td className="px-4 py-3 font-mono text-xs">
+                            {canOpenReference(movement) ? (
+                              <button
+                                type="button"
+                                onClick={() => handleReferenceClick(movement)}
+                                className="inline-flex items-center gap-1.5 text-blue-700 hover:text-blue-900 hover:underline"
+                              >
+                                <span>{movement.referenceNumber || "—"}</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </button>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1.5 ${movement.referenceNumber ? "text-slate-700" : "text-muted-foreground"}`}>
+                                <span>{movement.referenceNumber || "—"}</span>
+                                {movement.referenceNumber ? <ExternalLink className="h-3 w-3 opacity-40" /> : null}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${sourceMeta.bg}`}>{sourceMeta.label}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-medium leading-none">{movement.product?.name || "—"}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{movement.product?.sku}</p>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{variantLabel}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${typeMeta.bg}`}>
+                              <TypeIcon className="h-3.5 w-3.5" />
+                              {typeMeta.label}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3 text-right font-semibold tabular-nums ${movementDeltaClassName(delta)}`}>{formatMovementDelta(delta)}</td>
+                          <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-700">{formatBalanceTransition(movement.previousQuantity, movement.newQuantity)}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground max-w-[240px]">
+                            {notes ? (
+                              <AppTooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="block truncate cursor-help">{notes}</span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs whitespace-normal break-words">{notes}</TooltipContent>
+                              </AppTooltip>
+                            ) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </TooltipProvider>
           )}
         </CardContent>
       </Card>
@@ -14355,6 +14401,7 @@ function App() {
     return g ? new Set([g]) : new Set();
   });
   const [glInitialAccount, setGlInitialAccount] = useState(null);
+  const [orderReferenceSelection, setOrderReferenceSelection] = useState(null);
 
   const toggleGroup = (id) => {
     setOpenGroups((prev) => {
@@ -14372,6 +14419,14 @@ function App() {
     if (parent) {
       setOpenGroups((prev) => new Set([...prev, parent]));
     }
+  };
+
+  const openOrderReference = (referenceNumber) => {
+    setOrderReferenceSelection({
+      referenceNumber,
+      token: Date.now(),
+    });
+    handleNavClick("orders");
   };
 
   useEffect(() => {
@@ -14467,7 +14522,7 @@ function App() {
     notifications: <NotificationsModule />,
     settings: <SettingsModule user={user} />,
     // Operations placeholders
-    stockmovements: <StockMovementsModule />,
+    stockmovements: <StockMovementsModule onOpenOrderReference={openOrderReference} />,
     suppliers: <SuppliersModule />,
     bom: <BOMModule />,
     productionorders: <ProductionOrdersModule />,
@@ -14475,7 +14530,7 @@ function App() {
     finishedgoods: <ComingSoonModule pageId="finishedgoods" />,
     // Sales placeholders
     customers: <CustomersModule />,
-    orders: <OrdersModule user={user} />,
+    orders: <OrdersModule user={user} initialReferenceSelection={orderReferenceSelection} onReferenceSelectionHandled={() => setOrderReferenceSelection(null)} />,
     saleschannels: <SalesChannelsModule />,
     // Marketing placeholders
     campaigns: <ComingSoonModule pageId="campaigns" />,

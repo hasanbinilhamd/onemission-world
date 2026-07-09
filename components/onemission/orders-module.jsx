@@ -408,7 +408,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   );
 }
 
-export function OrdersModule({ user }) {
+export function OrdersModule({ user, initialReferenceSelection = null, onReferenceSelectionHandled = () => {} }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -424,6 +424,7 @@ export function OrdersModule({ user }) {
   const [showDetail, setShowDetail] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: DEFAULT_LIMIT, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
   const [summary, setSummary] = useState({ pending: 0, picking: 0, packing: 0, readyToShip: 0, shipped: 0, delivered: 0 });
+  const [pendingReference, setPendingReference] = useState("");
 
   const [sortBy, sortOrder] = useMemo(() => sortValue.split(":"), [sortValue]);
 
@@ -463,6 +464,36 @@ export function OrdersModule({ user }) {
   useEffect(() => {
     setPage(1);
   }, [search, sortValue, limit, paymentStatusFilter, fulfillmentStatusFilter, dateFrom, dateTo, courierFilter]);
+
+  useEffect(() => {
+    const nextReference = String(initialReferenceSelection?.referenceNumber || "").trim();
+    if (!nextReference) {
+      return;
+    }
+
+    setSearch(nextReference);
+    setPage(1);
+    setPendingReference(nextReference.toUpperCase());
+    onReferenceSelectionHandled();
+  }, [initialReferenceSelection, onReferenceSelectionHandled]);
+
+  useEffect(() => {
+    if (!pendingReference || loading) {
+      return;
+    }
+
+    const matchedOrder = items.find((order) => (
+      String(order.publicOrderNumber || "").toUpperCase() === pendingReference
+      || String(order.orderNumber || "").toUpperCase() === pendingReference
+    ));
+
+    if (!matchedOrder) {
+      return;
+    }
+
+    setPendingReference("");
+    void openDetail(matchedOrder.id);
+  }, [items, loading, pendingReference]);
 
   const openDetail = async (orderId) => {
     const result = await ordersApi.getById(orderId);
