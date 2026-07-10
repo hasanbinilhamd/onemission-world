@@ -13,6 +13,7 @@
         "db:seed": "prisma db seed",
         "seed:uat": "tsx testing/seeds/uat-seed.ts",
         "seed:products": "tsx prisma/seeds/product-seed.ts",
+        "seed:inventory": "tsx prisma/seeds/inventory-seed.ts",
         "test:checkout": "tsx --tsconfig jsconfig.json --test tests/checkout-session.test.js",
         "test:payment-attempt": "tsx --tsconfig jsconfig.json --test tests/payment-attempt.test.js",
         "test:order": "tsx --tsconfig jsconfig.json --test tests/order-service.test.js",
