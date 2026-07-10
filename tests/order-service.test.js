@@ -188,6 +188,7 @@ function createOrderService({
     timelineCreateCalls: [],
     stockMovements: [],
     sentOrderEmails: [],
+    salesJournals: [],
   };
 
   if (inventoryReserved && existingOrder?.items?.length) {
@@ -458,11 +459,30 @@ function createOrderService({
     },
   };
 
+  const financePublisher = {
+    postSalesJournal: async (order) => {
+      const existingJournal = store.salesJournals.find((journal) => journal.orderId === order.id);
+      if (existingJournal) {
+        return { journal: existingJournal, action: 'FOUND' };
+      }
+
+      const journal = {
+        id: `journal-${order.id}`,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        amount: order.grandTotal,
+      };
+      store.salesJournals.push(journal);
+      return { journal, action: 'CREATED' };
+    },
+  };
+
   const service = new OrderService({
     prismaClient,
     paymentAttempt: paymentAttemptService,
     eventPublisher,
     orderEmail: emailPublisher,
+    financePosting: financePublisher,
     idGenerator: () => 'generated-id',
     nowFactory: () => new Date('2026-07-01T00:00:00.000Z'),
   });
@@ -483,6 +503,9 @@ test('creates an order from a paid payment attempt', async () => {
   assert.equal(order.timeline.length, 2);
   assert.equal(order.timeline[0].eventName, 'Order Created');
   assert.equal(order.timeline[1].eventName, 'Payment Received');
+  assert.equal(store.salesJournals.length, 1);
+  assert.equal(store.salesJournals[0].orderNumber, order.orderNumber);
+  assert.equal(store.salesJournals[0].amount, order.grandTotal);
   assert.equal(store.sentOrderEmails.length, 1);
   assert.equal(store.sentOrderEmails[0].publicOrderNumber, order.publicOrderNumber);
 });
@@ -496,6 +519,7 @@ test('reuses the existing order for duplicate callbacks', async () => {
   assert.equal(order.orderNumber, 'ORD-202607-00001');
   assert.equal(order.publicOrderNumber, 'OM-H8LPW-XZ99F');
   assert.equal(store.inventory.quantity, 20);
+  assert.equal(store.salesJournals.length, 1);
 });
 
 test('copies immutable checkout item snapshots into order items', async () => {
