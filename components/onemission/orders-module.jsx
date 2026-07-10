@@ -5,6 +5,8 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Copy,
+  ExternalLink,
   Loader2,
   PackageCheck,
   RefreshCw,
@@ -172,6 +174,107 @@ function DetailRow({ label, value }) {
   );
 }
 
+function toDatetimeLocalInputValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60_000);
+  return localDate.toISOString().slice(0, 16);
+}
+
+function buildShipmentTrackingUrl(courier, trackingNumber) {
+  const normalizedCourier = String(courier || "").trim().toUpperCase();
+  const normalizedTrackingNumber = String(trackingNumber || "").trim();
+  if (!normalizedCourier || !normalizedTrackingNumber) {
+    return "";
+  }
+
+  const trackingProviders = {
+    JNE: (resi) => `https://cekresi.com/?noresi=${encodeURIComponent(resi)}`,
+    JNT: (resi) => `https://cekresi.com/?noresi=${encodeURIComponent(resi)}`,
+    SICEPAT: (resi) => `https://cekresi.com/?noresi=${encodeURIComponent(resi)}`,
+    POS: (resi) => `https://cekresi.com/?noresi=${encodeURIComponent(resi)}`,
+    NINJA: (resi) => `https://cekresi.com/?noresi=${encodeURIComponent(resi)}`,
+    ANTERAJA: (resi) => `https://cekresi.com/?noresi=${encodeURIComponent(resi)}`,
+  };
+
+  return trackingProviders[normalizedCourier]?.(normalizedTrackingNumber) || "";
+}
+
+function getTimelinePresentation(entry) {
+  const eventName = String(entry?.eventName || "").trim();
+
+  const timelineMap = {
+    "Order Created": {
+      title: "Order Created",
+      description: "Order has been successfully created from checkout.",
+    },
+    "Payment Received": {
+      title: "Payment Received",
+      description: "Automatically confirmed after successful payment.",
+    },
+    PACKING_STARTED: {
+      title: "Packing Started",
+      description: "Warehouse has started preparing this order.",
+    },
+    READY_TO_SHIP: {
+      title: "Ready to Ship",
+      description: "Package has been packed and is ready for courier pickup.",
+    },
+    ORDER_SHIPPED: {
+      title: "Shipment Dispatched",
+      description: "Package has been handed over to the courier.",
+    },
+    ORDER_DELIVERED: {
+      title: "Delivered",
+      description: "Courier marked this order as delivered.",
+    },
+    CANCELLED: {
+      title: "Cancelled",
+      description: "This order has been cancelled.",
+    },
+    REFUNDED: {
+      title: "Refunded",
+      description: "Refund has been successfully processed.",
+    },
+    MANUAL_INVENTORY_ADJUSTMENT: {
+      title: "Manual Inventory Adjustment",
+      description: "Inventory was manually adjusted by warehouse staff.",
+    },
+    SALE_RECORDED: {
+      title: "Sale Recorded",
+      description: "Inventory has been deducted after successful order processing.",
+    },
+    // TEMPORARILY DISABLED
+    // Picking remains in source code for future warehouse scaling, but it is
+    // intentionally hidden from the current HQ workflow.
+    PICKING_STARTED: {
+      title: "Packing Started",
+      description: "Warehouse has started preparing this order.",
+      hidden: true,
+    },
+    ORDER_STATUS_READY_FOR_FULFILLMENT: { hidden: true },
+    ORDER_STATUS_PROCESSING: { hidden: true },
+    ORDER_STATUS_SHIPPED: { hidden: true },
+    ORDER_STATUS_COMPLETED: { hidden: true },
+  };
+
+  return timelineMap[eventName] || {
+    title: eventName || "Timeline Event",
+    description: "Order activity has been recorded.",
+  };
+}
+
+function splitTimelineNotes(notes) {
+  const normalizedNotes = String(notes || "").trim();
+  if (!normalizedNotes) {
+    return [];
+  }
+
+  return normalizedNotes.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
 function DetailSection({ title, children }) {
   return (
     <div className="mt-4">
@@ -201,17 +304,46 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
     setShipmentCourier(order.shipment?.courier || "");
     setShipmentService(order.shipment?.service || "");
     setTrackingNumber(order.shipment?.trackingNumber || "");
-    setShippingDate(order.shipment?.shippingDate ? new Date(order.shipment.shippingDate).toISOString().slice(0, 16) : "");
+    setShippingDate(toDatetimeLocalInputValue(order.shipment?.shippingDate));
   }, [order, open, userName]);
 
-  const showShipmentForm = [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(fulfillmentStatus)
-    || [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(order?.fulfillmentStatus);
+  useEffect(() => {
+    if (fulfillmentStatus === FULFILLMENT_STATUS.SHIPPED && !shippingDate) {
+      setShippingDate(toDatetimeLocalInputValue(new Date()));
+    }
+  }, [fulfillmentStatus, shippingDate]);
+
+  if (!order) return null;
+
+  const shipmentLocked = [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(order.fulfillmentStatus);
+  const requiresShipmentInformation = fulfillmentStatus === FULFILLMENT_STATUS.SHIPPED;
+  const trackShipmentUrl = buildShipmentTrackingUrl(shipmentCourier || order.shipment?.courier, trackingNumber || order.shipment?.trackingNumber);
+  const showTrackShipmentButton = Boolean(trackingNumber || order.shipment?.trackingNumber);
 
   const saveFulfillment = async () => {
     if (!order?.id) return;
     if (!updatedBy.trim()) {
       toast.error("Updated By is required.");
       return;
+    }
+
+    if (requiresShipmentInformation) {
+      if (!shipmentCourier.trim()) {
+        toast.error("Shipment Courier is required before marking this order as shipped.");
+        return;
+      }
+      if (!shipmentService.trim()) {
+        toast.error("Shipment Service is required before marking this order as shipped.");
+        return;
+      }
+      if (!trackingNumber.trim()) {
+        toast.error("Tracking Number is required before marking this order as shipped.");
+        return;
+      }
+      if (!shippingDate) {
+        toast.error("Shipping Date is required before marking this order as shipped.");
+        return;
+      }
     }
 
     setSaving(true);
@@ -237,8 +369,6 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
       setSaving(false);
     }
   };
-
-  if (!order) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -360,44 +490,84 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
                 <Label>Notes</Label>
                 <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional notes for the timeline entry..." rows={3} />
               </div>
-              {showShipmentForm ? (
-                <>
-                  <div className="space-y-1.5">
-                    <Label>Shipment Courier</Label>
-                    <Input value={shipmentCourier} onChange={(event) => setShipmentCourier(event.target.value)} placeholder="JNE" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Shipment Service</Label>
-                    <Input value={shipmentService} onChange={(event) => setShipmentService(event.target.value)} placeholder="REG" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Tracking Number</Label>
-                    <Input value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} placeholder="Tracking number" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Shipping Date</Label>
-                    <Input type="datetime-local" value={shippingDate} onChange={(event) => setShippingDate(event.target.value)} />
-                  </div>
-                </>
-              ) : null}
+            </div>
+
+            <div className="rounded-2xl border border-border/40 bg-muted/10 p-4 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Shipment Information</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Complete the courier details before dispatch. Shipment data becomes read-only after the order is shipped.
+                  </p>
+                </div>
+                {showTrackShipmentButton ? (
+                  trackShipmentUrl ? (
+                    <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => window.open(trackShipmentUrl, "_blank", "noopener,noreferrer")}>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Track Shipment
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="outline" size="sm" className="gap-2" onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(trackingNumber || order.shipment?.trackingNumber || "");
+                        toast.success("Tracking number copied.");
+                      } catch {
+                        toast.error("Unable to copy tracking number.");
+                      }
+                    }}>
+                      <Copy className="h-3.5 w-3.5" />
+                      Copy Tracking Number
+                    </Button>
+                  )
+                ) : null}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Shipment Courier</Label>
+                  <Input value={shipmentCourier} onChange={(event) => setShipmentCourier(event.target.value)} placeholder="JNE" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Shipment Service</Label>
+                  <Input value={shipmentService} onChange={(event) => setShipmentService(event.target.value)} placeholder="REG" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tracking Number</Label>
+                  <Input value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} placeholder="Tracking number" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Shipping Date</Label>
+                  <Input type="datetime-local" value={shippingDate} onChange={(event) => setShippingDate(event.target.value)} disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
+                </div>
+              </div>
             </div>
           </DetailSection>
 
           <DetailSection title="Order Timeline">
             {order.timeline?.length ? (
               <div className="space-y-3 py-3">
-                {order.timeline.map((entry) => (
-                  <div key={entry.id} className="rounded-lg border border-border/30 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-foreground">{entry.eventName}</p>
-                      <span className="text-xs text-muted-foreground">{fmtDateTime(entry.timestamp)}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Updated by {entry.updatedBy || "HQ Admin"}</p>
-                    {entry.notes ? (
-                      <p className="text-sm text-muted-foreground mt-2">{entry.notes}</p>
-                    ) : null}
-                  </div>
-                ))}
+                {order.timeline
+                  .map((entry) => ({ entry, presentation: getTimelinePresentation(entry) }))
+                  .filter(({ presentation }) => !presentation.hidden)
+                  .map(({ entry, presentation }) => {
+                    const noteLines = splitTimelineNotes(entry.notes);
+                    return (
+                      <div key={entry.id} className="rounded-lg border border-border/30 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-foreground">{presentation.title}</p>
+                          <span className="text-xs text-muted-foreground">{fmtDateTime(entry.timestamp)}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">{presentation.description}</p>
+                        {noteLines.length > 0 ? (
+                          <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                            {noteLines.map((line, index) => (
+                              <p key={`${entry.id}-note-${index}`}>{line}</p>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
               </div>
             ) : (
               <div className="py-3 text-sm text-muted-foreground">No timeline entries recorded yet.</div>

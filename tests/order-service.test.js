@@ -690,16 +690,16 @@ test('updates fulfillment status with a valid transition and synchronizes the bu
   const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
   const order = await service.updateFulfillmentStatus({
     orderId: 'order-1',
-    fulfillmentStatus: 'PICKING',
+    fulfillmentStatus: 'PACKING',
     updatedBy: 'Warehouse Admin',
-    notes: 'Started picking.',
+    notes: 'Started packing.',
   });
 
-  assert.equal(order.fulfillmentStatus, 'PICKING');
-  assert.equal(order.fulfillmentStatusLabel, 'PICKING');
+  assert.equal(order.fulfillmentStatus, 'PACKING');
+  assert.equal(order.fulfillmentStatusLabel, 'PACKING');
   assert.equal(order.status, 'PROCESSING');
   assert.equal(order.timeline.length, 2);
-  assert.equal(order.timeline[0].eventName, 'PICKING_STARTED');
+  assert.equal(order.timeline[0].eventName, 'PACKING_STARTED');
   assert.equal(order.timeline[0].updatedBy, 'Warehouse Admin');
   assert.equal(order.timeline[1].eventName, 'ORDER_STATUS_PROCESSING');
 });
@@ -737,6 +737,7 @@ test('stores shipment information when the order is shipped', async () => {
     shipmentService: 'REG',
     trackingNumber: 'JNE-123456789',
     shippingDate: '2026-07-02T10:00:00.000Z',
+    notes: 'Customer requested fragile handling.',
   });
 
   assert.equal(order.fulfillmentStatus, 'SHIPPED');
@@ -745,6 +746,10 @@ test('stores shipment information when the order is shipped', async () => {
   assert.equal(order.shipment.service, 'REG');
   assert.equal(order.shipment.trackingNumber, 'JNE-123456789');
   assert.equal(order.timeline[0].eventName, 'ORDER_SHIPPED');
+  assert.match(order.timeline[0].notes, /Courier: JNE/);
+  assert.match(order.timeline[0].notes, /Service: REG/);
+  assert.match(order.timeline[0].notes, /Tracking Number: JNE-123456789/);
+  assert.match(order.timeline[0].notes, /Notes: Customer requested fragile handling\./);
   assert.equal(order.timeline[1].eventName, 'ORDER_STATUS_SHIPPED');
 });
 
@@ -768,7 +773,27 @@ test('synchronizes the business status to completed when the order is delivered'
   assert.equal(order.fulfillmentStatus, 'DELIVERED');
   assert.equal(order.status, 'COMPLETED');
   assert.equal(order.timeline[0].eventName, 'ORDER_DELIVERED');
+  assert.match(order.timeline[0].notes, /Notes: Delivered to customer\./);
   assert.equal(order.timeline[1].eventName, 'ORDER_STATUS_COMPLETED');
+});
+
+test('auto-fills shipping date when the order is marked as shipped without one', async () => {
+  const existingOrder = createExistingOrder({
+    status: 'PROCESSING',
+    fulfillmentStatus: 'READY_TO_SHIP',
+  });
+  const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+
+  const order = await service.updateFulfillmentStatus({
+    orderId: 'order-1',
+    fulfillmentStatus: 'SHIPPED',
+    updatedBy: 'Warehouse Admin',
+    shipmentCourier: 'JNE',
+    shipmentService: 'REG',
+    trackingNumber: 'JNE-123456789',
+  });
+
+  assert.ok(order.shipment.shippingDate);
 });
 
 test('rejects shipped transition without shipment information', async () => {
@@ -785,6 +810,28 @@ test('rejects shipped transition without shipment information', async () => {
       updatedBy: 'Warehouse Admin',
     }),
     (error) => error.code === 'ORDER_SHIPMENT_INFORMATION_REQUIRED',
+  );
+});
+
+test('locks shipment data after an order has already been shipped', async () => {
+  const existingOrder = createExistingOrder({
+    status: 'SHIPPED',
+    fulfillmentStatus: 'SHIPPED',
+    shipmentCourier: 'JNE',
+    shipmentService: 'REG',
+    trackingNumber: 'JNE-123456789',
+    shippingDate: new Date('2026-07-02T10:00:00.000Z'),
+  });
+  const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+
+  await assert.rejects(
+    service.updateFulfillmentStatus({
+      orderId: 'order-1',
+      fulfillmentStatus: 'DELIVERED',
+      updatedBy: 'Warehouse Admin',
+      shipmentCourier: 'SiCepat',
+    }),
+    (error) => error.code === 'ORDER_SHIPMENT_LOCKED',
   );
 });
 
