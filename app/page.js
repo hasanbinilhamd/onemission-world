@@ -480,6 +480,22 @@ function getParentGroup(id) {
   return null;
 }
 
+function isModuleActive(activeModule, moduleIds) {
+  if (Array.isArray(moduleIds)) {
+    return moduleIds.includes(activeModule);
+  }
+
+  return activeModule === moduleIds;
+}
+
+function useLazyModuleEffect(activeModule, moduleIds, effect, deps = []) {
+  useEffect(() => {
+    if (!isModuleActive(activeModule, moduleIds)) return;
+    return effect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeModule, ...deps]);
+}
+
 // =========== LOGIN ===========
 function Login({ onLogin }) {
   const [email, setEmail] = useState("");
@@ -591,49 +607,27 @@ function Login({ onLogin }) {
 }
 
 // =========== DASHBOARD ===========
-function Dashboard() {
+function Dashboard({ activeModule }) {
   const [stats, setStats] = useState(null);
-  const [finance, setFinance] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [inventory, setInventory] = useState([]);
-  const [content, setContent] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [creators, setCreators] = useState([]);
-  const [schools, setSchools] = useState([]);
 
-  useEffect(() => {
-    (async () => {
-      setStats(await api.get("dashboard"));
-      setFinance(await api.get("finance"));
-      setProducts(await api.get("products"));
-      setInventory(await api.get("inventory"));
-      setContent(await api.get("content"));
-      setEvents(await api.get("events"));
-      setCreators(await api.get("creators"));
-      setSchools(await api.get("schools"));
-    })();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "dashboard",
+    () => {
+      (async () => {
+        setStats(await api.get("dashboard"));
+      })();
+    },
+    [],
+  );
 
-  const expenseBreakdown = useMemo(() => {
-    if (!finance.length) return [];
-    const totals = {};
-    finance.forEach((f) =>
-      Object.entries(f.categoryBreakdown || {}).forEach(
-        ([k, v]) => (totals[k] = (totals[k] || 0) + v),
-      ),
-    );
-    return Object.entries(totals).map(([name, value]) => ({ name, value }));
-  }, [finance]);
-
-  const lowStock = useMemo(() => {
-    return inventory
-      .filter((i) => i.quantity < i.threshold)
-      .slice(0, 5)
-      .map((i) => {
-        const p = products.find((p) => p.id === i.productId);
-        return { ...i, productName: p?.name || "Unknown" };
-      });
-  }, [inventory, products]);
+  const finance = stats?.financeSeries || [];
+  const expenseBreakdown = stats?.expenseBreakdown || [];
+  const lowStock = stats?.lowStock || [];
+  const content = stats?.upcomingContent || [];
+  const events = stats?.upcomingEvents || [];
+  const creators = stats?.creatorUpdates || [];
+  const schools = stats?.schoolUpdates || [];
 
   const chartColors = [
     "hsl(var(--chart-1))",
@@ -1135,7 +1129,7 @@ const PRODUCT_CATEGORIES = [
 ];
 const PRODUCT_STATUS = ["Active", "Draft", "Archived"];
 
-function ProductsModule() {
+function ProductsModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -1150,7 +1144,7 @@ function ProductsModule() {
     setItems(await api.get("products"));
     setLoading(false);
   };
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "products", () => {
     load();
   }, []);
 
@@ -1822,18 +1816,20 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
 }
 
 // =========== INVENTORY ===========
-function InventoryModule() {
+function InventoryModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState("all");
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setItems(await api.get("inventory"));
-      setProducts(await api.get("products"));
-      setLoading(false);
-    })();
+  const load = async () => {
+    setLoading(true);
+    setItems(await api.get("inventory"));
+    setProducts(await api.get("products"));
+    setLoading(false);
+  };
+
+  useLazyModuleEffect(activeModule, "inventory", () => {
+    load();
   }, []);
 
   const resolvePerformedBy = () => {
@@ -2527,7 +2523,7 @@ function StockMovementAdjustDialog({
   );
 }
 
-function StockMovementsModule({ onOpenOrderReference = () => {} }) {
+function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule }) {
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     .toISOString()
@@ -2568,7 +2564,7 @@ function StockMovementsModule({ onOpenOrderReference = () => {} }) {
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "stockmovements", () => {
     load();
   }, [search, typeFilter, dateFrom, dateTo]);
 
@@ -2859,7 +2855,7 @@ function StockMovementsModule({ onOpenOrderReference = () => {} }) {
 const PLAN_LEVELS = ["Monthly", "Quarterly", "Six-Month", "Annual"];
 const PLAN_STATUS = ["Planned", "In Progress", "At Risk", "Completed"];
 
-function PlanningModule() {
+function PlanningModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -2870,7 +2866,7 @@ function PlanningModule() {
     setItems(await api.get("plans"));
     setLoading(false);
   };
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "planning", () => {
     load();
   }, []);
 
@@ -3183,7 +3179,7 @@ const CONTENT_STATUS = [
 ];
 const PLATFORMS = ["Instagram", "TikTok", "YouTube", "Threads"];
 
-function ContentModule() {
+function ContentModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -3194,7 +3190,7 @@ function ContentModule() {
     setItems(await api.get("content"));
     setLoading(false);
   };
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "content", () => {
     load();
   }, []);
 
@@ -3535,7 +3531,7 @@ const CREATOR_STATUS = [
   "Completed",
 ];
 
-function CreatorCRM() {
+function CreatorCRM({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("all");
@@ -3546,7 +3542,7 @@ function CreatorCRM() {
     setItems(await api.get("creators"));
     setLoading(false);
   };
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "creators", () => {
     load();
   }, []);
   const updateStatus = async (item, status) => {
@@ -3933,7 +3929,7 @@ const SCHOOL_STATUS = [
   "Completed",
 ];
 
-function SchoolCRM() {
+function SchoolCRM({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -3943,7 +3939,7 @@ function SchoolCRM() {
     setItems(await api.get("schools"));
     setLoading(false);
   };
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "schools", () => {
     load();
   }, []);
   const updateStatus = async (item, status) => {
@@ -4285,7 +4281,7 @@ function SchoolModal({ open, onOpenChange, initial, onSave }) {
 }
 
 // =========== TIMELINE ===========
-function TimelineModule() {
+function TimelineModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const load = async () => {
@@ -4293,7 +4289,7 @@ function TimelineModule() {
     setItems(await api.get("timeline"));
     setLoading(false);
   };
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "timeline", () => {
     load();
   }, []);
 
@@ -4404,16 +4400,18 @@ function TimelineModule() {
 }
 
 // =========== FINANCE ===========
-function FinanceModule() {
+function FinanceModule({ activeModule }) {
   const [finance, setFinance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scenario, setScenario] = useState("Normal");
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setFinance(await api.get("finance"));
-      setLoading(false);
-    })();
+  const load = async () => {
+    setLoading(true);
+    setFinance(await api.get("finance"));
+    setLoading(false);
+  };
+
+  useLazyModuleEffect(activeModule, "finance", () => {
+    load();
   }, []);
 
   const scenarioMultiplier = {
@@ -4646,7 +4644,7 @@ function FinanceModule() {
 }
 
 // =========== EVENTS ===========
-function EventsModule() {
+function EventsModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const load = async () => {
@@ -4654,7 +4652,7 @@ function EventsModule() {
     setItems(await api.get("events"));
     setLoading(false);
   };
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "events", () => {
     load();
   }, []);
   const toggleCheck = async (event, idx) => {
@@ -4914,7 +4912,7 @@ function ReportsModule() {
 }
 
 // =========== NOTIFICATIONS ===========
-function NotificationsModule() {
+function NotificationsModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const load = async () => {
@@ -4922,7 +4920,7 @@ function NotificationsModule() {
     setItems(await api.get("notifications"));
     setLoading(false);
   };
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, ["notifications", "notificationsettings"], () => {
     load();
   }, []);
   const markRead = async (item) => {
@@ -4994,9 +4992,9 @@ function NotificationsModule() {
 }
 
 // =========== SETTINGS ===========
-function SettingsModule({ user }) {
+function SettingsModule({ user, activeModule }) {
   const [users, setUsers] = useState([]);
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, ["settings", "systemconfig"], () => {
     (async () => setUsers(await api.get("users")))();
   }, []);
   return (
@@ -5207,7 +5205,7 @@ const FA_TYPE_COLORS = {
   "E-Wallet": "bg-purple-500/10 text-purple-600 border-purple-500/20",
 };
 
-function FinancialAccountModule() {
+function FinancialAccountModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [coaAccounts, setCoaAccounts] = useState([]);
@@ -5230,7 +5228,7 @@ function FinancialAccountModule() {
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "financialaccounts", () => {
     load();
   }, []);
 
@@ -5807,7 +5805,7 @@ function FinancialAccountModal({
 // =========== CASH MANAGEMENT ===========
 const PAGE_SIZE_CASH = 15;
 
-function CashTransactionModule({ type }) {
+function CashTransactionModule({ type, activeModule }) {
   const label = type === "IN" ? "Cash In" : "Cash Out";
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -5842,7 +5840,7 @@ function CashTransactionModule({ type }) {
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, type === "IN" ? "cashin" : "cashout", () => {
     load();
   }, [type]);
 
@@ -6517,7 +6515,7 @@ const ACCOUNT_TYPE_COLORS = {
   Expense: "text-amber-400 bg-amber-400/10 border-amber-400/20",
 };
 
-function ChartOfAccountsModule() {
+function ChartOfAccountsModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -6535,7 +6533,7 @@ function ChartOfAccountsModule() {
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "chartofaccounts", () => {
     load();
   }, []);
 
@@ -7159,7 +7157,7 @@ function ChartOfAccountModal({
   );
 }
 
-function RawMaterialModule() {
+function RawMaterialModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -7177,7 +7175,7 @@ function RawMaterialModule() {
     setSuppliers(Array.isArray(sups) ? sups : []);
     setLoading(false);
   };
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "rawmaterials", () => {
     load();
   }, []);
 
@@ -7814,7 +7812,7 @@ const JOURNAL_SOURCES = [
 ];
 const PAGE_SIZE_JE = 15;
 
-function JournalEntriesModule() {
+function JournalEntriesModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [coaAccounts, setCoaAccounts] = useState([]);
@@ -7846,7 +7844,7 @@ function JournalEntriesModule() {
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "journalentries", () => {
     load();
   }, []);
 
@@ -8857,7 +8855,7 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
 }
 
 // =========== GENERAL LEDGER ===========
-function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
+function GeneralLedgerModule({ initialAccountId, onAccountConsumed, activeModule }) {
   const [coaAccounts, setCoaAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState(
     initialAccountId || "",
@@ -8870,7 +8868,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
   const [viewJournal, setViewJournal] = useState(null);
   const [viewOpen, setViewOpen] = useState(false);
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "generalledger", () => {
     api.get("chartofaccounts").then((data) => {
       setCoaAccounts(
         Array.isArray(data)
@@ -8899,7 +8897,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "generalledger", () => {
     if (selectedAccountId) {
       loadLedger();
     } else {
@@ -9238,7 +9236,7 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed }) {
 }
 
 // =========== TRIAL BALANCE ===========
-function TrialBalanceModule({ onNavigateToLedger }) {
+function TrialBalanceModule({ onNavigateToLedger, activeModule }) {
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     .toISOString()
@@ -9260,7 +9258,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "trialbalance", () => {
     load();
   }, [dateFrom, dateTo]);
 
@@ -9509,7 +9507,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
 }
 
 // =========== PROFIT & LOSS ===========
-function ProfitLossModule({ onNavigateToLedger }) {
+function ProfitLossModule({ onNavigateToLedger, activeModule }) {
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     .toISOString()
@@ -9531,7 +9529,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "profitloss", () => {
     load();
   }, [dateFrom, dateTo]);
 
@@ -9793,7 +9791,7 @@ function ProfitLossModule({ onNavigateToLedger }) {
 }
 
 // =========== BALANCE SHEET ===========
-function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
+function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL, activeModule }) {
   const today = new Date().toISOString().split("T")[0];
   const [asOf, setAsOf] = useState(today);
   const [data, setData] = useState(null);
@@ -9807,7 +9805,7 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL }) {
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "balancesheet", () => {
     load();
   }, [asOf]);
 
@@ -11541,7 +11539,7 @@ function ProductionOrderDetailDialog({
 }
 
 // =========== PRODUCTION RESULTS MODULE ===========
-function ProductionResultsModule() {
+function ProductionResultsModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -11566,7 +11564,7 @@ function ProductionResultsModule() {
     }
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "productionresults", () => {
     load();
   }, []);
 
@@ -11976,7 +11974,7 @@ function ProductionResultsModule() {
 }
 
 // =========== PRODUCTION ORDERS MODULE ===========
-function ProductionOrdersModule() {
+function ProductionOrdersModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -12013,7 +12011,7 @@ function ProductionOrdersModule() {
     }
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "productionorders", () => {
     load();
   }, [statusFilter]);
 
@@ -12370,7 +12368,7 @@ function ProductionOrdersModule() {
 }
 
 // =========== BOM MODULE ===========
-function BOMModule() {
+function BOMModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -12406,7 +12404,7 @@ function BOMModule() {
     }
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "bom", () => {
     load();
   }, [statusFilter]);
 
@@ -12653,7 +12651,7 @@ function BOMModule() {
   );
 }
 
-function SuppliersModule() {
+function SuppliersModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -12679,7 +12677,7 @@ function SuppliersModule() {
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "suppliers", () => {
     load();
   }, [search, statusFilter]);
 
@@ -13135,7 +13133,7 @@ function SalesChannelDetailDialog({ open, onOpenChange, channel, onEdit }) {
   );
 }
 
-function SalesChannelsModule() {
+function SalesChannelsModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -13172,11 +13170,11 @@ function SalesChannelsModule() {
     } catch (e) { /* ignore */ } finally { setSeeding(false); }
   };
 
-  useEffect(() => { load(); }, [search, statusFilter, typeFilter]);
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "saleschannels", () => { load(); }, [search, statusFilter, typeFilter]);
+  useLazyModuleEffect(activeModule, "saleschannels", () => {
     // Auto-seed if no channels exist after initial load
     if (!loading && items.length === 0 && !stats?.total) { seedIfEmpty(); }
-  }, [loading]);
+  }, [loading, items.length, stats?.total]);
 
   const openCreate = () => { setEditing(null); setShowForm(true); };
   const openEdit = (c) => { setEditing(c); setShowForm(true); };
@@ -13634,7 +13632,7 @@ function CustomerDetailDialog({ open, onOpenChange, customer, onEdit }) {
   );
 }
 
-function CustomersModule() {
+function CustomersModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -13662,8 +13660,8 @@ function CustomersModule() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [search, statusFilter, typeFilter]);
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "customers", () => { load(); }, [search, statusFilter, typeFilter]);
+  useLazyModuleEffect(activeModule, "customers", () => {
     api.get('saleschannels?status=Active').then(d => setSalesChannels(Array.isArray(d) ? d : []));
   }, []);
 
@@ -13952,6 +13950,7 @@ function CashFlowStatementModule({
   onNavigateToCashIn,
   onNavigateToCashOut,
   onNavigateToLedger,
+  activeModule,
 }) {
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -13982,11 +13981,11 @@ function CashFlowStatementModule({
     setLoading(false);
   };
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "cashflowstatement", () => {
     loadFinancialAccounts();
   }, []);
 
-  useEffect(() => {
+  useLazyModuleEffect(activeModule, "cashflowstatement", () => {
     load();
   }, [dateFrom, dateTo, financialAccountId]);
 
@@ -14528,46 +14527,50 @@ function App() {
       }).filter(Boolean)
     : NAV_GROUPS;
 
-  const Component = {
-    dashboard: <Dashboard />,
-    products: <ProductsModule />,
-    inventory: <InventoryModule />,
-    rawmaterials: <RawMaterialModule />,
-    planning: <PlanningModule />,
-    content: <ContentModule />,
-    creators: <CreatorCRM />,
-    schools: <SchoolCRM />,
-    timeline: <TimelineModule />,
-    finance: <FinanceModule />,
-    chartofaccounts: <ChartOfAccountsModule />,
-    financialaccounts: <FinancialAccountModule />,
-    cashin: <CashTransactionModule type="IN" />,
-    cashout: <CashTransactionModule type="OUT" />,
-    journalentries: <JournalEntriesModule />,
-    generalledger: (
+  const renderActiveModule = {
+    dashboard: () => <Dashboard activeModule={active} />,
+    products: () => <ProductsModule activeModule={active} />,
+    inventory: () => <InventoryModule activeModule={active} />,
+    rawmaterials: () => <RawMaterialModule activeModule={active} />,
+    planning: () => <PlanningModule activeModule={active} />,
+    content: () => <ContentModule activeModule={active} />,
+    creators: () => <CreatorCRM activeModule={active} />,
+    schools: () => <SchoolCRM activeModule={active} />,
+    timeline: () => <TimelineModule activeModule={active} />,
+    finance: () => <FinanceModule activeModule={active} />,
+    chartofaccounts: () => <ChartOfAccountsModule activeModule={active} />,
+    financialaccounts: () => <FinancialAccountModule activeModule={active} />,
+    cashin: () => <CashTransactionModule type="IN" activeModule={active} />,
+    cashout: () => <CashTransactionModule type="OUT" activeModule={active} />,
+    journalentries: () => <JournalEntriesModule activeModule={active} />,
+    generalledger: () => (
       <GeneralLedgerModule
+        activeModule={active}
         initialAccountId={glInitialAccount}
         onAccountConsumed={() => setGlInitialAccount(null)}
       />
     ),
-    trialbalance: (
+    trialbalance: () => (
       <TrialBalanceModule
+        activeModule={active}
         onNavigateToLedger={(id) => {
           setGlInitialAccount(id);
           handleNavClick("generalledger");
         }}
       />
     ),
-    profitloss: (
+    profitloss: () => (
       <ProfitLossModule
+        activeModule={active}
         onNavigateToLedger={(id) => {
           setGlInitialAccount(id);
           handleNavClick("generalledger");
         }}
       />
     ),
-    balancesheet: (
+    balancesheet: () => (
       <BalanceSheetModule
+        activeModule={active}
         onNavigateToLedger={(id) => {
           setGlInitialAccount(id);
           handleNavClick("generalledger");
@@ -14575,8 +14578,9 @@ function App() {
         onNavigateToPL={() => handleNavClick("profitloss")}
       />
     ),
-    cashflowstatement: (
+    cashflowstatement: () => (
       <CashFlowStatementModule
+        activeModule={active}
         onNavigateToCashIn={() => handleNavClick("cashin")}
         onNavigateToCashOut={() => handleNavClick("cashout")}
         onNavigateToLedger={(id) => {
@@ -14585,38 +14589,40 @@ function App() {
         }}
       />
     ),
-    // Hidden but preserved pages (accessible internally)
-    planning: <PlanningModule />,
-    timeline: <TimelineModule />,
-    events: <EventsModule />,
-    reports: <ReportsModule />,
-    finance: <FinanceModule />,
-    notifications: <NotificationsModule />,
-    settings: <SettingsModule user={user} />,
-    // Operations placeholders
-    stockmovements: <StockMovementsModule onOpenOrderReference={openOrderReference} />,
-    suppliers: <SuppliersModule />,
-    bom: <BOMModule />,
-    productionorders: <ProductionOrdersModule />,
-    productionresults: <ProductionResultsModule />,
-    finishedgoods: <ComingSoonModule pageId="finishedgoods" />,
-    // Sales placeholders
-    customers: <CustomersModule />,
-    orders: <OrdersModule user={user} initialReferenceSelection={orderReferenceSelection} onReferenceSelectionHandled={() => setOrderReferenceSelection(null)} />,
-    saleschannels: <SalesChannelsModule />,
-    // Marketing placeholders
-    campaigns: <ComingSoonModule pageId="campaigns" />,
-    // Reports placeholders
-    productanalytics: <ComingSoonModule pageId="productanalytics" />,
-    inventoryanalytics: <ComingSoonModule pageId="inventoryanalytics" />,
-    financialanalytics: <ComingSoonModule pageId="financialanalytics" />,
-    marketinganalytics: <ComingSoonModule pageId="marketinganalytics" />,
-    executivereports: <ComingSoonModule pageId="executivereports" />,
-    // Settings (new IDs → existing modules)
-    users: <ComingSoonModule pageId="users" />,
-    rolespermissions: <ComingSoonModule pageId="rolespermissions" />,
-    notificationsettings: <NotificationsModule />,
-    systemconfig: <SettingsModule user={user} />,
+    events: () => <EventsModule activeModule={active} />,
+    reports: () => <ReportsModule />,
+    notifications: () => <NotificationsModule activeModule={active} />,
+    settings: () => <SettingsModule user={user} activeModule={active} />,
+    stockmovements: () => (
+      <StockMovementsModule
+        activeModule={active}
+        onOpenOrderReference={openOrderReference}
+      />
+    ),
+    suppliers: () => <SuppliersModule activeModule={active} />,
+    bom: () => <BOMModule activeModule={active} />,
+    productionorders: () => <ProductionOrdersModule activeModule={active} />,
+    productionresults: () => <ProductionResultsModule activeModule={active} />,
+    finishedgoods: () => <ComingSoonModule pageId="finishedgoods" />,
+    customers: () => <CustomersModule activeModule={active} />,
+    orders: () => (
+      <OrdersModule
+        user={user}
+        initialReferenceSelection={orderReferenceSelection}
+        onReferenceSelectionHandled={() => setOrderReferenceSelection(null)}
+      />
+    ),
+    saleschannels: () => <SalesChannelsModule activeModule={active} />,
+    campaigns: () => <ComingSoonModule pageId="campaigns" />,
+    productanalytics: () => <ComingSoonModule pageId="productanalytics" />,
+    inventoryanalytics: () => <ComingSoonModule pageId="inventoryanalytics" />,
+    financialanalytics: () => <ComingSoonModule pageId="financialanalytics" />,
+    marketinganalytics: () => <ComingSoonModule pageId="marketinganalytics" />,
+    executivereports: () => <ComingSoonModule pageId="executivereports" />,
+    users: () => <ComingSoonModule pageId="users" />,
+    rolespermissions: () => <ComingSoonModule pageId="rolespermissions" />,
+    notificationsettings: () => <NotificationsModule activeModule={active} />,
+    systemconfig: () => <SettingsModule user={user} activeModule={active} />,
   }[active];
 
   const logout = () => {
@@ -14866,7 +14872,7 @@ function App() {
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
             >
-              {Component}
+              {renderActiveModule ? renderActiveModule() : null}
             </motion.div>
           </AnimatePresence>
         </div>
