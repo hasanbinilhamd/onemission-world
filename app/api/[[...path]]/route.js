@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkoutService, normalizeCheckoutError } from '@/lib/checkout';
 import { generateCustomerCode } from '@/lib/customer-auth/customer-number';
+import { cashFlowService } from '@/lib/finance-reporting';
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
 import { districtService } from '@/lib/shipping/district-service';
@@ -966,116 +967,17 @@ async function handle(request, { params }) {
     // ---------- CASH FLOW STATEMENT ----------
     if (segs[0] === 'cashflow' && method === 'GET') {
       const url = new URL(request.url);
-      const from = url.searchParams.get('from');
-      const to = url.searchParams.get('to');
+      const from = url.searchParams.get('from') || '';
+      const to = url.searchParams.get('to') || '';
+      const financialAccountId = url.searchParams.get('financialAccountId') || '';
 
-      const txnWhere = {};
-      if (from || to) {
-        txnWhere.transactionDate = {};
-        if (from) txnWhere.transactionDate.gte = from;
-        if (to) txnWhere.transactionDate.lte = to;
-      }
-
-      const [inTxns, outTxns, financialAccounts, prevTxns] = await Promise.all([
-        prisma.cashTransaction.findMany({
-          where: { transactionType: 'IN', ...txnWhere },
-          include: { chartOfAccount: true, financialAccount: true },
-          orderBy: { transactionDate: 'asc' },
-        }),
-        prisma.cashTransaction.findMany({
-          where: { transactionType: 'OUT', ...txnWhere },
-          include: { chartOfAccount: true, financialAccount: true },
-          orderBy: { transactionDate: 'asc' },
-        }),
-        prisma.financialAccount.findMany({
-          where: { isActive: true },
-          orderBy: { name: 'asc' },
-        }),
-        from
-          ? prisma.cashTransaction.findMany({
-              where: { transactionDate: { lt: from } },
-              select: { financialAccountId: true, transactionType: true, amount: true },
-            })
-          : Promise.resolve([]),
-      ]);
-
-      // Group inflows by COA
-      const inflowMap = {};
-      for (const txn of inTxns) {
-        const key = txn.chartOfAccountId;
-        if (!inflowMap[key]) {
-          inflowMap[key] = {
-            coaId: txn.chartOfAccountId,
-            accountCode: txn.chartOfAccount.accountCode,
-            accountName: txn.chartOfAccount.accountName,
-            count: 0,
-            amount: 0,
-          };
-        }
-        inflowMap[key].count++;
-        inflowMap[key].amount += txn.amount;
-      }
-
-      // Group outflows by COA
-      const outflowMap = {};
-      for (const txn of outTxns) {
-        const key = txn.chartOfAccountId;
-        if (!outflowMap[key]) {
-          outflowMap[key] = {
-            coaId: txn.chartOfAccountId,
-            accountCode: txn.chartOfAccount.accountCode,
-            accountName: txn.chartOfAccount.accountName,
-            count: 0,
-            amount: 0,
-          };
-        }
-        outflowMap[key].count++;
-        outflowMap[key].amount += txn.amount;
-      }
-
-      const inflows = Object.values(inflowMap).sort((a, b) => a.accountCode.localeCompare(b.accountCode));
-      const outflows = Object.values(outflowMap).sort((a, b) => a.accountCode.localeCompare(b.accountCode));
-
-      const totalInflows = inflows.reduce((s, r) => s + r.amount, 0);
-      const totalOutflows = outflows.reduce((s, r) => s + r.amount, 0);
-      const netCashFlow = totalInflows - totalOutflows;
-
-      // Financial Account Summary
-      const accountSummary = financialAccounts.map((fa) => {
-        const prevIn = prevTxns
-          .filter((t) => t.financialAccountId === fa.id && t.transactionType === 'IN')
-          .reduce((s, t) => s + t.amount, 0);
-        const prevOut = prevTxns
-          .filter((t) => t.financialAccountId === fa.id && t.transactionType === 'OUT')
-          .reduce((s, t) => s + t.amount, 0);
-        const openingBalance = fa.openingBalance + prevIn - prevOut;
-
-        const totalIn = inTxns.filter((t) => t.financialAccountId === fa.id).reduce((s, t) => s + t.amount, 0);
-        const totalOut = outTxns.filter((t) => t.financialAccountId === fa.id).reduce((s, t) => s + t.amount, 0);
-        const closingBalance = openingBalance + totalIn - totalOut;
-
-        return { id: fa.id, name: fa.name, type: fa.type, openingBalance, totalIn, totalOut, closingBalance };
+      const result = await cashFlowService.buildReport({
+        from,
+        to,
+        financialAccountId,
       });
 
-      const openingCashPosition = accountSummary.reduce((s, a) => s + a.openingBalance, 0);
-      const closingCashPosition = accountSummary.reduce((s, a) => s + a.closingBalance, 0);
-      const calculatedClosing = openingCashPosition + totalInflows - totalOutflows;
-      const validationDiff = Math.abs(calculatedClosing - closingCashPosition);
-      const isValid = validationDiff < 0.01;
-
-      return NextResponse.json({
-        inflows,
-        outflows,
-        totalInflows,
-        totalOutflows,
-        netCashFlow,
-        accountSummary,
-        openingCashPosition,
-        closingCashPosition,
-        calculatedClosing,
-        isValid,
-        validationDiff,
-      });
+      return NextResponse.json(result);
     }
 
     // ---------- PROFIT & LOSS ----------

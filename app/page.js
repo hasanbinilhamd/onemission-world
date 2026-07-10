@@ -9319,6 +9319,20 @@ function TrialBalanceModule({ onNavigateToLedger }) {
                 className="w-40"
               />
             </div>
+            <div className="space-y-1.5 min-w-[220px]">
+              <Label>Financial Account</Label>
+              <Select value={financialAccountId} onValueChange={setFinancialAccountId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Financial Accounts</SelectItem>
+                  {financialAccounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -9326,6 +9340,7 @@ function TrialBalanceModule({ onNavigateToLedger }) {
               onClick={() => {
                 setDateFrom(firstOfMonth);
                 setDateTo(today);
+                setFinancialAccountId("all");
               }}
             >
               Reset to Current Month
@@ -13946,22 +13961,34 @@ function CashFlowStatementModule({
 
   const [dateFrom, setDateFrom] = useState(firstOfMonth);
   const [dateTo, setDateTo] = useState(today);
+  const [financialAccountId, setFinancialAccountId] = useState("all");
+  const [financialAccounts, setFinancialAccounts] = useState([]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const loadFinancialAccounts = async () => {
+    const result = await api.get("financialaccounts");
+    setFinancialAccounts(Array.isArray(result) ? result : []);
+  };
 
   const load = async () => {
     setLoading(true);
     const params = new URLSearchParams();
     if (dateFrom) params.append("from", dateFrom);
     if (dateTo) params.append("to", dateTo);
+    if (financialAccountId !== "all") params.append("financialAccountId", financialAccountId);
     const result = await api.get("cashflow?" + params.toString());
     setData(result?.error ? null : result);
     setLoading(false);
   };
 
   useEffect(() => {
+    loadFinancialAccounts();
+  }, []);
+
+  useEffect(() => {
     load();
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, financialAccountId]);
 
   const CashTable = ({ rows, emptyLabel, colorClass, onDrillDown }) => (
     <div className="overflow-x-auto">
@@ -13969,13 +13996,16 @@ function CashFlowStatementModule({
         <thead>
           <tr className="border-b border-border bg-[#F7F8FA]">
             <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
-              Account Code
+              Date
+            </th>
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+              Source
+            </th>
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+              Reference
             </th>
             <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-              Category / COA
-            </th>
-            <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
-              Transactions
+              Financial Account
             </th>
             <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
               Amount
@@ -13987,7 +14017,7 @@ function CashFlowStatementModule({
           {rows.length === 0 ? (
             <tr>
               <td
-                colSpan={5}
+                colSpan={6}
                 className="px-4 py-8 text-center text-sm text-muted-foreground"
               >
                 {emptyLabel}
@@ -13996,35 +14026,41 @@ function CashFlowStatementModule({
           ) : (
             rows.map((row) => (
               <tr
-                key={row.coaId}
+                key={row.id}
                 className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
               >
+                <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                  {row.journalDate || "—"}
+                </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                    {row.accountCode}
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-foreground">
+                    {row.source || "General"}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-medium">{row.accountName}</td>
-                <td className="px-4 py-3 text-right text-muted-foreground">
-                  {row.count}
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {row.referenceNumber || row.journalNumber || "—"}
                 </td>
-                <td
-                  className={`px-4 py-3 text-right font-medium ${colorClass}`}
-                >
+                <td className="px-4 py-3 font-medium">
+                  {row.financialAccountName || row.accountName}
+                  {row.accountCode ? (
+                    <span className="ml-2 font-mono text-[11px] text-muted-foreground">{row.accountCode}</span>
+                  ) : null}
+                </td>
+                <td className={`px-4 py-3 text-right font-medium ${colorClass}`}>
                   {fmt(row.amount)}
                 </td>
                 <td className="px-4 py-3">
-                  {onDrillDown && (
+                  {onDrillDown && row.coaId ? (
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
-                      title="View transactions"
-                      onClick={onDrillDown}
+                      title="View in General Ledger"
+                      onClick={() => onDrillDown(row.coaId)}
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Button>
-                  )}
+                  ) : null}
                 </td>
               </tr>
             ))
@@ -14043,7 +14079,7 @@ function CashFlowStatementModule({
             Cash Flow Statement
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Direct method — generated from Cash In and Cash Out transactions
+            Direct method — generated automatically from posted journal entries affecting cash and bank accounts
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -14181,16 +14217,16 @@ function CashFlowStatementModule({
                   <span className="text-sm font-semibold text-emerald-500">
                     {fmt(data.totalInflows)}
                   </span>
-                  {onNavigateToCashIn && (
+                  {onNavigateToLedger && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-7 text-xs gap-1"
-                      onClick={onNavigateToCashIn}
-                      title="View Cash In records"
+                      onClick={() => onNavigateToLedger(null)}
+                      title="View Journal-backed cash activity"
                     >
                       <ExternalLink className="h-3 w-3" />
-                      Cash In
+                      General Ledger
                     </Button>
                   )}
                 </div>
@@ -14200,7 +14236,7 @@ function CashFlowStatementModule({
               rows={data.inflows}
               emptyLabel="No cash inflow transactions in selected period"
               colorClass="text-emerald-500"
-              onDrillDown={onNavigateToCashIn}
+              onDrillDown={onNavigateToLedger}
             />
             <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Cash Inflows</span>
@@ -14220,16 +14256,16 @@ function CashFlowStatementModule({
                   <span className="text-sm font-semibold text-rose-400">
                     {fmt(data.totalOutflows)}
                   </span>
-                  {onNavigateToCashOut && (
+                  {onNavigateToLedger && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-7 text-xs gap-1"
-                      onClick={onNavigateToCashOut}
-                      title="View Cash Out records"
+                      onClick={() => onNavigateToLedger(null)}
+                      title="View Journal-backed cash activity"
                     >
                       <ExternalLink className="h-3 w-3" />
-                      Cash Out
+                      General Ledger
                     </Button>
                   )}
                 </div>
@@ -14239,7 +14275,7 @@ function CashFlowStatementModule({
               rows={data.outflows}
               emptyLabel="No cash outflow transactions in selected period"
               colorClass="text-rose-400"
-              onDrillDown={onNavigateToCashOut}
+              onDrillDown={onNavigateToLedger}
             />
             <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Cash Outflows</span>
