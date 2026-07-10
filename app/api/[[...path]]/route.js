@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkoutService, normalizeCheckoutError } from '@/lib/checkout';
 import { generateCustomerCode } from '@/lib/customer-auth/customer-number';
-import { cashFlowService } from '@/lib/finance-reporting';
+import { cashFlowService, inventoryValuationService } from '@/lib/finance-reporting';
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
 import { districtService } from '@/lib/shipping/district-service';
@@ -187,6 +187,18 @@ function buildCashTransactionJournalDescription({
 
   const detail = detailParts.join(' · ').trim();
   return detail ? `${txnLabel}: ${detail}` : `${txnLabel}: ${financialAccountName?.trim() || txnLabel}`;
+}
+
+function isCogsAccount(account) {
+  const accountCode = String(account?.accountCode || '').trim();
+  const accountName = String(account?.accountName || '').trim().toLowerCase();
+  return accountCode === '5000' || accountName.includes('cost of goods sold') || accountName.includes('cogs');
+}
+
+function isFinishedGoodsInventoryAccount(account) {
+  const accountCode = String(account?.accountCode || '').trim();
+  const accountName = String(account?.accountName || '').trim().toLowerCase();
+  return accountCode === '1500' || accountName.includes('finished goods inventory');
 }
 
 async function handle(request, { params }) {
@@ -1320,6 +1332,14 @@ async function handle(request, { params }) {
       return NextResponse.json(result);
     }
 
+    // ---------- INVENTORY VALUATION ----------
+    if (segs[0] === 'inventoryvaluation' && method === 'GET') {
+      const url = new URL(request.url);
+      const search = url.searchParams.get('search') || '';
+      const result = await inventoryValuationService.buildReport({ search });
+      return NextResponse.json(result);
+    }
+
     // ---------- PROFIT & LOSS ----------
     if (segs[0] === 'profitloss' && method === 'GET') {
       const url = new URL(request.url);
@@ -1342,8 +1362,16 @@ async function handle(request, { params }) {
 
       if (!accounts.length) {
         return NextResponse.json({
-          revenueRows: [], expenseRows: [],
-          totalRevenue: 0, totalExpenses: 0, netProfit: 0,
+          revenueRows: [],
+          cogsRows: [],
+          operatingExpenseRows: [],
+          expenseRows: [],
+          totalRevenue: 0,
+          totalCogs: 0,
+          grossProfit: 0,
+          totalOperatingExpenses: 0,
+          totalExpenses: 0,
+          netProfit: 0,
         });
       }
 
@@ -1404,7 +1432,8 @@ async function handle(request, { params }) {
       }
 
       const revenueRows = [];
-      const expenseRows = [];
+      const cogsRows = [];
+      const operatingExpenseRows = [];
 
       for (const a of accounts) {
         const agg = aggMap[a.id];
@@ -1424,19 +1453,34 @@ async function handle(request, { params }) {
           amount,
           details: a.accountType === 'Expense' ? detailEntries : [],
         };
-        if (a.accountType === 'Revenue') revenueRows.push(row);
-        else expenseRows.push(row);
+
+        if (a.accountType === 'Revenue') {
+          revenueRows.push(row);
+        } else if (isCogsAccount(a)) {
+          cogsRows.push(row);
+        } else {
+          operatingExpenseRows.push(row);
+        }
       }
 
-      const totalRevenue = revenueRows.reduce((s, r) => s + r.amount, 0);
-      const totalExpenses = expenseRows.reduce((s, r) => s + r.amount, 0);
+      const totalRevenue = revenueRows.reduce((sum, row) => sum + row.amount, 0);
+      const totalCogs = cogsRows.reduce((sum, row) => sum + row.amount, 0);
+      const grossProfit = totalRevenue - totalCogs;
+      const totalOperatingExpenses = operatingExpenseRows.reduce((sum, row) => sum + row.amount, 0);
+      const totalExpenses = totalCogs + totalOperatingExpenses;
+      const netProfit = grossProfit - totalOperatingExpenses;
 
       return NextResponse.json({
         revenueRows,
-        expenseRows,
+        cogsRows,
+        operatingExpenseRows,
+        expenseRows: operatingExpenseRows,
         totalRevenue,
+        totalCogs,
+        grossProfit,
+        totalOperatingExpenses,
         totalExpenses,
-        netProfit: totalRevenue - totalExpenses,
+        netProfit,
       });
     }
 
@@ -1501,6 +1545,12 @@ async function handle(request, { params }) {
         }
       }
 
+      const inventoryValuation = await inventoryValuationService.buildReport();
+      const inventoryAssetRow = assetRows.find((row) => isFinishedGoodsInventoryAccount(row));
+      if (inventoryAssetRow) {
+        inventoryAssetRow.balance = inventoryValuation.totalInventoryValue;
+      }
+
       const currentYearEarnings = totalRevenue - totalExpenses;
       const totalAssets = assetRows.reduce((s, r) => s + r.balance, 0);
       const totalLiabilities = liabilityRows.reduce((s, r) => s + r.balance, 0);
@@ -1512,6 +1562,7 @@ async function handle(request, { params }) {
         assetRows, liabilityRows, equityRows,
         totalAssets, totalLiabilities, totalEquity,
         currentYearEarnings,
+        inventoryValuation: inventoryValuation.totalInventoryValue,
         isBalanced: difference < 0.01,
         difference,
       });

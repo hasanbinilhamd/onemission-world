@@ -82,6 +82,7 @@ function createExistingOrder({
         variantName: 'Onyx / Default',
         productImage: 'https://example.com/product.png',
         price: 250000,
+        costPrice: 100000,
         weight: 500,
         quantity: 2,
         subtotal: 500000,
@@ -189,6 +190,7 @@ function createOrderService({
     stockMovements: [],
     sentOrderEmails: [],
     salesJournals: [],
+    cogsJournals: [],
   };
 
   if (inventoryReserved && existingOrder?.items?.length) {
@@ -475,6 +477,25 @@ function createOrderService({
       store.salesJournals.push(journal);
       return { journal, action: 'CREATED' };
     },
+    postCogsJournal: async (order) => {
+      const existingJournal = store.cogsJournals.find((journal) => journal.orderId === order.id);
+      if (existingJournal) {
+        return { journal: existingJournal, action: 'FOUND' };
+      }
+
+      const amount = (order.items || []).reduce((sum, item) => {
+        const resolvedCostPrice = Number(item.costPrice || (item.productId === 'product-1' ? 100000 : 0));
+        return sum + (resolvedCostPrice * Number(item.quantity || 0));
+      }, 0);
+      const journal = {
+        id: `cogs-journal-${order.id}`,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        amount,
+      };
+      store.cogsJournals.push(journal);
+      return { journal, action: 'CREATED' };
+    },
   };
 
   const service = new OrderService({
@@ -506,6 +527,9 @@ test('creates an order from a paid payment attempt', async () => {
   assert.equal(store.salesJournals.length, 1);
   assert.equal(store.salesJournals[0].orderNumber, order.orderNumber);
   assert.equal(store.salesJournals[0].amount, order.grandTotal);
+  assert.equal(store.cogsJournals.length, 1);
+  assert.equal(store.cogsJournals[0].orderNumber, order.orderNumber);
+  assert.equal(store.cogsJournals[0].amount, 200000);
   assert.equal(store.sentOrderEmails.length, 1);
   assert.equal(store.sentOrderEmails[0].publicOrderNumber, order.publicOrderNumber);
 });
@@ -520,6 +544,7 @@ test('reuses the existing order for duplicate callbacks', async () => {
   assert.equal(order.publicOrderNumber, 'OM-H8LPW-XZ99F');
   assert.equal(store.inventory.quantity, 20);
   assert.equal(store.salesJournals.length, 1);
+  assert.equal(store.cogsJournals.length, 1);
 });
 
 test('copies immutable checkout item snapshots into order items', async () => {

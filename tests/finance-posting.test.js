@@ -11,7 +11,9 @@ function createService({ existingJournal = null, linkedCoa = null } = {}) {
   const chartOfAccounts = [
     { id: 'coa-bank', accountCode: '1200', accountName: 'Bank', accountType: 'Asset', isActive: true, allowTransaction: true },
     { id: 'coa-cash', accountCode: '1100', accountName: 'Cash', accountType: 'Asset', isActive: true, allowTransaction: true },
+    { id: 'coa-inventory', accountCode: '1500', accountName: 'Finished Goods Inventory', accountType: 'Asset', isActive: true, allowTransaction: true },
     { id: 'coa-sales', accountCode: '4100', accountName: 'Product Sales', accountType: 'Revenue', isActive: true, allowTransaction: true },
+    { id: 'coa-cogs', accountCode: '5000', accountName: 'Cost of Goods Sold', accountType: 'Expense', isActive: true, allowTransaction: true },
   ];
 
   const prismaClient = {
@@ -57,6 +59,11 @@ function createService({ existingJournal = null, linkedCoa = null } = {}) {
           return true;
         }) || null;
       },
+    },
+    product: {
+      findMany: async ({ where }) => [
+        { id: 'product-1', name: 'Pro Sport Legging', costPrice: 90000 },
+      ].filter((product) => where?.id?.in?.includes(product.id)),
     },
     $transaction: async (callback) => callback(prismaClient),
   };
@@ -123,4 +130,39 @@ test('reuses an existing sales journal for duplicate posting', async () => {
 
   assert.equal(result.action, 'FOUND');
   assert.equal(store.journals.length, 1);
+});
+
+test('posts a cogs journal after inventory deduction succeeds', async () => {
+  const { service, store } = createService();
+  const order = {
+    id: 'order-1',
+    orderNumber: 'ORD-202607-00012',
+    publicOrderNumber: 'OM-H8LPW-XZ99F',
+    createdAt: new Date('2026-07-10T00:00:00.000Z'),
+    paymentAttempt: {
+      settlementTime: new Date('2026-07-10T00:05:00.000Z'),
+    },
+    items: [
+      {
+        id: 'item-1',
+        productId: 'product-1',
+        productName: 'Pro Sport Legging',
+        quantity: 2,
+      },
+    ],
+  };
+
+  const result = await service.postCogsJournal(order);
+
+  assert.equal(result.action, 'CREATED');
+  assert.equal(store.createdJournal.journalSource, 'COGS');
+  assert.equal(store.createdJournal.referenceNumber, 'ORD-202607-00012');
+  assert.equal(store.createdJournal.totalDebit, 180000);
+  assert.equal(store.createdJournal.totalCredit, 180000);
+  assert.equal(store.createdJournal.lines.length, 2);
+  assert.equal(store.createdJournal.lines[0].chartOfAccountId, 'coa-cogs');
+  assert.equal(store.createdJournal.lines[0].debitAmount, 180000);
+  assert.equal(store.createdJournal.lines[1].chartOfAccountId, 'coa-inventory');
+  assert.equal(store.createdJournal.lines[1].creditAmount, 180000);
+  assert.match(store.createdJournal.description, /Automatic COGS Recognition/);
 });

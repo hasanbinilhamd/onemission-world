@@ -4475,12 +4475,34 @@ function TimelineModule({ activeModule }) {
 
 // =========== FINANCE ===========
 function FinanceModule({ activeModule }) {
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .split("T")[0];
+  const today = now.toISOString().split("T")[0];
+
   const [finance, setFinance] = useState([]);
+  const [inventoryValuation, setInventoryValuation] = useState(null);
+  const [profitability, setProfitability] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scenario, setScenario] = useState("Normal");
+
   const load = async () => {
     setLoading(true);
-    setFinance(await api.get("finance"));
+    const profitLossParams = new URLSearchParams({
+      from: firstOfMonth,
+      to: today,
+    });
+
+    const [financeRows, valuation, profitloss] = await Promise.all([
+      api.get("finance"),
+      api.get("inventoryvaluation"),
+      api.get("profitloss?" + profitLossParams.toString()),
+    ]);
+
+    setFinance(Array.isArray(financeRows) ? financeRows : []);
+    setInventoryValuation(valuation?.error ? null : valuation);
+    setProfitability(profitloss?.error ? null : profitloss);
     setLoading(false);
   };
 
@@ -4493,15 +4515,20 @@ function FinanceModule({ activeModule }) {
     Normal: 1.0,
     Pessimistic: 0.75,
   }[scenario];
-  const adjustedFinance = finance.map((f) => ({
-    ...f,
-    revenue: Math.round(f.revenue * scenarioMultiplier),
-    profit: Math.round(f.revenue * scenarioMultiplier - f.expenses),
+
+  const adjustedFinance = finance.map((entry) => ({
+    ...entry,
+    revenue: Math.round(Number(entry.revenue || 0) * scenarioMultiplier),
+    profit: Math.round(Number(entry.revenue || 0) * scenarioMultiplier - Number(entry.expenses || 0)),
   }));
 
-  const totalRev = adjustedFinance.reduce((s, f) => s + f.revenue, 0);
-  const totalExp = finance.reduce((s, f) => s + f.expenses, 0);
-  const totalProfit = totalRev - totalExp;
+  const forecastRevenue = adjustedFinance.reduce((sum, entry) => sum + Number(entry.revenue || 0), 0);
+  const forecastExpenses = finance.reduce((sum, entry) => sum + Number(entry.expenses || 0), 0);
+  const forecastProfit = forecastRevenue - forecastExpenses;
+  const currentInventoryValue = Number(inventoryValuation?.totalInventoryValue || 0);
+  const cogsThisMonth = Number(profitability?.totalCogs || 0);
+  const grossProfit = Number(profitability?.grossProfit || 0);
+  const netProfit = Number(profitability?.netProfit || 0);
 
   if (loading)
     return (
@@ -4510,7 +4537,7 @@ function FinanceModule({ activeModule }) {
           <div className="h-8 w-40 bg-muted/60 rounded animate-pulse mb-1" />
           <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
         </div>
-        <StatsSkeleton stats={4} showChart={true} />
+        <StatsSkeleton stats={6} showChart={true} />
       </div>
     );
 
@@ -4522,7 +4549,7 @@ function FinanceModule({ activeModule }) {
             Finance Center
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Revenue, expenses, cashflow, and forecasting
+            Revenue, COGS, inventory value, and profitability overview
           </p>
         </div>
         <Select value={scenario} onValueChange={setScenario}>
@@ -4537,51 +4564,65 @@ function FinanceModule({ activeModule }) {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
+        <Card>
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Revenue
+              Forecast Revenue
             </p>
-            <p className="text-2xl font-semibold mt-2">{fmtShort(totalRev)}</p>
+            <p className="text-2xl font-semibold mt-2">{fmtShort(forecastRevenue)}</p>
             <p className="text-xs text-emerald-400 mt-1">
               {((scenarioMultiplier - 1) * 100).toFixed(0)}% vs base
             </p>
           </CardContent>
         </Card>
-        <Card className="">
+        <Card>
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Expenses
+              Forecast Expenses
             </p>
-            <p className="text-2xl font-semibold mt-2">{fmtShort(totalExp)}</p>
+            <p className="text-2xl font-semibold mt-2">{fmtShort(forecastExpenses)}</p>
           </CardContent>
         </Card>
-        <Card className="">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Current Inventory Value
+            </p>
+            <p className="text-2xl font-semibold mt-2 text-blue-500">{fmtShort(currentInventoryValue)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              COGS This Month
+            </p>
+            <p className="text-2xl font-semibold mt-2 text-amber-500">{fmtShort(cogsThisMonth)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Gross Profit
+            </p>
+            <p className={`text-2xl font-semibold mt-2 ${grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+              {fmtShort(grossProfit)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Net Profit
             </p>
-            <p
-              className={`text-2xl font-semibold mt-2 ${totalProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}
-            >
-              {fmtShort(totalProfit)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="">
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Margin
-            </p>
-            <p className="text-2xl font-semibold mt-2">
-              {totalRev ? ((totalProfit / totalRev) * 100).toFixed(1) : 0}%
+            <p className={`text-2xl font-semibold mt-2 ${netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+              {fmtShort(netProfit)}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">
             Revenue · Expenses · Profit Trend
@@ -4638,7 +4679,7 @@ function FinanceModule({ activeModule }) {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Cashflow Projection</CardTitle>
           </CardHeader>
@@ -4677,42 +4718,96 @@ function FinanceModule({ activeModule }) {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card className="">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-base">Monthly Detail</CardTitle>
+            <CardTitle className="text-base">Current Month Profitability</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[260px]">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-muted-foreground uppercase">
-                  <tr>
-                    <th className="text-left py-2">Month</th>
-                    <th className="text-right">Revenue</th>
-                    <th className="text-right">Expenses</th>
-                    <th className="text-right">Profit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adjustedFinance.map((f) => (
-                    <tr key={f.id} className="border-b">
-                      <td className="py-2 font-medium">{f.month}</td>
-                      <td className="text-right">{fmtShort(f.revenue)}</td>
-                      <td className="text-right text-muted-foreground">
-                        {fmtShort(f.expenses)}
-                      </td>
-                      <td
-                        className={`text-right font-medium ${f.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}
-                      >
-                        {fmtShort(f.profit)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </ScrollArea>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <span className="text-muted-foreground">Revenue</span>
+                <span className="font-medium text-emerald-500">{fmt(profitability?.totalRevenue || 0)}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <span className="text-muted-foreground">Less: Cost of Goods Sold</span>
+                <span className="font-medium text-amber-500">{fmt(profitability?.totalCogs || 0)}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <span className="font-semibold">Gross Profit</span>
+                <span className={`font-semibold ${grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                  {fmt(grossProfit)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <span className="text-muted-foreground">Operating Expenses</span>
+                <span className="font-medium text-rose-400">{fmt(profitability?.totalOperatingExpenses || 0)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <span className="font-semibold">Net Profit</span>
+                <span className={`text-lg font-bold ${netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                  {fmt(netProfit)}
+                </span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle className="text-base">Inventory Valuation</CardTitle>
+              <CardDescription>
+                Current stock valued using Product Cost Price
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="border-blue-500/30 text-blue-500">
+              Total {fmt(currentInventoryValue)}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[720px]">
+              <thead>
+                <tr className="border-b border-border bg-[#F7F8FA]">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">SKU</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Current Stock</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Cost Price</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Inventory Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inventoryValuation?.rows?.length ? (
+                  inventoryValuation.rows.map((row) => (
+                    <tr key={row.id} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
+                      <td className="px-4 py-3 font-medium">{row.productName}</td>
+                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{row.sku}</td>
+                      <td className="px-4 py-3 text-right">{row.currentStock}</td>
+                      <td className="px-4 py-3 text-right">{fmt(row.costPrice)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-blue-500">{fmt(row.inventoryValue)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      No current inventory valuation data available.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="bg-[#F7F8FA] font-semibold">
+                  <td className="px-4 py-3" colSpan={4}>Total Inventory Value</td>
+                  <td className="px-4 py-3 text-right text-blue-500">{fmt(currentInventoryValue)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -10380,7 +10475,7 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
     load();
   }, [dateFrom, dateTo]);
 
-  const AccountTable = ({ rows, emptyLabel }) => (
+  const AccountTable = ({ rows, emptyLabel, amountColor = "" }) => (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
@@ -10435,7 +10530,7 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
                     </div>
                   ) : null}
                 </td>
-                <td className="px-4 py-3 text-right font-medium">
+                <td className={`px-4 py-3 text-right font-medium ${amountColor}`}>
                   {fmt(Math.max(row.amount, 0))}
                 </td>
                 <td className="px-4 py-3">
@@ -10461,7 +10556,6 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
@@ -10472,29 +10566,18 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="Export PDF (coming soon)"
-          >
+          <Button variant="outline" size="sm" disabled title="Export PDF (coming soon)">
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export PDF
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="Export Excel (coming soon)"
-          >
+          <Button variant="outline" size="sm" disabled title="Export Excel (coming soon)">
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export Excel
           </Button>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card className="">
+      <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1.5">
@@ -10530,26 +10613,35 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
         </CardContent>
       </Card>
 
-      {/* Summary Cards */}
       {data && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <Card>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                Total Revenue
+                Revenue
               </p>
               <p className="text-xl font-semibold text-emerald-500 mt-1">
                 {fmt(data.totalRevenue)}
               </p>
             </CardContent>
           </Card>
-          <Card className="">
+          <Card>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                Total Expenses
+                COGS
               </p>
-              <p className="text-xl font-semibold text-rose-400 mt-1">
-                {fmt(data.totalExpenses)}
+              <p className="text-xl font-semibold text-amber-500 mt-1">
+                {fmt(data.totalCogs)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Gross Profit
+              </p>
+              <p className={`text-xl font-semibold mt-1 ${data.grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                {fmt(Math.abs(data.grossProfit))}
               </p>
             </CardContent>
           </Card>
@@ -10558,9 +10650,7 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Net Profit
               </p>
-              <p
-                className={`text-xl font-semibold mt-1 ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
-              >
+              <p className={`text-xl font-semibold mt-1 ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
                 {data.netProfit < 0 ? "-" : ""}
                 {fmt(Math.abs(data.netProfit))}
               </p>
@@ -10572,28 +10662,24 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            Generating report...
-          </span>
+          <span className="text-sm text-muted-foreground">Generating report...</span>
         </div>
       ) : data ? (
         <div className="space-y-4">
-          {/* Revenue Section */}
-          <Card className="">
+          <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-emerald-500" />
                   Revenue
                 </CardTitle>
-                <span className="text-sm font-semibold text-emerald-500">
-                  {fmt(data.totalRevenue)}
-                </span>
+                <span className="text-sm font-semibold text-emerald-500">{fmt(data.totalRevenue)}</span>
               </div>
             </CardHeader>
             <AccountTable
               rows={data.revenueRows}
               emptyLabel="No revenue accounts with posted transactions"
+              amountColor="text-emerald-500"
             />
             <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
               <span className="text-muted-foreground">Total Revenue</span>
@@ -10601,33 +10687,68 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
             </div>
           </Card>
 
-          {/* Expense Section */}
-          <Card className="">
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="h-4 w-4 text-amber-500" />
+                  Cost of Goods Sold
+                </CardTitle>
+                <span className="text-sm font-semibold text-amber-500">{fmt(data.totalCogs)}</span>
+              </div>
+            </CardHeader>
+            <AccountTable
+              rows={data.cogsRows || []}
+              emptyLabel="No COGS accounts with posted transactions"
+              amountColor="text-amber-500"
+            />
+            <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
+              <span className="text-muted-foreground">Total COGS</span>
+              <span className="text-amber-500">{fmt(data.totalCogs)}</span>
+            </div>
+          </Card>
+
+          <Card className={`border-2 ${data.grossProfit >= 0 ? "border-blue-500/40 bg-blue-500/5" : "border-rose-500/40 bg-rose-500/5"}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                    Gross Profit
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Revenue − Cost of Goods Sold
+                  </p>
+                </div>
+                <p className={`text-2xl font-bold ${data.grossProfit >= 0 ? "text-blue-500" : "text-rose-400"}`}>
+                  {data.grossProfit < 0 ? "-" : ""}
+                  {fmt(Math.abs(data.grossProfit))}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                   <TrendingDown className="h-4 w-4 text-rose-400" />
-                  Expenses
+                  Operating Expenses
                 </CardTitle>
-                <span className="text-sm font-semibold text-rose-400">
-                  {fmt(data.totalExpenses)}
-                </span>
+                <span className="text-sm font-semibold text-rose-400">{fmt(data.totalOperatingExpenses)}</span>
               </div>
             </CardHeader>
             <AccountTable
-              rows={data.expenseRows}
-              emptyLabel="No expense accounts with posted transactions"
+              rows={data.operatingExpenseRows || []}
+              emptyLabel="No operating expense accounts with posted transactions"
+              amountColor="text-rose-400"
             />
             <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
-              <span className="text-muted-foreground">Total Expenses</span>
-              <span className="text-rose-400">{fmt(data.totalExpenses)}</span>
+              <span className="text-muted-foreground">Total Operating Expenses</span>
+              <span className="text-rose-400">{fmt(data.totalOperatingExpenses)}</span>
             </div>
           </Card>
 
-          {/* Net Profit Row */}
-          <Card
-            className={`border-2 ${data.netProfit >= 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}
-          >
+          <Card className={`border-2 ${data.netProfit >= 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -10635,12 +10756,10 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
                     Net Profit / (Loss)
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Total Revenue − Total Expenses
+                    Gross Profit − Operating Expenses
                   </p>
                 </div>
-                <p
-                  className={`text-2xl font-bold ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
-                >
+                <p className={`text-2xl font-bold ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
                   {data.netProfit < 0 ? "-" : ""}
                   {fmt(Math.abs(data.netProfit))}
                 </p>
@@ -10653,6 +10772,7 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
   );
 }
 
+// =========== BALANCE SHEET ===========
 // =========== BALANCE SHEET ===========
 function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL, activeModule }) {
   const today = new Date().toISOString().split("T")[0];
