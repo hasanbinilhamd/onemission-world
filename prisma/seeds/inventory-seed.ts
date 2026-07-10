@@ -1,9 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import {
-  INVENTORY_MOVEMENT_TYPE,
-  INVENTORY_PERFORMED_BY,
-  INVENTORY_REFERENCE_TYPE,
-} from '../../lib/inventory/movement-service';
 
 // ─── Product IDs (from product-seed.ts — DO NOT MODIFY) ─────────────────────
 const PRODUCT_UDEL_OFF_LEGGING_ID         = '05f9c1f5-fdbd-4d9a-9a46-10ed5840d612';
@@ -167,11 +162,14 @@ const INVENTORY_ROWS = [
 ];
 
 // ─── Seed Function (exported so seed runner can await it) ───────────────────
+// Seed scripts must remain independent from the application runtime.
+// Inventory seeding writes deterministic inventory rows only.
+// Stock movements are reserved for business transactions inside the app.
 async function seedInventory(prisma) {
   console.log('Seeding deterministic inventory...');
 
   for (const row of INVENTORY_ROWS) {
-    const inventory = await prisma.inventory.upsert({
+    await prisma.inventory.upsert({
       where: {
         productId_color_size: {
           productId: row.productId,
@@ -186,51 +184,6 @@ async function seedInventory(prisma) {
       },
       create: row,
     });
-
-    if (row.quantity > 0) {
-      await prisma.stockMovement.upsert({
-        where: {
-          id: `initial-stock-${inventory.id}`,
-        },
-        update: {
-          itemType: 'PRODUCT',
-          inventoryId: inventory.id,
-          productId: inventory.productId,
-          color: inventory.color,
-          size: inventory.size,
-          movementDate: new Date().toISOString().split('T')[0],
-          movementType: INVENTORY_MOVEMENT_TYPE.INITIAL_STOCK,
-          quantity: row.quantity,
-          quantityChanged: row.quantity,
-          previousQuantity: 0,
-          newQuantity: row.quantity,
-          notes: 'Initial inventory seed',
-          referenceType: INVENTORY_REFERENCE_TYPE.SEED,
-          referenceId: inventory.id,
-          referenceNumber: inventory.id,
-          performedBy: INVENTORY_PERFORMED_BY.SYSTEM,
-        },
-        create: {
-          id: `initial-stock-${inventory.id}`,
-          itemType: 'PRODUCT',
-          inventoryId: inventory.id,
-          productId: inventory.productId,
-          color: inventory.color,
-          size: inventory.size,
-          movementDate: new Date().toISOString().split('T')[0],
-          movementType: INVENTORY_MOVEMENT_TYPE.INITIAL_STOCK,
-          quantity: row.quantity,
-          quantityChanged: row.quantity,
-          previousQuantity: 0,
-          newQuantity: row.quantity,
-          notes: 'Initial inventory seed',
-          referenceType: INVENTORY_REFERENCE_TYPE.SEED,
-          referenceId: inventory.id,
-          referenceNumber: inventory.id,
-          performedBy: INVENTORY_PERFORMED_BY.SYSTEM,
-        },
-      });
-    }
   }
 
   console.log('Deterministic inventory seeded successfully.');

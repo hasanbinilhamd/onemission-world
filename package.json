@@ -11,6 +11,7 @@
         "start": "next start",
         "db:migrate": "prisma migrate dev",
         "db:seed": "prisma db seed",
+        "seed:inventory": "tsx prisma/seeds/inventory-seed.ts",
         "seed:uat": "tsx testing/seeds/uat-seed.ts",
         "seed:products": "tsx prisma/seeds/product-seed.ts",
         "seed:inventory": "tsx prisma/seeds/inventory-seed.ts",
