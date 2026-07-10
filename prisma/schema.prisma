@@ -331,21 +331,41 @@ model FinancialAccount {
   cashTransactions CashTransaction[]
 }
 
+model ExpenseCategory {
+  id               String            @id
+  name             String            @unique
+  description      String            @default("")
+  status           String            @default("Active")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  cashTransactions CashTransaction[]
+}
+
 model CashTransaction {
-  id                 String           @id
-  transactionDate    String
-  transactionType    String
-  financialAccountId String
-  financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id])
-  chartOfAccountId   String
-  chartOfAccount     ChartOfAccount   @relation(fields: [chartOfAccountId], references: [id])
-  amount             Float
-  referenceNumber    String           @default("")
-  description        String           @default("")
-  attachment         String           @default("")
-  createdBy          String           @default("")
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  id                  String            @id
+  transactionDate     String
+  transactionType     String
+  financialAccountId  String
+  financialAccount    FinancialAccount  @relation(fields: [financialAccountId], references: [id])
+  chartOfAccountId    String
+  chartOfAccount      ChartOfAccount    @relation(fields: [chartOfAccountId], references: [id])
+  expenseCategoryId   String?
+  expenseCategory     ExpenseCategory?  @relation(fields: [expenseCategoryId], references: [id])
+  expenseCategoryName String            @default("")
+  amount              Float
+  referenceNumber     String            @default("")
+  description         String            @default("")
+  vendor              String            @default("")
+  paymentMethod       String            @default("")
+  attachment          String            @default("")
+  notes               String            @default("")
+  createdBy           String            @default("")
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([expenseCategoryId])
+  @@index([transactionType])
+  @@index([transactionDate])
 }
 
 model JournalEntry {

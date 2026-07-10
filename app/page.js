@@ -66,6 +66,8 @@ import {
   FileText,
   UserCog,
   RefreshCw,
+  ArrowUpDown,
+  Paperclip,
 } from "lucide-react";
 import {
   TableSkeleton,
@@ -147,6 +149,14 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -315,6 +325,69 @@ function NumberInput({
   );
 }
 
+const CASH_OUT_PAYMENT_METHODS = [
+  "Cash",
+  "Bank Transfer",
+  "E-Wallet",
+  "QRIS",
+  "Other",
+];
+const CASH_ATTACHMENT_ACCEPT = ".pdf,.jpg,.jpeg,.png";
+const CASH_ATTACHMENT_MAX_SIZE = 4 * 1024 * 1024;
+
+function inferAttachmentType(url) {
+  const normalized = String(url || "").trim();
+  if (!normalized) return "";
+  if (normalized.startsWith("data:")) {
+    return normalized.slice(5, normalized.indexOf(";"));
+  }
+  if (/\.pdf($|\?)/i.test(normalized)) return "application/pdf";
+  if (/\.(jpg|jpeg)($|\?)/i.test(normalized)) return "image/jpeg";
+  if (/\.png($|\?)/i.test(normalized)) return "image/png";
+  return "";
+}
+
+function parseAttachment(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.url) {
+      return {
+        name: parsed.name || "attachment",
+        type: parsed.type || inferAttachmentType(parsed.url),
+        url: parsed.url,
+      };
+    }
+  } catch {
+    // Ignore legacy non-JSON attachment values
+  }
+
+  return {
+    name: raw.split("/").pop()?.split("?")[0] || "attachment",
+    type: inferAttachmentType(raw),
+    url: raw,
+  };
+}
+
+function serializeAttachment(file, url) {
+  return JSON.stringify({
+    name: file.name,
+    type: file.type,
+    url,
+  });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Failed to read attachment."));
+    reader.readAsDataURL(file);
+  });
+}
+
 const api = {
   async login(email, password) {
     const r = await fetch("/api/auth/login", {
@@ -399,6 +472,7 @@ const NAV_GROUPS = [
         label: "Financial Accounts",
         icon: DollarSign,
       },
+      { id: "expensecategories", label: "Expense Categories", icon: FileText },
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "journalentries", label: "Journal Entries", icon: ClipboardList },
@@ -5802,41 +5876,489 @@ function FinancialAccountModal({
   );
 }
 
+// =========== EXPENSE CATEGORIES ===========
+
+function resolveCashTransactionActor() {
+  if (typeof window === "undefined") return "SYSTEM";
+  try {
+    const rawUser = window.localStorage.getItem("om_user");
+    if (!rawUser) return "SYSTEM";
+    const parsedUser = JSON.parse(rawUser);
+    return parsedUser?.email || parsedUser?.name || parsedUser?.id || "SYSTEM";
+  } catch {
+    return "SYSTEM";
+  }
+}
+
+function resolvePaymentMethodFromAccountType(accountType) {
+  if (accountType === "Cash") return "Cash";
+  if (accountType === "Bank") return "Bank Transfer";
+  if (accountType === "E-Wallet") return "E-Wallet";
+  return "Other";
+}
+
+function AttachmentPreview({ attachment }) {
+  if (!attachment?.url) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
+        No attachment uploaded.
+      </div>
+    );
+  }
+
+  if (attachment.type === "application/pdf") {
+    return (
+      <iframe
+        title={attachment.name || "Attachment preview"}
+        src={attachment.url}
+        className="w-full h-[360px] rounded-xl border border-border bg-white"
+      />
+    );
+  }
+
+  if (attachment.type?.startsWith("image/")) {
+    return (
+      <div className="rounded-xl border border-border bg-white p-3">
+        <img
+          src={attachment.url}
+          alt={attachment.name || "Attachment preview"}
+          className="w-full max-h-[360px] object-contain rounded-lg"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
+      Preview is not available for this attachment.
+    </div>
+  );
+}
+
+function ExpenseCategoriesModule({ activeModule }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [stats, setStats] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const load = async () => {
+    setLoading(true);
+    const qs = new URLSearchParams();
+    if (statusFilter !== "all") qs.append("status", statusFilter);
+    if (search.trim()) qs.append("search", search.trim());
+
+    const [data, statsData] = await Promise.all([
+      api.get("expensecategories" + (qs.toString() ? "?" + qs.toString() : "")),
+      api.get("expensecategories/stats"),
+    ]);
+
+    setItems(Array.isArray(data) ? data : []);
+    setStats(statsData && !statsData.error ? statsData : null);
+    setLoading(false);
+  };
+
+  useLazyModuleEffect(activeModule, "expensecategories", () => {
+    load();
+  }, [search, statusFilter]);
+
+  const save = async (form) => {
+    const payload = {
+      name: form.name?.trim() || "",
+      description: form.description?.trim() || "",
+      status: form.status || "Active",
+    };
+
+    const result = editing?.id
+      ? await api.put("expensecategories/" + editing.id, payload)
+      : await api.post("expensecategories", payload);
+
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(editing?.id ? "Expense category updated" : "Expense category created");
+    setShowForm(false);
+    setEditing(null);
+    load();
+  };
+
+  const updateStatus = async (item, status) => {
+    const result = await api.put("expensecategories/" + item.id, {
+      name: item.name,
+      description: item.description,
+      status,
+    });
+
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(status === "Archived" ? "Expense category archived" : "Expense category restored");
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const result = await api.del("expensecategories/" + deleteTarget.id);
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Expense category deleted");
+    setDeleteTarget(null);
+    load();
+  };
+
+  const paginated = items;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-48 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <StatsSkeleton stats={3} showChart={false} />
+        <TableSkeleton rows={8} cols={5} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Expense Categories
+          </h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+            Maintain the category master used by Cash Out operational expenses
+          </p>
+        </div>
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setShowForm(true);
+          }}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" /> New Category
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Categories</p>
+            <p className="text-2xl font-semibold mt-1">{stats?.total || items.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Active</p>
+            <p className="text-2xl font-semibold mt-1 text-emerald-500">{stats?.active || 0}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Archived</p>
+            <p className="text-2xl font-semibold mt-1 text-amber-500">{stats?.archived || 0}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            placeholder="Search category name or description..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Archived">Archived</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-[#F7F8FA]">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Category</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Used In Cash Out</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                <th className="px-4 py-3 w-10" />
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                    <FileText className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                    No expense categories found.
+                  </td>
+                </tr>
+              ) : (
+                paginated.map((item) => {
+                  const isArchived = item.status === "Archived";
+                  return (
+                    <tr
+                      key={item.id}
+                      className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="font-medium text-[#111827]">{item.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Created {item.createdAt ? new Date(item.createdAt).toLocaleDateString("id-ID") : "—"}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground max-w-[320px]">
+                        <p className="line-clamp-2">{item.description || "—"}</p>
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium">
+                        {item._count?.cashTransactions || 0}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          variant="outline"
+                          className={
+                            isArchived
+                              ? "border-amber-500/40 text-amber-500"
+                              : "border-emerald-500/40 text-emerald-500"
+                          }
+                        >
+                          {item.status || "Active"}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setEditing(item);
+                                setShowForm(true);
+                              }}
+                            >
+                              <Edit3 className="h-4 w-4 mr-2" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => updateStatus(item, isArchived ? "Active" : "Archived")}
+                            >
+                              {isArchived ? (
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                              ) : (
+                                <Archive className="h-4 w-4 mr-2" />
+                              )}
+                              {isArchived ? "Restore" : "Archive"}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setDeleteTarget(item)}
+                              className="text-rose-400"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <ExpenseCategoryFormDialog
+        open={showForm}
+        onOpenChange={(value) => {
+          setShowForm(value);
+          if (!value) setEditing(null);
+        }}
+        initial={editing}
+        onSave={save}
+      />
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(value) => !value && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Expense Category</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <span className="font-medium text-foreground">{deleteTarget?.name}</span>? This can only be done when the category is not used by any Cash Out transaction.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-500 hover:bg-rose-600 text-white"
+              onClick={confirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function ExpenseCategoryFormDialog({ open, onOpenChange, initial, onSave }) {
+  const empty = {
+    name: "",
+    description: "",
+    status: "Active",
+  };
+  const [form, setForm] = useState(empty);
+
+  useEffect(() => {
+    setForm(initial ? { ...empty, ...initial } : empty);
+  }, [initial, open]);
+
+  const submit = async () => {
+    if (!form.name?.trim()) {
+      toast.error("Category name is required");
+      return;
+    }
+    await onSave(form);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{initial?.id ? "Edit Expense Category" : "New Expense Category"}</DialogTitle>
+          <DialogDescription>Control the category master used by Cash Out.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>
+              Category Name <span className="text-rose-400">*</span>
+            </Label>
+            <Input
+              value={form.name || ""}
+              onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))}
+              placeholder="e.g. Utilities"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Textarea
+              value={form.description || ""}
+              onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))}
+              placeholder="Optional description for this category"
+              rows={3}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Status</Label>
+            <Select
+              value={form.status || "Active"}
+              onValueChange={(value) => setForm((current) => ({ ...current, status: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={submit}>{initial?.id ? "Save Changes" : "Create Category"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // =========== CASH MANAGEMENT ===========
 const PAGE_SIZE_CASH = 15;
 
 function CashTransactionModule({ type, activeModule }) {
-  const label = type === "IN" ? "Cash In" : "Cash Out";
+  const isExpenseMode = type === "OUT";
+  const label = isExpenseMode ? "Cash Out" : "Cash In";
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [financialAccounts, setFinancialAccounts] = useState([]);
   const [coaAccounts, setCoaAccounts] = useState([]);
+  const [expenseCategories, setExpenseCategories] = useState([]);
   const [open, setOpen] = useState(false);
-  const [viewOpen, setViewOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [viewItem, setViewItem] = useState(null);
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [sortBy, setSortBy] = useState("transactionDate");
+  const [sortDirection, setSortDirection] = useState("desc");
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
+  const buildEmptyForm = () => ({
+    transactionDate: new Date().toISOString().split("T")[0],
+    transactionType: type,
+    financialAccountId: "",
+    chartOfAccountId: "",
+    expenseCategoryId: "",
+    amount: 0,
+    referenceNumber: "",
+    description: "",
+    vendor: "",
+    paymentMethod: isExpenseMode ? "Other" : "",
+    attachment: "",
+    notes: "",
+    createdBy: resolveCashTransactionActor(),
+  });
+
   const load = async () => {
     setLoading(true);
-    const [txns, fas, coas] = await Promise.all([
+    const [txns, fas, coas, categories] = await Promise.all([
       api.get("cashtransactions?type=" + type),
       api.get("financialaccounts"),
       api.get("chartofaccounts"),
+      isExpenseMode ? api.get("expensecategories") : Promise.resolve([]),
     ]);
     setItems(Array.isArray(txns) ? txns : []);
-    setFinancialAccounts(
-      Array.isArray(fas) ? fas.filter((f) => f.isActive) : [],
-    );
+    setFinancialAccounts(Array.isArray(fas) ? fas.filter((account) => account.isActive) : []);
     setCoaAccounts(
       Array.isArray(coas)
-        ? coas.filter((c) => c.allowTransaction && c.isActive)
+        ? coas.filter((account) => account.allowTransaction && account.isActive)
         : [],
     );
+    setExpenseCategories(Array.isArray(categories) ? categories : []);
     setLoading(false);
   };
 
@@ -5844,34 +6366,98 @@ function CashTransactionModule({ type, activeModule }) {
     load();
   }, [type]);
 
-  const emptyForm = {
-    transactionDate: new Date().toISOString().split("T")[0],
-    transactionType: type,
-    financialAccountId: "",
-    chartOfAccountId: "",
-    amount: 0,
-    referenceNumber: "",
-    description: "",
-    attachment: "",
-    createdBy: "",
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortBy(field);
+    setSortDirection(field === "amount" ? "desc" : "asc");
   };
 
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const rows = items.filter((item) => {
+      const attachment = parseAttachment(item.attachment);
+      const matchSearch = !query || [
+        item.referenceNumber,
+        item.description,
+        item.notes,
+        item.vendor,
+        item.paymentMethod,
+        item.expenseCategoryName,
+        item.financialAccount?.name,
+        item.chartOfAccount?.accountName,
+        attachment?.name,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+      const matchFrom = !dateFrom || item.transactionDate >= dateFrom;
+      const matchTo = !dateTo || item.transactionDate <= dateTo;
+      return matchSearch && matchFrom && matchTo;
+    });
+
+    rows.sort((left, right) => {
+      const direction = sortDirection === "asc" ? 1 : -1;
+      const leftValue = (() => {
+        if (sortBy === "amount") return Number(left.amount || 0);
+        if (sortBy === "financialAccount") return left.financialAccount?.name || "";
+        if (sortBy === "expenseCategory") return left.expenseCategoryName || "";
+        return left.transactionDate || "";
+      })();
+      const rightValue = (() => {
+        if (sortBy === "amount") return Number(right.amount || 0);
+        if (sortBy === "financialAccount") return right.financialAccount?.name || "";
+        if (sortBy === "expenseCategory") return right.expenseCategoryName || "";
+        return right.transactionDate || "";
+      })();
+
+      if (typeof leftValue === "number" && typeof rightValue === "number") {
+        return (leftValue - rightValue) * direction;
+      }
+
+      return String(leftValue).localeCompare(String(rightValue)) * direction;
+    });
+
+    return rows;
+  }, [items, search, dateFrom, dateTo, sortBy, sortDirection]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE_CASH));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE_CASH, safePage * PAGE_SIZE_CASH);
+
+  const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const currentMonthPrefix = new Date().toISOString().slice(0, 7);
+  const monthAmount = items
+    .filter((item) => item.transactionDate?.startsWith(currentMonthPrefix))
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const categorizedCount = isExpenseMode
+    ? items.filter((item) => item.expenseCategoryName?.trim()).length
+    : 0;
+  const amountClass = isExpenseMode ? "text-rose-500" : "text-emerald-500";
+
   const save = async (data) => {
-    let result;
-    if (editing?.id) {
-      result = await api.put("cashtransactions/" + editing.id, data);
-    } else {
-      result = await api.post("cashtransactions", data);
-    }
+    const selectedFinancialAccount = financialAccounts.find((account) => account.id === data.financialAccountId);
+    const payload = {
+      ...data,
+      transactionType: type,
+      createdBy: editing?.createdBy || resolveCashTransactionActor(),
+      paymentMethod: isExpenseMode
+        ? data.paymentMethod || resolvePaymentMethodFromAccountType(selectedFinancialAccount?.type)
+        : "",
+    };
+
+    const result = editing?.id
+      ? await api.put("cashtransactions/" + editing.id, payload)
+      : await api.post("cashtransactions", payload);
+
     if (result?.error) {
       toast.error(result.error);
       return;
     }
-    toast.success(
-      editing?.id
-        ? label + " transaction updated"
-        : label + " transaction created",
-    );
+
+    toast.success(editing?.id ? `${label} transaction updated` : `${label} transaction created`);
     setOpen(false);
     setEditing(null);
     load();
@@ -5879,44 +6465,37 @@ function CashTransactionModule({ type, activeModule }) {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-    await api.del("cashtransactions/" + deleteTarget.id);
+    const result = await api.del("cashtransactions/" + deleteTarget.id);
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
     toast.success("Transaction deleted");
     setDeleteTarget(null);
     load();
   };
 
-  const filtered = items.filter((t) => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      !search ||
-      t.referenceNumber?.toLowerCase().includes(q) ||
-      t.description?.toLowerCase().includes(q) ||
-      t.financialAccount?.name?.toLowerCase().includes(q) ||
-      t.chartOfAccount?.accountName?.toLowerCase().includes(q);
-    const matchFrom = !dateFrom || t.transactionDate >= dateFrom;
-    const matchTo = !dateTo || t.transactionDate <= dateTo;
-    return matchSearch && matchFrom && matchTo;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE_CASH));
-  const safePage = Math.min(page, totalPages);
-  const paginated = filtered.slice(
-    (safePage - 1) * PAGE_SIZE_CASH,
-    safePage * PAGE_SIZE_CASH,
+  const SortButton = ({ field, label: buttonLabel, align = "left" }) => (
+    <button
+      type="button"
+      onClick={() => handleSort(field)}
+      className={`inline-flex items-center gap-1 ${align === "right" ? "justify-end w-full" : ""}`}
+    >
+      <span>{buttonLabel}</span>
+      <ArrowUpDown className={`h-3.5 w-3.5 ${sortBy === field ? "text-foreground" : "text-muted-foreground/60"}`} />
+    </button>
   );
 
-  const totalAmount = items.reduce((s, t) => s + (t.amount || 0), 0);
-  const now = new Date();
-  const monthStr =
-    now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
-  const monthAmount = items
-    .filter((t) => t.transactionDate?.startsWith(monthStr))
-    .reduce((s, t) => s + (t.amount || 0), 0);
+  const statusBadge = (status) => (
+    <Badge
+      variant="outline"
+      className={status === "Posted" ? "border-emerald-500/40 text-emerald-500" : "border-amber-500/40 text-amber-500"}
+    >
+      {status || "Recorded"}
+    </Badge>
+  );
 
-  const isIn = type === "IN";
-  const amtClass = isIn ? "text-emerald-500" : "text-rose-500";
-
-  if (loading)
+  if (loading) {
     return (
       <div className="space-y-6">
         <div>
@@ -5924,67 +6503,75 @@ function CashTransactionModule({ type, activeModule }) {
           <div className="h-4 w-64 bg-muted/40 rounded animate-pulse" />
         </div>
         <StatsSkeleton stats={3} showChart={false} />
-        <TableSkeleton rows={8} cols={6} />
+        <TableSkeleton rows={8} cols={isExpenseMode ? 10 : 7} />
       </div>
     );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             {label}
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            {isIn
-              ? "Record incoming cash and bank receipts"
-              : "Record outgoing cash and bank payments"}
+            {isExpenseMode
+              ? "Record and manage operational expenses in one place while journals stay automatic"
+              : "Record incoming cash and bank receipts"}
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-          className="gap-2"
-        >
-          <Plus className="h-4 w-4" /> New {label}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={load}>
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" /> New {label}
+          </Button>
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Card className="">
+      <div className={`grid grid-cols-1 ${isExpenseMode ? "sm:grid-cols-4" : "sm:grid-cols-3"} gap-3`}>
+        <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Transactions</p>
             <p className="text-2xl font-semibold mt-1">{items.length}</p>
           </CardContent>
         </Card>
-        <Card className="">
+        <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Amount</p>
-            <p className={"text-xl font-semibold mt-1 " + amtClass}>
-              {fmtShort(totalAmount)}
-            </p>
+            <p className={`text-xl font-semibold mt-1 ${amountClass}`}>{fmtShort(totalAmount)}</p>
           </CardContent>
         </Card>
-        <Card className="col-span-2 sm:col-span-1">
+        <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">This Month</p>
-            <p className={"text-xl font-semibold mt-1 " + amtClass}>
-              {fmtShort(monthAmount)}
-            </p>
+            <p className={`text-xl font-semibold mt-1 ${amountClass}`}>{fmtShort(monthAmount)}</p>
           </CardContent>
         </Card>
+        {isExpenseMode && (
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Categorized</p>
+              <p className="text-xl font-semibold mt-1 text-blue-500">{categorizedCount}</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
+      <div className="flex flex-col lg:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-8"
-            placeholder="Search by reference, description, or account..."
+            placeholder={isExpenseMode ? "Search category, vendor, description, reference, or account..." : "Search by reference, description, or account..."}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -5994,7 +6581,7 @@ function CashTransactionModule({ type, activeModule }) {
         </div>
         <Input
           type="date"
-          className="w-full sm:w-36"
+          className="w-full lg:w-40"
           value={dateFrom}
           onChange={(e) => {
             setDateFrom(e.target.value);
@@ -6003,7 +6590,7 @@ function CashTransactionModule({ type, activeModule }) {
         />
         <Input
           type="date"
-          className="w-full sm:w-36"
+          className="w-full lg:w-40"
           value={dateTo}
           onChange={(e) => {
             setDateTo(e.target.value);
@@ -6026,138 +6613,235 @@ function CashTransactionModule({ type, activeModule }) {
         )}
       </div>
 
-      {/* Table */}
-      <Card className="">
+      <Card>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                  Date
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                  Reference
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                  Financial Account
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                  COA Account
-                </th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
-                  Amount
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
-                  Description
-                </th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-12 text-center text-muted-foreground"
-                  >
-                    <DollarSign className="h-8 w-8 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm">
-                      No {label.toLowerCase()} transactions yet
-                    </p>
-                  </td>
+          {isExpenseMode ? (
+            <table className="w-full text-sm min-w-[1220px]">
+              <thead>
+                <tr className="border-b border-border bg-[#F7F8FA]">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    <SortButton field="transactionDate" label="Date" />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    <SortButton field="expenseCategory" label="Category" />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Vendor</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    <SortButton field="financialAccount" label="Financial Account" />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Payment Method</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    <SortButton field="amount" label="Amount" align="right" />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Attachment</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 w-10" />
                 </tr>
-              ) : (
-                paginated.map((t) => (
-                  <tr
-                    key={t.id}
-                    className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
-                  >
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {t.transactionDate}
-                    </td>
-                    <td className="px-4 py-3">
-                      {t.referenceNumber ? (
-                        <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                          {t.referenceNumber}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {t.financialAccount?.name || "—"}
-                      {t.financialAccount && (
-                        <span className="text-xs text-muted-foreground ml-1">
-                          ({t.financialAccount.type})
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-muted-foreground mr-1">
-                        {t.chartOfAccount?.accountCode}
-                      </span>
-                      {t.chartOfAccount?.accountName}
-                    </td>
-                    <td
-                      className={
-                        "px-4 py-3 text-right font-semibold whitespace-nowrap " +
-                        amtClass
-                      }
-                    >
-                      {fmt(t.amount)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-[180px] truncate hidden md:table-cell">
-                      {t.description || "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          title="View"
-                          onClick={() => {
-                            setViewItem(t);
-                            setViewOpen(true);
-                          }}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          title="Edit"
-                          onClick={() => {
-                            setEditing(t);
-                            setOpen(true);
-                          }}
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-rose-400 hover:text-rose-500"
-                          title="Delete"
-                          onClick={() => setDeleteTarget(t)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+              </thead>
+              <tbody>
+                {paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
+                      <Wallet className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">No Cash Out transactions found.</p>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  paginated.map((item) => {
+                    const attachment = parseAttachment(item.attachment);
+                    return (
+                      <tr
+                        key={item.id}
+                        className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setViewItem(item);
+                          setDetailOpen(true);
+                        }}
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap">{item.transactionDate}</td>
+                        <td className="px-4 py-3">
+                          {item.expenseCategoryName ? (
+                            <Badge variant="outline" className="border-blue-500/30 text-blue-500">
+                              {item.expenseCategoryName}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 max-w-[260px]">
+                          <div className="space-y-1">
+                            <p className="font-medium text-[#111827] truncate">{item.description || "—"}</p>
+                            {item.referenceNumber ? (
+                              <p className="text-xs text-muted-foreground font-mono truncate">
+                                {item.referenceNumber}
+                              </p>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{item.vendor || "—"}</td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium">{item.financialAccount?.name || "—"}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{item.financialAccount?.type || "—"}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{item.paymentMethod || "—"}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-rose-500 whitespace-nowrap">{fmt(item.amount)}</td>
+                        <td className="px-4 py-3">
+                          {attachment ? (
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 text-xs text-blue-500 hover:underline"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setViewItem(item);
+                                setDetailOpen(true);
+                              }}
+                            >
+                              <Paperclip className="h-3.5 w-3.5" />
+                              View
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">{statusBadge(item.systemJournal?.status || "Posted")}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 justify-end" onClick={(event) => event.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="View"
+                              onClick={() => {
+                                setViewItem(item);
+                                setDetailOpen(true);
+                              }}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Edit"
+                              onClick={() => {
+                                setEditing(item);
+                                setOpen(true);
+                              }}
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-rose-400 hover:text-rose-500"
+                              title="Delete"
+                              onClick={() => setDeleteTarget(item)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-[#F7F8FA]">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Reference</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Financial Account</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">COA Account</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Amount</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Description</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                      <DollarSign className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">No {label.toLowerCase()} transactions yet</p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map((item) => (
+                    <tr key={item.id} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
+                      <td className="px-4 py-3 whitespace-nowrap">{item.transactionDate}</td>
+                      <td className="px-4 py-3">
+                        {item.referenceNumber ? (
+                          <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{item.referenceNumber}</span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {item.financialAccount?.name || "—"}
+                        {item.financialAccount ? (
+                          <span className="text-xs text-muted-foreground ml-1">({item.financialAccount.type})</span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-muted-foreground mr-1">{item.chartOfAccount?.accountCode}</span>
+                        {item.chartOfAccount?.accountName}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap text-emerald-500">{fmt(item.amount)}</td>
+                      <td className="px-4 py-3 text-muted-foreground max-w-[180px] truncate hidden md:table-cell">{item.description || "—"}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="View"
+                            onClick={() => {
+                              setViewItem(item);
+                              setDetailOpen(true);
+                            }}
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="Edit"
+                            onClick={() => {
+                              setEditing(item);
+                              setOpen(true);
+                            }}
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-rose-400 hover:text-rose-500"
+                            title="Delete"
+                            onClick={() => setDeleteTarget(item)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
             <span className="text-xs text-muted-foreground">
-              Showing {(safePage - 1) * PAGE_SIZE_CASH + 1}–
-              {Math.min(safePage * PAGE_SIZE_CASH, filtered.length)} of{" "}
-              {filtered.length}
+              Showing {(safePage - 1) * PAGE_SIZE_CASH + 1}–{Math.min(safePage * PAGE_SIZE_CASH, filtered.length)} of {filtered.length}
             </span>
             <div className="flex gap-1">
               <Button
@@ -6165,7 +6849,7 @@ function CashTransactionModule({ type, activeModule }) {
                 size="sm"
                 className="h-7 px-2"
                 disabled={safePage === 1}
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => setPage((current) => current - 1)}
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
@@ -6174,7 +6858,7 @@ function CashTransactionModule({ type, activeModule }) {
                 size="sm"
                 className="h-7 px-2"
                 disabled={safePage === totalPages}
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => setPage((current) => current + 1)}
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
@@ -6183,42 +6867,33 @@ function CashTransactionModule({ type, activeModule }) {
         )}
       </Card>
 
-      {/* Create / Edit Modal */}
       <CashTransactionModal
         open={open}
-        onOpenChange={(v) => {
-          setOpen(v);
-          if (!v) setEditing(null);
+        onOpenChange={(value) => {
+          setOpen(value);
+          if (!value) setEditing(null);
         }}
-        initial={editing || emptyForm}
+        initial={editing || buildEmptyForm()}
         financialAccounts={financialAccounts}
         coaAccounts={coaAccounts}
+        expenseCategories={expenseCategories}
         transactionType={type}
         onSave={save}
       />
 
-      {/* View Modal */}
-      <CashTransactionViewModal
-        open={viewOpen}
-        onOpenChange={setViewOpen}
+      <CashTransactionDetailSheet
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
         item={viewItem}
       />
 
-      {/* Delete Confirmation */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(v) => !v && setDeleteTarget(null)}
-      >
+      <AlertDialog open={!!deleteTarget} onOpenChange={(value) => !value && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this {label.toLowerCase()}{" "}
-              transaction
-              {deleteTarget?.referenceNumber
-                ? " (" + deleteTarget.referenceNumber + ")"
-                : ""}
-              ? This action cannot be undone.
+              Are you sure you want to delete this {label.toLowerCase()} transaction
+              {deleteTarget?.referenceNumber ? ` (${deleteTarget.referenceNumber})` : ""}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -6242,33 +6917,78 @@ function CashTransactionModal({
   initial,
   financialAccounts,
   coaAccounts,
+  expenseCategories,
   transactionType,
   onSave,
 }) {
+  const isExpenseMode = transactionType === "OUT";
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
 
   useEffect(() => {
     setForm(initial);
     setErrors({});
+    setAttachmentBusy(false);
   }, [initial, open]);
 
-  const update = (k, v) => {
-    setForm((f) => ({ ...f, [k]: v }));
-    if (errors[k]) setErrors((e) => ({ ...e, [k]: null }));
+  const update = (key, value) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    if (errors[key]) {
+      setErrors((current) => ({ ...current, [key]: null }));
+    }
   };
 
   const validate = () => {
-    const errs = {};
-    if (!form.transactionDate) errs.transactionDate = "Date is required";
-    if (!form.financialAccountId)
-      errs.financialAccountId = "Financial account is required";
-    if (!form.chartOfAccountId)
-      errs.chartOfAccountId = "COA account is required";
-    if (!form.amount || Number(form.amount) <= 0)
-      errs.amount = "Amount must be greater than 0";
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
+    const nextErrors = {};
+    if (!form.transactionDate) nextErrors.transactionDate = "Date is required";
+    if (!form.financialAccountId) nextErrors.financialAccountId = "Financial account is required";
+    if (!form.chartOfAccountId) nextErrors.chartOfAccountId = "COA account is required";
+    if (!form.amount || Number(form.amount) <= 0) nextErrors.amount = "Amount must be greater than 0";
+    if (isExpenseMode && !form.expenseCategoryId) nextErrors.expenseCategoryId = "Expense category is required";
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleFinancialAccountChange = (value) => {
+    const selectedFinancialAccount = financialAccounts.find((account) => account.id === value);
+    update("financialAccountId", value);
+    if (isExpenseMode) {
+      update(
+        "paymentMethod",
+        form.paymentMethod || resolvePaymentMethodFromAccountType(selectedFinancialAccount?.type),
+      );
+    }
+  };
+
+  const handleAttachmentChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Only PDF, JPG, and PNG files are allowed.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > CASH_ATTACHMENT_MAX_SIZE) {
+      toast.error("Attachment size must be 4 MB or less.");
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      setAttachmentBusy(true);
+      const dataUrl = await readFileAsDataUrl(file);
+      update("attachment", serializeAttachment(file, dataUrl));
+      toast.success("Attachment uploaded");
+    } catch (error) {
+      toast.error(error.message || "Failed to upload attachment.");
+    } finally {
+      setAttachmentBusy(false);
+      event.target.value = "";
+    }
   };
 
   const handleSave = () => {
@@ -6278,32 +6998,38 @@ function CashTransactionModal({
       transactionType,
       financialAccountId: form.financialAccountId,
       chartOfAccountId: form.chartOfAccountId,
+      expenseCategoryId: isExpenseMode ? form.expenseCategoryId || null : null,
       amount: Number(form.amount),
       referenceNumber: form.referenceNumber?.trim() || "",
       description: form.description?.trim() || "",
+      vendor: isExpenseMode ? form.vendor?.trim() || "" : "",
+      paymentMethod: isExpenseMode ? form.paymentMethod?.trim() || "Other" : "",
       attachment: form.attachment?.trim() || "",
-      createdBy: form.createdBy?.trim() || "",
+      notes: isExpenseMode ? form.notes?.trim() || "" : "",
+      createdBy: form.createdBy?.trim() || resolveCashTransactionActor(),
     });
   };
 
+  const attachment = parseAttachment(form.attachment);
+  const activeCategories = expenseCategories.filter(
+    (category) => category.status === "Active" || category.id === form.expenseCategoryId,
+  );
   const isEdit = !!initial?.id;
-  const typeLabel = transactionType === "IN" ? "Cash In" : "Cash Out";
+  const typeLabel = isExpenseMode ? "Cash Out" : "Cash In";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            {isEdit ? "Edit " + typeLabel : "New " + typeLabel}
-          </DialogTitle>
+          <DialogTitle>{isEdit ? `Edit ${typeLabel}` : `New ${typeLabel}`}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? "Update this " + typeLabel.toLowerCase() + " transaction"
-              : "Record a new " + typeLabel.toLowerCase() + " transaction"}
+            {isExpenseMode
+              ? "Record operational expenses while keeping journals and reports automatic."
+              : "Record incoming cash and bank receipts."}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-          {/* Transaction Date */}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
             <Label>
               Transaction Date <span className="text-rose-400">*</span>
@@ -6311,117 +7037,173 @@ function CashTransactionModal({
             <Input
               type="date"
               value={form.transactionDate || ""}
-              onChange={(e) => update("transactionDate", e.target.value)}
+              onChange={(event) => update("transactionDate", event.target.value)}
               className={errors.transactionDate ? "border-rose-500" : ""}
             />
-            {errors.transactionDate && (
-              <p className="text-xs text-rose-400">{errors.transactionDate}</p>
-            )}
+            {errors.transactionDate ? <p className="text-xs text-rose-400">{errors.transactionDate}</p> : null}
           </div>
 
-          {/* Financial Account */}
+          {isExpenseMode ? (
+            <div className="space-y-1.5">
+              <Label>
+                Expense Category <span className="text-rose-400">*</span>
+              </Label>
+              <Select value={form.expenseCategoryId || ""} onValueChange={(value) => update("expenseCategoryId", value)}>
+                <SelectTrigger className={errors.expenseCategoryId ? "border-rose-500" : ""}>
+                  <SelectValue placeholder="Select expense category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                      {category.status === "Archived" ? " (Archived)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.expenseCategoryId ? <p className="text-xs text-rose-400">{errors.expenseCategoryId}</p> : null}
+            </div>
+          ) : null}
+
           <div className="space-y-1.5">
             <Label>
               Financial Account <span className="text-rose-400">*</span>
             </Label>
-            <Select
-              value={form.financialAccountId || ""}
-              onValueChange={(v) => update("financialAccountId", v)}
-            >
-              <SelectTrigger
-                className={errors.financialAccountId ? "border-rose-500" : ""}
-              >
+            <Select value={form.financialAccountId || ""} onValueChange={handleFinancialAccountChange}>
+              <SelectTrigger className={errors.financialAccountId ? "border-rose-500" : ""}>
                 <SelectValue placeholder="Select financial account" />
               </SelectTrigger>
               <SelectContent>
-                {financialAccounts.map((fa) => (
-                  <SelectItem key={fa.id} value={fa.id}>
-                    {fa.name}
-                    <span className="text-muted-foreground ml-1 text-xs">
-                      ({fa.type})
-                    </span>
+                {financialAccounts.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.name} ({account.type})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.financialAccountId && (
-              <p className="text-xs text-rose-400">
-                {errors.financialAccountId}
-              </p>
-            )}
+            {errors.financialAccountId ? <p className="text-xs text-rose-400">{errors.financialAccountId}</p> : null}
           </div>
 
-          {/* COA Account */}
           <div className="space-y-1.5">
             <Label>
               COA Account <span className="text-rose-400">*</span>
             </Label>
-            <Select
-              value={form.chartOfAccountId || ""}
-              onValueChange={(v) => update("chartOfAccountId", v)}
-            >
-              <SelectTrigger
-                className={errors.chartOfAccountId ? "border-rose-500" : ""}
-              >
-                <SelectValue placeholder="Select account (transactional only)" />
+            <Select value={form.chartOfAccountId || ""} onValueChange={(value) => update("chartOfAccountId", value)}>
+              <SelectTrigger className={errors.chartOfAccountId ? "border-rose-500" : ""}>
+                <SelectValue placeholder="Select COA account" />
               </SelectTrigger>
               <SelectContent>
-                {coaAccounts.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.accountCode} — {c.accountName}
+                {coaAccounts.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.accountCode} — {account.accountName}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.chartOfAccountId && (
-              <p className="text-xs text-rose-400">{errors.chartOfAccountId}</p>
-            )}
+            {errors.chartOfAccountId ? <p className="text-xs text-rose-400">{errors.chartOfAccountId}</p> : null}
           </div>
 
-          {/* Amount */}
           <div className="space-y-1.5">
             <Label>
               Amount <span className="text-rose-400">*</span>
             </Label>
             <NumberInput
               value={form.amount || 0}
-              onChange={(v) => update("amount", v)}
+              onChange={(value) => update("amount", value)}
               min={0}
               placeholder="0"
               className={errors.amount ? "border-rose-500" : ""}
             />
-            {errors.amount && (
-              <p className="text-xs text-rose-400">{errors.amount}</p>
-            )}
+            {errors.amount ? <p className="text-xs text-rose-400">{errors.amount}</p> : null}
           </div>
 
-          {/* Reference Number */}
+          {isExpenseMode ? (
+            <>
+              <div className="space-y-1.5">
+                <Label>Vendor</Label>
+                <Input
+                  value={form.vendor || ""}
+                  onChange={(event) => update("vendor", event.target.value)}
+                  placeholder="Optional vendor or payee"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Payment Method</Label>
+                <Select value={form.paymentMethod || "Other"} onValueChange={(value) => update("paymentMethod", value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CASH_OUT_PAYMENT_METHODS.map((method) => (
+                      <SelectItem key={method} value={method}>
+                        {method}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Informational only. Financial Account remains the accounting source.</p>
+              </div>
+            </>
+          ) : null}
+
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Description</Label>
+            <Textarea
+              value={form.description || ""}
+              onChange={(event) => update("description", event.target.value)}
+              placeholder={isExpenseMode ? "Describe the expense or payment purpose" : "Add receipt details or notes"}
+              rows={3}
+            />
+          </div>
+
           <div className="space-y-1.5">
             <Label>Reference Number</Label>
             <Input
               value={form.referenceNumber || ""}
-              onChange={(e) => update("referenceNumber", e.target.value)}
-              placeholder="e.g. INV-001, REC-2026-001"
+              onChange={(event) => update("referenceNumber", event.target.value)}
+              placeholder="Optional invoice or receipt number"
             />
           </div>
 
-          {/* Description */}
           <div className="space-y-1.5">
-            <Label>Description</Label>
-            <Textarea
-              value={form.description || ""}
-              onChange={(e) => update("description", e.target.value)}
-              placeholder="Add notes or description..."
-              rows={3}
-            />
+            <Label>Attachment</Label>
+            <Input type="file" accept={CASH_ATTACHMENT_ACCEPT} onChange={handleAttachmentChange} disabled={attachmentBusy} />
+            <p className="text-xs text-muted-foreground">PDF, JPG, or PNG · up to 4 MB</p>
+            {attachmentBusy ? (
+              <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading attachment...
+              </p>
+            ) : null}
+            {attachment ? (
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{attachment.name}</p>
+                  <p className="text-xs text-muted-foreground">{attachment.type || "Attachment uploaded"}</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => update("attachment", "")}>Remove</Button>
+              </div>
+            ) : null}
           </div>
+
+          {isExpenseMode ? (
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={form.notes || ""}
+                onChange={(event) => update("notes", event.target.value)}
+                placeholder="Optional supporting notes"
+                rows={3}
+              />
+            </div>
+          ) : null}
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            {isEdit ? "Save Changes" : "Create " + typeLabel}
+          <Button onClick={handleSave} disabled={attachmentBusy}>
+            {isEdit ? "Save Changes" : `Create ${typeLabel}`}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -6429,76 +7211,141 @@ function CashTransactionModal({
   );
 }
 
-function CashTransactionViewModal({ open, onOpenChange, item }) {
-  if (!item) return null;
-  const isIn = item.transactionType === "IN";
-  const rows = [
-    { label: "Date", value: item.transactionDate },
-    { label: "Type", value: isIn ? "Cash In" : "Cash Out" },
-    {
-      label: "Financial Account",
-      value: item.financialAccount
-        ? item.financialAccount.name + " (" + item.financialAccount.type + ")"
-        : "—",
-    },
-    {
-      label: "COA Account",
-      value: item.chartOfAccount
-        ? item.chartOfAccount.accountCode +
-          " — " +
-          item.chartOfAccount.accountName
-        : "—",
-    },
-    { label: "Amount", value: fmt(item.amount), highlight: true },
-    { label: "Reference", value: item.referenceNumber || "—" },
-    { label: "Description", value: item.description || "—" },
-    {
-      label: "Created",
-      value: item.createdAt
-        ? new Date(item.createdAt).toLocaleString("id-ID")
-        : "—",
-    },
-  ];
+function CashTransactionDetailSheet({ open, onOpenChange, item }) {
+  const attachment = parseAttachment(item?.attachment);
+  const journalReference = item?.systemJournal?.journalNumber || "—";
+  const status = item?.systemJournal?.status || "Recorded";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Transaction Detail</DialogTitle>
-          <DialogDescription>
-            {isIn ? "Cash In" : "Cash Out"} transaction record
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3 py-2">
-          {rows.map((r) => (
-            <div
-              key={r.label}
-              className="flex items-start justify-between gap-4 py-1 border-b border-[rgba(17,24,39,0.04)] last:border-0"
-            >
-              <span className="text-sm text-muted-foreground shrink-0 w-36">
-                {r.label}
-              </span>
-              <span
-                className={
-                  "text-sm font-medium text-right break-all " +
-                  (r.highlight
-                    ? isIn
-                      ? "text-emerald-500"
-                      : "text-rose-500"
-                    : "")
-                }
-              >
-                {r.value}
-              </span>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        {item ? (
+          <>
+            <SheetHeader className="text-left">
+              <SheetTitle className="flex items-center justify-between gap-3">
+                <span>{item.transactionType === "OUT" ? "Cash Out Detail" : "Cash In Detail"}</span>
+                <span className={`text-lg font-bold ${item.transactionType === "OUT" ? "text-rose-500" : "text-emerald-500"}`}>
+                  {fmt(item.amount)}
+                </span>
+              </SheetTitle>
+              <SheetDescription>
+                {item.transactionDate} · {item.referenceNumber || "No reference number"}
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Category</p>
+                      <p className="text-sm font-medium mt-1">{item.expenseCategoryName || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Vendor</p>
+                      <p className="text-sm font-medium mt-1">{item.vendor || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Payment Method</p>
+                      <p className="text-sm font-medium mt-1">{item.paymentMethod || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Status</p>
+                      <div className="mt-1">{status === "Posted" ? (
+                        <Badge variant="outline" className="border-emerald-500/40 text-emerald-500">Posted</Badge>
+                      ) : (
+                        <Badge variant="outline">{status}</Badge>
+                      )}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Financial Account</p>
+                      <p className="text-sm font-medium mt-1">{item.financialAccount?.name || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">COA Account</p>
+                      <p className="text-sm font-medium mt-1">
+                        {item.chartOfAccount ? `${item.chartOfAccount.accountCode} — ${item.chartOfAccount.accountName}` : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Journal Reference</p>
+                      <p className="text-sm font-medium mt-1">{journalReference}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Created By</p>
+                      <p className="text-sm font-medium mt-1">{item.createdBy || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Created At</p>
+                      <p className="text-sm font-medium mt-1">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleString("id-ID") : "—"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Full Description</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm leading-relaxed text-[#111827] whitespace-pre-wrap">
+                    {item.description || "—"}
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Reference Number</p>
+                      <p className="text-sm font-medium mt-1">{item.referenceNumber || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Notes</p>
+                      <p className="text-sm font-medium mt-1 whitespace-pre-wrap">{item.notes || "—"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Attachment Preview</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <AttachmentPreview attachment={attachment} />
+                  {attachment?.url ? (
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/10 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{attachment.name}</p>
+                        <p className="text-xs text-muted-foreground">{attachment.type || "Attachment"}</p>
+                      </div>
+                      <a
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-blue-500 hover:underline"
+                      >
+                        <ExternalLink className="h-4 w-4" /> Open
+                      </a>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
             </div>
-          ))}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+
+            <SheetFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+            </SheetFooter>
+          </>
+        ) : null}
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -9571,7 +10418,23 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
                     {row.accountCode}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-medium">{row.accountName}</td>
+                <td className="px-4 py-3">
+                  <div className="font-medium">{row.accountName}</div>
+                  {row.details?.length ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {row.details.slice(0, 4).map((detail) => (
+                        <span
+                          key={`${row.id}-${detail.label}`}
+                          className="inline-flex items-center gap-1 rounded-full border border-rose-500/15 bg-rose-500/5 px-2 py-0.5 text-[11px] text-rose-500"
+                          title={`${detail.label}: ${fmt(Math.abs(detail.amount))}`}
+                        >
+                          <span>{detail.label}</span>
+                          <span className="text-rose-500/80">{fmt(Math.abs(detail.amount))}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </td>
                 <td className="px-4 py-3 text-right font-medium">
                   {fmt(Math.max(row.amount, 0))}
                 </td>
@@ -14540,6 +15403,7 @@ function App() {
     finance: () => <FinanceModule activeModule={active} />,
     chartofaccounts: () => <ChartOfAccountsModule activeModule={active} />,
     financialaccounts: () => <FinancialAccountModule activeModule={active} />,
+    expensecategories: () => <ExpenseCategoriesModule activeModule={active} />,
     cashin: () => <CashTransactionModule type="IN" activeModule={active} />,
     cashout: () => <CashTransactionModule type="OUT" activeModule={active} />,
     journalentries: () => <JournalEntriesModule activeModule={active} />,

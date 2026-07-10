@@ -82,6 +82,19 @@ function createService() {
     },
   ];
 
+  const cashTransactions = [
+    {
+      id: 'cash-out-1',
+      expenseCategoryName: 'Operational',
+      expenseCategory: { name: 'Operational' },
+    },
+    {
+      id: 'cash-out-2',
+      expenseCategoryName: 'Marketing',
+      expenseCategory: { name: 'Marketing' },
+    },
+  ];
+
   const prismaClient = {
     financialAccount: {
       findMany: async ({ where }) => {
@@ -90,6 +103,9 @@ function createService() {
     },
     journalEntryLine: {
       findMany: async () => journalLines,
+    },
+    cashTransaction: {
+      findMany: async ({ where }) => cashTransactions.filter((transaction) => where?.id?.in?.includes(transaction.id)),
     },
   };
 
@@ -106,7 +122,7 @@ test('derives cash inflows and outflows from posted journal entries', async () =
   assert.equal(report.inflows[0].amount, 189000);
 
   assert.equal(report.outflows.length, 1);
-  assert.equal(report.outflows[0].source, 'Cash Out');
+  assert.equal(report.outflows[0].source, 'Marketing');
   assert.equal(report.outflows[0].amount, 50000);
 
   assert.equal(report.totalInflows, 189000);

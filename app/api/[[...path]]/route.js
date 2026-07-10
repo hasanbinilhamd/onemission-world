@@ -154,6 +154,41 @@ function buildCashJournalLines(txnType, faLinkedCoaId, chartOfAccountId, amount,
   }
 }
 
+function resolveExpenseCategoryName(category, fallbackName = '') {
+  return category?.name?.trim() || String(fallbackName || '').trim() || '';
+}
+
+function buildCashTransactionJournalDescription({
+  transactionType,
+  description,
+  referenceNumber,
+  vendor,
+  expenseCategoryName,
+  financialAccountName,
+}) {
+  const txnLabel = transactionType === 'IN' ? 'Cash In' : 'Cash Out';
+  const detailParts = [];
+
+  if (transactionType === 'OUT' && expenseCategoryName?.trim()) {
+    detailParts.push(expenseCategoryName.trim());
+  }
+
+  if (vendor?.trim()) {
+    detailParts.push(`Vendor: ${vendor.trim()}`);
+  }
+
+  if (referenceNumber?.trim()) {
+    detailParts.push(`Reference: ${referenceNumber.trim()}`);
+  }
+
+  if (description?.trim()) {
+    detailParts.push(description.trim());
+  }
+
+  const detail = detailParts.join(' · ').trim();
+  return detail ? `${txnLabel}: ${detail}` : `${txnLabel}: ${financialAccountName?.trim() || txnLabel}`;
+}
+
 async function handle(request, { params }) {
   const segs = params?.path || [];
   const method = request.method;
@@ -465,6 +500,129 @@ async function handle(request, { params }) {
       return NextResponse.json({ exists: !!existing });
     }
 
+    // ---------- EXPENSE CATEGORIES ----------
+    if (segs[0] === 'expensecategories') {
+      if (segs[1] === 'stats' && method === 'GET') {
+        const all = await prisma.expenseCategory.findMany({ select: { status: true } });
+        const total = all.length;
+        const active = all.filter((item) => (item.status || 'Active') === 'Active').length;
+        const archived = all.filter((item) => item.status === 'Archived').length;
+        return NextResponse.json({ total, active, archived });
+      }
+
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const search = url.searchParams.get('search') || '';
+        const status = url.searchParams.get('status') || 'all';
+        const where = {};
+
+        if (status !== 'all') {
+          where.status = status;
+        }
+
+        if (search.trim()) {
+          where.OR = [
+            { name: { contains: search.trim(), mode: 'insensitive' } },
+            { description: { contains: search.trim(), mode: 'insensitive' } },
+          ];
+        }
+
+        const docs = await prisma.expenseCategory.findMany({
+          where,
+          include: {
+            _count: { select: { cashTransactions: true } },
+          },
+          orderBy: [
+            { status: 'asc' },
+            { name: 'asc' },
+          ],
+        });
+        return NextResponse.json(docs);
+      }
+
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+        const name = String(body.name || '').trim();
+        const description = String(body.description || '').trim();
+        const status = body.status === 'Archived' ? 'Archived' : 'Active';
+
+        if (!name) {
+          return NextResponse.json({ error: 'name is required' }, { status: 400 });
+        }
+
+        const existing = await prisma.expenseCategory.findFirst({
+          where: { name: { equals: name, mode: 'insensitive' } },
+        });
+        if (existing) {
+          return NextResponse.json({ error: 'Expense category name already exists' }, { status: 400 });
+        }
+
+        const doc = await prisma.expenseCategory.create({
+          data: {
+            id: uuid(),
+            name,
+            description,
+            status,
+          },
+        });
+        return NextResponse.json(doc);
+      }
+
+      if (method === 'PUT' && segs.length === 2) {
+        const body = await readJson(request);
+        const existing = await prisma.expenseCategory.findUnique({ where: { id: segs[1] } });
+        if (!existing) {
+          return NextResponse.json({ error: 'Expense category not found' }, { status: 404 });
+        }
+
+        const name = body.name !== undefined ? String(body.name || '').trim() : existing.name;
+        const description = body.description !== undefined ? String(body.description || '').trim() : existing.description;
+        const status = body.status === 'Archived' ? 'Archived' : 'Active';
+
+        if (!name) {
+          return NextResponse.json({ error: 'name is required' }, { status: 400 });
+        }
+
+        const duplicate = await prisma.expenseCategory.findFirst({
+          where: {
+            id: { not: segs[1] },
+            name: { equals: name, mode: 'insensitive' },
+          },
+        });
+        if (duplicate) {
+          return NextResponse.json({ error: 'Expense category name already exists' }, { status: 400 });
+        }
+
+        const updated = await prisma.expenseCategory.update({
+          where: { id: segs[1] },
+          data: {
+            name,
+            description,
+            status,
+          },
+        });
+
+        await prisma.cashTransaction.updateMany({
+          where: { expenseCategoryId: segs[1] },
+          data: { expenseCategoryName: updated.name },
+        });
+
+        return NextResponse.json(updated);
+      }
+
+      if (method === 'DELETE' && segs.length === 2) {
+        const inUseCount = await prisma.cashTransaction.count({ where: { expenseCategoryId: segs[1] } });
+        if (inUseCount > 0) {
+          return NextResponse.json({
+            error: 'Expense category cannot be deleted because it is already used in cash out transactions',
+          }, { status: 400 });
+        }
+
+        await prisma.expenseCategory.delete({ where: { id: segs[1] } });
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     // ---------- CASH TRANSACTIONS ----------
     if (segs[0] === 'cashtransactions') {
       if (method === 'GET' && segs.length === 1) {
@@ -473,14 +631,48 @@ async function handle(request, { params }) {
         const where = type ? { transactionType: type } : {};
         const docs = await prisma.cashTransaction.findMany({
           where,
-          include: { financialAccount: true, chartOfAccount: true },
-          orderBy: { transactionDate: 'desc' },
+          include: {
+            financialAccount: true,
+            chartOfAccount: true,
+            expenseCategory: true,
+          },
+          orderBy: [
+            { transactionDate: 'desc' },
+            { createdAt: 'desc' },
+          ],
         });
-        return NextResponse.json(docs);
+
+        const journalSourceIds = docs.map((doc) => doc.id);
+        const journals = journalSourceIds.length
+          ? await prisma.journalEntry.findMany({
+              where: {
+                sourceId: { in: journalSourceIds },
+                journalType: 'System',
+              },
+              select: {
+                id: true,
+                sourceId: true,
+                journalNumber: true,
+                status: true,
+                description: true,
+                journalDate: true,
+              },
+            })
+          : [];
+        const journalMap = new Map(journals.map((journal) => [journal.sourceId, journal]));
+
+        return NextResponse.json(
+          docs.map((doc) => ({
+            ...doc,
+            systemJournal: journalMap.get(doc.id) || null,
+          })),
+        );
       }
 
       if (method === 'POST' && segs.length === 1) {
         const body = await readJson(request);
+        const transactionType = body.transactionType === 'IN' ? 'IN' : 'OUT';
+
         if (!body.transactionDate)
           return NextResponse.json({ error: 'transactionDate is required' }, { status: 400 });
         if (!body.financialAccountId)
@@ -502,52 +694,105 @@ async function handle(request, { params }) {
             error: 'Financial account has no linked COA account. Please configure it in Financial Accounts settings.',
           }, { status: 400 });
 
+        let expenseCategory = null;
+        let expenseCategoryName = '';
+        if (transactionType === 'OUT') {
+          if (!body.expenseCategoryId) {
+            return NextResponse.json({ error: 'expenseCategory is required for cash out' }, { status: 400 });
+          }
+
+          expenseCategory = await prisma.expenseCategory.findUnique({ where: { id: body.expenseCategoryId } });
+          if (!expenseCategory) {
+            return NextResponse.json({ error: 'Expense category not found' }, { status: 400 });
+          }
+
+          expenseCategoryName = resolveExpenseCategoryName(expenseCategory, body.expenseCategoryName);
+        }
+
+        const paymentMethod = transactionType === 'OUT' ? String(body.paymentMethod || '').trim() : '';
+        const description = String(body.description || '').trim();
+        const vendor = transactionType === 'OUT' ? String(body.vendor || '').trim() : '';
+        const notes = transactionType === 'OUT' ? String(body.notes || '').trim() : '';
+        const referenceNumber = String(body.referenceNumber || '').trim();
+        const attachment = String(body.attachment || '').trim();
+        const createdBy = String(body.createdBy || '').trim();
+        const amount = Number(body.amount);
+
         const doc = await prisma.cashTransaction.create({
           data: {
             id: uuid(),
             transactionDate: body.transactionDate,
-            transactionType: body.transactionType,
+            transactionType,
             financialAccountId: body.financialAccountId,
             chartOfAccountId: body.chartOfAccountId,
-            amount: Number(body.amount),
-            referenceNumber: body.referenceNumber || '',
-            description: body.description || '',
-            attachment: body.attachment || '',
-            createdBy: body.createdBy || '',
+            expenseCategoryId: expenseCategory?.id || null,
+            expenseCategoryName,
+            amount,
+            referenceNumber,
+            description,
+            vendor,
+            paymentMethod,
+            attachment,
+            notes,
+            createdBy,
           },
-          include: { financialAccount: true, chartOfAccount: true },
+          include: {
+            financialAccount: true,
+            chartOfAccount: true,
+            expenseCategory: true,
+          },
         });
 
-        // Auto-create journal entry (Posted, System)
         const journalNumber = await generateJournalNumber(body.transactionDate);
-        const amount = Number(body.amount);
-        const txnLabel = body.transactionType === 'IN' ? 'Cash In' : 'Cash Out';
-        const journalDesc = `${txnLabel}: ${body.description?.trim() || body.referenceNumber?.trim() || fa.name}`;
+        const txnLabel = transactionType === 'IN' ? 'Cash In' : 'Cash Out';
+        const journalDesc = buildCashTransactionJournalDescription({
+          transactionType,
+          description,
+          referenceNumber,
+          vendor,
+          expenseCategoryName,
+          financialAccountName: fa.name,
+        });
         const lines = buildCashJournalLines(
-          body.transactionType, fa.linkedCoaId, body.chartOfAccountId, amount, journalDesc
+          transactionType,
+          fa.linkedCoaId,
+          body.chartOfAccountId,
+          amount,
+          journalDesc,
         );
 
-        await prisma.journalEntry.create({
+        const journal = await prisma.journalEntry.create({
           data: {
             id: uuid(),
             journalNumber,
             journalDate: body.transactionDate,
             description: journalDesc,
-            referenceNumber: body.referenceNumber || '',
+            referenceNumber,
             journalSource: txnLabel,
             sourceId: doc.id,
             journalType: 'System',
             status: 'Posted',
             totalDebit: amount,
             totalCredit: amount,
-            createdBy: body.createdBy || '',
+            createdBy,
+            updatedBy: createdBy,
             lines: {
-              create: lines.map((l) => ({ id: uuid(), ...l })),
+              create: lines.map((line) => ({ id: uuid(), ...line })),
             },
+          },
+          select: {
+            id: true,
+            journalNumber: true,
+            status: true,
+            description: true,
+            journalDate: true,
           },
         });
 
-        return NextResponse.json(doc);
+        return NextResponse.json({
+          ...doc,
+          systemJournal: journal,
+        });
       }
 
       if (method === 'PUT' && segs.length === 2) {
@@ -561,9 +806,13 @@ async function handle(request, { params }) {
             return NextResponse.json({ error: 'Selected account does not allow transactions' }, { status: 400 });
         }
 
-        // Validate FA has linked COA
         const existingTxn = await prisma.cashTransaction.findUnique({ where: { id: segs[1] } });
-        const faId = body.financialAccountId || existingTxn?.financialAccountId;
+        if (!existingTxn) {
+          return NextResponse.json({ error: 'Cash transaction not found' }, { status: 404 });
+        }
+
+        const transactionType = body.transactionType === 'IN' ? 'IN' : existingTxn.transactionType;
+        const faId = body.financialAccountId || existingTxn.financialAccountId;
         const fa = faId ? await prisma.financialAccount.findUnique({ where: { id: faId } }) : null;
 
         if (fa && !fa.linkedCoaId)
@@ -571,33 +820,78 @@ async function handle(request, { params }) {
             error: 'Financial account has no linked COA account. Please configure it in Financial Accounts settings.',
           }, { status: 400 });
 
+        let expenseCategory = null;
+        let expenseCategoryName = existingTxn.expenseCategoryName || '';
+        if (transactionType === 'OUT') {
+          const expenseCategoryId = body.expenseCategoryId !== undefined
+            ? body.expenseCategoryId || null
+            : existingTxn.expenseCategoryId || null;
+
+          if (!expenseCategoryId) {
+            return NextResponse.json({ error: 'expenseCategory is required for cash out' }, { status: 400 });
+          }
+
+          expenseCategory = await prisma.expenseCategory.findUnique({ where: { id: expenseCategoryId } });
+          if (!expenseCategory) {
+            return NextResponse.json({ error: 'Expense category not found' }, { status: 400 });
+          }
+
+          expenseCategoryName = resolveExpenseCategoryName(expenseCategory, body.expenseCategoryName || existingTxn.expenseCategoryName);
+        }
+
         const updateData = {};
         if (body.transactionDate !== undefined) updateData.transactionDate = body.transactionDate;
         if (body.financialAccountId !== undefined) updateData.financialAccountId = body.financialAccountId;
         if (body.chartOfAccountId !== undefined) updateData.chartOfAccountId = body.chartOfAccountId;
         if (body.amount !== undefined) updateData.amount = Number(body.amount);
-        if (body.referenceNumber !== undefined) updateData.referenceNumber = body.referenceNumber;
-        if (body.description !== undefined) updateData.description = body.description;
-        if (body.attachment !== undefined) updateData.attachment = body.attachment;
-        if (body.createdBy !== undefined) updateData.createdBy = body.createdBy;
+        if (body.referenceNumber !== undefined) updateData.referenceNumber = String(body.referenceNumber || '').trim();
+        if (body.description !== undefined) updateData.description = String(body.description || '').trim();
+        if (body.attachment !== undefined) updateData.attachment = String(body.attachment || '').trim();
+        if (body.createdBy !== undefined) updateData.createdBy = String(body.createdBy || '').trim();
+        if (transactionType === 'OUT') {
+          updateData.expenseCategoryId = expenseCategory?.id || null;
+          updateData.expenseCategoryName = expenseCategoryName;
+          if (body.vendor !== undefined) updateData.vendor = String(body.vendor || '').trim();
+          if (body.paymentMethod !== undefined) updateData.paymentMethod = String(body.paymentMethod || '').trim();
+          if (body.notes !== undefined) updateData.notes = String(body.notes || '').trim();
+        } else {
+          updateData.expenseCategoryId = null;
+          updateData.expenseCategoryName = '';
+          updateData.vendor = '';
+          updateData.paymentMethod = '';
+          updateData.notes = '';
+        }
 
         const updated = await prisma.cashTransaction.update({
           where: { id: segs[1] },
           data: updateData,
-          include: { financialAccount: true, chartOfAccount: true },
+          include: {
+            financialAccount: true,
+            chartOfAccount: true,
+            expenseCategory: true,
+          },
         });
 
-        // Sync system journal if it exists
         const journal = await prisma.journalEntry.findFirst({
           where: { sourceId: segs[1], journalType: 'System' },
         });
 
         if (journal && fa?.linkedCoaId) {
           const amount = updated.amount;
-          const txnLabel = updated.transactionType === 'IN' ? 'Cash In' : 'Cash Out';
-          const journalDesc = `${txnLabel}: ${updated.description?.trim() || updated.referenceNumber?.trim() || updated.financialAccount?.name || ''}`;
+          const journalDesc = buildCashTransactionJournalDescription({
+            transactionType: updated.transactionType,
+            description: updated.description,
+            referenceNumber: updated.referenceNumber,
+            vendor: updated.vendor,
+            expenseCategoryName: updated.expenseCategoryName,
+            financialAccountName: updated.financialAccount?.name || fa.name,
+          });
           const newLines = buildCashJournalLines(
-            updated.transactionType, fa.linkedCoaId, updated.chartOfAccountId, amount, journalDesc
+            updated.transactionType,
+            fa.linkedCoaId,
+            updated.chartOfAccountId,
+            amount,
+            journalDesc,
           );
 
           await prisma.journalEntryLine.deleteMany({ where: { journalEntryId: journal.id } });
@@ -609,18 +903,35 @@ async function handle(request, { params }) {
               referenceNumber: updated.referenceNumber || '',
               totalDebit: amount,
               totalCredit: amount,
+              updatedBy: updated.createdBy || journal.createdBy || '',
               lines: {
-                create: newLines.map((l) => ({ id: uuid(), ...l })),
+                create: newLines.map((line) => ({ id: uuid(), ...line })),
               },
             },
           });
         }
 
-        return NextResponse.json(updated);
+        const latestJournal = journal
+          ? await prisma.journalEntry.findUnique({
+              where: { id: journal.id },
+              select: {
+                id: true,
+                sourceId: true,
+                journalNumber: true,
+                status: true,
+                description: true,
+                journalDate: true,
+              },
+            })
+          : null;
+
+        return NextResponse.json({
+          ...updated,
+          systemJournal: latestJournal,
+        });
       }
 
       if (method === 'DELETE' && segs.length === 2) {
-        // Remove related system journal first (cascade lines via DB)
         const journal = await prisma.journalEntry.findFirst({
           where: { sourceId: segs[1], journalType: 'System' },
         });
@@ -1041,16 +1352,55 @@ async function handle(request, { params }) {
           journalEntry: journalFilter,
           chartOfAccountId: { in: accounts.map((a) => a.id) },
         },
-        select: { chartOfAccountId: true, debitAmount: true, creditAmount: true },
+        select: {
+          chartOfAccountId: true,
+          debitAmount: true,
+          creditAmount: true,
+          journalEntry: {
+            select: {
+              journalSource: true,
+              sourceId: true,
+            },
+          },
+        },
       });
 
+      const cashOutSourceIds = [...new Set(
+        lines
+          .filter((line) => line.journalEntry?.journalSource === 'Cash Out' && line.journalEntry?.sourceId)
+          .map((line) => line.journalEntry.sourceId)
+      )];
+
+      const cashOutTransactions = cashOutSourceIds.length
+        ? await prisma.cashTransaction.findMany({
+            where: { id: { in: cashOutSourceIds } },
+            select: {
+              id: true,
+              expenseCategoryName: true,
+              expenseCategory: { select: { name: true } },
+            },
+          })
+        : [];
+      const cashOutMap = new Map(cashOutTransactions.map((transaction) => [transaction.id, transaction]));
+
       const aggMap = {};
+      const detailMap = {};
       for (const line of lines) {
         if (!aggMap[line.chartOfAccountId]) {
           aggMap[line.chartOfAccountId] = { totalDebit: 0, totalCredit: 0 };
         }
         aggMap[line.chartOfAccountId].totalDebit += line.debitAmount || 0;
         aggMap[line.chartOfAccountId].totalCredit += line.creditAmount || 0;
+
+        const categoryLabel = line.journalEntry?.journalSource === 'Cash Out'
+          ? resolveExpenseCategoryName(cashOutMap.get(line.journalEntry?.sourceId), 'Cash Out')
+          : line.journalEntry?.journalSource || 'Other';
+        const contribution = Number(line.debitAmount || 0) - Number(line.creditAmount || 0);
+
+        if (!detailMap[line.chartOfAccountId]) {
+          detailMap[line.chartOfAccountId] = {};
+        }
+        detailMap[line.chartOfAccountId][categoryLabel] = (detailMap[line.chartOfAccountId][categoryLabel] || 0) + contribution;
       }
 
       const revenueRows = [];
@@ -1059,12 +1409,21 @@ async function handle(request, { params }) {
       for (const a of accounts) {
         const agg = aggMap[a.id];
         if (!agg) continue;
-        // Revenue: normal balance is Credit → net = creditAmount - debitAmount
-        // Expense: normal balance is Debit   → net = debitAmount - creditAmount
         const amount = a.accountType === 'Revenue'
           ? agg.totalCredit - agg.totalDebit
           : agg.totalDebit - agg.totalCredit;
-        const row = { id: a.id, accountCode: a.accountCode, accountName: a.accountName, accountType: a.accountType, amount };
+        const detailEntries = Object.entries(detailMap[a.id] || {})
+          .filter(([, value]) => Math.abs(Number(value || 0)) > 0.009)
+          .map(([label, value]) => ({ label, amount: Number(value || 0) }))
+          .sort((left, right) => Math.abs(right.amount) - Math.abs(left.amount));
+        const row = {
+          id: a.id,
+          accountCode: a.accountCode,
+          accountName: a.accountName,
+          accountType: a.accountType,
+          amount,
+          details: a.accountType === 'Expense' ? detailEntries : [],
+        };
         if (a.accountType === 'Revenue') revenueRows.push(row);
         else expenseRows.push(row);
       }
