@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { commerceProductService, normalizeCommerceProductError } from '@/lib/commerce';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 function buildCommerceErrorResponse(error) {
   const normalized = normalizeCommerceProductError(error);
   return NextResponse.json(

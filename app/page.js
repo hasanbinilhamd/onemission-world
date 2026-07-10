@@ -1143,6 +1143,7 @@ function ProductsModule() {
   const [filter, setFilter] = useState("");
   const [category, setCategory] = useState("all");
   const [viewMode, setViewMode] = useState("card");
+  const [restoreTarget, setRestoreTarget] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -1200,6 +1201,12 @@ function ProductsModule() {
   const archive = async (p) => {
     await api.put("products/" + p.id, { ...p, status: "Archived" });
     toast.success("Archived");
+    load();
+  };
+  const restore = async (p) => {
+    await api.put("products/" + p.id, { ...p, status: "Active" });
+    toast.success("Product restored successfully.");
+    setRestoreTarget(null);
     load();
   };
 
@@ -1374,9 +1381,15 @@ function ProductsModule() {
                           <DropdownMenuItem onClick={() => duplicate(p)}>
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => archive(p)}>
-                            <Archive className="h-4 w-4 mr-2" /> Archive
-                          </DropdownMenuItem>
+                          {p.status === "Archived" ? (
+                            <DropdownMenuItem onClick={() => setRestoreTarget(p)}>
+                              <RefreshCw className="h-4 w-4 mr-2" /> Restore
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => archive(p)}>
+                              <Archive className="h-4 w-4 mr-2" /> Archive
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => del(p.id)}
@@ -1561,9 +1574,15 @@ function ProductsModule() {
                             <DropdownMenuItem onClick={() => duplicate(p)}>
                               <Copy className="h-4 w-4 mr-2" /> Duplicate
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => archive(p)}>
-                              <Archive className="h-4 w-4 mr-2" /> Archive
-                            </DropdownMenuItem>
+                            {p.status === "Archived" ? (
+                              <DropdownMenuItem onClick={() => setRestoreTarget(p)}>
+                                <RefreshCw className="h-4 w-4 mr-2" /> Restore
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => archive(p)}>
+                                <Archive className="h-4 w-4 mr-2" /> Archive
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => del(p.id)}
@@ -1600,6 +1619,23 @@ function ProductsModule() {
         initial={editing || empty}
         onSave={save}
       />
+
+      <AlertDialog open={!!restoreTarget} onOpenChange={(value) => { if (!value) setRestoreTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Product</AlertDialogTitle>
+            <AlertDialogDescription>
+              Restore {restoreTarget?.name ? `“${restoreTarget.name}”` : 'this product'} to Active so it becomes visible in Commerce again?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => restoreTarget && restore(restoreTarget)}>
+              Restore Product
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
