@@ -39,6 +39,15 @@ import { Textarea } from "@/components/ui/textarea";
 
 const FULFILLMENT_STATUSES = FULFILLMENT_STATUS_OPTIONS;
 
+// TEMPORARILY DISABLED
+// Picking is bypassed because current warehouse operation
+// is handled by a single operator.
+// Re-enable this helper mapping once warehouse workflow requires
+// separate Picking and Packing phases again.
+function getVisibleFulfillmentStatus(status) {
+  return status === FULFILLMENT_STATUS.PICKING ? FULFILLMENT_STATUS.PACKING : status;
+}
+
 const SORT_OPTIONS = [
   { value: "createdAt:desc", label: "Newest" },
   { value: "createdAt:asc", label: "Oldest" },
@@ -186,7 +195,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
 
   useEffect(() => {
     if (!order || !open) return;
-    setFulfillmentStatus(order.fulfillmentStatus || FULFILLMENT_STATUS.PENDING);
+    setFulfillmentStatus(getVisibleFulfillmentStatus(order.fulfillmentStatus || FULFILLMENT_STATUS.PENDING));
     setUpdatedBy(userName || "HQ Admin");
     setNotes("");
     setShipmentCourier(order.shipment?.courier || "");
@@ -245,7 +254,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
             <div className="flex items-center gap-2 flex-wrap justify-end">
               {paymentStatusBadge(order.payment?.status)}
               {orderStatusBadge(order.status)}
-              {fulfillmentStatusBadge(order.fulfillmentStatus)}
+              {fulfillmentStatusBadge(getVisibleFulfillmentStatus(order.fulfillmentStatus))}
             </div>
           </div>
         </DialogHeader>
@@ -322,7 +331,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
             <DetailRow label="Internal Order Number" value={order.orderNumber} />
             <DetailRow label="Public Order Number" value={order.publicOrderNumber} />
             <DetailRow label="Order Status" value={orderStatusBadge(order.status)} />
-            <DetailRow label="Fulfillment Status" value={fulfillmentStatusBadge(order.fulfillmentStatus)} />
+            <DetailRow label="Fulfillment Status" value={fulfillmentStatusBadge(getVisibleFulfillmentStatus(order.fulfillmentStatus))} />
             <DetailRow label="Subtotal" value={fmtCurrency(order.subtotal)} />
             <DetailRow label="Shipping" value={fmtCurrency(order.shippingCost)} />
             <DetailRow label="Discount" value={fmtCurrency(order.discount)} />
@@ -424,6 +433,13 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   const [showDetail, setShowDetail] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: DEFAULT_LIMIT, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
   const [summary, setSummary] = useState({ pending: 0, picking: 0, packing: 0, readyToShip: 0, shipped: 0, delivered: 0 });
+  const visibleSummary = useMemo(() => ({
+    pending: summary.pending,
+    packing: summary.packing + summary.picking,
+    readyToShip: summary.readyToShip,
+    shipped: summary.shipped,
+    delivered: summary.delivered,
+  }), [summary]);
   const [pendingReference, setPendingReference] = useState("");
 
   const [sortBy, sortOrder] = useMemo(() => sortValue.split(":"), [sortValue]);
@@ -538,14 +554,17 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         {[
-          { label: "Pending", value: summary.pending, icon: PackageCheck },
-          { label: "Picking", value: summary.picking, icon: Loader2 },
-          { label: "Packing", value: summary.packing, icon: PackageCheck },
-          { label: "Ready To Ship", value: summary.readyToShip, icon: Truck },
-          { label: "Shipped", value: summary.shipped, icon: Truck },
-          { label: "Delivered", value: summary.delivered, icon: CheckCircle2 },
+          { label: "Pending", value: visibleSummary.pending, icon: PackageCheck },
+          // TEMPORARILY DISABLED
+          // Picking is intentionally hidden in HQ while warehouse fulfillment
+          // starts directly from Packing. Historical Picking data is merged into
+          // the visible Packing summary for reporting continuity.
+          { label: "Packing", value: visibleSummary.packing, icon: PackageCheck },
+          { label: "Ready To Ship", value: visibleSummary.readyToShip, icon: Truck },
+          { label: "Shipped", value: visibleSummary.shipped, icon: Truck },
+          { label: "Delivered", value: visibleSummary.delivered, icon: CheckCircle2 },
         ].map((card) => {
           const Icon = card.icon;
           return (
@@ -691,7 +710,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
                       <td className="px-4 py-3 font-medium">{order.customerName}</td>
                       <td className="px-4 py-3 text-right font-medium">{fmtCurrency(order.totalAmount)}</td>
                       <td className="px-4 py-3">{paymentStatusBadge(order.paymentStatus)}</td>
-                      <td className="px-4 py-3">{fulfillmentStatusBadge(order.fulfillmentStatusLabel || order.fulfillmentStatus)}</td>
+                      <td className="px-4 py-3">{fulfillmentStatusBadge(getVisibleFulfillmentStatus(order.fulfillmentStatusLabel || order.fulfillmentStatus))}</td>
                       <td className="px-4 py-3 text-right">{order.totalItems}</td>
                     </tr>
                   ))}
