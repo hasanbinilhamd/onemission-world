@@ -11,9 +11,11 @@ function createService({ existingJournal = null, linkedCoa = null } = {}) {
   const chartOfAccounts = [
     { id: 'coa-bank', accountCode: '1200', accountName: 'Bank', accountType: 'Asset', isActive: true, allowTransaction: true },
     { id: 'coa-cash', accountCode: '1100', accountName: 'Cash', accountType: 'Asset', isActive: true, allowTransaction: true },
+    { id: 'coa-raw-material', accountCode: '1400', accountName: 'Raw Material Inventory', accountType: 'Asset', isActive: true, allowTransaction: true },
     { id: 'coa-inventory', accountCode: '1500', accountName: 'Finished Goods Inventory', accountType: 'Asset', isActive: true, allowTransaction: true },
     { id: 'coa-sales', accountCode: '4100', accountName: 'Product Sales', accountType: 'Revenue', isActive: true, allowTransaction: true },
     { id: 'coa-cogs', accountCode: '5000', accountName: 'Cost of Goods Sold', accountType: 'Expense', isActive: true, allowTransaction: true },
+    { id: 'coa-operational', accountCode: '6200', accountName: 'Operational Expense', accountType: 'Expense', isActive: true, allowTransaction: true },
   ];
 
   const prismaClient = {
@@ -165,4 +167,43 @@ test('posts a cogs journal after inventory deduction succeeds', async () => {
   assert.equal(store.createdJournal.lines[1].chartOfAccountId, 'coa-inventory');
   assert.equal(store.createdJournal.lines[1].creditAmount, 180000);
   assert.match(store.createdJournal.description, /Automatic COGS Recognition/);
+});
+
+test('posts a production result journal using material and additional production cost', async () => {
+  const { service, store } = createService();
+  const productionResult = {
+    id: 'result-1',
+    resultNumber: 'PR-20260710-00001',
+    totalMaterialCost: 560000,
+    laborCost: 100000,
+    factoryOverheadCost: 40000,
+    otherCost: 0,
+    totalProductionCost: 700000,
+    unitProductionCost: 7000,
+    createdAt: new Date('2026-07-10T09:00:00.000Z'),
+    productionOrder: {
+      actualQuantity: 100,
+      completedAt: new Date('2026-07-10T09:00:00.000Z'),
+      product: {
+        id: 'product-1',
+        name: 'Pro Sport Legging',
+      },
+    },
+  };
+
+  const result = await service.postProductionResultJournal(productionResult);
+
+  assert.equal(result.action, 'CREATED');
+  assert.equal(store.createdJournal.journalSource, 'Production');
+  assert.equal(store.createdJournal.referenceNumber, 'PR-20260710-00001');
+  assert.equal(store.createdJournal.totalDebit, 700000);
+  assert.equal(store.createdJournal.totalCredit, 700000);
+  assert.equal(store.createdJournal.lines.length, 3);
+  assert.equal(store.createdJournal.lines[0].chartOfAccountId, 'coa-inventory');
+  assert.equal(store.createdJournal.lines[0].debitAmount, 700000);
+  assert.equal(store.createdJournal.lines[1].chartOfAccountId, 'coa-raw-material');
+  assert.equal(store.createdJournal.lines[1].creditAmount, 560000);
+  assert.equal(store.createdJournal.lines[2].chartOfAccountId, 'coa-operational');
+  assert.equal(store.createdJournal.lines[2].creditAmount, 140000);
+  assert.match(store.createdJournal.description, /Production Result PR-20260710-00001/);
 });

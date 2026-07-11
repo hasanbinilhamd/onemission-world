@@ -44,6 +44,7 @@ model Inventory {
   color          String
   size           String
   quantity       Int
+  averageCost    Float           @default(0)
   threshold      Int
   incoming       Int
   status         String          @default("Active")
@@ -257,11 +258,17 @@ model ProductionOrder {
 }
 
 model ProductionResult {
-  id                String          @id
-  resultNumber      String          @unique
-  productionOrderId String          @unique
-  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id])
-  createdAt         DateTime        @default(now())
+  id                  String          @id
+  resultNumber        String          @unique
+  productionOrderId   String          @unique
+  productionOrder     ProductionOrder @relation(fields: [productionOrderId], references: [id])
+  totalMaterialCost   Float           @default(0)
+  laborCost           Float           @default(0)
+  factoryOverheadCost Float           @default(0)
+  otherCost           Float           @default(0)
+  totalProductionCost Float           @default(0)
+  unitProductionCost  Float           @default(0)
+  createdAt           DateTime        @default(now())
 
   @@index([productionOrderId])
 }

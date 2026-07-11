@@ -2288,6 +2288,12 @@ const MOVEMENT_TYPES = [
     bg: "bg-teal-500/10 text-teal-400",
   },
   {
+    value: "PRODUCTION_RESULT",
+    label: "Production Result",
+    color: "text-emerald-500",
+    bg: "bg-emerald-500/10 text-emerald-500",
+  },
+  {
     value: "PRODUCTION_OUT",
     label: "Production Out",
     color: "text-amber-400",
@@ -2309,7 +2315,7 @@ function movementTypeIcon(type) {
   if (type === "MANUAL_ADJUSTMENT") return Edit3;
   if (type === "PURCHASE_RECEIPT") return Package;
   if (type === "RETURN") return RefreshCw;
-  if (type === "PRODUCTION_IN" || type === "PRODUCTION_OUT") return Factory;
+  if (["PRODUCTION_IN", "PRODUCTION_OUT", "PRODUCTION_RESULT"].includes(type)) return Factory;
   if (type === "INITIAL_STOCK" || type === "OPENING") return PackageCheck;
   return SettingsIcon;
 }
@@ -2323,7 +2329,7 @@ function movementSourceMeta(movement) {
     return { key: "ORDER", label: "Order", bg: "bg-emerald-500/10 text-emerald-700" };
   }
 
-  if (referenceType === "PRODUCTION_ORDER" || movementType === "PRODUCTION_IN" || movementType === "PRODUCTION_OUT") {
+  if (referenceType === "PRODUCTION_ORDER" || ["PRODUCTION_IN", "PRODUCTION_OUT", "PRODUCTION_RESULT"].includes(movementType)) {
     return { key: "PRODUCTION", label: "Production", bg: "bg-amber-500/10 text-amber-700" };
   }
 
@@ -2497,7 +2503,8 @@ function StockMovementAdjustDialog({
                   {MOVEMENT_TYPES.filter(
                     (t) =>
                       t.value !== "ADJUSTMENT_IN" &&
-                      t.value !== "ADJUSTMENT_OUT",
+                      t.value !== "ADJUSTMENT_OUT" &&
+                      t.value !== "PRODUCTION_RESULT",
                   ).map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
@@ -2671,7 +2678,7 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
         summary.adjustmentMovements += 1;
       }
 
-      if (["PRODUCTION_IN", "PRODUCTION_OUT"].includes(movement.movementType)) {
+      if (["PRODUCTION_IN", "PRODUCTION_OUT", "PRODUCTION_RESULT"].includes(movement.movementType)) {
         summary.productionMovements += 1;
       }
     }
@@ -12112,7 +12119,13 @@ function ProductionOrderFormDialog({
 
 // =========== COMPLETE PRODUCTION DIALOG ===========
 function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
-  const [form, setForm] = useState({ actualQuantity: "", completionNotes: "" });
+  const [form, setForm] = useState({
+    actualQuantity: "",
+    laborCost: 0,
+    factoryOverheadCost: 0,
+    otherCost: 0,
+    completionNotes: "",
+  });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -12120,6 +12133,9 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
     if (open) {
       setForm({
         actualQuantity: order?.plannedQuantity ?? "",
+        laborCost: 0,
+        factoryOverheadCost: 0,
+        otherCost: 0,
         completionNotes: "",
       });
       setErr("");
@@ -12132,10 +12148,17 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
       setErr("Actual quantity must be greater than zero.");
       return;
     }
+    if (Number(form.laborCost || 0) < 0 || Number(form.factoryOverheadCost || 0) < 0 || Number(form.otherCost || 0) < 0) {
+      setErr("Optional production costs cannot be negative.");
+      return;
+    }
     setSaving(true);
     try {
       await onComplete({
         actualQuantity: Number(form.actualQuantity),
+        laborCost: Number(form.laborCost || 0),
+        factoryOverheadCost: Number(form.factoryOverheadCost || 0),
+        otherCost: Number(form.otherCost || 0),
         completionNotes: form.completionNotes,
       });
       onOpenChange(false);
@@ -12168,8 +12191,10 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
               <li>Deduct raw material stock based on BOM × actual quantity</li>
               <li>Increase product inventory by actual quantity</li>
               <li>
-                Auto-create PRODUCTION_OUT + PRODUCTION_IN stock movements
+                Auto-create PRODUCTION_OUT + PRODUCTION_RESULT stock movements
               </li>
+              <li>Calculate material cost and update weighted average product cost</li>
+              <li>Post production journal automatically</li>
               <li>Lock this order as Completed</li>
             </ul>
           </div>
@@ -12191,6 +12216,47 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
             <p className="text-xs text-muted-foreground mt-1">
               Planned: {order.plannedQuantity} units
             </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Labor Cost
+              </label>
+              <NumberInput
+                value={form.laborCost || 0}
+                onChange={(value) =>
+                  setForm((current) => ({ ...current, laborCost: value }))
+                }
+                min={0}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Factory Overhead
+              </label>
+              <NumberInput
+                value={form.factoryOverheadCost || 0}
+                onChange={(value) =>
+                  setForm((current) => ({ ...current, factoryOverheadCost: value }))
+                }
+                min={0}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Other Cost
+              </label>
+              <NumberInput
+                value={form.otherCost || 0}
+                onChange={(value) =>
+                  setForm((current) => ({ ...current, otherCost: value }))
+                }
+                min={0}
+                placeholder="0"
+              />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">
@@ -12584,7 +12650,7 @@ function ProductionResultsModule({ activeModule }) {
     ) || [];
   const productionIns =
     detailResult?.stockMovements?.filter(
-      (m) => m.movementType === "PRODUCTION_IN",
+      (m) => ["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType),
     ) || [];
 
   return (
@@ -12824,6 +12890,72 @@ function ProductionResultsModule({ activeModule }) {
                 </div>
               </div>
 
+              <div>
+                <SH>Production Cost Summary</SH>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Material Cost
+                      </p>
+                      <p className="text-lg font-semibold mt-1 text-blue-500">
+                        {fmt(detailResult.totalMaterialCost)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Labor Cost
+                      </p>
+                      <p className="text-lg font-semibold mt-1">
+                        {fmt(detailResult.laborCost)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Overhead
+                      </p>
+                      <p className="text-lg font-semibold mt-1">
+                        {fmt(detailResult.factoryOverheadCost)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Other Cost
+                      </p>
+                      <p className="text-lg font-semibold mt-1">
+                        {fmt(detailResult.otherCost)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Total Production Cost
+                      </p>
+                      <p className="text-lg font-semibold mt-1 text-emerald-500">
+                        {fmt(detailResult.totalProductionCost)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Unit Cost
+                      </p>
+                      <p className="text-lg font-semibold mt-1 text-indigo-600">
+                        {fmt(detailResult.unitProductionCost)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
               <div className="border-t" />
 
               {/* Material Consumption */}
@@ -12909,15 +13041,15 @@ function ProductionResultsModule({ activeModule }) {
                         <div className="flex items-center gap-2.5">
                           <span
                             className={`font-bold px-1.5 py-0.5 rounded text-[10px] uppercase ${
-                              m.movementType === "PRODUCTION_IN"
+                              ["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType)
                                 ? "bg-emerald-100 text-emerald-700"
                                 : "bg-amber-100 text-amber-700"
                             }`}
                           >
-                            {m.movementType === "PRODUCTION_IN" ? "IN" : "OUT"}
+                            {["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType) ? "IN" : "OUT"}
                           </span>
                           <span className="font-medium">
-                            {m.movementType === "PRODUCTION_IN"
+                            {["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType)
                               ? (m.product?.name ?? "Product")
                               : (m.rawMaterial?.name ?? "Material")}
                           </span>
@@ -12926,7 +13058,7 @@ function ProductionResultsModule({ activeModule }) {
                           </span>
                         </div>
                         <span className="font-semibold">
-                          {m.movementType === "PRODUCTION_IN" ? "+" : "-"}
+                          {["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType) ? "+" : "-"}
                           {m.quantity?.toLocaleString()}
                         </span>
                       </div>

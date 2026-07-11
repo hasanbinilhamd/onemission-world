@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkoutService, normalizeCheckoutError } from '@/lib/checkout';
 import { generateCustomerCode } from '@/lib/customer-auth/customer-number';
+import { financePostingService } from '@/lib/finance-posting';
 import { cashFlowService, inventoryValuationService } from '@/lib/finance-reporting';
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
@@ -135,6 +136,29 @@ async function generateStockMovementRef(movementDate) {
     const seq = parseInt(parts[parts.length - 1] || '0', 10);
     if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
   }
+  return `${prefix}${String(maxSeq + 1).padStart(5, '0')}`;
+}
+
+async function generateProductionResultNumber(prismaClient, resultDate) {
+  const date = resultDate ? new Date(resultDate) : new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const prefix = `PR-${year}${month}${day}-`;
+
+  const existing = await prismaClient.productionResult.findMany({
+    where: { resultNumber: { startsWith: prefix } },
+    select: { resultNumber: true },
+    orderBy: { resultNumber: 'desc' },
+  });
+
+  let maxSeq = 0;
+  for (const entry of existing) {
+    const parts = entry.resultNumber.split('-');
+    const seq = parseInt(parts[parts.length - 1] || '0', 10);
+    if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+  }
+
   return `${prefix}${String(maxSeq + 1).padStart(5, '0')}`;
 }
 
@@ -1546,9 +1570,17 @@ async function handle(request, { params }) {
       }
 
       const inventoryValuation = await inventoryValuationService.buildReport();
-      const inventoryAssetRow = assetRows.find((row) => isFinishedGoodsInventoryAccount(row));
-      if (inventoryAssetRow) {
-        inventoryAssetRow.balance = inventoryValuation.totalInventoryValue;
+      const finishedGoodsInventoryRow = assetRows.find((row) => isFinishedGoodsInventoryAccount(row));
+      if (finishedGoodsInventoryRow) {
+        finishedGoodsInventoryRow.balance = inventoryValuation.totalInventoryValue;
+      }
+      const rawMaterialInventoryRow = assetRows.find((row) => {
+        const accountCode = String(row.accountCode || '').trim();
+        const accountName = String(row.accountName || '').trim().toLowerCase();
+        return accountCode === '1400' || accountName.includes('raw material inventory');
+      });
+      if (rawMaterialInventoryRow) {
+        rawMaterialInventoryRow.balance = inventoryValuation.rawMaterialInventoryValue;
       }
 
       const currentYearEarnings = totalRevenue - totalExpenses;
@@ -1684,7 +1716,7 @@ async function handle(request, { params }) {
           },
         });
         const totalMovements = movements.length;
-        const inTypes = ['ADJUSTMENT_IN', 'MANUAL_IN', 'OPENING', 'PRODUCTION_IN', 'INITIAL_STOCK'];
+        const inTypes = ['ADJUSTMENT_IN', 'MANUAL_IN', 'OPENING', 'PRODUCTION_IN', 'PRODUCTION_RESULT', 'INITIAL_STOCK'];
         const outTypes = ['ADJUSTMENT_OUT', 'MANUAL_OUT', 'PRODUCTION_OUT', 'SALE'];
         const resolveQuantityChanged = (movement) => Number(movement.quantityChanged || movement.quantity || 0);
         const isInboundMovement = (movement) => {
@@ -1710,7 +1742,7 @@ async function handle(request, { params }) {
           || movement.movementType === 'OPENING'
           || movement.movementType === 'INITIAL_STOCK'
         )).length;
-        const productionMovements = movements.filter((movement) => movement.movementType === 'PRODUCTION_IN' || movement.movementType === 'PRODUCTION_OUT').length;
+        const productionMovements = movements.filter((movement) => ['PRODUCTION_IN', 'PRODUCTION_OUT', 'PRODUCTION_RESULT'].includes(movement.movementType)).length;
         return NextResponse.json({ totalMovements, totalIn, totalOut, adjustmentMovements, productionMovements });
       }
 
@@ -2183,122 +2215,173 @@ async function handle(request, { params }) {
       if (method === 'POST' && segs.length === 3 && segs[2] === 'complete') {
         const body = await readJson(request);
         const actualQty = Number(body.actualQuantity);
-        if (!actualQty || actualQty <= 0) return NextResponse.json({ error: 'Actual quantity must be greater than zero' }, { status: 400 });
+        const laborCost = Number(body.laborCost || 0);
+        const factoryOverheadCost = Number(body.factoryOverheadCost || 0);
+        const otherCost = Number(body.otherCost || 0);
+
+        if (!actualQty || actualQty <= 0) {
+          return NextResponse.json({ error: 'Actual quantity must be greater than zero' }, { status: 400 });
+        }
+        if (laborCost < 0 || factoryOverheadCost < 0 || otherCost < 0) {
+          return NextResponse.json({ error: 'Optional production costs cannot be negative' }, { status: 400 });
+        }
+
         const order = await prisma.productionOrder.findUnique({
           where: { id: segs[1] },
           include: {
+            product: { select: { id: true, name: true, sku: true, costPrice: true } },
             bom: { include: { items: { include: { rawMaterial: true } } } },
           },
         });
         if (!order) return NextResponse.json({ error: 'Production Order not found' }, { status: 404 });
         if (order.status !== 'In Production') return NextResponse.json({ error: `Cannot complete — current status is "${order.status}". Order must be In Production.` }, { status: 400 });
 
-        // Validate stock sufficiency using actual quantity
-        for (const it of order.bom.items) {
-          const needed = it.quantityRequired * actualQty;
-          if ((it.rawMaterial.currentStock ?? 0) < needed) {
-            return NextResponse.json({ error: `Insufficient stock for "${it.rawMaterial.name}". Need ${needed}, have ${it.rawMaterial.currentStock ?? 0}.` }, { status: 400 });
+        const materialConsumptions = order.bom.items.map((item) => {
+          const consumedQuantity = Number(item.quantityRequired || 0) * actualQty;
+          const materialUnitCost = Number(item.rawMaterial?.unitCost || 0);
+          return {
+            item,
+            consumedQuantity,
+            materialUnitCost,
+            materialCost: consumedQuantity * materialUnitCost,
+          };
+        });
+
+        for (const consumption of materialConsumptions) {
+          if ((consumption.item.rawMaterial.currentStock ?? 0) < consumption.consumedQuantity) {
+            return NextResponse.json({ error: `Insufficient stock for "${consumption.item.rawMaterial.name}". Need ${consumption.consumedQuantity}, have ${consumption.item.rawMaterial.currentStock ?? 0}.` }, { status: 400 });
           }
         }
 
+        const totalMaterialCost = materialConsumptions.reduce((sum, consumption) => sum + consumption.materialCost, 0);
+        const totalProductionCost = totalMaterialCost + laborCost + factoryOverheadCost + otherCost;
+        const unitProductionCost = totalProductionCost > 0 ? totalProductionCost / actualQty : 0;
         const now = new Date();
         const movDate = now.toISOString().split('T')[0];
 
-        // Execute all stock changes + movements in a transaction
-        await prisma.$transaction(async (tx) => {
-          // 1. Consume raw materials
-          for (const it of order.bom.items) {
-            const consumed = it.quantityRequired * actualQty;
-            const prev = it.rawMaterial.currentStock ?? 0;
-            const next = prev - consumed;
-            await tx.rawMaterial.update({ where: { id: it.rawMaterialId }, data: { currentStock: next } });
+        const completedOrder = await prisma.$transaction(async (tx) => {
+          const resultNumber = await generateProductionResultNumber(tx, now);
+          const inventoryEntries = await tx.inventory.findMany({ where: { productId: order.productId }, orderBy: { id: 'asc' } });
+          if (inventoryEntries.length === 0) {
+            throw new Error('Inventory rows are missing for this product. Run the manual repair inventory maintenance endpoint before completing production.');
+          }
+
+          const targetInventory = inventoryEntries[0];
+          const existingTotalQty = inventoryEntries.reduce((sum, inventory) => sum + Number(inventory.quantity || 0), 0);
+          const existingAverageCost = Number(order.product?.costPrice || targetInventory.averageCost || 0);
+          const newTotalQty = existingTotalQty + actualQty;
+          const newAverageCost = newTotalQty > 0
+            ? (((existingTotalQty * existingAverageCost) + (actualQty * unitProductionCost)) / newTotalQty)
+            : unitProductionCost;
+
+          for (const consumption of materialConsumptions) {
+            const previousQuantity = Number(consumption.item.rawMaterial.currentStock ?? 0);
+            const newQuantity = previousQuantity - consumption.consumedQuantity;
+            await tx.rawMaterial.update({
+              where: { id: consumption.item.rawMaterialId },
+              data: { currentStock: newQuantity },
+            });
             await tx.stockMovement.create({
               data: {
                 id: uuid(),
                 itemType: 'RAW_MATERIAL',
-                rawMaterialId: it.rawMaterialId,
+                rawMaterialId: consumption.item.rawMaterialId,
                 movementDate: movDate,
                 movementType: 'PRODUCTION_OUT',
-                quantity: consumed,
-                quantityChanged: consumed,
-                previousQuantity: prev,
-                newQuantity: next,
+                quantity: consumption.consumedQuantity,
+                quantityChanged: consumption.consumedQuantity,
+                previousQuantity,
+                newQuantity,
                 referenceType: INVENTORY_REFERENCE_TYPE.PRODUCTION_ORDER,
                 referenceId: order.id,
-                referenceNumber: order.productionOrderNumber,
+                referenceNumber: resultNumber,
                 performedBy: INVENTORY_PERFORMED_BY.SYSTEM,
-                notes: body.completionNotes || `Production: ${order.productionOrderNumber}`,
+                notes: `Production Result ${resultNumber} · Consumed ${consumption.consumedQuantity.toLocaleString('id-ID')} ${consumption.item.rawMaterial.unit || ''}`.trim(),
               },
             });
           }
 
-          // 2. Increase product inventory (use first inventory entry or create one)
-          const inventoryEntries = await tx.inventory.findMany({ where: { productId: order.productId }, orderBy: { id: 'asc' } });
-          let inv;
-          if (inventoryEntries.length > 0) {
-            inv = inventoryEntries[0];
-            await tx.inventory.update({ where: { id: inv.id }, data: { quantity: inv.quantity + actualQty } });
-          } else {
-            throw new Error('Inventory rows are missing for this product. Run the manual repair inventory maintenance endpoint before completing production.');
-          }
-          const prevInv = inventoryEntries.length > 0 ? inventoryEntries[0].quantity : 0;
+          await tx.inventory.update({
+            where: { id: targetInventory.id },
+            data: {
+              quantity: Number(targetInventory.quantity || 0) + actualQty,
+              averageCost: newAverageCost,
+            },
+          });
+          await tx.inventory.updateMany({
+            where: { productId: order.productId },
+            data: { averageCost: newAverageCost },
+          });
+          await tx.product.update({
+            where: { id: order.productId },
+            data: { costPrice: newAverageCost },
+          });
+
           await tx.stockMovement.create({
             data: {
               id: uuid(),
               itemType: 'PRODUCT',
               productId: order.productId,
-              inventoryId: inv.id,
-              color: inv.color,
-              size: inv.size,
+              inventoryId: targetInventory.id,
+              color: targetInventory.color,
+              size: targetInventory.size,
               movementDate: movDate,
-              movementType: 'PRODUCTION_IN',
+              movementType: INVENTORY_MOVEMENT_TYPE.PRODUCTION_RESULT,
               quantity: actualQty,
               quantityChanged: actualQty,
-              previousQuantity: prevInv,
-              newQuantity: prevInv + actualQty,
+              previousQuantity: Number(targetInventory.quantity || 0),
+              newQuantity: Number(targetInventory.quantity || 0) + actualQty,
               referenceType: INVENTORY_REFERENCE_TYPE.PRODUCTION_ORDER,
               referenceId: order.id,
-              referenceNumber: order.productionOrderNumber,
+              referenceNumber: resultNumber,
               performedBy: INVENTORY_PERFORMED_BY.SYSTEM,
-              notes: body.completionNotes || `Production: ${order.productionOrderNumber}`,
+              notes: `Production Result ${resultNumber} · Produced ${actualQty.toLocaleString('id-ID')} pcs`,
             },
           });
 
-          // 3. Update Production Order
-          await tx.productionOrder.update({
+          const updatedOrder = await tx.productionOrder.update({
             where: { id: segs[1] },
             data: {
               status: 'Completed',
               actualQuantity: actualQty,
               completedAt: now,
-              notes: body.completionNotes ? (order.notes ? order.notes + '\n' + body.completionNotes : body.completionNotes) : order.notes,
+              notes: body.completionNotes ? (order.notes ? `${order.notes}\n${body.completionNotes}` : body.completionNotes) : order.notes,
+            },
+            include: {
+              product: { select: { id: true, name: true, sku: true, costPrice: true } },
+              bom: { select: { id: true, bomCode: true, version: true } },
             },
           });
 
-          // 4. Auto-create Production Result (immutable audit record)
-          const latestPR = await tx.productionResult.findMany({
-            select: { resultNumber: true },
-            orderBy: { resultNumber: 'desc' },
-            take: 1,
+          const createdResult = await tx.productionResult.create({
+            data: {
+              id: uuid(),
+              resultNumber,
+              productionOrderId: segs[1],
+              totalMaterialCost,
+              laborCost,
+              factoryOverheadCost,
+              otherCost,
+              totalProductionCost,
+              unitProductionCost,
+            },
+            include: {
+              productionOrder: {
+                include: {
+                  product: { select: { id: true, name: true, sku: true, costPrice: true } },
+                  bom: { select: { id: true, bomCode: true, version: true } },
+                },
+              },
+            },
           });
-          let maxPR = 0;
-          if (latestPR.length > 0) {
-            const parts = latestPR[0].resultNumber.split('-');
-            const num = parseInt(parts[1], 10);
-            if (!isNaN(num)) maxPR = num;
-          }
-          const resultNumber = `PR-${String(maxPR + 1).padStart(4, '0')}`;
-          await tx.productionResult.create({
-            data: { id: uuid(), resultNumber, productionOrderId: segs[1] },
-          });
+
+          await financePostingService.postProductionResultJournal(createdResult, { prismaClient: tx });
+          return updatedOrder;
         });
 
-        const result = await prisma.productionOrder.findUnique({
-          where: { id: segs[1] },
-          include: { product: { select: { id: true, name: true, sku: true } }, bom: { select: { id: true, bomCode: true, version: true } } },
-        });
-        return NextResponse.json(result);
+        return NextResponse.json(completedOrder);
       }
+
 
       // Update (status/notes/plannedDate/plannedQuantity only — blocked for Completed)
       if (method === 'PUT' && segs.length === 2) {
@@ -2376,8 +2459,8 @@ async function handle(request, { params }) {
 
         const movements = await prisma.stockMovement.findMany({
           where: {
-            referenceNumber: result.productionOrder.productionOrderNumber,
-            movementType: { in: ['PRODUCTION_IN', 'PRODUCTION_OUT'] },
+            referenceNumber: { in: [result.resultNumber, result.productionOrder.productionOrderNumber] },
+            movementType: { in: ['PRODUCTION_RESULT', 'PRODUCTION_IN', 'PRODUCTION_OUT'] },
           },
           include: {
             rawMaterial: { select: { id: true, name: true, unit: true } },
