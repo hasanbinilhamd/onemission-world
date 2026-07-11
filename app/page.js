@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -79,13 +80,30 @@ import {
   ProductGridSkeleton,
   InventorySkeleton,
 } from "@/components/onemission/skeletons";
-import { OrdersModule } from "@/components/onemission/orders-module";
-import {
-  NotificationSettingsModule,
-  RolesPermissionsSettingsModule,
-  SystemConfigurationModule,
-  UsersSettingsModule,
-} from "@/components/onemission/settings-governance";
+const OrdersModule = dynamic(
+  () => import("@/components/onemission/orders-module").then((module) => module.OrdersModule),
+  { loading: () => <TableSkeleton rows={8} cols={7} /> },
+);
+
+const UsersSettingsModule = dynamic(
+  () => import("@/components/onemission/settings-governance").then((module) => module.UsersSettingsModule),
+  { loading: () => <ListSkeleton count={6} /> },
+);
+
+const RolesPermissionsSettingsModule = dynamic(
+  () => import("@/components/onemission/settings-governance").then((module) => module.RolesPermissionsSettingsModule),
+  { loading: () => <ListSkeleton count={6} /> },
+);
+
+const NotificationSettingsModule = dynamic(
+  () => import("@/components/onemission/settings-governance").then((module) => module.NotificationSettingsModule),
+  { loading: () => <ListSkeleton count={6} /> },
+);
+
+const SystemConfigurationModule = dynamic(
+  () => import("@/components/onemission/settings-governance").then((module) => module.SystemConfigurationModule),
+  { loading: () => <ListSkeleton count={6} /> },
+);
 
 // Normalize Indonesian phone number for wa.me link
 function whatsappUrl(phone) {
@@ -712,7 +730,9 @@ function Dashboard({
   onOpenOrderReference = () => {},
   onOpenLowStockInventory = () => {},
 }) {
-  const [stats, setStats] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [details, setDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [range, setRange] = useState("last30");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -727,7 +747,14 @@ function Dashboard({
       params.set("to", customTo);
     }
 
-    setStats(await api.get("dashboard?" + params.toString()));
+    setDetailsLoading(true);
+    setDetails(null);
+    const summaryResult = await api.get(`dashboard?${params.toString()}&scope=summary`);
+    setSummary(summaryResult?.error ? null : summaryResult);
+
+    const detailsResult = await api.get(`dashboard?${params.toString()}&scope=details`);
+    setDetails(detailsResult?.error ? null : detailsResult);
+    setDetailsLoading(false);
   };
 
   useLazyModuleEffect(
@@ -749,17 +776,17 @@ function Dashboard({
     "#64748b",
   ];
 
-  if (!stats) return <DashboardSkeleton />;
+  if (!summary) return <DashboardSkeleton />;
 
-  const kpis = stats.kpis || {};
-  const revenueByMonth = stats.revenueByMonth || [];
-  const expenseBreakdown = stats.expenseBreakdown || [];
-  const topSellingProducts = stats.topSellingProducts || [];
-  const latestOrders = stats.latestOrders || [];
-  const recentCashActivities = stats.recentCashActivities || [];
-  const lowStockItems = stats.lowStockItems || [];
-  const productionSummary = stats.productionSummary || {};
-  const cashPositionSummary = stats.cashPositionSummary || [];
+  const kpis = summary.kpis || {};
+  const revenueByMonth = details?.revenueByMonth || [];
+  const expenseBreakdown = details?.expenseBreakdown || [];
+  const topSellingProducts = details?.topSellingProducts || [];
+  const latestOrders = details?.latestOrders || [];
+  const recentCashActivities = details?.recentCashActivities || [];
+  const lowStockItems = details?.lowStockItems || [];
+  const productionSummary = details?.productionSummary || {};
+  const cashPositionSummary = details?.cashPositionSummary || [];
 
   const paymentStatusBadge = (status) => {
     const styles = {
@@ -820,6 +847,7 @@ function Dashboard({
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Real-time company health across sales, inventory, production, and finance
+            {detailsLoading ? " · Loading analytics details…" : ""}
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
@@ -861,7 +889,7 @@ function Dashboard({
         <KPI
           label="Total Revenue"
           value={fmtShort(kpis.totalRevenue)}
-          sub={stats.period?.label}
+          sub={summary.period?.label}
           icon={DollarSign}
           trend="up"
         />
@@ -1911,7 +1939,7 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
   const load = async () => {
     setLoading(true);
     setItems(await api.get("inventory"));
-    setProducts(await api.get("products"));
+    setProducts(await api.get("products?summary=basic"));
     setLoading(false);
   };
 
@@ -2674,7 +2702,7 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
     const qs = buildParams();
     const [data, prods, inv] = await Promise.all([
       api.get("stockmovements" + (qs ? "?" + qs : "")),
-      api.get("products"),
+      api.get("products?summary=basic"),
       api.get("inventory"),
     ]);
     setItems(Array.isArray(data) ? data : []);
@@ -6437,210 +6465,6 @@ function NotificationsModule({ activeModule, onOpenNotificationAction = () => {}
 
 // =========== SETTINGS ===========
 // =========== SETTINGS ===========
-function SettingsModule({ user, activeModule }) {
-  const [users, setUsers] = useState([]);
-  useLazyModuleEffect(activeModule, ["settings", "systemconfig"], () => {
-    (async () => setUsers(await api.get("users")))();
-  }, []);
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
-          Settings
-        </h2>
-        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-          Manage your workspace
-        </p>
-      </div>
-      <Tabs defaultValue="company">
-        <TabsList>
-          <TabsTrigger value="company">Company</TabsTrigger>
-          <TabsTrigger value="users">Users & Roles</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="appearance">Appearance</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-        </TabsList>
-        <TabsContent value="company" className="space-y-4 mt-4">
-          <Card className="">
-            <CardHeader>
-              <CardTitle className="text-base">Company Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Company Name</Label>
-                  <Input defaultValue="ONEMISSION" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Tagline</Label>
-                  <Input defaultValue="VALUES MATTER" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Mission</Label>
-                <Textarea defaultValue="Empower Muslim athletes worldwide through premium values-aligned apparel and community." />
-              </div>
-              <Button>Save changes</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="users" className="space-y-4 mt-4">
-          <Card className="">
-            <CardHeader>
-              <CardTitle className="text-base">Team Members</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <table className="w-full text-sm">
-                <thead className="border-b border-border bg-secondary/30">
-                  <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
-                    <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Email</th>
-                    <th className="px-4 py-3 font-medium">Role</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.id} className="border-b">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="text-xs">
-                              {u.avatar}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{u.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {u.email}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge>{u.role}</Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="notifications" className="space-y-4 mt-4">
-          <Card className="">
-            <CardHeader>
-              <CardTitle className="text-base">
-                Notification Preferences
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                "Low stock alerts",
-                "Upcoming deadlines",
-                "Event reminders",
-                "Creator updates",
-                "School updates",
-                "Financial alerts",
-              ].map((p) => (
-                <div key={p} className="flex items-center justify-between">
-                  <Label>{p}</Label>
-                  <Switch defaultChecked />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-          <Card className="">
-            <CardHeader>
-              <CardTitle className="text-base">Stock Thresholds</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Critical threshold (units)</Label>
-                  <NumberInput value={15} onChange={() => {}} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Warning threshold (units)</Label>
-                  <NumberInput value={30} onChange={() => {}} />
-                </div>
-              </div>
-              <Button>Save</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="appearance" className="space-y-4 mt-4">
-          <Card className="">
-            <CardHeader>
-              <CardTitle className="text-base">Appearance</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Dark Mode</Label>
-                <Switch
-                  defaultChecked
-                  onCheckedChange={(v) =>
-                    document.documentElement.classList.toggle("dark", v)
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label>Reduced Motion</Label>
-                <Switch />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label>Compact spacing</Label>
-                <Switch />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="integrations" className="space-y-4 mt-4">
-          <Card className="">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Globe className="h-4 w-4" /> Public Product API
-              </CardTitle>
-              <CardDescription>
-                Sync approved products to the main ONEMISSION website in
-                real-time
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="rounded-lg border border-border bg-secondary/30 p-3 font-mono text-xs flex items-center justify-between">
-                <span className="text-muted-foreground">GET</span>
-                <span className="text-foreground/90">/api/public/products</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    navigator.clipboard.writeText("/api/public/products");
-                    toast.success("Copied");
-                  }}
-                >
-                  Copy
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Exposes Active products with aggregated stock. Updates
-                automatically when inventory changes.
-              </p>
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  const r = await fetch("/api/public/products");
-                  const d = await r.json();
-                  console.log(d);
-                  toast.success(`${d.length} products synced`);
-                }}
-              >
-                Test endpoint
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
 // =========== FINANCIAL ACCOUNTS ===========
 const PAGE_SIZE_FA = 15;
 const FA_TYPES = ["Cash", "Bank", "E-Wallet"];
@@ -14383,7 +14207,7 @@ function ProductionOrdersModule({ activeModule }) {
           "productionorders" + (qs.toString() ? "?" + qs.toString() : ""),
         ),
         api.get("productionorders/stats"),
-        api.get("products"),
+        api.get("products?summary=basic"),
       ]);
       setItems(Array.isArray(orders) ? orders : []);
       setStats(st);
@@ -14774,7 +14598,7 @@ function BOMModule({ activeModule }) {
       const [boms, st, prods, rms] = await Promise.all([
         api.get("bom" + (qs.toString() ? "?" + qs.toString() : "")),
         api.get("bom/stats"),
-        api.get("products"),
+        api.get("products?summary=basic"),
         api.get("rawmaterials"),
       ]);
       setItems(Array.isArray(boms) ? boms : []);

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withDevTiming } from '@/lib/dev-timing';
 import { requireHqPermission } from '@/lib/hq-security';
 import { normalizeOrderError, orderService } from '@/lib/order';
 
@@ -11,30 +12,32 @@ function buildOrderErrorResponse(error) {
 }
 
 export async function GET(request) {
-  const url = new URL(request.url);
+  return withDevTiming(request, async () => {
+    const url = new URL(request.url);
 
-  try {
-    await requireHqPermission(request, 'sales', 'view');
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: error.statusCode || 403 });
-  }
+    try {
+      await requireHqPermission(request, 'sales', 'view');
+    } catch (error) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode || 403 });
+    }
 
-  try {
-    const response = await orderService.listOrders({
-      page: url.searchParams.get('page') || 1,
-      limit: url.searchParams.get('limit') || 10,
-      search: url.searchParams.get('search') || '',
-      sortBy: url.searchParams.get('sortBy') || 'createdAt',
-      sortOrder: url.searchParams.get('sortOrder') || 'desc',
-      paymentStatus: url.searchParams.get('paymentStatus') || '',
-      fulfillmentStatus: url.searchParams.get('fulfillmentStatus') || '',
-      startDate: url.searchParams.get('startDate') || '',
-      endDate: url.searchParams.get('endDate') || '',
-      courier: url.searchParams.get('courier') || '',
-    });
+    try {
+      const response = await orderService.listOrders({
+        page: url.searchParams.get('page') || 1,
+        limit: url.searchParams.get('limit') || 10,
+        search: url.searchParams.get('search') || '',
+        sortBy: url.searchParams.get('sortBy') || 'createdAt',
+        sortOrder: url.searchParams.get('sortOrder') || 'desc',
+        paymentStatus: url.searchParams.get('paymentStatus') || '',
+        fulfillmentStatus: url.searchParams.get('fulfillmentStatus') || '',
+        startDate: url.searchParams.get('startDate') || '',
+        endDate: url.searchParams.get('endDate') || '',
+        courier: url.searchParams.get('courier') || '',
+      });
 
-    return NextResponse.json(response);
-  } catch (error) {
-    return buildOrderErrorResponse(error);
-  }
+      return NextResponse.json(response);
+    } catch (error) {
+      return buildOrderErrorResponse(error);
+    }
+  });
 }

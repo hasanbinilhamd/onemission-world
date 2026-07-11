@@ -12,6 +12,7 @@ import {
   getSystemSettingsMap,
   HQ_PERMISSION_CATALOG,
   invalidateHqSettingsCache,
+  invalidateRolePermissionsCache,
   HqSecurityError,
   loginHqUser,
   logoutHqSession,
@@ -26,6 +27,7 @@ import { notificationService, invalidateNotificationSettingsCache } from '@/lib/
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
 import { reportsService } from '@/lib/reports';
+import { getCachedValue, invalidateCacheByPrefix, invalidateCacheKey } from '@/lib/server-cache';
 import { districtService } from '@/lib/shipping/district-service';
 import { normalizeShippingError, shippingService } from '@/lib/shipping';
 import { v4 as uuid } from 'uuid';
@@ -353,6 +355,8 @@ function isFinishedGoodsInventoryAccount(account) {
   return accountCode === '1500' || accountName.includes('finished goods inventory');
 }
 
+const MASTER_DATA_CACHE_TTL_MS = 300_000;
+
 function getReportFilters(url) {
   return {
     range: url.searchParams.get('range') || 'thisMonth',
@@ -361,9 +365,14 @@ function getReportFilters(url) {
   };
 }
 
+function buildMasterDataCacheKey(name, suffix = '') {
+  return `master:${name}:${suffix}`;
+}
+
 async function handle(request, { params }) {
   const segs = params?.path || [];
   const method = request.method;
+  const startedAt = Date.now();
 
   try {
     await ensureHqSecurityDefaults(prisma);
@@ -763,20 +772,24 @@ async function handle(request, { params }) {
     // ---------- ROLES & PERMISSIONS ----------
     if (segs[0] === 'roles') {
       if (method === 'GET' && segs.length === 1) {
-        const roles = await prisma.role.findMany({
-          include: {
-            permissions: true,
-          },
-          orderBy: { name: 'asc' },
+        const result = await getCachedValue(buildMasterDataCacheKey('roles'), MASTER_DATA_CACHE_TTL_MS, async () => {
+          const roles = await prisma.role.findMany({
+            include: {
+              permissions: true,
+            },
+            orderBy: { name: 'asc' },
+          });
+
+          const matrix = HQ_PERMISSION_CATALOG.map((module) => ({
+            moduleKey: module.moduleKey,
+            label: module.label,
+            actions: module.actions,
+          }));
+
+          return { roles, matrix };
         });
 
-        const matrix = HQ_PERMISSION_CATALOG.map((module) => ({
-          moduleKey: module.moduleKey,
-          label: module.label,
-          actions: module.actions,
-        }));
-
-        return NextResponse.json({ roles, matrix });
+        return NextResponse.json(result);
       }
 
       if (method === 'POST' && segs.length === 1) {
@@ -800,6 +813,8 @@ async function handle(request, { params }) {
             isSystem: false,
           },
         });
+        invalidateCacheByPrefix(buildMasterDataCacheKey('roles'));
+        invalidateRolePermissionsCache();
 
         await writeAuditLog({
           prismaClient: prisma,
@@ -894,6 +909,9 @@ async function handle(request, { params }) {
           prismaClient: prisma,
         });
 
+        invalidateCacheByPrefix(buildMasterDataCacheKey('roles'));
+        invalidateRolePermissionsCache();
+
         return NextResponse.json(updatedRole);
       }
     }
@@ -901,7 +919,9 @@ async function handle(request, { params }) {
     // ---------- NOTIFICATION SETTINGS ----------
     if (segs[0] === 'notification-settings') {
       if (method === 'GET' && segs.length === 1) {
-        const settings = await prisma.notificationSetting.findMany({ orderBy: [{ category: 'asc' }, { label: 'asc' }] });
+        const settings = await getCachedValue(buildMasterDataCacheKey('notification-settings'), MASTER_DATA_CACHE_TTL_MS, async () => (
+          prisma.notificationSetting.findMany({ orderBy: [{ category: 'asc' }, { label: 'asc' }] })
+        ));
         return NextResponse.json(settings);
       }
 
@@ -917,6 +937,7 @@ async function handle(request, { params }) {
         })));
 
         invalidateNotificationSettingsCache();
+        invalidateCacheKey(buildMasterDataCacheKey('notification-settings'));
 
         await writeAuditLog({
           prismaClient: prisma,
@@ -934,7 +955,9 @@ async function handle(request, { params }) {
     // ---------- SYSTEM SETTINGS ----------
     if (segs[0] === 'system-settings') {
       if (method === 'GET' && segs.length === 1) {
-        const settings = await prisma.systemSetting.findMany({ orderBy: [{ section: 'asc' }, { label: 'asc' }] });
+        const settings = await getCachedValue(buildMasterDataCacheKey('system-settings'), MASTER_DATA_CACHE_TTL_MS, async () => (
+          prisma.systemSetting.findMany({ orderBy: [{ section: 'asc' }, { label: 'asc' }] })
+        ));
         return NextResponse.json(settings);
       }
 
@@ -963,6 +986,7 @@ async function handle(request, { params }) {
         }
 
         invalidateHqSettingsCache();
+        invalidateCacheKey(buildMasterDataCacheKey('system-settings'));
 
         await writeAuditLog({
           prismaClient: prisma,
@@ -1048,7 +1072,12 @@ async function handle(request, { params }) {
       const range = url.searchParams.get('range') || 'last30';
       const from = url.searchParams.get('from') || '';
       const to = url.searchParams.get('to') || '';
-      const result = await dashboardService.getExecutiveDashboard({ range, from, to });
+      const scope = url.searchParams.get('scope') || 'full';
+      const result = scope === 'summary'
+        ? await dashboardService.getExecutiveDashboardSummary({ range, from, to })
+        : scope === 'details'
+          ? await dashboardService.getExecutiveDashboardDetails({ range, from, to })
+          : await dashboardService.getExecutiveDashboard({ range, from, to });
       return NextResponse.json(result);
     }
 
@@ -1172,10 +1201,12 @@ async function handle(request, { params }) {
       return NextResponse.json({ exists: !!existing });
     }
     if (segs[0] === 'financialaccounts' && method === 'GET' && segs.length === 1) {
-      const docs = await prisma.financialAccount.findMany({
-        orderBy: { name: 'asc' },
-        include: { linkedCoa: { select: { id: true, accountCode: true, accountName: true } } },
-      });
+      const docs = await getCachedValue(buildMasterDataCacheKey('financialaccounts'), MASTER_DATA_CACHE_TTL_MS, async () => (
+        prisma.financialAccount.findMany({
+          orderBy: { name: 'asc' },
+          include: { linkedCoa: { select: { id: true, accountCode: true, accountName: true } } },
+        })
+      ));
       return NextResponse.json(docs);
     }
 
@@ -1190,14 +1221,26 @@ async function handle(request, { params }) {
       return NextResponse.json({ exists: !!existing });
     }
 
+    if (segs[0] === 'chartofaccounts' && method === 'GET' && segs.length === 1) {
+      const docs = await getCachedValue(buildMasterDataCacheKey('chartofaccounts'), MASTER_DATA_CACHE_TTL_MS, async () => (
+        prisma.chartOfAccount.findMany({
+          orderBy: { accountCode: 'asc' },
+        })
+      ));
+      return NextResponse.json(docs);
+    }
+
     // ---------- EXPENSE CATEGORIES ----------
     if (segs[0] === 'expensecategories') {
       if (segs[1] === 'stats' && method === 'GET') {
-        const all = await prisma.expenseCategory.findMany({ select: { status: true } });
-        const total = all.length;
-        const active = all.filter((item) => (item.status || 'Active') === 'Active').length;
-        const archived = all.filter((item) => item.status === 'Archived').length;
-        return NextResponse.json({ total, active, archived });
+        const stats = await getCachedValue(buildMasterDataCacheKey('expensecategories', 'stats'), MASTER_DATA_CACHE_TTL_MS, async () => {
+          const all = await prisma.expenseCategory.findMany({ select: { status: true } });
+          const total = all.length;
+          const active = all.filter((item) => (item.status || 'Active') === 'Active').length;
+          const archived = all.filter((item) => item.status === 'Archived').length;
+          return { total, active, archived };
+        });
+        return NextResponse.json(stats);
       }
 
       if (method === 'GET' && segs.length === 1) {
@@ -1217,16 +1260,19 @@ async function handle(request, { params }) {
           ];
         }
 
-        const docs = await prisma.expenseCategory.findMany({
-          where,
-          include: {
-            _count: { select: { cashTransactions: true } },
-          },
-          orderBy: [
-            { status: 'asc' },
-            { name: 'asc' },
-          ],
-        });
+        const cacheKey = buildMasterDataCacheKey('expensecategories', `${status}:${search.trim().toLowerCase()}`);
+        const docs = await getCachedValue(cacheKey, MASTER_DATA_CACHE_TTL_MS, async () => (
+          prisma.expenseCategory.findMany({
+            where,
+            include: {
+              _count: { select: { cashTransactions: true } },
+            },
+            orderBy: [
+              { status: 'asc' },
+              { name: 'asc' },
+            ],
+          })
+        ));
         return NextResponse.json(docs);
       }
 
@@ -1255,6 +1301,7 @@ async function handle(request, { params }) {
             status,
           },
         });
+        invalidateCacheByPrefix(buildMasterDataCacheKey('expensecategories', ''));
         return NextResponse.json(doc);
       }
 
@@ -1292,6 +1339,8 @@ async function handle(request, { params }) {
           },
         });
 
+        invalidateCacheByPrefix(buildMasterDataCacheKey('expensecategories', ''));
+
         await prisma.cashTransaction.updateMany({
           where: { expenseCategoryId: segs[1] },
           data: { expenseCategoryName: updated.name },
@@ -1309,6 +1358,7 @@ async function handle(request, { params }) {
         }
 
         await prisma.expenseCategory.delete({ where: { id: segs[1] } });
+        invalidateCacheByPrefix(buildMasterDataCacheKey('expensecategories', ''));
         return NextResponse.json({ ok: true });
       }
     }
@@ -2334,6 +2384,28 @@ async function handle(request, { params }) {
       });
     }
 
+    if (segs[0] === 'products' && method === 'GET' && segs.length === 1) {
+      const url = new URL(request.url);
+      const summary = String(url.searchParams.get('summary') || '').trim().toLowerCase();
+      if (summary === 'basic') {
+        const docs = await prisma.product.findMany({
+          where: {
+            status: 'Active',
+          },
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            category: true,
+            status: true,
+            costPrice: true,
+          },
+          orderBy: { name: 'asc' },
+        });
+        return NextResponse.json(docs);
+      }
+    }
+
     // ---------- PRODUCTS — special POST: create inventory rows during product lifecycle ----------
     if (segs[0] === 'products' && method === 'POST' && segs.length === 1) {
       const body = await readJson(request);
@@ -2352,6 +2424,7 @@ async function handle(request, { params }) {
         return created;
       });
 
+      invalidateCacheByPrefix('master:commerce-categories:');
       return NextResponse.json(product);
     }
 
@@ -2372,6 +2445,7 @@ async function handle(request, { params }) {
         threshold: Math.trunc(defaultThreshold),
       });
 
+      invalidateCacheByPrefix('master:commerce-categories:');
       return NextResponse.json(updatedProduct);
     }
 
@@ -2734,24 +2808,31 @@ async function handle(request, { params }) {
       if (method === 'POST' && segs.length === 1) {
         const body = await readJson(request);
         const doc = await model.create({ data: { id: uuid(), ...body } });
+        if (modelName === 'financialAccount') invalidateCacheKey(buildMasterDataCacheKey('financialaccounts'));
+        if (modelName === 'chartOfAccount') invalidateCacheKey(buildMasterDataCacheKey('chartofaccounts'));
         return NextResponse.json(doc);
       }
       if (method === 'PUT' && segs.length === 2) {
         const body = await readJson(request);
         const id = segs[1];
         const updated = await model.update({ where: { id }, data: body });
+        if (modelName === 'financialAccount') invalidateCacheKey(buildMasterDataCacheKey('financialaccounts'));
+        if (modelName === 'chartOfAccount') invalidateCacheKey(buildMasterDataCacheKey('chartofaccounts'));
         return NextResponse.json(updated);
       }
       if (method === 'DELETE' && segs.length === 2) {
         const id = segs[1];
         if (modelName === 'chartOfAccount') {
           const updated = await model.update({ where: { id }, data: { isActive: false } });
+          invalidateCacheKey(buildMasterDataCacheKey('chartofaccounts'));
           return NextResponse.json(updated);
         }
         if (modelName === 'product') {
           await prisma.inventory.deleteMany({ where: { productId: id } });
         }
         await model.delete({ where: { id } });
+        if (modelName === 'financialAccount') invalidateCacheKey(buildMasterDataCacheKey('financialaccounts'));
+        if (modelName === 'product') invalidateCacheByPrefix('master:commerce-categories:');
         return NextResponse.json({ ok: true });
       }
     }
@@ -3377,11 +3458,14 @@ async function handle(request, { params }) {
 
       // Stats
       if (segs[1] === 'stats' && method === 'GET') {
-        const all = await prisma.salesChannel.findMany({ select: { status: true } });
-        const total = all.length;
-        const active = all.filter(c => c.status === 'Active').length;
-        const inactive = all.filter(c => c.status === 'Inactive').length;
-        return NextResponse.json({ total, active, inactive });
+        const stats = await getCachedValue(buildMasterDataCacheKey('saleschannels', 'stats'), MASTER_DATA_CACHE_TTL_MS, async () => {
+          const all = await prisma.salesChannel.findMany({ select: { status: true } });
+          const total = all.length;
+          const active = all.filter(c => c.status === 'Active').length;
+          const inactive = all.filter(c => c.status === 'Inactive').length;
+          return { total, active, inactive };
+        });
+        return NextResponse.json(stats);
       }
 
       // Seed if empty
@@ -3403,6 +3487,7 @@ async function handle(request, { params }) {
           const code = `SC-${String(seq).padStart(4, '0')}`;
           await prisma.salesChannel.create({ data: { id: uuid(), channelCode: code, ...d } });
         }
+        invalidateCacheByPrefix(buildMasterDataCacheKey('saleschannels', ''));
         return NextResponse.json({ seeded: true, count: defaults.length });
       }
 
@@ -3415,18 +3500,21 @@ async function handle(request, { params }) {
         const where = {};
         if (status && status !== 'all') where.status = status;
         if (channelType && channelType !== 'all') where.channelType = channelType;
-        const channels = await prisma.salesChannel.findMany({
-          where,
-          orderBy: { channelCode: 'asc' },
+        const cacheKey = buildMasterDataCacheKey('saleschannels', `${status || 'all'}:${channelType || 'all'}:${String(search || '').trim().toLowerCase()}`);
+        const result = await getCachedValue(cacheKey, MASTER_DATA_CACHE_TTL_MS, async () => {
+          const channels = await prisma.salesChannel.findMany({
+            where,
+            orderBy: { channelCode: 'asc' },
+          });
+          return search
+            ? channels.filter(c => {
+                const q = search.toLowerCase();
+                return c.channelCode.toLowerCase().includes(q)
+                  || c.channelName.toLowerCase().includes(q)
+                  || c.channelType.toLowerCase().includes(q);
+              })
+            : channels;
         });
-        const result = search
-          ? channels.filter(c => {
-              const q = search.toLowerCase();
-              return c.channelCode.toLowerCase().includes(q)
-                || c.channelName.toLowerCase().includes(q)
-                || c.channelType.toLowerCase().includes(q);
-            })
-          : channels;
         return NextResponse.json(result);
       }
 
@@ -3457,6 +3545,7 @@ async function handle(request, { params }) {
             isDefault: body.isDefault || false,
           },
         });
+        invalidateCacheByPrefix(buildMasterDataCacheKey('saleschannels', ''));
         return NextResponse.json(channel);
       }
 
@@ -3472,12 +3561,14 @@ async function handle(request, { params }) {
         }
         const { id: _id, channelCode: _code, createdAt: _ca, updatedAt: _ua, ...rest } = body;
         const updated = await prisma.salesChannel.update({ where: { id: segs[1] }, data: rest });
+        invalidateCacheByPrefix(buildMasterDataCacheKey('saleschannels', ''));
         return NextResponse.json(updated);
       }
 
       // Soft delete (set Inactive)
       if (method === 'DELETE' && segs.length === 2) {
         const updated = await prisma.salesChannel.update({ where: { id: segs[1] }, data: { status: 'Inactive' } });
+        invalidateCacheByPrefix(buildMasterDataCacheKey('saleschannels', ''));
         return NextResponse.json(updated);
       }
     }
@@ -3702,6 +3793,11 @@ async function handle(request, { params }) {
     }
     console.error('API error', e);
     return NextResponse.json({ error: 'The request could not be completed. Please try again.' }, { status: 500 });
+  } finally {
+    if (process.env.NODE_ENV === 'development') {
+      const pathname = new URL(request.url).pathname;
+      console.info(`${method} ${pathname} Response Time: ${Date.now() - startedAt} ms`);
+    }
   }
 }
 
