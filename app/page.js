@@ -5095,6 +5095,1115 @@ function ReportsModule() {
   );
 }
 
+const ANALYTICS_RANGE_OPTIONS = [
+  { value: "today", label: "Today" },
+  { value: "thisWeek", label: "This Week" },
+  { value: "thisMonth", label: "This Month" },
+  { value: "lastMonth", label: "Last Month" },
+  { value: "thisYear", label: "This Year" },
+  { value: "custom", label: "Custom" },
+];
+
+function buildAnalyticsQuery(range, from, to) {
+  const params = new URLSearchParams({ range });
+  if (range === "custom") {
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+  }
+  return params.toString();
+}
+
+function exportCsvRows(filename, columns, rows) {
+  const header = columns.map((column) => column.label).join(",");
+  const body = rows.map((row) => columns.map((column) => {
+    const rawValue = typeof column.value === "function" ? column.value(row) : row[column.value];
+    const value = rawValue === undefined || rawValue === null ? "" : String(rawValue);
+    return `"${value.replace(/"/g, '""')}"`;
+  }).join(","));
+  const csv = [header, ...body].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportExcelRows(filename, title, columns, rows) {
+  const tableRows = rows.map((row) => `<tr>${columns.map((column) => {
+    const rawValue = typeof column.value === "function" ? column.value(row) : row[column.value];
+    const value = rawValue === undefined || rawValue === null ? "" : String(rawValue);
+    return `<td>${value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`;
+  }).join("")}</tr>`).join("");
+
+  const html = `
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${title}</title>
+      </head>
+      <body>
+        <table border="1">
+          <thead>
+            <tr>${columns.map((column) => `<th>${column.label}</th>`).join("")}</tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </body>
+    </html>
+  `;
+
+  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function printReportDocument(title, html) {
+  const printWindow = window.open("", "_blank", "width=1200,height=800");
+  if (!printWindow) {
+    toast.error("Popup was blocked. Please allow popups to print this report.");
+    return;
+  }
+
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
+          h1, h2 { margin: 0 0 12px; }
+          h1 { font-size: 24px; }
+          h2 { font-size: 18px; margin-top: 28px; }
+          .meta { color: #6b7280; margin-bottom: 16px; font-size: 13px; }
+          .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+          .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+          .card-label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.08em; }
+          .card-value { font-size: 20px; font-weight: 700; margin-top: 6px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+          th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; font-size: 12px; }
+          th { background: #f3f4f6; }
+          .text-right { text-align: right; }
+        </style>
+      </head>
+      <body>
+        ${html}
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+
+function AnalyticsMetricCard({ label, value, sub, colorClass = "text-[#111827]" }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className={`text-2xl font-semibold mt-1 ${colorClass}`}>{value}</p>
+        {sub ? <p className="text-xs text-muted-foreground mt-1">{sub}</p> : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AnalyticsFilterBar({ range, setRange, from, setFrom, to, setTo, onCsv, onExcel, onPrint }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <Label>Date Range</Label>
+              <Select value={range} onValueChange={setRange}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANALYTICS_RANGE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {range === "custom" ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label>From</Label>
+                  <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>To</Label>
+                  <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
+                </div>
+              </>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onCsv}>Export CSV</Button>
+            <Button variant="outline" size="sm" onClick={onExcel}>Export Excel</Button>
+            <Button variant="outline" size="sm" onClick={onPrint}>Print Friendly</Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProductAnalyticsModule({ activeModule }) {
+  const [range, setRange] = useState("thisMonth");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    if (range === "custom" && (!from || !to)) return;
+    setLoading(true);
+    const result = await api.get("productanalytics?" + buildAnalyticsQuery(range, from, to));
+    setData(result?.error ? null : result);
+    setLoading(false);
+  };
+
+  useLazyModuleEffect(activeModule, "productanalytics", () => {
+    load();
+  }, [range, from, to]);
+
+  const productRows = data?.tables?.products || [];
+  const exportColumns = [
+    { label: "Product", value: (row) => row.productName },
+    { label: "SKU", value: (row) => row.sku },
+    { label: "Units Sold", value: (row) => row.unitsSold },
+    { label: "Revenue", value: (row) => row.revenue },
+    { label: "Current Stock", value: (row) => row.currentStock },
+  ];
+
+  const handlePrint = () => {
+    printReportDocument(
+      "Product Analytics",
+      `
+        <h1>Product Analytics</h1>
+        <p class="meta">Period: ${data?.period?.label || "—"}</p>
+        <div class="grid">
+          <div class="card"><div class="card-label">Total Products</div><div class="card-value">${data?.metrics?.totalProducts || 0}</div></div>
+          <div class="card"><div class="card-label">Active Products</div><div class="card-value">${data?.metrics?.activeProducts || 0}</div></div>
+          <div class="card"><div class="card-label">Archived Products</div><div class="card-value">${data?.metrics?.archivedProducts || 0}</div></div>
+          <div class="card"><div class="card-label">Total Units Sold</div><div class="card-value">${Number(data?.metrics?.totalUnitsSold || 0).toLocaleString()}</div></div>
+        </div>
+        <h2>Product Performance</h2>
+        <table>
+          <thead><tr><th>Product</th><th>SKU</th><th>Units Sold</th><th>Revenue</th><th>Current Stock</th></tr></thead>
+          <tbody>
+            ${productRows.map((row) => `<tr><td>${row.productName}</td><td>${row.sku}</td><td>${row.unitsSold}</td><td>${fmt(row.revenue)}</td><td>${row.currentStock}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      `,
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Product Analytics</h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Understand which products drive volume, revenue, and stock pressure.</p>
+      </div>
+      <AnalyticsFilterBar
+        range={range}
+        setRange={setRange}
+        from={from}
+        setFrom={setFrom}
+        to={to}
+        setTo={setTo}
+        onCsv={() => exportCsvRows("product-analytics.csv", exportColumns, productRows)}
+        onExcel={() => exportExcelRows("product-analytics.xls", "Product Analytics", exportColumns, productRows)}
+        onPrint={handlePrint}
+      />
+      {loading ? (
+        <div className="space-y-4">
+          <StatsSkeleton stats={5} showChart />
+        </div>
+      ) : data ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
+            <AnalyticsMetricCard label="Total Products" value={Number(data.metrics.totalProducts || 0).toLocaleString()} />
+            <AnalyticsMetricCard label="Active Products" value={Number(data.metrics.activeProducts || 0).toLocaleString()} colorClass="text-emerald-500" />
+            <AnalyticsMetricCard label="Archived Products" value={Number(data.metrics.archivedProducts || 0).toLocaleString()} colorClass="text-amber-500" />
+            <AnalyticsMetricCard label="Total Units Sold" value={Number(data.metrics.totalUnitsSold || 0).toLocaleString()} colorClass="text-blue-500" />
+            <AnalyticsMetricCard label="Current Inventory" value={Number(data.metrics.currentInventory || 0).toLocaleString()} colorClass="text-indigo-600" />
+            <AnalyticsMetricCard label="Low Stock Products" value={Number(data.metrics.lowStockProducts || 0).toLocaleString()} colorClass="text-rose-400" />
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <Card className="xl:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">Top Selling Products</CardTitle>
+                <CardDescription>Top 10 products by units sold</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={data.charts.topSellingProducts}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="sku" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <Tooltip formatter={(value) => Number(value || 0).toLocaleString("id-ID")} />
+                    <Bar dataKey="unitsSold" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Sales by Category</CardTitle>
+                <CardDescription>Revenue mix by product category</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie data={data.charts.salesByCategory} dataKey="revenue" nameKey="name" innerRadius={52} outerRadius={90}>
+                      {data.charts.salesByCategory.map((_, index) => (
+                        <Cell key={index} fill={["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b"][index % 6]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => fmt(value)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <Card className="xl:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">Revenue by Product</CardTitle>
+                <CardDescription>Top product revenue contribution</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={data.charts.revenueByProduct} layout="vertical" margin={{ left: 24 }}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                    <YAxis dataKey="sku" type="category" stroke="hsl(var(--muted-foreground))" fontSize={11} width={80} />
+                    <Tooltip formatter={(value) => fmt(value)} />
+                    <Bar dataKey="revenue" fill="hsl(var(--chart-2))" radius={[0, 6, 6, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Lowest Selling Products</CardTitle>
+                <CardDescription>Products needing review</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {data.tables.lowestSellingProducts.slice(0, 8).map((item) => (
+                  <div key={item.id} className="rounded-xl border border-border/60 px-3 py-3">
+                    <p className="text-sm font-medium truncate">{item.productName}</p>
+                    <div className="flex items-center justify-between mt-1 text-xs text-muted-foreground">
+                      <span>{item.sku}</span>
+                      <span>{Number(item.unitsSold || 0).toLocaleString()} sold</span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Product Performance Table</CardTitle>
+              <CardDescription>Revenue and stock visibility by product</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[760px]">
+                  <thead>
+                    <tr className="border-b border-border bg-[#F7F8FA]">
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">SKU</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Units Sold</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Revenue</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Current Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {productRows.map((row) => (
+                      <tr key={row.id} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
+                        <td className="px-4 py-3 font-medium">{row.productName}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{row.sku}</td>
+                        <td className="px-4 py-3 text-right">{Number(row.unitsSold || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right text-emerald-500 font-semibold">{fmt(row.revenue)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={row.isLowStock ? "text-rose-400 font-semibold" : "font-medium"}>{row.currentStock}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function InventoryAnalyticsModule({ activeModule }) {
+  const [range, setRange] = useState("thisMonth");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    if (range === "custom" && (!from || !to)) return;
+    setLoading(true);
+    const result = await api.get("inventoryanalytics?" + buildAnalyticsQuery(range, from, to));
+    setData(result?.error ? null : result);
+    setLoading(false);
+  };
+
+  useLazyModuleEffect(activeModule, "inventoryanalytics", () => {
+    load();
+  }, [range, from, to]);
+
+  const exportRows = data?.tables?.mostMovedProducts || [];
+  const exportColumns = [
+    { label: "Product", value: (row) => row.productName },
+    { label: "SKU", value: (row) => row.sku },
+    { label: "Movement Quantity", value: (row) => row.movementQuantity },
+    { label: "Movement Count", value: (row) => row.movementCount },
+  ];
+
+  const handlePrint = () => {
+    printReportDocument(
+      "Inventory Analytics",
+      `
+        <h1>Inventory Analytics</h1>
+        <p class="meta">Period: ${data?.period?.label || "—"}</p>
+        <div class="grid">
+          <div class="card"><div class="card-label">Inventory Value</div><div class="card-value">${fmt(data?.metrics?.totalInventoryValue || 0)}</div></div>
+          <div class="card"><div class="card-label">Inventory Quantity</div><div class="card-value">${Number(data?.metrics?.inventoryQuantity || 0).toLocaleString()}</div></div>
+          <div class="card"><div class="card-label">Low Stock</div><div class="card-value">${data?.metrics?.lowStockCount || 0}</div></div>
+          <div class="card"><div class="card-label">Out of Stock</div><div class="card-value">${data?.metrics?.outOfStockCount || 0}</div></div>
+        </div>
+        <h2>Low Stock List</h2>
+        <table>
+          <thead><tr><th>Product</th><th>SKU</th><th>Variant</th><th>Quantity</th><th>Threshold</th></tr></thead>
+          <tbody>
+            ${(data?.tables?.lowStockList || []).map((row) => `<tr><td>${row.productName}</td><td>${row.sku}</td><td>${row.variant}</td><td>${row.quantity}</td><td>${row.threshold}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      `,
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Inventory Analytics</h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Understand inventory health, movement intensity, and stock risk.</p>
+      </div>
+      <AnalyticsFilterBar
+        range={range}
+        setRange={setRange}
+        from={from}
+        setFrom={setFrom}
+        to={to}
+        setTo={setTo}
+        onCsv={() => exportCsvRows("inventory-analytics.csv", exportColumns, exportRows)}
+        onExcel={() => exportExcelRows("inventory-analytics.xls", "Inventory Analytics", exportColumns, exportRows)}
+        onPrint={handlePrint}
+      />
+      {loading ? <StatsSkeleton stats={5} showChart /> : data ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+            <AnalyticsMetricCard label="Total Inventory Value" value={fmtShort(data.metrics.totalInventoryValue)} colorClass="text-blue-500" />
+            <AnalyticsMetricCard label="Inventory Quantity" value={Number(data.metrics.inventoryQuantity || 0).toLocaleString()} />
+            <AnalyticsMetricCard label="Low Stock Count" value={Number(data.metrics.lowStockCount || 0).toLocaleString()} colorClass="text-rose-400" />
+            <AnalyticsMetricCard label="Out of Stock" value={Number(data.metrics.outOfStockCount || 0).toLocaleString()} colorClass="text-amber-500" />
+            <AnalyticsMetricCard label="Average Stock" value={Number(data.metrics.averageStock || 0).toFixed(1)} colorClass="text-emerald-500" />
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <Card className="xl:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">Inventory Value by Product</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={data.charts.inventoryValueByProduct.slice(0, 10)}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="sku" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                    <Tooltip formatter={(value) => fmt(value)} />
+                    <Bar dataKey="inventoryValue" fill="hsl(var(--chart-2))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Stock Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie data={data.charts.stockDistribution} dataKey="value" nameKey="name" innerRadius={54} outerRadius={90}>
+                      {data.charts.stockDistribution.map((_, index) => (
+                        <Cell key={index} fill={["#10b981", "#f59e0b", "#ef4444"][index % 3]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => Number(value || 0).toLocaleString("id-ID")} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Movement Trend</CardTitle>
+              <CardDescription>Inbound vs outbound stock movement</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={data.charts.movementTrend}>
+                  <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip formatter={(value) => Number(value || 0).toLocaleString("id-ID")} />
+                  <Legend />
+                  <Line type="monotone" dataKey="inbound" stroke="hsl(var(--chart-1))" strokeWidth={2} />
+                  <Line type="monotone" dataKey="outbound" stroke="hsl(var(--chart-5))" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Most Moved Products</CardTitle></CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-border bg-[#F7F8FA]"><th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Movement Qty</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Count</th></tr></thead>
+                    <tbody>
+                      {data.tables.mostMovedProducts.map((row) => (
+                        <tr key={row.productId} className="border-b border-[rgba(17,24,39,0.04)]"><td className="px-4 py-3"><div className="font-medium">{row.productName}</div><div className="text-xs text-muted-foreground font-mono">{row.sku}</div></td><td className="px-4 py-3 text-right font-semibold text-blue-500">{Number(row.movementQuantity || 0).toLocaleString()}</td><td className="px-4 py-3 text-right">{row.movementCount}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Least Moved Products</CardTitle></CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-border bg-[#F7F8FA]"><th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Movement Qty</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Count</th></tr></thead>
+                    <tbody>
+                      {data.tables.leastMovedProducts.map((row) => (
+                        <tr key={row.productId} className="border-b border-[rgba(17,24,39,0.04)]"><td className="px-4 py-3"><div className="font-medium">{row.productName}</div><div className="text-xs text-muted-foreground font-mono">{row.sku}</div></td><td className="px-4 py-3 text-right font-semibold">{Number(row.movementQuantity || 0).toLocaleString()}</td><td className="px-4 py-3 text-right">{row.movementCount}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Recent Inventory Adjustments</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.tables.recentInventoryAdjustments.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{row.productName}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-1">{row.movementType} · {row.notes || "—"}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold">{Number(row.quantityChanged || 0).toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{row.movementDate}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Low Stock List</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.tables.lowStockList.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{row.productName}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-1">{row.variant}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold text-rose-400">{row.quantity}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Threshold {row.threshold}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function FinancialAnalyticsModule({ activeModule }) {
+  const [range, setRange] = useState("thisMonth");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    if (range === "custom" && (!from || !to)) return;
+    setLoading(true);
+    const result = await api.get("financialanalytics?" + buildAnalyticsQuery(range, from, to));
+    setData(result?.error ? null : result);
+    setLoading(false);
+  };
+
+  useLazyModuleEffect(activeModule, "financialanalytics", () => {
+    load();
+  }, [range, from, to]);
+
+  const expenseCategoryRows = data?.tables?.topExpenseCategories || [];
+  const exportColumns = [
+    { label: "Expense Category", value: (row) => row.name },
+    { label: "Amount", value: (row) => row.value },
+  ];
+
+  const handlePrint = () => {
+    printReportDocument(
+      "Financial Analytics",
+      `
+        <h1>Financial Analytics</h1>
+        <p class="meta">Period: ${data?.period?.label || "—"}</p>
+        <div class="grid">
+          <div class="card"><div class="card-label">Revenue</div><div class="card-value">${fmt(data?.metrics?.revenue || 0)}</div></div>
+          <div class="card"><div class="card-label">COGS</div><div class="card-value">${fmt(data?.metrics?.cogs || 0)}</div></div>
+          <div class="card"><div class="card-label">Gross Profit</div><div class="card-value">${fmt(data?.metrics?.grossProfit || 0)}</div></div>
+          <div class="card"><div class="card-label">Net Profit</div><div class="card-value">${fmt(data?.metrics?.netProfit || 0)}</div></div>
+        </div>
+        <h2>Top Expense Categories</h2>
+        <table>
+          <thead><tr><th>Category</th><th>Amount</th></tr></thead>
+          <tbody>
+            ${expenseCategoryRows.map((row) => `<tr><td>${row.name}</td><td>${fmt(row.value)}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      `,
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Financial Analytics</h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Simple financial overview from orders, cash flow, COGS, and expenses.</p>
+      </div>
+      <AnalyticsFilterBar
+        range={range}
+        setRange={setRange}
+        from={from}
+        setFrom={setFrom}
+        to={to}
+        setTo={setTo}
+        onCsv={() => exportCsvRows("financial-analytics.csv", exportColumns, expenseCategoryRows)}
+        onExcel={() => exportExcelRows("financial-analytics.xls", "Financial Analytics", exportColumns, expenseCategoryRows)}
+        onPrint={handlePrint}
+      />
+      {loading ? <StatsSkeleton stats={6} showChart /> : data ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
+            <AnalyticsMetricCard label="Revenue" value={fmtShort(data.metrics.revenue)} colorClass="text-emerald-500" />
+            <AnalyticsMetricCard label="Expenses" value={fmtShort(data.metrics.expenses)} colorClass="text-rose-400" />
+            <AnalyticsMetricCard label="Net Profit" value={fmtShort(data.metrics.netProfit)} colorClass={data.metrics.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"} />
+            <AnalyticsMetricCard label="Cash Position" value={fmtShort(data.metrics.cashPosition)} colorClass="text-blue-500" />
+            <AnalyticsMetricCard label="COGS" value={fmtShort(data.metrics.cogs)} colorClass="text-amber-500" />
+            <AnalyticsMetricCard label="Gross Profit" value={fmtShort(data.metrics.grossProfit)} colorClass={data.metrics.grossProfit >= 0 ? "text-indigo-600" : "text-rose-400"} />
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Revenue vs Expense</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={data.charts.revenueVsExpense}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                    <Tooltip formatter={(value) => fmt(value)} />
+                    <Legend />
+                    <Bar dataKey="revenue" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="expenses" fill="hsl(var(--chart-5))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Cash Flow Trend</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={data.charts.cashFlowTrend}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                    <Tooltip formatter={(value) => fmt(value)} />
+                    <Line type="monotone" dataKey="cashFlow" stroke="hsl(var(--chart-2))" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Monthly Profit</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={data.charts.monthlyProfit}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                    <Tooltip formatter={(value) => fmt(value)} />
+                    <Bar dataKey="netProfit" fill="hsl(var(--chart-3))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Expense Category Breakdown</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie data={data.charts.expenseCategoryBreakdown} dataKey="value" nameKey="name" innerRadius={54} outerRadius={90}>
+                      {data.charts.expenseCategoryBreakdown.map((_, index) => (
+                        <Cell key={index} fill={["#ef4444", "#f59e0b", "#8b5cf6", "#14b8a6", "#2563eb", "#64748b"][index % 6]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => fmt(value)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Top Expense Categories</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.tables.topExpenseCategories.map((row) => (
+                  <div key={row.name} className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-3 text-sm">
+                    <span className="font-medium">{row.name}</span>
+                    <span className="font-semibold text-rose-400">{fmt(row.value)}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Recent Cash In</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.tables.recentCashIn.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{row.financialAccountName}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-1">{row.referenceNumber || row.description || "—"}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold text-emerald-500">{fmt(row.amount)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{row.date}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Recent Cash Out</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.tables.recentCashOut.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{row.expenseCategoryName}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-1">{row.referenceNumber || row.description || "—"}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold text-rose-400">{fmt(row.amount)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{row.date}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function MarketingAnalyticsModule({ activeModule }) {
+  const [range, setRange] = useState("thisMonth");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    if (range === "custom" && (!from || !to)) return;
+    setLoading(true);
+    const result = await api.get("marketinganalytics?" + buildAnalyticsQuery(range, from, to));
+    setData(result?.error ? null : result);
+    setLoading(false);
+  };
+
+  useLazyModuleEffect(activeModule, "marketinganalytics", () => {
+    load();
+  }, [range, from, to]);
+
+  const topCustomerRows = data?.tables?.topCustomers || [];
+  const exportColumns = [
+    { label: "Customer", value: (row) => row.customerName },
+    { label: "Order Count", value: (row) => row.orderCount },
+    { label: "Revenue", value: (row) => row.revenue },
+  ];
+
+  const handlePrint = () => {
+    printReportDocument(
+      "Marketing Analytics",
+      `
+        <h1>Marketing Analytics</h1>
+        <p class="meta">Period: ${data?.period?.label || "—"}</p>
+        <div class="grid">
+          <div class="card"><div class="card-label">Orders</div><div class="card-value">${data?.metrics?.orders || 0}</div></div>
+          <div class="card"><div class="card-label">Revenue</div><div class="card-value">${fmt(data?.metrics?.revenue || 0)}</div></div>
+          <div class="card"><div class="card-label">AOV</div><div class="card-value">${fmt(data?.metrics?.averageOrderValue || 0)}</div></div>
+          <div class="card"><div class="card-label">Repeat Customers</div><div class="card-value">${data?.metrics?.repeatCustomers || 0}</div></div>
+        </div>
+        <h2>Top Customers</h2>
+        <table>
+          <thead><tr><th>Customer</th><th>Orders</th><th>Revenue</th></tr></thead>
+          <tbody>
+            ${topCustomerRows.map((row) => `<tr><td>${row.customerName}</td><td>${row.orderCount}</td><td>${fmt(row.revenue)}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      `,
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Marketing Analytics</h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Simple channel and customer analytics from sales activity.</p>
+      </div>
+      <AnalyticsFilterBar
+        range={range}
+        setRange={setRange}
+        from={from}
+        setFrom={setFrom}
+        to={to}
+        setTo={setTo}
+        onCsv={() => exportCsvRows("marketing-analytics.csv", exportColumns, topCustomerRows)}
+        onExcel={() => exportExcelRows("marketing-analytics.xls", "Marketing Analytics", exportColumns, topCustomerRows)}
+        onPrint={handlePrint}
+      />
+      {loading ? <StatsSkeleton stats={5} showChart /> : data ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+            <AnalyticsMetricCard label="Orders" value={Number(data.metrics.orders || 0).toLocaleString()} />
+            <AnalyticsMetricCard label="Revenue" value={fmtShort(data.metrics.revenue)} colorClass="text-emerald-500" />
+            <AnalyticsMetricCard label="Average Order Value" value={fmtShort(data.metrics.averageOrderValue)} colorClass="text-blue-500" />
+            <AnalyticsMetricCard label="Customers" value={Number(data.metrics.customers || 0).toLocaleString()} />
+            <AnalyticsMetricCard label="Repeat Customers" value={Number(data.metrics.repeatCustomers || 0).toLocaleString()} colorClass="text-indigo-600" />
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Sales by Channel</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={data.charts.salesByChannel}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="channelName" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <Tooltip formatter={(value) => Number(value || 0).toLocaleString("id-ID")} />
+                    <Bar dataKey="orders" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Revenue by Channel</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={data.charts.revenueByChannel}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="channelName" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                    <Tooltip formatter={(value) => fmt(value)} />
+                    <Bar dataKey="revenue" fill="hsl(var(--chart-2))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Orders by Day</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={data.charts.ordersByDay}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <Tooltip formatter={(value) => Number(value || 0).toLocaleString("id-ID")} />
+                    <Line type="monotone" dataKey="total" stroke="hsl(var(--chart-3))" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Top Customers</CardTitle></CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-border bg-[#F7F8FA]"><th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Orders</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Revenue</th></tr></thead>
+                    <tbody>
+                      {data.tables.topCustomers.map((row) => (
+                        <tr key={row.customerId || row.customerName} className="border-b border-[rgba(17,24,39,0.04)]"><td className="px-4 py-3 font-medium">{row.customerName}</td><td className="px-4 py-3 text-right">{row.orderCount}</td><td className="px-4 py-3 text-right text-emerald-500 font-semibold">{fmt(row.revenue)}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Top Sales Channels</CardTitle></CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-border bg-[#F7F8FA]"><th className="text-left px-4 py-3 font-medium text-muted-foreground">Channel</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Orders</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Revenue</th></tr></thead>
+                    <tbody>
+                      {data.tables.topSalesChannels.map((row) => (
+                        <tr key={row.channelId || row.channelName} className="border-b border-[rgba(17,24,39,0.04)]"><td className="px-4 py-3 font-medium">{row.channelName}</td><td className="px-4 py-3 text-right">{row.orders}</td><td className="px-4 py-3 text-right text-blue-500 font-semibold">{fmt(row.revenue)}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Newest Customers</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.tables.newestCustomers.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                    <p className="font-medium truncate">{row.customerName}</p>
+                    <p className="text-xs text-muted-foreground mt-1 truncate">{row.email || row.phone || row.customerCode}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{new Date(row.createdAt).toLocaleDateString("id-ID")}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function ExecutiveReportsModule({ activeModule, onOpenOrderReference = () => {} }) {
+  const [range, setRange] = useState("thisMonth");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    if (range === "custom" && (!from || !to)) return;
+    setLoading(true);
+    const result = await api.get("executivereports?" + buildAnalyticsQuery(range, from, to));
+    setData(result?.error ? null : result);
+    setLoading(false);
+  };
+
+  useLazyModuleEffect(activeModule, "executivereports", () => {
+    load();
+  }, [range, from, to]);
+
+  const activityRows = data?.recentActivities?.latestOrders || [];
+  const exportColumns = [
+    { label: "Order", value: (row) => row.orderNumber },
+    { label: "Customer", value: (row) => row.customerName },
+    { label: "Amount", value: (row) => row.amount },
+    { label: "Status", value: (row) => row.status },
+  ];
+
+  const handlePrint = () => {
+    printReportDocument(
+      "Executive Report",
+      `
+        <h1>Executive Report</h1>
+        <p class="meta">Period: ${data?.period?.label || "—"}</p>
+        <div class="grid">
+          <div class="card"><div class="card-label">Revenue</div><div class="card-value">${fmt(data?.cards?.revenue || 0)}</div></div>
+          <div class="card"><div class="card-label">Profit</div><div class="card-value">${fmt(data?.cards?.profit || 0)}</div></div>
+          <div class="card"><div class="card-label">Cash</div><div class="card-value">${fmt(data?.cards?.cash || 0)}</div></div>
+          <div class="card"><div class="card-label">Orders</div><div class="card-value">${data?.cards?.orders || 0}</div></div>
+        </div>
+        <h2>Latest Orders</h2>
+        <table>
+          <thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody>
+            ${activityRows.map((row) => `<tr><td>${row.orderNumber}</td><td>${row.customerName}</td><td>${fmt(row.amount)}</td><td>${row.status}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      `,
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Executive Report</h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">One-page business summary for leadership decisions.</p>
+      </div>
+      <AnalyticsFilterBar
+        range={range}
+        setRange={setRange}
+        from={from}
+        setFrom={setFrom}
+        to={to}
+        setTo={setTo}
+        onCsv={() => exportCsvRows("executive-report.csv", exportColumns, activityRows)}
+        onExcel={() => exportExcelRows("executive-report.xls", "Executive Report", exportColumns, activityRows)}
+        onPrint={handlePrint}
+      />
+      {loading ? <StatsSkeleton stats={8} showChart={false} /> : data ? (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+            <AnalyticsMetricCard label="Revenue" value={fmtShort(data.cards.revenue)} colorClass="text-emerald-500" />
+            <AnalyticsMetricCard label="Profit" value={fmtShort(data.cards.profit)} colorClass={data.cards.profit >= 0 ? "text-emerald-500" : "text-rose-400"} />
+            <AnalyticsMetricCard label="Cash" value={fmtShort(data.cards.cash)} colorClass="text-blue-500" />
+            <AnalyticsMetricCard label="Orders" value={Number(data.cards.orders || 0).toLocaleString()} />
+            <AnalyticsMetricCard label="Customers" value={Number(data.cards.customers || 0).toLocaleString()} />
+            <AnalyticsMetricCard label="Inventory Value" value={fmtShort(data.cards.inventoryValue)} colorClass="text-indigo-600" />
+            <AnalyticsMetricCard label="Production Cost" value={fmtShort(data.cards.productionCost)} colorClass="text-amber-500" />
+            <AnalyticsMetricCard label="Low Stock" value={Number(data.cards.lowStock || 0).toLocaleString()} colorClass="text-rose-400" />
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Latest Orders</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.recentActivities.latestOrders.map((row) => (
+                  <button key={row.id} type="button" className="w-full rounded-xl border border-border/60 px-3 py-3 text-left hover:bg-[#F7F8FA]" onClick={() => onOpenOrderReference(row.orderNumber)}>
+                    <p className="font-mono text-xs text-blue-600 truncate">{row.orderNumber}</p>
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <span className="text-sm font-medium truncate">{row.customerName}</span>
+                      <span className="text-sm font-semibold text-emerald-500">{fmt(row.amount)}</span>
+                    </div>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Latest Expenses</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.recentActivities.latestExpenses.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                    <p className="font-medium truncate">{row.category}</p>
+                    <div className="flex items-center justify-between gap-2 mt-1 text-xs text-muted-foreground">
+                      <span className="truncate">{row.description || "—"}</span>
+                      <span>{row.date}</span>
+                    </div>
+                    <p className="font-semibold text-rose-400 mt-2">{fmt(row.amount)}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Latest Cash In</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.recentActivities.latestCashIn.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                    <p className="font-medium truncate">{row.financialAccountName}</p>
+                    <div className="flex items-center justify-between gap-2 mt-1 text-xs text-muted-foreground">
+                      <span className="truncate">{row.description || "—"}</span>
+                      <span>{row.date}</span>
+                    </div>
+                    <p className="font-semibold text-emerald-500 mt-2">{fmt(row.amount)}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Latest Production</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.recentActivities.latestProduction.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                    <p className="font-medium truncate">{row.resultNumber}</p>
+                    <p className="text-xs text-muted-foreground truncate mt-1">{row.productName}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-muted-foreground">{Number(row.quantity || 0).toLocaleString()} pcs</span>
+                      <span className="font-semibold text-amber-500">{fmt(row.totalProductionCost)}</span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Low Stock Alerts</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.alerts.lowStock.length === 0 ? <p className="text-sm text-muted-foreground">No low stock alerts.</p> : data.alerts.lowStock.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                    <p className="font-medium truncate">{row.productName}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{row.variant}</p>
+                    <p className="text-xs text-rose-400 mt-2">Qty {row.quantity} / Threshold {row.threshold}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Operational Alerts</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center justify-between"><span>Negative Cash Accounts</span><span className="font-semibold">{data.alerts.negativeCash.length}</span></div>
+                <div className="flex items-center justify-between"><span>Unposted Journal</span><span className="font-semibold">{data.alerts.unpostedJournalCount}</span></div>
+                <div className="flex items-center justify-between"><span>Pending Orders</span><span className="font-semibold">{data.alerts.pendingOrders}</span></div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Recent Failed Production</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {data.alerts.recentFailedProduction.length === 0 ? <p className="text-sm text-muted-foreground">No failed production in selected period.</p> : data.alerts.recentFailedProduction.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                    <p className="font-medium truncate">{row.productionOrderNumber}</p>
+                    <p className="text-xs text-muted-foreground truncate mt-1">{row.productName}</p>
+                    <p className="text-xs text-muted-foreground mt-2">{new Date(row.updatedAt).toLocaleString("id-ID")}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 // =========== NOTIFICATIONS ===========
 function NotificationsModule({ activeModule }) {
   const [items, setItems] = useState([]);
@@ -15758,11 +16867,16 @@ function App() {
     ),
     saleschannels: () => <SalesChannelsModule activeModule={active} />,
     campaigns: () => <ComingSoonModule pageId="campaigns" />,
-    productanalytics: () => <ComingSoonModule pageId="productanalytics" />,
-    inventoryanalytics: () => <ComingSoonModule pageId="inventoryanalytics" />,
-    financialanalytics: () => <ComingSoonModule pageId="financialanalytics" />,
-    marketinganalytics: () => <ComingSoonModule pageId="marketinganalytics" />,
-    executivereports: () => <ComingSoonModule pageId="executivereports" />,
+    productanalytics: () => <ProductAnalyticsModule activeModule={active} />,
+    inventoryanalytics: () => <InventoryAnalyticsModule activeModule={active} />,
+    financialanalytics: () => <FinancialAnalyticsModule activeModule={active} />,
+    marketinganalytics: () => <MarketingAnalyticsModule activeModule={active} />,
+    executivereports: () => (
+      <ExecutiveReportsModule
+        activeModule={active}
+        onOpenOrderReference={openOrderReference}
+      />
+    ),
     users: () => <ComingSoonModule pageId="users" />,
     rolespermissions: () => <ComingSoonModule pageId="rolespermissions" />,
     notificationsettings: () => <NotificationsModule activeModule={active} />,

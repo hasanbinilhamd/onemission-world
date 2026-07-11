@@ -6,6 +6,7 @@ import { financePostingService } from '@/lib/finance-posting';
 import { cashFlowService, inventoryValuationService } from '@/lib/finance-reporting';
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
+import { reportsService } from '@/lib/reports';
 import { districtService } from '@/lib/shipping/district-service';
 import { normalizeShippingError, shippingService } from '@/lib/shipping';
 import { v4 as uuid } from 'uuid';
@@ -224,6 +225,14 @@ function isFinishedGoodsInventoryAccount(account) {
   const accountCode = String(account?.accountCode || '').trim();
   const accountName = String(account?.accountName || '').trim().toLowerCase();
   return accountCode === '1500' || accountName.includes('finished goods inventory');
+}
+
+function getReportFilters(url) {
+  return {
+    range: url.searchParams.get('range') || 'thisMonth',
+    from: url.searchParams.get('from') || '',
+    to: url.searchParams.get('to') || '',
+  };
 }
 
 async function handle(request, { params }) {
@@ -1300,6 +1309,41 @@ async function handle(request, { params }) {
         financialAccountId,
       });
 
+      return NextResponse.json(result);
+    }
+
+    // ---------- PRODUCT ANALYTICS ----------
+    if (segs[0] === 'productanalytics' && method === 'GET') {
+      const url = new URL(request.url);
+      const result = await reportsService.getProductAnalytics(getReportFilters(url));
+      return NextResponse.json(result);
+    }
+
+    // ---------- INVENTORY ANALYTICS ----------
+    if (segs[0] === 'inventoryanalytics' && method === 'GET') {
+      const url = new URL(request.url);
+      const result = await reportsService.getInventoryAnalytics(getReportFilters(url));
+      return NextResponse.json(result);
+    }
+
+    // ---------- FINANCIAL ANALYTICS ----------
+    if (segs[0] === 'financialanalytics' && method === 'GET') {
+      const url = new URL(request.url);
+      const result = await reportsService.getFinancialAnalytics(getReportFilters(url));
+      return NextResponse.json(result);
+    }
+
+    // ---------- MARKETING ANALYTICS ----------
+    if (segs[0] === 'marketinganalytics' && method === 'GET') {
+      const url = new URL(request.url);
+      const result = await reportsService.getMarketingAnalytics(getReportFilters(url));
+      return NextResponse.json(result);
+    }
+
+    // ---------- EXECUTIVE REPORTS ----------
+    if (segs[0] === 'executivereports' && method === 'GET') {
+      const url = new URL(request.url);
+      const result = await reportsService.getExecutiveReport(getReportFilters(url));
       return NextResponse.json(result);
     }
 
