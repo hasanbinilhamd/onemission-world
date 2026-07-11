@@ -317,6 +317,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
 
   const shipmentLocked = [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(order.fulfillmentStatus);
   const requiresShipmentInformation = fulfillmentStatus === FULFILLMENT_STATUS.SHIPPED;
+  const shouldShowShipmentInformation = shipmentLocked || [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(fulfillmentStatus);
   const trackShipmentUrl = buildShipmentTrackingUrl(shipmentCourier || order.shipment?.courier, trackingNumber || order.shipment?.trackingNumber);
   const showTrackShipmentButton = Boolean(trackingNumber || order.shipment?.trackingNumber);
 
@@ -492,55 +493,57 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/40 bg-muted/10 p-4 space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Shipment Information</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Complete the courier details before dispatch. Shipment data becomes read-only after the order is shipped.
-                  </p>
+            {shouldShowShipmentInformation ? (
+              <div className="rounded-2xl border border-border/40 bg-muted/10 p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Shipment Information</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Complete the courier details before dispatch. Shipment data becomes read-only after the order is shipped.
+                    </p>
+                  </div>
+                  {showTrackShipmentButton ? (
+                    trackShipmentUrl ? (
+                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => window.open(trackShipmentUrl, "_blank", "noopener,noreferrer")}>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Track Shipment
+                      </Button>
+                    ) : (
+                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(trackingNumber || order.shipment?.trackingNumber || "");
+                          toast.success("Tracking number copied.");
+                        } catch {
+                          toast.error("Unable to copy tracking number.");
+                        }
+                      }}>
+                        <Copy className="h-3.5 w-3.5" />
+                        Copy Tracking Number
+                      </Button>
+                    )
+                  ) : null}
                 </div>
-                {showTrackShipmentButton ? (
-                  trackShipmentUrl ? (
-                    <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => window.open(trackShipmentUrl, "_blank", "noopener,noreferrer")}>
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Track Shipment
-                    </Button>
-                  ) : (
-                    <Button type="button" variant="outline" size="sm" className="gap-2" onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(trackingNumber || order.shipment?.trackingNumber || "");
-                        toast.success("Tracking number copied.");
-                      } catch {
-                        toast.error("Unable to copy tracking number.");
-                      }
-                    }}>
-                      <Copy className="h-3.5 w-3.5" />
-                      Copy Tracking Number
-                    </Button>
-                  )
-                ) : null}
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Shipment Courier</Label>
-                  <Input value={shipmentCourier} onChange={(event) => setShipmentCourier(event.target.value)} placeholder="JNE" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Shipment Service</Label>
-                  <Input value={shipmentService} onChange={(event) => setShipmentService(event.target.value)} placeholder="REG" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Tracking Number</Label>
-                  <Input value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} placeholder="Tracking number" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Shipping Date</Label>
-                  <Input type="datetime-local" value={shippingDate} onChange={(event) => setShippingDate(event.target.value)} disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Shipment Courier</Label>
+                    <Input value={shipmentCourier} onChange={(event) => setShipmentCourier(event.target.value)} placeholder="JNE" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Shipment Service</Label>
+                    <Input value={shipmentService} onChange={(event) => setShipmentService(event.target.value)} placeholder="REG" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Tracking Number</Label>
+                    <Input value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} placeholder="Tracking number" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Shipping Date</Label>
+                    <Input type="datetime-local" value={shippingDate} onChange={(event) => setShippingDate(event.target.value)} disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : null}
           </DetailSection>
 
           <DetailSection title="Order Timeline">

@@ -1982,7 +1982,9 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
   }, [filtered]);
 
   const totalStock = filtered.reduce((s, i) => s + i.quantity, 0);
-  const critical = filtered.filter((i) => i.quantity <= 5);
+  const critical = filtered.filter(
+    (i) => Number(i.quantity || 0) <= Number(i.threshold || 0),
+  );
 
   const colorSwatch = {
     Black: "#0a0a0a",
@@ -2150,7 +2152,9 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                 </div>
                               );
                             }
-                            const crit = item.quantity <= 5;
+                            const crit =
+                              Number(item.quantity || 0) <=
+                              Number(item.threshold || 0);
                             return (
                               <div
                                 key={size}
