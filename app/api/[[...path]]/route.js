@@ -22,6 +22,7 @@ import {
   writeAuditLog,
 } from '@/lib/hq-security';
 import { cashFlowService, inventoryValuationService } from '@/lib/finance-reporting';
+import { notificationService, invalidateNotificationSettingsCache } from '@/lib/notifications';
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
 import { reportsService } from '@/lib/reports';
@@ -163,6 +164,9 @@ function resolveCatchAllPermission(segs, method) {
     return method === 'GET'
       ? { moduleKey: 'sales', actionKey: 'view' }
       : { moduleKey: 'sales', actionKey: 'manage_master' };
+  }
+  if (segment === 'notifications') {
+    return { moduleKey: 'dashboard', actionKey: 'view' };
   }
   if (segment === 'users') {
     return method === 'GET'
@@ -594,6 +598,16 @@ async function handle(request, { params }) {
           metadata: { targetUserId: user.id },
         });
 
+        await notificationService.dispatch({
+          type: 'USER_CREATED',
+          payload: {
+            userId: user.id,
+            email: user.email,
+            name: user.name,
+          },
+          prismaClient: prisma,
+        });
+
         return NextResponse.json(user);
       }
 
@@ -871,6 +885,15 @@ async function handle(request, { params }) {
           metadata: { roleId: segs[1] },
         });
 
+        await notificationService.dispatch({
+          type: 'ROLE_UPDATED',
+          payload: {
+            roleId: segs[1],
+            roleName: updatedRole?.name || nextName,
+          },
+          prismaClient: prisma,
+        });
+
         return NextResponse.json(updatedRole);
       }
     }
@@ -892,6 +915,8 @@ async function handle(request, { params }) {
             updatedBy: authContext?.user?.email || authContext?.user?.name || '',
           },
         })));
+
+        invalidateNotificationSettingsCache();
 
         await writeAuditLog({
           prismaClient: prisma,
@@ -976,6 +1001,45 @@ async function handle(request, { params }) {
       });
 
       return NextResponse.json(filteredLogs);
+    }
+
+    // ---------- NOTIFICATIONS ----------
+    if (segs[0] === 'notifications') {
+      if (segs[1] === 'summary' && method === 'GET') {
+        const summary = await notificationService.getSummary({ prismaClient: prisma });
+        return NextResponse.json(summary);
+      }
+
+      if (segs[1] === 'mark-all-read' && method === 'POST') {
+        await notificationService.markAllRead({ prismaClient: prisma });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (segs[1] === 'read' && method === 'DELETE') {
+        const result = await notificationService.deleteRead({ prismaClient: prisma });
+        return NextResponse.json({ ok: true, count: result.count });
+      }
+
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const result = await notificationService.list({
+          prismaClient: prisma,
+          search: url.searchParams.get('search') || '',
+          status: url.searchParams.get('status') || 'all',
+          severity: url.searchParams.get('severity') || 'all',
+          page: url.searchParams.get('page') || 1,
+          limit: url.searchParams.get('limit') || 20,
+        });
+        return NextResponse.json(result);
+      }
+
+      if (method === 'PUT' && segs.length === 2) {
+        const updated = await notificationService.markRead(segs[1], { prismaClient: prisma });
+        if (!updated) {
+          return NextResponse.json({ error: 'Notification not found.' }, { status: 404 });
+        }
+        return NextResponse.json(updated);
+      }
     }
 
     // ---------- DASHBOARD STATS ----------
@@ -1423,6 +1487,17 @@ async function handle(request, { params }) {
           action: transactionType === 'IN' ? 'CASH_IN_CREATED' : 'CASH_OUT_CREATED',
           description: `${transactionType === 'IN' ? 'Cash In' : 'Cash Out'} transaction ${referenceNumber || doc.id} was created.`,
           metadata: { transactionId: doc.id, amount },
+        });
+
+        await notificationService.dispatch({
+          type: transactionType === 'IN' ? 'CASH_IN_CREATED' : 'CASH_OUT_CREATED',
+          payload: {
+            transactionId: doc.id,
+            referenceNumber,
+            amount,
+            amountFormatted: `Rp ${Number(amount || 0).toLocaleString('id-ID')}`,
+          },
+          prismaClient: prisma,
         });
 
         return NextResponse.json({
@@ -2375,6 +2450,29 @@ async function handle(request, { params }) {
         metadata: { inventoryId: id, previousQuantity: current.quantity, newQuantity: nextQuantity },
       });
 
+      await notificationService.dispatch({
+        type: 'MANUAL_STOCK_ADJUSTMENT',
+        payload: {
+          inventoryId: id,
+          referenceId: id,
+          productName: result.inventory?.product?.name || '',
+        },
+        prismaClient: prisma,
+      });
+
+      if (Number(result.inventory?.quantity || 0) <= Number(result.inventory?.threshold || 0)) {
+        await notificationService.dispatch({
+          type: Number(result.inventory?.quantity || 0) <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+          payload: {
+            inventoryId: id,
+            referenceId: id,
+            quantity: result.inventory?.quantity || 0,
+            productName: result.inventory?.product?.name || '',
+          },
+          prismaClient: prisma,
+        });
+      }
+
       return NextResponse.json(result.inventory);
     }
 
@@ -2527,6 +2625,14 @@ async function handle(request, { params }) {
             description: `Manual raw material movement ${body.movementType} recorded for ${body.rawMaterialId}.`,
             metadata: { rawMaterialId: body.rawMaterialId, movementId: movement.id, quantity: qty },
           });
+          await notificationService.dispatch({
+            type: 'MANUAL_STOCK_ADJUSTMENT',
+            payload: {
+              referenceId: body.rawMaterialId,
+              referenceLabel: rm.name,
+            },
+            prismaClient: prisma,
+          });
           return NextResponse.json(movement);
         }
 
@@ -2579,6 +2685,27 @@ async function handle(request, { params }) {
           description: `Manual inventory movement ${body.movementType} recorded for inventory ${body.inventoryId}.`,
           metadata: { inventoryId: body.inventoryId, movementId: movement.id, quantity: qty },
         });
+        await notificationService.dispatch({
+          type: 'MANUAL_STOCK_ADJUSTMENT',
+          payload: {
+            inventoryId: body.inventoryId,
+            referenceId: body.inventoryId,
+            referenceLabel: `${inv.productId} ${inv.color}/${inv.size}`,
+          },
+          prismaClient: prisma,
+        });
+        if (newQty <= Number(inv.threshold || 0)) {
+          await notificationService.dispatch({
+            type: newQty <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+            payload: {
+              inventoryId: body.inventoryId,
+              referenceId: body.inventoryId,
+              quantity: newQty,
+              referenceLabel: `${inv.productId} ${inv.color}/${inv.size}`,
+            },
+            prismaClient: prisma,
+          });
+        }
         return NextResponse.json(movement);
       }
     }
@@ -2926,6 +3053,15 @@ async function handle(request, { params }) {
           data: { status: 'In Production', startedAt: new Date() },
           include: { product: { select: { id: true, name: true, sku: true } }, bom: { select: { id: true, bomCode: true, version: true } } },
         });
+        await notificationService.dispatch({
+          type: 'PRODUCTION_STARTED',
+          payload: {
+            productionOrderId: updated.id,
+            productionOrderNumber: updated.productionOrderNumber,
+            productName: updated.product?.name || '',
+          },
+          prismaClient: prisma,
+        });
         return NextResponse.json(updated);
       }
 
@@ -3112,6 +3248,18 @@ async function handle(request, { params }) {
           action: 'PRODUCTION_RESULT_POSTED',
           description: `Production result ${createdResultNumber} was completed for order ${completedOrder.productionOrderNumber}.`,
           metadata: { productionOrderId: completedOrder.id, resultNumber: createdResultNumber, actualQuantity: actualQty, totalProductionCost },
+        });
+
+        await notificationService.dispatch({
+          type: 'PRODUCTION_FINISHED',
+          payload: {
+            productionResultId: completedOrder.productionResult?.id || '',
+            productionOrderId: completedOrder.id,
+            resultNumber: createdResultNumber,
+            actualQuantity: actualQty,
+            productName: completedOrder.product?.name || '',
+          },
+          prismaClient: prisma,
         });
 
         return NextResponse.json(completedOrder);

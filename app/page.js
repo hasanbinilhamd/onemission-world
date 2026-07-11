@@ -6235,21 +6235,78 @@ function ExecutiveReportsModule({ activeModule, onOpenOrderReference = () => {} 
 }
 
 // =========== NOTIFICATIONS ===========
-function NotificationsModule({ activeModule }) {
+function NotificationsModule({ activeModule, onOpenNotificationAction = () => {}, onRefreshSummary = () => {} }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const load = async () => {
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [severityFilter, setSeverityFilter] = useState("all");
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = async (nextPage = page) => {
     setLoading(true);
-    setItems(await api.get("notifications"));
+    const params = new URLSearchParams({
+      page: String(nextPage),
+      limit: '20',
+      status: statusFilter,
+      severity: severityFilter,
+    });
+    if (search.trim()) params.set('search', search.trim());
+    const result = await api.get(`notifications?${params.toString()}`);
+    setItems(Array.isArray(result?.data) ? result.data : []);
+    setPagination(result?.pagination || { page: 1, limit: 20, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
     setLoading(false);
   };
+
   useLazyModuleEffect(activeModule, ["notifications", "notificationsettings"], () => {
-    load();
-  }, []);
+    load(1);
+  }, [search, statusFilter, severityFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, severityFilter]);
+
   const markRead = async (item) => {
-    await api.put("notifications/" + item.id, { ...item, read: true });
-    load();
+    setSubmitting(true);
+    const result = await api.put(`notifications/${item.id}`, {});
+    setSubmitting(false);
+    if (result?.error) {
+      toast.error(result.error || 'Failed to mark notification as read.');
+      return;
+    }
+    onRefreshSummary();
+    load(pagination.page);
+    onOpenNotificationAction(result);
   };
+
+  const markAllRead = async () => {
+    setSubmitting(true);
+    const result = await api.post('notifications/mark-all-read', {});
+    setSubmitting(false);
+    if (result?.error) {
+      toast.error(result.error || 'Failed to mark all notifications as read.');
+      return;
+    }
+    toast.success('All notifications marked as read.');
+    onRefreshSummary();
+    load(1);
+  };
+
+  const deleteRead = async () => {
+    setSubmitting(true);
+    const result = await api.del('notifications/read');
+    setSubmitting(false);
+    if (result?.error) {
+      toast.error(result.error || 'Failed to delete read notifications.');
+      return;
+    }
+    toast.success('Read notifications deleted.');
+    onRefreshSummary();
+    load(1);
+  };
+
   const sevColor = {
     critical: "text-rose-400 bg-rose-500/10 border-rose-500/30",
     warning: "text-amber-400 bg-amber-500/10 border-amber-500/30",
@@ -6270,38 +6327,86 @@ function NotificationsModule({ activeModule }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
-          Notifications
-        </h2>
-        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-          Alerts and updates across all modules
-        </p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Notifications
+          </h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+            Alerts and updates across all ERP modules
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={markAllRead} disabled={submitting}>Mark All Read</Button>
+          <Button variant="outline" size="sm" onClick={deleteRead} disabled={submitting}>Delete Read</Button>
+        </div>
       </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px_180px] gap-3">
+            <div>
+              <Label>Search</Label>
+              <div className="relative mt-1.5">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, message, type, or reference…" />
+              </div>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="unread">Unread</SelectItem>
+                  <SelectItem value="read">Read</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Severity</Label>
+              <Select value={severityFilter} onValueChange={setSeverityFilter}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="warning">Warning</SelectItem>
+                  <SelectItem value="info">Info</SelectItem>
+                  <SelectItem value="success">Success</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="space-y-2">
-        {items.map((n) => (
+        {items.length === 0 ? (
+          <Card>
+            <CardContent className="p-10 text-center text-sm text-muted-foreground">No notifications found.</CardContent>
+          </Card>
+        ) : items.map((n) => (
           <Card
             key={n.id}
             className={`${!n.read ? "bg-secondary/30" : ""} cursor-pointer`}
-            onClick={() => !n.read && markRead(n)}
+            onClick={() => (!n.read ? markRead(n) : onOpenNotificationAction(n))}
           >
             <CardContent className="p-4 flex items-start gap-3">
-              <div
-                className={`w-9 h-9 rounded-lg flex items-center justify-center ${sevColor[n.severity] || ""}`}
-              >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${sevColor[n.severity] || ""}`}>
                 <Bell className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <p className="font-medium">{n.title}</p>
-                  <Badge variant="outline" className="text-[10px]">
-                    {n.type}
-                  </Badge>
-                  {!n.read && (
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
-                  )}
+                  <Badge variant="outline" className="text-[10px]">{n.type}</Badge>
+                  {!n.read ? <span className="w-2 h-2 rounded-full bg-blue-500" /> : null}
                 </div>
                 <p className="text-sm text-muted-foreground">{n.message}</p>
+                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                  <span>{n.module || 'SYSTEM'}</span>
+                  <span>{n.referenceId || '—'}</span>
+                  <span>{n.relativeTime || new Date(n.createdAt).toLocaleString('id-ID')}</span>
+                </div>
               </div>
               <span className="text-xs text-muted-foreground shrink-0">
                 {new Date(n.createdAt).toLocaleDateString()}
@@ -6310,10 +6415,27 @@ function NotificationsModule({ activeModule }) {
           </Card>
         ))}
       </div>
+
+      {pagination.totalPages > 1 ? (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.totalItems)} of {pagination.totalItems}
+          </span>
+          <div className="flex gap-1">
+            <Button variant="outline" size="sm" disabled={!pagination.hasPreviousPage} onClick={() => { const nextPage = Math.max(1, pagination.page - 1); setPage(nextPage); load(nextPage); }}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="outline" size="sm" disabled={!pagination.hasNextPage} onClick={() => { const nextPage = pagination.page + 1; setPage(nextPage); load(nextPage); }}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
+// =========== SETTINGS ===========
 // =========== SETTINGS ===========
 function SettingsModule({ user, activeModule }) {
   const [users, setUsers] = useState([]);
@@ -16736,6 +16858,8 @@ function App() {
   const [glInitialAccount, setGlInitialAccount] = useState(null);
   const [orderReferenceSelection, setOrderReferenceSelection] = useState(null);
   const [inventoryFilterSelection, setInventoryFilterSelection] = useState(null);
+  const [notificationSummary, setNotificationSummary] = useState({ unreadCount: 0, recent: [] });
+  const [notificationSummaryLoading, setNotificationSummaryLoading] = useState(false);
 
   const toggleGroup = (id) => {
     setOpenGroups((prev) => {
@@ -16771,6 +16895,47 @@ function App() {
     handleNavClick("inventory");
   };
 
+  const refreshNotificationSummary = async () => {
+    setNotificationSummaryLoading(true);
+    try {
+      const result = await api.get("notifications/summary");
+      setNotificationSummary({
+        unreadCount: Number(result?.unreadCount || 0),
+        recent: Array.isArray(result?.recent) ? result.recent : [],
+      });
+    } finally {
+      setNotificationSummaryLoading(false);
+    }
+  };
+
+  const openNotificationAction = async (notification) => {
+    if (!notification?.id) return;
+
+    if (!notification.read) {
+      const updated = await api.put(`notifications/${notification.id}`, {});
+      notification = updated?.id ? updated : notification;
+      await refreshNotificationSummary();
+    }
+
+    const actionUrl = String(notification?.actionUrl || '').trim();
+    const referenceId = String(notification?.referenceId || '').trim();
+
+    if (actionUrl === "orders" && referenceId) {
+      openOrderReference(referenceId);
+      return;
+    }
+    if (actionUrl === "inventory") {
+      openLowStockInventory();
+      return;
+    }
+    if (actionUrl) {
+      handleNavClick(actionUrl);
+      return;
+    }
+
+    handleNavClick("notifications");
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -16800,6 +16965,33 @@ function App() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let mounted = true;
+    const run = async () => {
+      try {
+        const result = await api.get("notifications/summary");
+        if (!mounted) return;
+        setNotificationSummary({
+          unreadCount: Number(result?.unreadCount || 0),
+          recent: Array.isArray(result?.recent) ? result.recent : [],
+        });
+      } finally {
+        if (mounted) setNotificationSummaryLoading(false);
+      }
+    };
+
+    setNotificationSummaryLoading(true);
+    run();
+    const intervalId = window.setInterval(run, 30_000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [user]);
 
   // Close mobile drawer when changing module
   useEffect(() => {
@@ -16898,7 +17090,13 @@ function App() {
     ),
     events: () => <EventsModule activeModule={active} />,
     reports: () => <ReportsModule />,
-    notifications: () => <NotificationsModule activeModule={active} />,
+    notifications: () => (
+      <NotificationsModule
+        activeModule={active}
+        onOpenNotificationAction={openNotificationAction}
+        onRefreshSummary={refreshNotificationSummary}
+      />
+    ),
     settings: () => <SystemConfigurationModule user={user} />,
     stockmovements: () => (
       <StockMovementsModule
@@ -17164,12 +17362,65 @@ function App() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setActive("notifications")}
-              className="h-9 w-9 rounded-[12px] flex items-center justify-center text-[#5F6B7A] hover:text-[#111827] hover:bg-[#EEF3FA] transition-all duration-200"
-            >
-              <Bell className="h-4 w-4" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="relative h-9 w-9 rounded-[12px] flex items-center justify-center text-[#5F6B7A] hover:text-[#111827] hover:bg-[#EEF3FA] transition-all duration-200"
+                  title="Notifications"
+                >
+                  <Bell className="h-4 w-4" />
+                  {notificationSummary.unreadCount > 0 ? (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {notificationSummary.unreadCount > 99 ? "99+" : notificationSummary.unreadCount}
+                    </span>
+                  ) : null}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[360px] p-0 overflow-hidden">
+                <div className="px-4 py-3 border-b border-border bg-[#F7F8FA]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-sm">Notifications</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {notificationSummary.unreadCount} unread notification{notificationSummary.unreadCount === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={async () => { await api.post('notifications/mark-all-read', {}); await refreshNotificationSummary(); }}>
+                        Mark All Read
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleNavClick("notifications")}>View All</Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="max-h-[360px] overflow-y-auto">
+                  {notificationSummaryLoading ? (
+                    <div className="px-4 py-10 text-center text-sm text-muted-foreground">Loading notifications…</div>
+                  ) : notificationSummary.recent.length === 0 ? (
+                    <div className="px-4 py-10 text-center text-sm text-muted-foreground">No recent notifications.</div>
+                  ) : notificationSummary.recent.map((notification) => (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      onClick={() => openNotificationAction(notification)}
+                      className={`w-full text-left px-4 py-3 border-b border-border/40 hover:bg-[#F7F8FA] transition-colors ${!notification.read ? 'bg-secondary/20' : ''}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-sm truncate">{notification.title}</p>
+                            {!notification.read ? <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" /> : null}
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">{notification.relativeTime || new Date(notification.createdAt).toLocaleString('id-ID')}</p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] shrink-0">{notification.type}</Badge>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] bg-[#EEF3FA] border border-[rgba(17,24,39,0.05)]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#4FAF73]" />
               <span className="text-[11px] font-semibold text-[#111827] tracking-wide">
