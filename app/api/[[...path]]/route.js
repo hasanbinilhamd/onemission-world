@@ -11,9 +11,11 @@ import {
   forceLogoutUserSessions,
   getSystemSettingsMap,
   HQ_PERMISSION_CATALOG,
+  invalidateHqSettingsCache,
   HqSecurityError,
   loginHqUser,
   logoutHqSession,
+  readBooleanSetting,
   readNumberSetting,
   hashHqPassword,
   requireHqPermission,
@@ -914,6 +916,10 @@ async function handle(request, { params }) {
       if (method === 'PUT' && segs.length === 1) {
         const payload = await readJson(request);
         const settings = Array.isArray(payload.settings) ? payload.settings : [];
+        const currentSettings = await prisma.systemSetting.findMany({ where: { id: { in: settings.map((setting) => setting.id) } } });
+        const currentSettingsMap = new Map(currentSettings.map((setting) => [setting.id, setting]));
+        const thresholdUpdate = settings.find((setting) => currentSettingsMap.get(setting.id)?.settingKey === 'default_minimum_stock_threshold');
+
         await prisma.$transaction(settings.map((setting) => prisma.systemSetting.update({
           where: { id: setting.id },
           data: {
@@ -922,11 +928,22 @@ async function handle(request, { params }) {
           },
         })));
 
+        if (thresholdUpdate) {
+          const nextThreshold = Number(thresholdUpdate.value);
+          if (Number.isFinite(nextThreshold) && nextThreshold >= 0) {
+            await prisma.inventory.updateMany({
+              data: { threshold: Math.trunc(nextThreshold) },
+            });
+          }
+        }
+
+        invalidateHqSettingsCache();
+
         await writeAuditLog({
           prismaClient: prisma,
           user: authContext?.user,
           module: 'SETTINGS',
-          action: 'SYSTEM_CONFIGURATION_UPDATED',
+          action: 'CONFIGURATION_CHANGED',
           description: 'System configuration was updated.',
           metadata: { count: settings.length },
         });
@@ -2246,6 +2263,8 @@ async function handle(request, { params }) {
     if (segs[0] === 'products' && method === 'POST' && segs.length === 1) {
       const body = await readJson(request);
       const productId = uuid();
+      const systemSettings = await getSystemSettingsMap(prisma);
+      const defaultThreshold = readNumberSetting(systemSettings.default_minimum_stock_threshold, 5);
 
       const product = await prisma.$transaction(async (tx) => {
         const created = await tx.product.create({ data: { id: productId, ...body } });
@@ -2253,6 +2272,7 @@ async function handle(request, { params }) {
           productId: created.id,
           colors: created.colors,
           sizes: created.sizes,
+          threshold: Math.trunc(defaultThreshold),
         });
         return created;
       });
@@ -2263,6 +2283,8 @@ async function handle(request, { params }) {
     // ---------- PRODUCTS — special PUT: add only missing inventory rows for new colors or sizes ----------
     if (segs[0] === 'products' && method === 'PUT' && segs.length === 2) {
       const body = await readJson(request);
+      const systemSettings = await getSystemSettingsMap(prisma);
+      const defaultThreshold = readNumberSetting(systemSettings.default_minimum_stock_threshold, 5);
       const updatedProduct = await prisma.product.update({
         where: { id: segs[1] },
         data: body,
@@ -2272,6 +2294,7 @@ async function handle(request, { params }) {
         productId: updatedProduct.id,
         colors: updatedProduct.colors,
         sizes: updatedProduct.sizes,
+        threshold: Math.trunc(defaultThreshold),
       });
 
       return NextResponse.json(updatedProduct);
@@ -2286,8 +2309,13 @@ async function handle(request, { params }) {
           sizes: true,
         },
       });
+      const systemSettings = await getSystemSettingsMap(prisma);
+      const defaultThreshold = readNumberSetting(systemSettings.default_minimum_stock_threshold, 5);
 
-      const result = await repairAllProductInventoryRows(prisma, { products });
+      const result = await repairAllProductInventoryRows(prisma, {
+        products,
+        threshold: Math.trunc(defaultThreshold),
+      });
       return NextResponse.json(result);
     }
 
@@ -2302,6 +2330,13 @@ async function handle(request, { params }) {
     if (segs[0] === 'inventory' && method === 'PUT' && segs.length === 2) {
       const id = segs[1];
       const body = await readJson(request);
+      const systemSettings = await getSystemSettingsMap(prisma);
+      const allowManualAdjustment = readBooleanSetting(systemSettings.allow_manual_adjustment, true);
+      const allowNegativeStock = readBooleanSetting(systemSettings.enable_negative_stock, false);
+      if (!allowManualAdjustment) {
+        return NextResponse.json({ error: 'Manual inventory adjustment is currently disabled in system configuration.' }, { status: 403 });
+      }
+
       const current = await prisma.inventory.findUnique({ where: { id } });
       if (!current) return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 });
 
@@ -2309,7 +2344,7 @@ async function handle(request, { params }) {
       if (!Number.isFinite(nextQuantity)) {
         return NextResponse.json({ error: 'Inventory quantity is invalid.' }, { status: 400 });
       }
-      if (nextQuantity < 0) {
+      if (!allowNegativeStock && nextQuantity < 0) {
         return NextResponse.json({ error: 'Inventory quantity cannot be negative.' }, { status: 400 });
       }
 
@@ -2432,6 +2467,12 @@ async function handle(request, { params }) {
       // Manual adjustment POST
       if (method === 'POST' && segs.length === 1) {
         const body = await readJson(request);
+        const systemSettings = await getSystemSettingsMap(prisma);
+        const allowManualInventory = readBooleanSetting(systemSettings.enable_manual_inventory, true);
+        const allowNegativeStock = readBooleanSetting(systemSettings.enable_negative_stock, false);
+        if (!allowManualInventory) {
+          return NextResponse.json({ error: 'Manual inventory workflow is currently disabled in system configuration.' }, { status: 403 });
+        }
         if (!body.movementType) return NextResponse.json({ error: 'movementType is required' }, { status: 400 });
         const qty = Number(body.quantity);
         if (!qty || qty <= 0) return NextResponse.json({ error: 'Quantity must be greater than zero' }, { status: 400 });
@@ -2452,7 +2493,7 @@ async function handle(request, { params }) {
             newQty = prevQty + qty;
           } else if (outTypes.includes(body.movementType)) {
             newQty = prevQty - qty;
-            if (newQty < 0) return NextResponse.json({ error: `Insufficient stock. Current: ${prevQty}, Requested: ${qty}` }, { status: 400 });
+            if (!allowNegativeStock && newQty < 0) return NextResponse.json({ error: `Insufficient stock. Current: ${prevQty}, Requested: ${qty}` }, { status: 400 });
           } else {
             return NextResponse.json({ error: 'Invalid movementType' }, { status: 400 });
           }
@@ -2501,7 +2542,7 @@ async function handle(request, { params }) {
           newQty = prevQty + qty;
         } else if (outTypes.includes(body.movementType)) {
           newQty = prevQty - qty;
-          if (newQty < 0) return NextResponse.json({ error: `Insufficient stock. Current: ${prevQty}, Requested: ${qty}` }, { status: 400 });
+          if (!allowNegativeStock && newQty < 0) return NextResponse.json({ error: `Insufficient stock. Current: ${prevQty}, Requested: ${qty}` }, { status: 400 });
         } else {
           return NextResponse.json({ error: 'Invalid movementType' }, { status: 400 });
         }
@@ -2822,6 +2863,11 @@ async function handle(request, { params }) {
 
       // Create
       if (method === 'POST' && segs.length === 1) {
+        const systemSettings = await getSystemSettingsMap(prisma);
+        const productionEnabled = readBooleanSetting(systemSettings.enable_production_workflow, true);
+        if (!productionEnabled) {
+          return NextResponse.json({ error: 'Production workflow is currently disabled in system configuration.' }, { status: 403 });
+        }
         const body = await readJson(request);
         if (!body.productId) return NextResponse.json({ error: 'Product is required' }, { status: 400 });
         if (!body.plannedQuantity || Number(body.plannedQuantity) <= 0)
@@ -2867,6 +2913,11 @@ async function handle(request, { params }) {
 
       // ── Start Production (POST /productionorders/:id/start)
       if (method === 'POST' && segs.length === 3 && segs[2] === 'start') {
+        const systemSettings = await getSystemSettingsMap(prisma);
+        const productionEnabled = readBooleanSetting(systemSettings.enable_production_workflow, true);
+        if (!productionEnabled) {
+          return NextResponse.json({ error: 'Production workflow is currently disabled in system configuration.' }, { status: 403 });
+        }
         const order = await prisma.productionOrder.findUnique({ where: { id: segs[1] } });
         if (!order) return NextResponse.json({ error: 'Production Order not found' }, { status: 404 });
         if (order.status !== 'Ready') return NextResponse.json({ error: `Cannot start — current status is "${order.status}". Only Ready orders can be started.` }, { status: 400 });
@@ -2880,6 +2931,11 @@ async function handle(request, { params }) {
 
       // ── Complete Production (POST /productionorders/:id/complete)
       if (method === 'POST' && segs.length === 3 && segs[2] === 'complete') {
+        const systemSettings = await getSystemSettingsMap(prisma);
+        const productionEnabled = readBooleanSetting(systemSettings.enable_production_workflow, true);
+        if (!productionEnabled) {
+          return NextResponse.json({ error: 'Production workflow is currently disabled in system configuration.' }, { status: 403 });
+        }
         authContext = await requireHqPermission(request, 'production', 'complete', { prismaClient: prisma });
         const body = await readJson(request);
         const actualQty = Number(body.actualQuantity);
@@ -3497,7 +3553,7 @@ async function handle(request, { params }) {
       );
     }
     console.error('API error', e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: 'The request could not be completed. Please try again.' }, { status: 500 });
   }
 }
 

@@ -91,7 +91,7 @@ function statusBadge(status) {
   );
 }
 
-function UserFormDialog({ open, onOpenChange, initial, roles, onSave }) {
+function UserFormDialog({ open, onOpenChange, initial, roles, onSave, loading = false }) {
   const empty = {
     name: "",
     email: "",
@@ -172,15 +172,15 @@ function UserFormDialog({ open, onOpenChange, initial, roles, onSave }) {
           ) : null}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit}>{isEdit ? "Save Changes" : "Create User"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button onClick={submit} disabled={loading}>{loading ? "Saving…" : isEdit ? "Save Changes" : "Create User"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function ResetPasswordDialog({ open, onOpenChange, user, onReset }) {
+function ResetPasswordDialog({ open, onOpenChange, user, onReset, loading = false }) {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
@@ -199,8 +199,8 @@ function ResetPasswordDialog({ open, onOpenChange, user, onReset }) {
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => onReset(password)}>Reset Password</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button onClick={() => onReset(password)} disabled={loading}>{loading ? "Resetting…" : "Reset Password"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -282,6 +282,7 @@ export function UsersSettingsModule({ user }) {
   const [items, setItems] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -290,6 +291,7 @@ export function UsersSettingsModule({ user }) {
   const [viewing, setViewing] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [showReset, setShowReset] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const canManageUsers = permissionAllowed(user, "settings", "manage_users");
 
   const load = async () => {
@@ -318,11 +320,13 @@ export function UsersSettingsModule({ user }) {
   };
 
   const saveUser = async (form) => {
+    setSubmitting(true);
     const result = editing?.id
       ? await settingsApi.put(`users/${editing.id}`, form)
       : await settingsApi.post("users", form);
+    setSubmitting(false);
     if (result?.error) {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to save user.");
       return;
     }
     toast.success(editing?.id ? "User updated." : "User created.");
@@ -332,9 +336,11 @@ export function UsersSettingsModule({ user }) {
   };
 
   const resetPassword = async (password) => {
+    setResettingPassword(true);
     const result = await settingsApi.post(`users/${viewing.id}/reset-password`, { password });
+    setResettingPassword(false);
     if (result?.error) {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to reset password.");
       return;
     }
     toast.success("Password reset successfully.");
@@ -344,7 +350,7 @@ export function UsersSettingsModule({ user }) {
   const updateUserStatus = async (selectedUser, status) => {
     const result = await settingsApi.put(`users/${selectedUser.id}`, { status });
     if (result?.error) {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to update user status.");
       return;
     }
     toast.success(status === "Active" ? "User activated." : "User deactivated.");
@@ -357,7 +363,7 @@ export function UsersSettingsModule({ user }) {
   const forceLogoutAll = async (selectedUser) => {
     const result = await settingsApi.post(`users/${selectedUser.id}/force-logout`, {});
     if (result?.error) {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to force logout sessions.");
       return;
     }
     toast.success("Active sessions invalidated.");
@@ -368,7 +374,7 @@ export function UsersSettingsModule({ user }) {
   const forceLogoutSession = async (sessionId) => {
     const result = await settingsApi.post(`users/${viewing.id}/sessions/${sessionId}/force-logout`, {});
     if (result?.error) {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to force logout this session.");
       return;
     }
     toast.success("Session logged out.");
@@ -487,7 +493,7 @@ export function UsersSettingsModule({ user }) {
         </CardContent>
       </Card>
 
-      <UserFormDialog open={showForm} onOpenChange={setShowForm} initial={editing} roles={roles} onSave={saveUser} />
+      <UserFormDialog open={showForm} onOpenChange={setShowForm} initial={editing} roles={roles} onSave={saveUser} loading={submitting} />
       <UserViewDialog
         open={!!viewing}
         onOpenChange={(value) => !value && setViewing(null)}
@@ -496,7 +502,7 @@ export function UsersSettingsModule({ user }) {
         onForceLogoutSession={forceLogoutSession}
         onForceLogoutAll={() => forceLogoutAll(viewing)}
       />
-      <ResetPasswordDialog open={showReset} onOpenChange={setShowReset} user={viewing} onReset={resetPassword} />
+      <ResetPasswordDialog open={showReset} onOpenChange={setShowReset} user={viewing} onReset={resetPassword} loading={resettingPassword} />
     </div>
   );
 }
@@ -506,7 +512,11 @@ export function RolesPermissionsSettingsModule({ user }) {
   const [matrix, setMatrix] = useState([]);
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [savingRoleMeta, setSavingRoleMeta] = useState(false);
+  const [savingPermissions, setSavingPermissions] = useState(false);
+  const [creatingRole, setCreatingRole] = useState(false);
   const [draftPermissions, setDraftPermissions] = useState({});
+  const [roleForm, setRoleForm] = useState({ name: "", description: "", status: "Active" });
   const [showCreate, setShowCreate] = useState(false);
   const [newRole, setNewRole] = useState({ name: "", description: "", status: "Active" });
   const canManageRoles = permissionAllowed(user, "settings", "manage_roles");
@@ -538,6 +548,11 @@ export function RolesPermissionsSettingsModule({ user }) {
       nextDraft[`${permission.moduleKey}:${permission.actionKey}`] = true;
     }
     setDraftPermissions(nextDraft);
+    setRoleForm({
+      name: selectedRole.name || "",
+      description: selectedRole.description || "",
+      status: selectedRole.status || "Active",
+    });
   }, [selectedRole]);
 
   const togglePermission = (moduleKey, actionKey) => {
@@ -548,22 +563,49 @@ export function RolesPermissionsSettingsModule({ user }) {
     }));
   };
 
+  const buildPermissionPayload = () => Object.entries(draftPermissions)
+    .filter(([, allowed]) => allowed)
+    .map(([key]) => {
+      const [moduleKey, actionKey] = key.split(":");
+      return { moduleKey, actionKey, isAllowed: true };
+    });
+
+  const saveRoleMeta = async () => {
+    if (!selectedRole) return;
+    if (!roleForm.name.trim()) {
+      toast.error("Role name is required.");
+      return;
+    }
+
+    setSavingRoleMeta(true);
+    const result = await settingsApi.put(`roles/${selectedRole.id}`, {
+      name: roleForm.name,
+      description: roleForm.description,
+      status: roleForm.status,
+      permissions: buildPermissionPayload(),
+    });
+    setSavingRoleMeta(false);
+
+    if (result?.error) {
+      toast.error(result.error || "Failed to save role.");
+      return;
+    }
+    toast.success("Role details updated.");
+    load();
+  };
+
   const savePermissions = async () => {
     if (!selectedRole) return;
-    const permissions = Object.entries(draftPermissions)
-      .filter(([, allowed]) => allowed)
-      .map(([key]) => {
-        const [moduleKey, actionKey] = key.split(":");
-        return { moduleKey, actionKey, isAllowed: true };
-      });
+    setSavingPermissions(true);
     const result = await settingsApi.put(`roles/${selectedRole.id}`, {
-      name: selectedRole.name,
-      description: selectedRole.description,
-      status: selectedRole.status,
-      permissions,
+      name: roleForm.name,
+      description: roleForm.description,
+      status: roleForm.status,
+      permissions: buildPermissionPayload(),
     });
+    setSavingPermissions(false);
     if (result?.error) {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to save role permissions.");
       return;
     }
     toast.success("Role permissions updated.");
@@ -571,9 +613,15 @@ export function RolesPermissionsSettingsModule({ user }) {
   };
 
   const createRole = async () => {
+    if (!newRole.name.trim()) {
+      toast.error("Role name is required.");
+      return;
+    }
+    setCreatingRole(true);
     const result = await settingsApi.post("roles", newRole);
+    setCreatingRole(false);
     if (result?.error) {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to create role.");
       return;
     }
     toast.success("Role created.");
@@ -619,14 +667,33 @@ export function RolesPermissionsSettingsModule({ user }) {
           <CardContent className="space-y-4">
             {selectedRole ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="space-y-1.5 md:col-span-1">
                     <Label>Role Name</Label>
-                    <Input value={selectedRole.name} disabled />
+                    <Input
+                      value={roleForm.name}
+                      disabled={!canManageRoles || savingRoleMeta}
+                      onChange={(e) => setRoleForm((current) => ({ ...current, name: e.target.value }))}
+                    />
                   </div>
                   <div className="space-y-1.5 md:col-span-2">
                     <Label>Description</Label>
-                    <Textarea value={selectedRole.description || ""} disabled rows={2} />
+                    <Textarea
+                      value={roleForm.description || ""}
+                      disabled={!canManageRoles || savingRoleMeta}
+                      onChange={(e) => setRoleForm((current) => ({ ...current, description: e.target.value }))}
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Status</Label>
+                    <Select value={roleForm.status} onValueChange={(value) => setRoleForm((current) => ({ ...current, status: value }))}>
+                      <SelectTrigger disabled={!canManageRoles || savingRoleMeta}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Active">Active</SelectItem>
+                        <SelectItem value="Inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
@@ -649,7 +716,16 @@ export function RolesPermissionsSettingsModule({ user }) {
                     </div>
                   ))}
                 </div>
-                {canManageRoles ? <div className="flex justify-end"><Button onClick={savePermissions}>Save Permission Matrix</Button></div> : null}
+                {canManageRoles ? (
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="outline" onClick={saveRoleMeta} disabled={savingRoleMeta || savingPermissions}>
+                      {savingRoleMeta ? "Saving…" : "Save Role Details"}
+                    </Button>
+                    <Button onClick={savePermissions} disabled={savingPermissions || savingRoleMeta}>
+                      {savingPermissions ? "Saving…" : "Save Permission Matrix"}
+                    </Button>
+                  </div>
+                ) : null}
               </>
             ) : (
               <p className="text-sm text-muted-foreground">No role selected.</p>
@@ -678,8 +754,8 @@ export function RolesPermissionsSettingsModule({ user }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={createRole}>Create Role</Button>
+            <Button variant="outline" onClick={() => setShowCreate(false)} disabled={creatingRole}>Cancel</Button>
+            <Button onClick={createRole} disabled={creatingRole}>{creatingRole ? "Creating…" : "Create Role"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -690,6 +766,7 @@ export function RolesPermissionsSettingsModule({ user }) {
 export function NotificationSettingsModule({ user }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const canManage = permissionAllowed(user, "settings", "manage_notifications");
 
   const load = async () => {
@@ -709,9 +786,11 @@ export function NotificationSettingsModule({ user }) {
   }), [items]);
 
   const save = async () => {
+    setSaving(true);
     const result = await settingsApi.put("notification-settings", { settings: items });
+    setSaving(false);
     if (result?.error) {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to save notification settings.");
       return;
     }
     toast.success("Notification settings updated.");
@@ -762,7 +841,7 @@ export function NotificationSettingsModule({ user }) {
           </Card>
         </div>
       )}
-      {canManage ? <div className="flex justify-end"><Button onClick={save}>Save Notification Settings</Button></div> : null}
+      {canManage ? <div className="flex justify-end"><Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Notification Settings"}</Button></div> : null}
     </div>
   );
 }
@@ -786,6 +865,7 @@ export function SystemConfigurationModule({ user }) {
   const [items, setItems] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditSearch, setAuditSearch] = useState("");
   const [auditModuleFilter, setAuditModuleFilter] = useState("all");
@@ -830,9 +910,11 @@ export function SystemConfigurationModule({ user }) {
     const payload = {
       settings: items.map((item) => ({ id: item.id, value: item.valueType === "boolean" ? String(Boolean(item.draftValue)) : String(item.draftValue ?? "") })),
     };
+    setSaving(true);
     const result = await settingsApi.put("system-settings", payload);
+    setSaving(false);
     if (result?.error) {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to save system configuration.");
       return;
     }
     toast.success("System configuration updated.");
@@ -969,7 +1051,7 @@ export function SystemConfigurationModule({ user }) {
           </TabsContent>
         </Tabs>
       )}
-      {canManage ? <div className="flex justify-end"><Button onClick={save}>Save System Configuration</Button></div> : null}
+      {canManage ? <div className="flex justify-end"><Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save System Configuration"}</Button></div> : null}
     </div>
   );
 }
