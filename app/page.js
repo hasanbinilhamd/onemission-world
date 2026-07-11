@@ -80,6 +80,12 @@ import {
   InventorySkeleton,
 } from "@/components/onemission/skeletons";
 import { OrdersModule } from "@/components/onemission/orders-module";
+import {
+  NotificationSettingsModule,
+  RolesPermissionsSettingsModule,
+  SystemConfigurationModule,
+  UsersSettingsModule,
+} from "@/components/onemission/settings-governance";
 
 // Normalize Indonesian phone number for wa.me link
 function whatsappUrl(phone) {
@@ -388,39 +394,59 @@ function readFileAsDataUrl(file) {
   });
 }
 
+async function handleApiResponse(response) {
+  const result = await response.json();
+  if (response.status === 401 && String(result?.code || "").startsWith("HQ_")) {
+    localStorage.removeItem("om_user");
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
+  }
+  return result;
+}
+
 const api = {
   async login(email, password) {
-    const r = await fetch("/api/auth/login", {
+    const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    if (!r.ok) throw new Error("Invalid credentials");
-    return r.json();
+    const result = await handleApiResponse(response);
+    if (!response.ok) throw new Error(result.error || "Invalid credentials");
+    return result;
+  },
+  async me() {
+    const response = await fetch("/api/auth/me");
+    return handleApiResponse(response);
+  },
+  async logout() {
+    const response = await fetch("/api/auth/logout", { method: "POST" });
+    return handleApiResponse(response);
   },
   async get(path) {
-    const r = await fetch("/api/" + path);
-    return r.json();
+    const response = await fetch("/api/" + path);
+    return handleApiResponse(response);
   },
   async post(path, body) {
-    const r = await fetch("/api/" + path, {
+    const response = await fetch("/api/" + path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    return r.json();
+    return handleApiResponse(response);
   },
   async put(path, body) {
-    const r = await fetch("/api/" + path, {
+    const response = await fetch("/api/" + path, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    return r.json();
+    return handleApiResponse(response);
   },
   async del(path) {
-    const r = await fetch("/api/" + path, { method: "DELETE" });
-    return r.json();
+    const response = await fetch("/api/" + path, { method: "DELETE" });
+    return handleApiResponse(response);
   },
 };
 
@@ -16742,9 +16768,33 @@ function App() {
   };
 
   useEffect(() => {
-    const u = localStorage.getItem("om_user");
-    if (u) setUser(JSON.parse(u));
-    setBootChecked(true);
+    let mounted = true;
+
+    (async () => {
+      const storedUser = localStorage.getItem("om_user");
+      if (!storedUser) {
+        if (mounted) setBootChecked(true);
+        return;
+      }
+
+      try {
+        const result = await api.me();
+        if (result?.user && mounted) {
+          localStorage.setItem("om_user", JSON.stringify(result.user));
+          setUser(result.user);
+        } else {
+          localStorage.removeItem("om_user");
+        }
+      } catch {
+        localStorage.removeItem("om_user");
+      } finally {
+        if (mounted) setBootChecked(true);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Close mobile drawer when changing module
@@ -16845,7 +16895,7 @@ function App() {
     events: () => <EventsModule activeModule={active} />,
     reports: () => <ReportsModule />,
     notifications: () => <NotificationsModule activeModule={active} />,
-    settings: () => <SettingsModule user={user} activeModule={active} />,
+    settings: () => <SystemConfigurationModule user={user} />,
     stockmovements: () => (
       <StockMovementsModule
         activeModule={active}
@@ -16877,13 +16927,18 @@ function App() {
         onOpenOrderReference={openOrderReference}
       />
     ),
-    users: () => <ComingSoonModule pageId="users" />,
-    rolespermissions: () => <ComingSoonModule pageId="rolespermissions" />,
-    notificationsettings: () => <NotificationsModule activeModule={active} />,
-    systemconfig: () => <SettingsModule user={user} activeModule={active} />,
+    users: () => <UsersSettingsModule user={user} />,
+    rolespermissions: () => <RolesPermissionsSettingsModule user={user} />,
+    notificationsettings: () => <NotificationSettingsModule user={user} />,
+    systemconfig: () => <SystemConfigurationModule user={user} />,
   }[active];
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // Ignore logout transport errors and clear local state anyway.
+    }
     localStorage.removeItem("om_user");
     setUser(null);
   };

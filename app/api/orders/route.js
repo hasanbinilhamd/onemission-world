@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireHqPermission } from '@/lib/hq-security';
 import { normalizeOrderError, orderService } from '@/lib/order';
 
 function buildOrderErrorResponse(error) {
@@ -11,6 +12,12 @@ function buildOrderErrorResponse(error) {
 
 export async function GET(request) {
   const url = new URL(request.url);
+
+  try {
+    await requireHqPermission(request, 'sales', 'view');
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: error.statusCode || 403 });
+  }
 
   try {
     const response = await orderService.listOrders({

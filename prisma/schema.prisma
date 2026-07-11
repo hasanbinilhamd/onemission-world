@@ -8,12 +8,113 @@ datasource db {
 }
 
 model User {
-  id       String @id
-  email    String @unique
-  password String
-  name     String
-  role     String
-  avatar   String
+  id                  String        @id
+  email               String        @unique
+  password            String
+  passwordHash        String?
+  name                String
+  role                String
+  avatar              String        @default("")
+  status              String        @default("Active")
+  lastLoginAt         DateTime?
+  passwordChangedAt   DateTime?
+  failedLoginAttempts Int           @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  sessions            UserSession[]
+  auditLogs           AuditLog[]
+}
+
+model Role {
+  id          String           @id
+  name        String           @unique
+  description String           @default("")
+  status      String           @default("Active")
+  isSystem    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  permissions RolePermission[]
+}
+
+model RolePermission {
+  id         String   @id
+  roleId     String
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  moduleKey  String
+  actionKey  String
+  isAllowed  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([roleId, moduleKey, actionKey])
+  @@index([moduleKey])
+  @@index([actionKey])
+}
+
+model SystemSetting {
+  id          String   @id
+  settingKey  String   @unique
+  section     String
+  label       String
+  value       String
+  valueType   String   @default("string")
+  description String   @default("")
+  updatedBy   String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([section])
+}
+
+model NotificationSetting {
+  id          String   @id
+  category    String
+  settingKey  String   @unique
+  label       String
+  isEnabled   Boolean  @default(true)
+  updatedBy   String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+}
+
+model UserSession {
+  id             String   @id
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash      String   @unique
+  device         String   @default("")
+  browser        String   @default("")
+  ipAddress      String   @default("")
+  userAgent      String   @default("")
+  lastActivityAt DateTime @default(now())
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id          String   @id
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  userName    String   @default("")
+  action      String
+  module      String
+  description String
+  ipAddress   String   @default("")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([module])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model Product {

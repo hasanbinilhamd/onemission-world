@@ -3,6 +3,22 @@ import { checkoutService, normalizeCheckoutError } from '@/lib/checkout';
 import { generateCustomerCode } from '@/lib/customer-auth/customer-number';
 import { dashboardService } from '@/lib/dashboard';
 import { financePostingService } from '@/lib/finance-posting';
+import {
+  attachHqSessionCookie,
+  authenticateHqRequest,
+  clearHqSessionCookie,
+  ensureHqSecurityDefaults,
+  forceLogoutUserSessions,
+  getSystemSettingsMap,
+  HQ_PERMISSION_CATALOG,
+  HqSecurityError,
+  loginHqUser,
+  logoutHqSession,
+  readNumberSetting,
+  hashHqPassword,
+  requireHqPermission,
+  writeAuditLog,
+} from '@/lib/hq-security';
 import { cashFlowService, inventoryValuationService } from '@/lib/finance-reporting';
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
@@ -67,6 +83,110 @@ function buildPaymentAttemptErrorResponse(error) {
     { error: normalized.message },
     { status: normalized.statusCode || 500 }
   );
+}
+
+function buildHqSecurityErrorResponse(error) {
+  const normalized = error instanceof HqSecurityError
+    ? error
+    : new HqSecurityError({
+        message: 'Authorization could not be completed.',
+        statusCode: 500,
+        code: 'HQ_SECURITY_INTERNAL_ERROR',
+      });
+
+  return NextResponse.json(
+    { error: normalized.message, code: normalized.code },
+    { status: normalized.statusCode || 500 },
+  );
+}
+
+function resolveCatchAllPermission(segs, method) {
+  const segment = String(segs[0] || '').trim();
+
+  if (!segment || segment === 'auth' || segment === 'health' || segment === 'shipping' || segment === 'checkout' || segment === 'payment-attempt' || segment === 'payment' || segment === 'payments' || segment === 'commerce' || segment === 'customer') {
+    return null;
+  }
+
+  if (segment === 'dashboard') return { moduleKey: 'dashboard', actionKey: 'view' };
+  if (['productanalytics', 'inventoryanalytics', 'financialanalytics', 'marketinganalytics', 'executivereports'].includes(segment)) {
+    return { moduleKey: 'reports', actionKey: 'view' };
+  }
+  if (['trialbalance', 'profitloss', 'balancesheet', 'cashflow', 'inventoryvaluation', 'finance'].includes(segment)) {
+    return { moduleKey: 'finance', actionKey: 'view' };
+  }
+  if (segment === 'journalentries') {
+    return method === 'GET'
+      ? { moduleKey: 'finance', actionKey: 'view' }
+      : { moduleKey: 'finance', actionKey: 'journal' };
+  }
+  if (['financialaccounts', 'chartofaccounts'].includes(segment)) {
+    return method === 'GET'
+      ? { moduleKey: 'finance', actionKey: 'view' }
+      : { moduleKey: 'finance', actionKey: 'manage_accounts' };
+  }
+  if (segment === 'cashtransactions') {
+    return method === 'GET'
+      ? { moduleKey: 'finance', actionKey: 'view' }
+      : null;
+  }
+  if (['products', 'suppliers', 'bom', 'rawmaterials', 'plans'].includes(segment)) {
+    if (method === 'GET') return { moduleKey: 'operations', actionKey: 'view' };
+    if (method === 'POST') return { moduleKey: 'operations', actionKey: 'create' };
+    if (method === 'PUT') return { moduleKey: 'operations', actionKey: 'update' };
+    if (method === 'DELETE') return { moduleKey: 'operations', actionKey: 'delete' };
+  }
+  if (segment === 'inventory') {
+    return method === 'GET'
+      ? { moduleKey: 'inventory', actionKey: 'view' }
+      : { moduleKey: 'inventory', actionKey: 'adjustment' };
+  }
+  if (segment === 'stockmovements') {
+    return method === 'GET'
+      ? { moduleKey: 'inventory', actionKey: 'view' }
+      : { moduleKey: 'inventory', actionKey: 'manual_stock' };
+  }
+  if (['productionorders', 'productionresults'].includes(segment)) {
+    if (method === 'GET') return { moduleKey: 'production', actionKey: 'view' };
+    if (method === 'POST') return { moduleKey: 'production', actionKey: 'create' };
+    if (method === 'PUT') return { moduleKey: 'production', actionKey: 'update' };
+    if (method === 'DELETE') return { moduleKey: 'production', actionKey: 'update' };
+  }
+  if (['content', 'creators', 'schools', 'timeline', 'events'].includes(segment)) {
+    if (method === 'GET') return { moduleKey: 'marketing', actionKey: 'view' };
+    if (method === 'POST') return { moduleKey: 'marketing', actionKey: 'create' };
+    if (method === 'PUT') return { moduleKey: 'marketing', actionKey: 'update' };
+    if (method === 'DELETE') return { moduleKey: 'marketing', actionKey: 'delete' };
+  }
+  if (['saleschannels', 'customers'].includes(segment)) {
+    return method === 'GET'
+      ? { moduleKey: 'sales', actionKey: 'view' }
+      : { moduleKey: 'sales', actionKey: 'manage_master' };
+  }
+  if (segment === 'users') {
+    return method === 'GET'
+      ? { moduleKey: 'settings', actionKey: 'view' }
+      : { moduleKey: 'settings', actionKey: 'manage_users' };
+  }
+  if (segment === 'roles') {
+    return method === 'GET'
+      ? { moduleKey: 'settings', actionKey: 'view' }
+      : { moduleKey: 'settings', actionKey: 'manage_roles' };
+  }
+  if (segment === 'notification-settings') {
+    return method === 'GET'
+      ? { moduleKey: 'settings', actionKey: 'view' }
+      : { moduleKey: 'settings', actionKey: 'manage_notifications' };
+  }
+  if (segment === 'system-settings') {
+    return method === 'GET'
+      ? { moduleKey: 'settings', actionKey: 'view' }
+      : { moduleKey: 'settings', actionKey: 'manage_configuration' };
+  }
+  if (segment === 'audit-logs') {
+    return { moduleKey: 'settings', actionKey: 'view_audit' };
+  }
+
+  return null;
 }
 
 // Generate journal number: JR-YYYYMM-00001
@@ -240,12 +360,51 @@ async function handle(request, { params }) {
   const method = request.method;
 
   try {
+    await ensureHqSecurityDefaults(prisma);
+
+    const routePermission = resolveCatchAllPermission(segs, method);
+    let authContext = null;
+
+    if (routePermission) {
+      authContext = await requireHqPermission(request, routePermission.moduleKey, routePermission.actionKey, { prismaClient: prisma });
+    }
+
     // ---------- AUTH ----------
     if (segs[0] === 'auth' && segs[1] === 'login' && method === 'POST') {
-      const { email, password } = await readJson(request);
-      const user = await prisma.user.findFirst({ where: { email, password } });
-      if (!user) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
-      return NextResponse.json({ user });
+      try {
+        const payload = await readJson(request);
+        const result = await loginHqUser({
+          email: payload.email,
+          password: payload.password,
+          request,
+          prismaClient: prisma,
+        });
+        const response = NextResponse.json({ user: result.user });
+        attachHqSessionCookie(response, result.token, result.sessionTimeoutMinutes);
+        return response;
+      } catch (error) {
+        return buildHqSecurityErrorResponse(error);
+      }
+    }
+
+    if (segs[0] === 'auth' && segs[1] === 'me' && method === 'GET') {
+      try {
+        const session = await authenticateHqRequest(request, { prismaClient: prisma });
+        return NextResponse.json({ user: session.user });
+      } catch (error) {
+        return buildHqSecurityErrorResponse(error);
+      }
+    }
+
+    if (segs[0] === 'auth' && segs[1] === 'logout' && method === 'POST') {
+      try {
+        await logoutHqSession(request, { prismaClient: prisma });
+        const response = NextResponse.json({ ok: true });
+        clearHqSessionCookie(response);
+        return response;
+      } catch (error) {
+        return buildHqSecurityErrorResponse(error);
+      }
     }
 
     // ---------- SHIPPING ----------
@@ -339,9 +498,467 @@ async function handle(request, { params }) {
     }
 
     // ---------- USERS ----------
-    if (segs[0] === 'users' && method === 'GET') {
-      const users = await prisma.user.findMany();
-      return NextResponse.json(users);
+    if (segs[0] === 'users') {
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const search = String(url.searchParams.get('search') || '').trim().toLowerCase();
+        const role = String(url.searchParams.get('role') || '').trim();
+        const status = String(url.searchParams.get('status') || '').trim();
+        const users = await prisma.user.findMany({
+          orderBy: { createdAt: 'desc' },
+          include: {
+            sessions: {
+              where: { revokedAt: null },
+              orderBy: { lastActivityAt: 'desc' },
+            },
+          },
+        });
+
+        const filtered = users.filter((user) => {
+          const matchesSearch = !search || [user.name, user.email, user.role].some((value) => String(value || '').toLowerCase().includes(search));
+          const matchesRole = !role || role === 'all' || user.role === role;
+          const matchesStatus = !status || status === 'all' || user.status === status;
+          return matchesSearch && matchesRole && matchesStatus;
+        }).map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          avatar: user.avatar,
+          status: user.status,
+          lastLoginAt: user.lastLoginAt,
+          createdAt: user.createdAt,
+          activeSessionCount: user.sessions.length,
+          activeSessions: user.sessions.map((session) => ({
+            id: session.id,
+            device: session.device,
+            browser: session.browser,
+            ipAddress: session.ipAddress,
+            lastActivityAt: session.lastActivityAt,
+            createdAt: session.createdAt,
+          })),
+        }));
+
+        return NextResponse.json(filtered);
+      }
+
+      if (method === 'POST' && segs.length === 1) {
+        const payload = await readJson(request);
+        const settings = await getSystemSettingsMap(prisma);
+        const passwordMinimumLength = readNumberSetting(settings.password_minimum_length, 8);
+        const name = String(payload.name || '').trim();
+        const email = String(payload.email || '').trim().toLowerCase();
+        const role = String(payload.role || '').trim();
+        const password = String(payload.password || '');
+
+        if (!name || !email || !role || !password) {
+          return NextResponse.json({ error: 'name, email, role, and password are required' }, { status: 400 });
+        }
+        if (password.length < passwordMinimumLength) {
+          return NextResponse.json({ error: `Password must be at least ${passwordMinimumLength} characters long.` }, { status: 400 });
+        }
+
+        const existingUser = await prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
+        if (existingUser) {
+          return NextResponse.json({ error: 'Email is already used by another user.' }, { status: 400 });
+        }
+
+        const roleRecord = await prisma.role.findFirst({ where: { name: role } });
+        if (!roleRecord) {
+          return NextResponse.json({ error: 'Selected role was not found.' }, { status: 404 });
+        }
+
+        const passwordHash = await hashHqPassword(password);
+        const user = await prisma.user.create({
+          data: {
+            id: uuid(),
+            name,
+            email,
+            role,
+            avatar: String(payload.avatar || name.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()).trim(),
+            password,
+            passwordHash,
+            passwordChangedAt: new Date(),
+            status: payload.status === 'Inactive' ? 'Inactive' : 'Active',
+          },
+        });
+
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'SETTINGS',
+          action: 'USER_CREATED',
+          description: `Created user ${user.email}.`,
+          metadata: { targetUserId: user.id },
+        });
+
+        return NextResponse.json(user);
+      }
+
+      if (method === 'GET' && segs.length === 2) {
+        const user = await prisma.user.findUnique({
+          where: { id: segs[1] },
+          include: {
+            sessions: {
+              where: { revokedAt: null },
+              orderBy: { lastActivityAt: 'desc' },
+            },
+          },
+        });
+        if (!user) {
+          return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+        }
+        return NextResponse.json(user);
+      }
+
+      if (method === 'PUT' && segs.length === 2) {
+        const payload = await readJson(request);
+        const existingUser = await prisma.user.findUnique({ where: { id: segs[1] } });
+        if (!existingUser) {
+          return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+        }
+
+        const updateData = {};
+        if (payload.name !== undefined) updateData.name = String(payload.name || '').trim();
+        if (payload.email !== undefined) updateData.email = String(payload.email || '').trim().toLowerCase();
+        if (payload.role !== undefined) updateData.role = String(payload.role || '').trim();
+        if (payload.avatar !== undefined) updateData.avatar = String(payload.avatar || '').trim();
+        if (payload.status !== undefined) updateData.status = payload.status === 'Inactive' ? 'Inactive' : 'Active';
+
+        if (updateData.email) {
+          const duplicate = await prisma.user.findFirst({
+            where: {
+              id: { not: segs[1] },
+              email: { equals: updateData.email, mode: 'insensitive' },
+            },
+          });
+          if (duplicate) {
+            return NextResponse.json({ error: 'Email is already used by another user.' }, { status: 400 });
+          }
+        }
+
+        if (updateData.role) {
+          const roleRecord = await prisma.role.findFirst({ where: { name: updateData.role } });
+          if (!roleRecord) {
+            return NextResponse.json({ error: 'Selected role was not found.' }, { status: 404 });
+          }
+        }
+
+        const updatedUser = await prisma.user.update({
+          where: { id: segs[1] },
+          data: updateData,
+        });
+
+        if (updateData.status === 'Inactive') {
+          await forceLogoutUserSessions({
+            prismaClient: prisma,
+            userId: updatedUser.id,
+            revokedBy: authContext?.user,
+          });
+        }
+
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'SETTINGS',
+          action: updateData.role && updateData.role !== existingUser.role ? 'ROLE_CHANGED' : 'USER_UPDATED',
+          description: updateData.role && updateData.role !== existingUser.role
+            ? `Changed role for ${updatedUser.email} from ${existingUser.role} to ${updateData.role}.`
+            : `Updated user ${updatedUser.email}.`,
+          metadata: { targetUserId: updatedUser.id, changes: Object.keys(updateData) },
+        });
+
+        return NextResponse.json(updatedUser);
+      }
+
+      if (method === 'GET' && segs.length === 3 && segs[2] === 'sessions') {
+        const sessions = await prisma.userSession.findMany({
+          where: { userId: segs[1], revokedAt: null },
+          orderBy: { lastActivityAt: 'desc' },
+        });
+        return NextResponse.json(sessions);
+      }
+
+      if (method === 'POST' && segs.length === 3 && segs[2] === 'reset-password') {
+        const payload = await readJson(request);
+        const settings = await getSystemSettingsMap(prisma);
+        const passwordMinimumLength = readNumberSetting(settings.password_minimum_length, 8);
+        const nextPassword = String(payload.password || '').trim();
+        if (!nextPassword || nextPassword.length < passwordMinimumLength) {
+          return NextResponse.json({ error: `Password must be at least ${passwordMinimumLength} characters long.` }, { status: 400 });
+        }
+
+        const existingUser = await prisma.user.findUnique({ where: { id: segs[1] } });
+        if (!existingUser) {
+          return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+        }
+
+        const passwordHash = await hashHqPassword(nextPassword);
+        await prisma.user.update({
+          where: { id: segs[1] },
+          data: {
+            password: nextPassword,
+            passwordHash,
+            passwordChangedAt: new Date(),
+            failedLoginAttempts: 0,
+            lockedUntil: null,
+          },
+        });
+
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'SETTINGS',
+          action: 'PASSWORD_RESET',
+          description: `Reset password for user ${existingUser.email}.`,
+          metadata: { targetUserId: existingUser.id },
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      if (method === 'POST' && segs.length === 3 && segs[2] === 'force-logout') {
+        const count = await forceLogoutUserSessions({
+          prismaClient: prisma,
+          userId: segs[1],
+          revokedBy: authContext?.user,
+        });
+        return NextResponse.json({ ok: true, count });
+      }
+
+      if (method === 'POST' && segs.length === 5 && segs[2] === 'sessions' && segs[4] === 'force-logout') {
+        const session = await prisma.userSession.findFirst({ where: { id: segs[3], userId: segs[1], revokedAt: null } });
+        if (!session) {
+          return NextResponse.json({ error: 'Session not found.' }, { status: 404 });
+        }
+        await prisma.userSession.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'SETTINGS',
+          action: 'FORCE_LOGOUT',
+          description: `Force logout session ${session.id} for user ${segs[1]}.`,
+          metadata: { sessionId: session.id, targetUserId: segs[1] },
+        });
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // ---------- ROLES & PERMISSIONS ----------
+    if (segs[0] === 'roles') {
+      if (method === 'GET' && segs.length === 1) {
+        const roles = await prisma.role.findMany({
+          include: {
+            permissions: true,
+          },
+          orderBy: { name: 'asc' },
+        });
+
+        const matrix = HQ_PERMISSION_CATALOG.map((module) => ({
+          moduleKey: module.moduleKey,
+          label: module.label,
+          actions: module.actions,
+        }));
+
+        return NextResponse.json({ roles, matrix });
+      }
+
+      if (method === 'POST' && segs.length === 1) {
+        const payload = await readJson(request);
+        const name = String(payload.name || '').trim();
+        if (!name) {
+          return NextResponse.json({ error: 'Role name is required.' }, { status: 400 });
+        }
+
+        const existing = await prisma.role.findFirst({ where: { name: { equals: name, mode: 'insensitive' } } });
+        if (existing) {
+          return NextResponse.json({ error: 'Role name already exists.' }, { status: 400 });
+        }
+
+        const role = await prisma.role.create({
+          data: {
+            id: uuid(),
+            name,
+            description: String(payload.description || '').trim(),
+            status: payload.status === 'Inactive' ? 'Inactive' : 'Active',
+            isSystem: false,
+          },
+        });
+
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'SETTINGS',
+          action: 'ROLE_CREATED',
+          description: `Created role ${role.name}.`,
+          metadata: { roleId: role.id },
+        });
+
+        return NextResponse.json(role);
+      }
+
+      if (method === 'PUT' && segs.length === 2) {
+        const payload = await readJson(request);
+        const existingRole = await prisma.role.findUnique({ where: { id: segs[1] }, include: { permissions: true } });
+        if (!existingRole) {
+          return NextResponse.json({ error: 'Role not found.' }, { status: 404 });
+        }
+
+        const nextName = payload.name !== undefined ? String(payload.name || '').trim() : existingRole.name;
+        if (!nextName) {
+          return NextResponse.json({ error: 'Role name is required.' }, { status: 400 });
+        }
+
+        const duplicate = await prisma.role.findFirst({
+          where: {
+            id: { not: segs[1] },
+            name: { equals: nextName, mode: 'insensitive' },
+          },
+        });
+        if (duplicate) {
+          return NextResponse.json({ error: 'Role name already exists.' }, { status: 400 });
+        }
+
+        const updatedRole = await prisma.$transaction(async (tx) => {
+          const role = await tx.role.update({
+            where: { id: segs[1] },
+            data: {
+              name: nextName,
+              description: payload.description !== undefined ? String(payload.description || '').trim() : existingRole.description,
+              status: payload.status !== undefined ? (payload.status === 'Inactive' ? 'Inactive' : 'Active') : existingRole.status,
+            },
+          });
+
+          if (Array.isArray(payload.permissions)) {
+            await tx.rolePermission.deleteMany({ where: { roleId: role.id } });
+            const permissions = payload.permissions
+              .filter((permission) => permission?.moduleKey && permission?.actionKey && permission?.isAllowed !== false)
+              .map((permission) => ({
+                id: uuid(),
+                roleId: role.id,
+                moduleKey: String(permission.moduleKey).trim(),
+                actionKey: String(permission.actionKey).trim(),
+                isAllowed: true,
+              }));
+            if (permissions.length > 0) {
+              await tx.rolePermission.createMany({ data: permissions });
+            }
+          }
+
+          if (existingRole.name !== role.name) {
+            await tx.user.updateMany({
+              where: { role: existingRole.name },
+              data: { role: role.name },
+            });
+          }
+
+          return tx.role.findUnique({
+            where: { id: role.id },
+            include: { permissions: true },
+          });
+        });
+
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'SETTINGS',
+          action: Array.isArray(payload.permissions) ? 'PERMISSION_CHANGED' : 'ROLE_UPDATED',
+          description: Array.isArray(payload.permissions)
+            ? `Updated permission matrix for role ${updatedRole?.name || nextName}.`
+            : `Updated role ${updatedRole?.name || nextName}.`,
+          metadata: { roleId: segs[1] },
+        });
+
+        return NextResponse.json(updatedRole);
+      }
+    }
+
+    // ---------- NOTIFICATION SETTINGS ----------
+    if (segs[0] === 'notification-settings') {
+      if (method === 'GET' && segs.length === 1) {
+        const settings = await prisma.notificationSetting.findMany({ orderBy: [{ category: 'asc' }, { label: 'asc' }] });
+        return NextResponse.json(settings);
+      }
+
+      if (method === 'PUT' && segs.length === 1) {
+        const payload = await readJson(request);
+        const settings = Array.isArray(payload.settings) ? payload.settings : [];
+        await prisma.$transaction(settings.map((setting) => prisma.notificationSetting.update({
+          where: { id: setting.id },
+          data: {
+            isEnabled: Boolean(setting.isEnabled),
+            updatedBy: authContext?.user?.email || authContext?.user?.name || '',
+          },
+        })));
+
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'SETTINGS',
+          action: 'NOTIFICATION_SETTINGS_UPDATED',
+          description: 'Notification settings were updated.',
+          metadata: { count: settings.length },
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // ---------- SYSTEM SETTINGS ----------
+    if (segs[0] === 'system-settings') {
+      if (method === 'GET' && segs.length === 1) {
+        const settings = await prisma.systemSetting.findMany({ orderBy: [{ section: 'asc' }, { label: 'asc' }] });
+        return NextResponse.json(settings);
+      }
+
+      if (method === 'PUT' && segs.length === 1) {
+        const payload = await readJson(request);
+        const settings = Array.isArray(payload.settings) ? payload.settings : [];
+        await prisma.$transaction(settings.map((setting) => prisma.systemSetting.update({
+          where: { id: setting.id },
+          data: {
+            value: String(setting.value ?? ''),
+            updatedBy: authContext?.user?.email || authContext?.user?.name || '',
+          },
+        })));
+
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'SETTINGS',
+          action: 'SYSTEM_CONFIGURATION_UPDATED',
+          description: 'System configuration was updated.',
+          metadata: { count: settings.length },
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // ---------- AUDIT LOGS ----------
+    if (segs[0] === 'audit-logs' && method === 'GET') {
+      const url = new URL(request.url);
+      const search = String(url.searchParams.get('search') || '').trim().toLowerCase();
+      const moduleFilter = String(url.searchParams.get('module') || '').trim();
+      const actionFilter = String(url.searchParams.get('action') || '').trim();
+      const logs = await prisma.auditLog.findMany({
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 300,
+      });
+
+      const filteredLogs = logs.filter((log) => {
+        const matchesSearch = !search || [log.userName, log.module, log.action, log.description].some((value) => String(value || '').toLowerCase().includes(search));
+        const matchesModule = !moduleFilter || moduleFilter === 'all' || log.module === moduleFilter;
+        const matchesAction = !actionFilter || actionFilter === 'all' || log.action === actionFilter;
+        return matchesSearch && matchesModule && matchesAction;
+      });
+
+      return NextResponse.json(filteredLogs);
     }
 
     // ---------- DASHBOARD STATS ----------
@@ -664,6 +1281,7 @@ async function handle(request, { params }) {
       if (method === 'POST' && segs.length === 1) {
         const body = await readJson(request);
         const transactionType = body.transactionType === 'IN' ? 'IN' : 'OUT';
+        authContext = await requireHqPermission(request, 'finance', transactionType === 'IN' ? 'cash_in' : 'cash_out', { prismaClient: prisma });
 
         if (!body.transactionDate)
           return NextResponse.json({ error: 'transactionDate is required' }, { status: 400 });
@@ -781,6 +1399,15 @@ async function handle(request, { params }) {
           },
         });
 
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'FINANCE',
+          action: transactionType === 'IN' ? 'CASH_IN_CREATED' : 'CASH_OUT_CREATED',
+          description: `${transactionType === 'IN' ? 'Cash In' : 'Cash Out'} transaction ${referenceNumber || doc.id} was created.`,
+          metadata: { transactionId: doc.id, amount },
+        });
+
         return NextResponse.json({
           ...doc,
           systemJournal: journal,
@@ -789,6 +1416,12 @@ async function handle(request, { params }) {
 
       if (method === 'PUT' && segs.length === 2) {
         const body = await readJson(request);
+        const existingTxn = await prisma.cashTransaction.findUnique({ where: { id: segs[1] } });
+        if (!existingTxn) {
+          return NextResponse.json({ error: 'Cash transaction not found' }, { status: 404 });
+        }
+        authContext = authContext = await requireHqPermission(request, 'finance', existingTxn.transactionType === 'IN' ? 'cash_in' : 'cash_out', { prismaClient: prisma });
+
         if (body.amount !== undefined && Number(body.amount) <= 0)
           return NextResponse.json({ error: 'amount must be greater than 0' }, { status: 400 });
 
@@ -796,11 +1429,6 @@ async function handle(request, { params }) {
           const coa = await prisma.chartOfAccount.findUnique({ where: { id: body.chartOfAccountId } });
           if (!coa || !coa.allowTransaction)
             return NextResponse.json({ error: 'Selected account does not allow transactions' }, { status: 400 });
-        }
-
-        const existingTxn = await prisma.cashTransaction.findUnique({ where: { id: segs[1] } });
-        if (!existingTxn) {
-          return NextResponse.json({ error: 'Cash transaction not found' }, { status: 404 });
         }
 
         const transactionType = body.transactionType === 'IN' ? 'IN' : existingTxn.transactionType;
@@ -917,6 +1545,15 @@ async function handle(request, { params }) {
             })
           : null;
 
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'FINANCE',
+          action: updated.transactionType === 'IN' ? 'CASH_IN_UPDATED' : 'CASH_OUT_UPDATED',
+          description: `${updated.transactionType === 'IN' ? 'Cash In' : 'Cash Out'} transaction ${updated.referenceNumber || updated.id} was updated.`,
+          metadata: { transactionId: updated.id, amount: updated.amount },
+        });
+
         return NextResponse.json({
           ...updated,
           systemJournal: latestJournal,
@@ -924,6 +1561,12 @@ async function handle(request, { params }) {
       }
 
       if (method === 'DELETE' && segs.length === 2) {
+        const existingTxn = await prisma.cashTransaction.findUnique({ where: { id: segs[1] } });
+        if (!existingTxn) {
+          return NextResponse.json({ error: 'Cash transaction not found' }, { status: 404 });
+        }
+        await requireHqPermission(request, 'finance', existingTxn.transactionType === 'IN' ? 'cash_in' : 'cash_out', { prismaClient: prisma });
+
         const journal = await prisma.journalEntry.findFirst({
           where: { sourceId: segs[1], journalType: 'System' },
         });
@@ -932,6 +1575,14 @@ async function handle(request, { params }) {
         }
 
         await prisma.cashTransaction.delete({ where: { id: segs[1] } });
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'FINANCE',
+          action: existingTxn.transactionType === 'IN' ? 'CASH_IN_DELETED' : 'CASH_OUT_DELETED',
+          description: `${existingTxn.transactionType === 'IN' ? 'Cash In' : 'Cash Out'} transaction ${existingTxn.referenceNumber || existingTxn.id} was deleted.`,
+          metadata: { transactionId: existingTxn.id },
+        });
         return NextResponse.json({ ok: true });
       }
     }
@@ -1680,6 +2331,15 @@ async function handle(request, { params }) {
         inventoryData,
       });
 
+      await writeAuditLog({
+        prismaClient: prisma,
+        user: authContext?.user,
+        module: 'INVENTORY',
+        action: 'MANUAL_INVENTORY_ADJUSTMENT',
+        description: `Manual inventory adjustment recorded for inventory ${id}.`,
+        metadata: { inventoryId: id, previousQuantity: current.quantity, newQuantity: nextQuantity },
+      });
+
       return NextResponse.json(result.inventory);
     }
 
@@ -1818,6 +2478,14 @@ async function handle(request, { params }) {
             }),
             prisma.rawMaterial.update({ where: { id: body.rawMaterialId }, data: { currentStock: newQty } }),
           ]);
+          await writeAuditLog({
+            prismaClient: prisma,
+            user: authContext?.user,
+            module: 'INVENTORY',
+            action: 'MANUAL_INVENTORY_ADJUSTMENT',
+            description: `Manual raw material movement ${body.movementType} recorded for ${body.rawMaterialId}.`,
+            metadata: { rawMaterialId: body.rawMaterialId, movementId: movement.id, quantity: qty },
+          });
           return NextResponse.json(movement);
         }
 
@@ -1862,6 +2530,14 @@ async function handle(request, { params }) {
           }),
           prisma.inventory.update({ where: { id: body.inventoryId }, data: { quantity: newQty } }),
         ]);
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'INVENTORY',
+          action: 'MANUAL_INVENTORY_ADJUSTMENT',
+          description: `Manual inventory movement ${body.movementType} recorded for inventory ${body.inventoryId}.`,
+          metadata: { inventoryId: body.inventoryId, movementId: movement.id, quantity: qty },
+        });
         return NextResponse.json(movement);
       }
     }
@@ -2204,6 +2880,7 @@ async function handle(request, { params }) {
 
       // ── Complete Production (POST /productionorders/:id/complete)
       if (method === 'POST' && segs.length === 3 && segs[2] === 'complete') {
+        authContext = await requireHqPermission(request, 'production', 'complete', { prismaClient: prisma });
         const body = await readJson(request);
         const actualQty = Number(body.actualQuantity);
         const laborCost = Number(body.laborCost || 0);
@@ -2250,8 +2927,10 @@ async function handle(request, { params }) {
         const now = new Date();
         const movDate = now.toISOString().split('T')[0];
 
+        let createdResultNumber = '';
         const completedOrder = await prisma.$transaction(async (tx) => {
           const resultNumber = await generateProductionResultNumber(tx, now);
+          createdResultNumber = resultNumber;
           const inventoryEntries = await tx.inventory.findMany({ where: { productId: order.productId }, orderBy: { id: 'asc' } });
           if (inventoryEntries.length === 0) {
             throw new Error('Inventory rows are missing for this product. Run the manual repair inventory maintenance endpoint before completing production.');
@@ -2368,6 +3047,15 @@ async function handle(request, { params }) {
 
           await financePostingService.postProductionResultJournal(createdResult, { prismaClient: tx });
           return updatedOrder;
+        });
+
+        await writeAuditLog({
+          prismaClient: prisma,
+          user: authContext?.user,
+          module: 'PRODUCTION',
+          action: 'PRODUCTION_RESULT_POSTED',
+          description: `Production result ${createdResultNumber} was completed for order ${completedOrder.productionOrderNumber}.`,
+          metadata: { productionOrderId: completedOrder.id, resultNumber: createdResultNumber, actualQuantity: actualQty, totalProductionCost },
         });
 
         return NextResponse.json(completedOrder);
@@ -2782,6 +3470,10 @@ async function handle(request, { params }) {
 
     return NextResponse.json({ error: 'Not found', segs }, { status: 404 });
   } catch (e) {
+    if (e instanceof HqSecurityError) {
+      return buildHqSecurityErrorResponse(e);
+    }
+
     // Detect PostgreSQL connection termination errors and reconnect so
     // the NEXT request succeeds. Codes: E57P01 (admin_shutdown),
     // P1017 (server closed connection), P1001 (unreachable server).
