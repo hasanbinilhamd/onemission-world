@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkoutService, normalizeCheckoutError } from '@/lib/checkout';
 import { generateCustomerCode } from '@/lib/customer-auth/customer-number';
+import { dashboardService } from '@/lib/dashboard';
 import { financePostingService } from '@/lib/finance-posting';
 import { cashFlowService, inventoryValuationService } from '@/lib/finance-reporting';
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
@@ -336,66 +337,12 @@ async function handle(request, { params }) {
 
     // ---------- DASHBOARD STATS ----------
     if (segs[0] === 'dashboard' && method === 'GET') {
-      const [finance, products, inventory, content, events, creators, schools] = await Promise.all([
-        prisma.finance.findMany(),
-        prisma.product.findMany(),
-        prisma.inventory.findMany(),
-        prisma.content.findMany(),
-        prisma.event.findMany(),
-        prisma.creator.findMany(),
-        prisma.school.findMany(),
-      ]);
-      const totalRevenue = finance.reduce((s, f) => s + f.revenue, 0);
-      const totalExpenses = finance.reduce((s, f) => s + f.expenses, 0);
-      const netProfit = totalRevenue - totalExpenses;
-      const cashPosition = finance.reduce((s, f) => s + f.cashflow, 0);
-      const last = finance[finance.length - 1];
-      const prev = finance[finance.length - 2];
-      const salesGrowth = prev ? ((last.revenue - prev.revenue) / prev.revenue * 100) : 0;
-      const lowStock = inventory.filter((i) => i.quantity < i.threshold);
-      const productMap = new Map(products.map((product) => [product.id, product]));
-      const expenseBreakdownMap = {};
-
-      for (const entry of finance) {
-        for (const [category, value] of Object.entries(entry.categoryBreakdown || {})) {
-          expenseBreakdownMap[category] = (expenseBreakdownMap[category] || 0) + Number(value || 0);
-        }
-      }
-
-      const financeSeries = finance.map((entry) => ({
-        month: entry.month,
-        revenue: Number(entry.revenue || 0),
-        cashflow: Number(entry.cashflow || 0),
-        profit: Number(entry.revenue || 0) - Number(entry.expenses || 0),
-      }));
-
-      return NextResponse.json({
-        totalRevenue,
-        monthlyRevenue: last?.revenue || 0,
-        netProfit,
-        expenses: totalExpenses,
-        cashPosition,
-        salesGrowth: Number(salesGrowth.toFixed(1)),
-        lowStockCount: lowStock.length,
-        productCount: products.length,
-        eventCount: events.length,
-        contentCount: content.length,
-        creatorDeals: creators.filter((c) => c.status === 'Deal').length,
-        schoolsInPipeline: schools.filter((s) => ['Negotiation', 'Meeting', 'Deal'].includes(s.status)).length,
-        financeSeries,
-        expenseBreakdown: Object.entries(expenseBreakdownMap).map(([name, value]) => ({
-          name,
-          value,
-        })),
-        lowStock: lowStock.slice(0, 5).map((item) => ({
-          ...item,
-          productName: productMap.get(item.productId)?.name || 'Unknown',
-        })),
-        upcomingContent: content.slice(0, 5),
-        upcomingEvents: events.slice(0, 5),
-        creatorUpdates: creators.slice(0, 4),
-        schoolUpdates: schools.slice(0, 4),
-      });
+      const url = new URL(request.url);
+      const range = url.searchParams.get('range') || 'last30';
+      const from = url.searchParams.get('from') || '';
+      const to = url.searchParams.get('to') || '';
+      const result = await dashboardService.getExecutiveDashboard({ range, from, to });
+      return NextResponse.json(result);
     }
 
     // ---------- RAW MATERIALS STATS ----------

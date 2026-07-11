@@ -681,27 +681,37 @@ function Login({ onLogin }) {
 }
 
 // =========== DASHBOARD ===========
-function Dashboard({ activeModule }) {
+function Dashboard({
+  activeModule,
+  onOpenOrderReference = () => {},
+  onOpenLowStockInventory = () => {},
+}) {
   const [stats, setStats] = useState(null);
+  const [range, setRange] = useState("last30");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+
+  const load = async () => {
+    const params = new URLSearchParams({ range });
+    if (range === "custom") {
+      if (!customFrom || !customTo) {
+        return;
+      }
+      params.set("from", customFrom);
+      params.set("to", customTo);
+    }
+
+    setStats(await api.get("dashboard?" + params.toString()));
+  };
 
   useLazyModuleEffect(
     activeModule,
     "dashboard",
     () => {
-      (async () => {
-        setStats(await api.get("dashboard"));
-      })();
+      void load();
     },
-    [],
+    [range, customFrom, customTo],
   );
-
-  const finance = stats?.financeSeries || [];
-  const expenseBreakdown = stats?.expenseBreakdown || [];
-  const lowStock = stats?.lowStock || [];
-  const content = stats?.upcomingContent || [];
-  const events = stats?.upcomingEvents || [];
-  const creators = stats?.creatorUpdates || [];
-  const schools = stats?.schoolUpdates || [];
 
   const chartColors = [
     "hsl(var(--chart-1))",
@@ -715,96 +725,155 @@ function Dashboard({ activeModule }) {
 
   if (!stats) return <DashboardSkeleton />;
 
-  const KPI = ({ label, value, sub, icon: Icon, trend }) => (
-    <div className="bg-white rounded-[28px] border border-[rgba(17,24,39,0.05)] shadow-[0_8px_32px_rgba(0,0,0,0.05)] p-6 hover:-translate-y-[3px] hover:shadow-[0_16px_40px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-default">
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-10 h-10 rounded-[14px] bg-gradient-to-br from-[#EEF3FA] to-[#D8E3F3] flex items-center justify-center shrink-0">
-          <Icon className="h-4 w-4 text-[#5F6B7A]" />
-        </div>
-        {trend && (
-          <div
-            className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${trend === "up" ? "bg-[#4FAF73]/10 text-[#4FAF73]" : "bg-[#E26D6D]/10 text-[#E26D6D]"}`}
-          >
-            {trend === "up" ? (
-              <TrendingUp className="h-2.5 w-2.5" />
-            ) : (
-              <TrendingDown className="h-2.5 w-2.5" />
-            )}
+  const kpis = stats.kpis || {};
+  const revenueByMonth = stats.revenueByMonth || [];
+  const expenseBreakdown = stats.expenseBreakdown || [];
+  const topSellingProducts = stats.topSellingProducts || [];
+  const latestOrders = stats.latestOrders || [];
+  const recentCashActivities = stats.recentCashActivities || [];
+  const lowStockItems = stats.lowStockItems || [];
+  const productionSummary = stats.productionSummary || {};
+  const cashPositionSummary = stats.cashPositionSummary || [];
+
+  const paymentStatusBadge = (status) => {
+    const styles = {
+      PAID: "bg-emerald-500/10 text-emerald-600",
+      PENDING: "bg-amber-500/10 text-amber-600",
+      FAILED: "bg-rose-500/10 text-rose-600",
+      EXPIRED: "bg-slate-500/10 text-slate-600",
+      CREATED: "bg-blue-500/10 text-blue-600",
+    };
+
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[status] || "bg-muted text-foreground"}`}>
+        {status || "UNKNOWN"}
+      </span>
+    );
+  };
+
+  const KPI = ({ label, value, sub, icon: Icon, trend, onClick }) => {
+    const Wrapper = onClick ? "button" : "div";
+    return (
+      <Wrapper
+        {...(onClick ? { type: "button", onClick } : {})}
+        className={`bg-white rounded-[28px] border border-[rgba(17,24,39,0.05)] shadow-[0_8px_32px_rgba(0,0,0,0.05)] p-6 transition-all duration-300 ${onClick ? "hover:-translate-y-[3px] hover:shadow-[0_16px_40px_rgba(0,0,0,0.08)] text-left" : "cursor-default"}`}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div className="w-10 h-10 rounded-[14px] bg-gradient-to-br from-[#EEF3FA] to-[#D8E3F3] flex items-center justify-center shrink-0">
+            <Icon className="h-4 w-4 text-[#5F6B7A]" />
           </div>
-        )}
-      </div>
-      <p className="text-[10.5px] text-[#5F6B7A] uppercase tracking-[0.14em] font-bold">
-        {label}
-      </p>
-      <p className="text-[1.55rem] font-bold tracking-tight text-[#111827] mt-1 leading-tight">
-        {value}
-      </p>
-      {sub && (
-        <p className="text-[11.5px] text-[#5F6B7A] mt-1.5 font-medium">{sub}</p>
-      )}
-    </div>
-  );
+          {trend ? (
+            <div
+              className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${trend === "up" ? "bg-[#4FAF73]/10 text-[#4FAF73]" : "bg-[#E26D6D]/10 text-[#E26D6D]"}`}
+            >
+              {trend === "up" ? (
+                <TrendingUp className="h-2.5 w-2.5" />
+              ) : (
+                <TrendingDown className="h-2.5 w-2.5" />
+              )}
+            </div>
+          ) : null}
+        </div>
+        <p className="text-[10.5px] text-[#5F6B7A] uppercase tracking-[0.14em] font-bold">
+          {label}
+        </p>
+        <p className="text-[1.55rem] font-bold tracking-tight text-[#111827] mt-1 leading-tight">
+          {value}
+        </p>
+        {sub ? <p className="text-[11.5px] text-[#5F6B7A] mt-1.5 font-medium">{sub}</p> : null}
+      </Wrapper>
+    );
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-[1.6rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
-            CEO Dashboard
+            Executive Dashboard
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Real-time pulse of ONEMISSION operations
+            Real-time company health across sales, inventory, production, and finance
           </p>
         </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4FAF73]/10 border border-[#4FAF73]/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#4FAF73] animate-pulse" />
-          <span className="text-[11px] font-bold text-[#4FAF73] tracking-[0.12em] uppercase">
-            Live
-          </span>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-1.5">
+            <Label>Period</Label>
+            <Select value={range} onValueChange={setRange}>
+              <SelectTrigger className="w-[180px] bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="last30">Last 30 Days</SelectItem>
+                <SelectItem value="thisYear">This Year</SelectItem>
+                <SelectItem value="custom">Custom Range</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {range === "custom" ? (
+            <>
+              <div className="space-y-1.5">
+                <Label>From</Label>
+                <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="bg-white w-40" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>To</Label>
+                <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="bg-white w-40" />
+              </div>
+            </>
+          ) : null}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4FAF73]/10 border border-[#4FAF73]/20 self-end mb-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#4FAF73] animate-pulse" />
+            <span className="text-[11px] font-bold text-[#4FAF73] tracking-[0.12em] uppercase">
+              Live
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <KPI
           label="Total Revenue"
-          value={fmtShort(stats.totalRevenue)}
-          sub="YTD 2026"
+          value={fmtShort(kpis.totalRevenue)}
+          sub={stats.period?.label}
           icon={DollarSign}
           trend="up"
         />
         <KPI
           label="Monthly Revenue"
-          value={fmtShort(stats.monthlyRevenue)}
-          sub={`${stats.salesGrowth >= 0 ? "+" : ""}${stats.salesGrowth}% MoM`}
+          value={fmtShort(kpis.monthlyRevenue)}
+          sub={`${kpis.monthlyRevenueGrowth >= 0 ? "+" : ""}${Number(kpis.monthlyRevenueGrowth || 0).toFixed(1)}% vs previous month`}
           icon={TrendingUp}
-          trend={stats.salesGrowth >= 0 ? "up" : "down"}
+          trend={Number(kpis.monthlyRevenueGrowth || 0) >= 0 ? "up" : "down"}
         />
         <KPI
           label="Net Profit"
-          value={fmtShort(stats.netProfit)}
-          sub="After expenses"
+          value={fmtShort(kpis.netProfit)}
+          sub="Revenue - COGS - Cash Out"
           icon={Sparkles}
-          trend="up"
+          trend={Number(kpis.netProfit || 0) >= 0 ? "up" : "down"}
         />
         <KPI
           label="Expenses"
-          value={fmtShort(stats.expenses)}
-          sub="YTD"
+          value={fmtShort(kpis.expenses)}
+          sub="Total Cash Out"
           icon={Wallet}
+          trend={Number(kpis.expenses || 0) > 0 ? "down" : undefined}
         />
         <KPI
           label="Cash Position"
-          value={fmtShort(stats.cashPosition)}
-          sub="Available"
-          icon={ShoppingBag}
-          trend="up"
+          value={fmtShort(kpis.cashPosition)}
+          sub={`${cashPositionSummary.length} financial accounts`}
+          icon={Landmark}
+          trend={Number(kpis.cashPosition || 0) >= 0 ? "up" : "down"}
         />
         <KPI
           label="Low Stock"
-          value={stats.lowStockCount}
-          sub="SKUs critical"
+          value={Number(kpis.lowStockCount || 0).toLocaleString()}
+          sub="Click to open inventory"
           icon={AlertTriangle}
-          trend="down"
+          trend={Number(kpis.lowStockCount || 0) > 0 ? "down" : undefined}
+          onClick={onOpenLowStockInventory}
         />
       </div>
 
@@ -812,64 +881,38 @@ function Dashboard({ activeModule }) {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Revenue by Month</CardTitle>
-            <CardDescription>2026 monthly performance</CardDescription>
+            <CardDescription>Actual paid order revenue for the selected period</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={finance}>
+              <AreaChart data={revenueByMonth}>
                 <defs>
                   <linearGradient id="revG" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="0%"
-                      stopColor="hsl(var(--chart-1))"
-                      stopOpacity={0.5}
-                    />
-                    <stop
-                      offset="100%"
-                      stopColor="hsl(var(--chart-1))"
-                      stopOpacity={0}
-                    />
+                    <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid
-                  stroke="hsl(var(--border))"
-                  strokeDasharray="3 3"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="month"
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <YAxis
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  tickFormatter={(v) => fmtShort(v)}
-                />
+                <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
                 <Tooltip
                   contentStyle={{
                     background: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",
                     borderRadius: 8,
                   }}
-                  formatter={(v) => fmt(v)}
+                  formatter={(value) => fmt(value)}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="hsl(var(--chart-1))"
-                  strokeWidth={2}
-                  fill="url(#revG)"
-                />
+                <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#revG)" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Expense Breakdown</CardTitle>
-            <CardDescription>Category distribution</CardDescription>
+            <CardDescription>Cash Out by expense category</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
@@ -882,8 +925,8 @@ function Dashboard({ activeModule }) {
                   outerRadius={85}
                   paddingAngle={2}
                 >
-                  {expenseBreakdown.map((_, i) => (
-                    <Cell key={i} fill={chartColors[i % chartColors.length]} />
+                  {expenseBreakdown.map((_, index) => (
+                    <Cell key={index} fill={chartColors[index % chartColors.length]} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -892,25 +935,18 @@ function Dashboard({ activeModule }) {
                     border: "1px solid hsl(var(--border))",
                     borderRadius: 8,
                   }}
-                  formatter={(v) => fmtShort(v)}
+                  formatter={(value) => fmt(value)}
                 />
               </PieChart>
             </ResponsiveContainer>
             <div className="space-y-1.5 text-xs mt-2">
-              {expenseBreakdown.slice(0, 5).map((c, i) => (
-                <div key={c.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{
-                        background: chartColors[i % chartColors.length],
-                      }}
-                    />
-                    {c.name}
+              {expenseBreakdown.slice(0, 6).map((entry, index) => (
+                <div key={entry.name} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: chartColors[index % chartColors.length] }} />
+                    <span className="truncate">{entry.name}</span>
                   </div>
-                  <span className="text-muted-foreground">
-                    {fmtShort(c.value)}
-                  </span>
+                  <span className="text-muted-foreground shrink-0">{fmtShort(entry.value)}</span>
                 </div>
               ))}
             </div>
@@ -918,258 +954,205 @@ function Dashboard({ activeModule }) {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Card className="xl:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Cashflow Trend</CardTitle>
-            <CardDescription>Net cash position over months</CardDescription>
+            <CardTitle className="text-base">Top Selling Products</CardTitle>
+            <CardDescription>Top 10 products by quantity sold</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={finance}>
-                <CartesianGrid
-                  stroke="hsl(var(--border))"
-                  strokeDasharray="3 3"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="month"
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <YAxis
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  tickFormatter={fmtShort}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                  }}
-                  formatter={fmt}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="cashflow"
-                  stroke="hsl(var(--chart-2))"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="profit"
-                  stroke="hsl(var(--chart-3))"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="">
-          <CardHeader>
-            <CardTitle className="text-base">
-              Product Sales Performance
-            </CardTitle>
-            <CardDescription>Top selling categories</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart
-                data={[
-                  { name: "2-in-1 Shorts", sales: 4200 },
-                  { name: "Compression", sales: 2800 },
-                  { name: "Jerseys", sales: 3600 },
-                  { name: "Jackets", sales: 1500 },
-                  { name: "Accessories", sales: 980 },
-                ]}
-              >
-                <CartesianGrid
-                  stroke="hsl(var(--border))"
-                  strokeDasharray="3 3"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="name"
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={11}
-                />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                  }}
-                />
-                <Bar
-                  dataKey="sales"
-                  fill="hsl(var(--chart-1))"
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" /> Critical
-              Stock
-            </CardTitle>
-            <CardDescription>Restock immediately</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {lowStock.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                All stock above threshold
-              </p>
-            )}
-            {lowStock.map((i) => (
-              <div
-                key={i.id}
-                className="flex items-center justify-between text-sm"
-              >
-                <div>
-                  <p className="font-medium truncate max-w-[180px]">
-                    {i.productName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {i.color} · {i.size}
-                  </p>
-                </div>
-                <Badge variant="destructive">{i.quantity} left</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="">
-          <CardHeader>
-            <CardTitle className="text-base">Upcoming Content</CardTitle>
-            <CardDescription>Next pieces due</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {content.slice(0, 5).map((c) => (
-              <div
-                key={c.id}
-                className="flex items-center justify-between text-sm"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{c.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {c.platform} · {c.deadline}
-                  </p>
-                </div>
-                <Badge variant="outline" className="ml-2 shrink-0">
-                  {c.status}
-                </Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="">
-          <CardHeader>
-            <CardTitle className="text-base">Upcoming Events</CardTitle>
-            <CardDescription>One Goal regional dates</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {events.slice(0, 5).map((e) => (
-              <div
-                key={e.id}
-                className="flex items-start justify-between text-sm"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{e.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {e.venue} · {e.date}
-                  </p>
-                </div>
-                <Badge variant="outline">{e.participants}</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="">
-          <CardHeader>
-            <CardTitle className="text-base">
-              Creator Collaboration Updates
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {creators.slice(0, 4).map((c) => (
-              <div key={c.id} className="flex items-center gap-3 text-sm">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs">
-                    {c.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .slice(0, 2)
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{c.name}</p>
-                  {c.username ? (
-                    <a
-                      href={creatorProfileUrl(c.username, c.platform)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-muted-foreground hover:text-blue-400 hover:underline inline-flex items-center gap-1 truncate"
-                    >
-                      <span className="truncate">
-                        {creatorHandleLabel(c.username, c.platform)}
-                      </span>
-                      <span className="text-muted-foreground">
-                        · {(c.followers / 1000).toFixed(0)}K · {c.platform}
-                      </span>
-                    </a>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-[#F7F8FA]">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">SKU</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Qty Sold</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topSellingProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                        No sales data in the selected period.
+                      </td>
+                    </tr>
                   ) : (
-                    <p className="text-xs text-muted-foreground">
-                      {(c.followers / 1000).toFixed(0)}K · {c.platform}
-                    </p>
+                    topSellingProducts.map((item) => (
+                      <tr key={`${item.productId}-${item.sku}`} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
+                        <td className="px-4 py-3 font-medium">{item.productName}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{item.sku}</td>
+                        <td className="px-4 py-3 text-right font-medium">{Number(item.qtySold || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-emerald-500">{fmt(item.revenue)}</td>
+                      </tr>
+                    ))
                   )}
-                </div>
-                <Badge variant="outline">{c.status}</Badge>
-              </div>
-            ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              School Partnership Updates
-            </CardTitle>
+            <CardTitle className="text-base">Cash Position</CardTitle>
+            <CardDescription>Current balance by financial account</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {schools.slice(0, 4).map((s) => (
-              <div key={s.id} className="flex items-center gap-3 text-sm">
-                <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
-                  <School className="h-4 w-4 text-muted-foreground" />
+            {cashPositionSummary.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No financial accounts found.</p>
+            ) : (
+              cashPositionSummary.map((account) => (
+                <div key={account.id} className="flex items-center justify-between text-sm border-b border-border/30 pb-2 last:border-0 last:pb-0">
+                  <div>
+                    <p className="font-medium">{account.name}</p>
+                    <p className="text-xs text-muted-foreground">{account.type}</p>
+                  </div>
+                  <span className="font-semibold text-blue-500">{fmt(account.closingBalance)}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{s.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {s.city} · {fmtShort(s.value)}
-                  </p>
-                </div>
-                <Badge variant="outline">{s.status}</Badge>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Latest Orders</CardTitle>
+            <CardDescription>Most recent paid orders</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {latestOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recent orders.</p>
+            ) : (
+              latestOrders.map((order) => (
+                <button
+                  key={order.id}
+                  type="button"
+                  onClick={() => onOpenOrderReference(order.publicOrderNumber || order.orderNumber)}
+                  className="w-full text-left rounded-xl border border-border/60 px-3 py-3 hover:bg-[#F7F8FA] transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs font-semibold text-blue-600 truncate">{order.publicOrderNumber || order.orderNumber}</p>
+                      <p className="text-sm font-medium truncate mt-1">{order.customerName}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{new Date(order.createdAt).toLocaleString("id-ID")}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold text-emerald-500">{fmt(order.amount)}</p>
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        {paymentStatusBadge(order.paymentStatus)}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recent Cash Activities</CardTitle>
+            <CardDescription>Latest Cash In and Cash Out entries</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {recentCashActivities.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recent cash activity.</p>
+            ) : (
+              recentCashActivities.map((activity) => (
+                <div key={activity.id} className="rounded-xl border border-border/60 px-3 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{activity.type}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-1">{activity.financialAccountName}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-1">{activity.referenceNumber || activity.description || "—"}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`font-semibold ${activity.type === "Cash In" ? "text-emerald-500" : "text-rose-400"}`}>
+                        {fmt(activity.amount)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{activity.transactionDate}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Low Stock Alert</CardTitle>
+            <CardDescription>Inventory items at or below threshold</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {lowStockItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">All inventory is above threshold.</p>
+            ) : (
+              lowStockItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={onOpenLowStockInventory}
+                  className="w-full text-left rounded-xl border border-border/60 px-3 py-3 hover:bg-[#F7F8FA] transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{item.productName}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-1">{item.variant}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-1">Threshold: {item.threshold}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold text-rose-400">{item.quantity}</p>
+                      <Badge variant={item.quantity <= 0 ? "destructive" : "outline"} className="mt-1">
+                        {item.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Production Summary</CardTitle>
+          <CardDescription>Current month manufacturing activity</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <Card className="bg-[#F7F8FA] border-border/60">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Production Orders This Month</p>
+                <p className="text-2xl font-semibold mt-1">{Number(productionSummary.productionOrdersThisMonth || 0).toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-[#F7F8FA] border-border/60">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Completed Production</p>
+                <p className="text-2xl font-semibold mt-1 text-indigo-600">{Number(productionSummary.completedProduction || 0).toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-[#F7F8FA] border-border/60">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Production Cost</p>
+                <p className="text-2xl font-semibold mt-1 text-amber-500">{fmtShort(productionSummary.totalProductionCost)}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-[#F7F8FA] border-border/60">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Finished Goods Produced</p>
+                <p className="text-2xl font-semibold mt-1 text-emerald-500">{Number(productionSummary.finishedGoodsProduced || 0).toLocaleString()}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1179,20 +1162,23 @@ function DashboardSkeleton() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-28 rounded-xl bg-card border animate-pulse"
-          />
+          <div key={i} className="h-28 rounded-xl bg-card border animate-pulse" />
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 h-72 rounded-xl bg-card border animate-pulse" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 h-80 rounded-xl bg-card border animate-pulse" />
+        <div className="h-80 rounded-xl bg-card border animate-pulse" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="h-72 rounded-xl bg-card border animate-pulse" />
+        <div className="h-72 rounded-xl bg-card border animate-pulse" />
         <div className="h-72 rounded-xl bg-card border animate-pulse" />
       </div>
     </div>
   );
 }
 
+// =========== PRODUCTS ===========
 // =========== PRODUCTS ===========
 const PRODUCT_CATEGORIES = [
   "Two-In-One Shorts",
@@ -1890,11 +1876,12 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
 }
 
 // =========== INVENTORY ===========
-function InventoryModule({ activeModule }) {
+function InventoryModule({ activeModule, initialFilterSelection = null }) {
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState("all");
+  const [lowStockOnly, setLowStockOnly] = useState(false);
   const load = async () => {
     setLoading(true);
     setItems(await api.get("inventory"));
@@ -1905,6 +1892,14 @@ function InventoryModule({ activeModule }) {
   useLazyModuleEffect(activeModule, "inventory", () => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (!initialFilterSelection?.token) return;
+    if (initialFilterSelection.mode === "LOW_STOCK") {
+      setSelectedProduct("all");
+      setLowStockOnly(true);
+    }
+  }, [initialFilterSelection]);
 
   const resolvePerformedBy = () => {
     if (typeof window === 'undefined') return 'SYSTEM';
@@ -1945,10 +1940,11 @@ function InventoryModule({ activeModule }) {
     toast.success("Stock updated");
   };
 
-  const filtered =
-    selectedProduct === "all"
-      ? items
-      : items.filter((i) => i.productId === selectedProduct);
+  const filtered = items.filter((item) => {
+    const matchesProduct = selectedProduct === "all" || item.productId === selectedProduct;
+    const matchesLowStock = !lowStockOnly || Number(item.quantity || 0) <= Number(item.threshold || 0);
+    return matchesProduct && matchesLowStock;
+  });
   const grouped = useMemo(() => {
     const map = {};
     filtered.forEach((i) => {
@@ -1984,7 +1980,7 @@ function InventoryModule({ activeModule }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Inventory
@@ -1993,19 +1989,31 @@ function InventoryModule({ activeModule }) {
             Real-time stock by product, color, and size
           </p>
         </div>
-        <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-          <SelectTrigger className="w-[260px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All products</SelectItem>
-            {products.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {lowStockOnly ? (
+            <Badge variant="destructive" className="gap-1">
+              <AlertTriangle className="h-3 w-3" /> Low Stock Filter Active
+            </Badge>
+          ) : null}
+          <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+            <SelectTrigger className="w-[260px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All products</SelectItem>
+              {products.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {lowStockOnly ? (
+            <Button variant="outline" size="sm" onClick={() => setLowStockOnly(false)}>
+              Clear Low Stock Filter
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -15588,6 +15596,7 @@ function App() {
   });
   const [glInitialAccount, setGlInitialAccount] = useState(null);
   const [orderReferenceSelection, setOrderReferenceSelection] = useState(null);
+  const [inventoryFilterSelection, setInventoryFilterSelection] = useState(null);
 
   const toggleGroup = (id) => {
     setOpenGroups((prev) => {
@@ -15613,6 +15622,14 @@ function App() {
       token: Date.now(),
     });
     handleNavClick("orders");
+  };
+
+  const openLowStockInventory = () => {
+    setInventoryFilterSelection({
+      mode: "LOW_STOCK",
+      token: Date.now(),
+    });
+    handleNavClick("inventory");
   };
 
   useEffect(() => {
@@ -15643,9 +15660,20 @@ function App() {
     : NAV_GROUPS;
 
   const renderActiveModule = {
-    dashboard: () => <Dashboard activeModule={active} />,
+    dashboard: () => (
+      <Dashboard
+        activeModule={active}
+        onOpenOrderReference={openOrderReference}
+        onOpenLowStockInventory={openLowStockInventory}
+      />
+    ),
     products: () => <ProductsModule activeModule={active} />,
-    inventory: () => <InventoryModule activeModule={active} />,
+    inventory: () => (
+      <InventoryModule
+        activeModule={active}
+        initialFilterSelection={inventoryFilterSelection}
+      />
+    ),
     rawmaterials: () => <RawMaterialModule activeModule={active} />,
     planning: () => <PlanningModule activeModule={active} />,
     content: () => <ContentModule activeModule={active} />,
