@@ -3377,26 +3377,82 @@ const CREATOR_STATUS = [
   "Deal",
   "Completed",
 ];
+const CREATOR_PLATFORM_OPTIONS = ["Instagram", "TikTok", "YouTube", "Threads"];
+const CREATOR_SORT_OPTIONS = [
+  { value: "name", label: "Name" },
+  { value: "username", label: "Username" },
+  { value: "platform", label: "Platform" },
+  { value: "followers", label: "Followers" },
+  { value: "engagement", label: "Engagement" },
+  { value: "fee", label: "Fee" },
+  { value: "status", label: "Status" },
+];
+const CREATOR_PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 function CreatorCRM({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("all");
+  const [platform, setPlatform] = useState("all");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("name");
+  const [sortDirection, setSortDirection] = useState("asc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [meta, setMeta] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+    usedFallbackSort: false,
+  });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+
   const load = async () => {
     setLoading(true);
-    setItems(await api.get("creators"));
+    const params = new URLSearchParams({
+      format: "paginated",
+      page: String(page),
+      limit: String(pageSize),
+      sortBy,
+      sortDirection,
+    });
+
+    if (status !== "all") params.set("status", status);
+    if (platform !== "all") params.set("platform", platform);
+    if (search.trim()) params.set("search", search.trim());
+
+    const result = await api.get(`creators?${params.toString()}`);
+    const nextItems = Array.isArray(result) ? result : Array.isArray(result?.data) ? result.data : [];
+    const nextMeta = Array.isArray(result)
+      ? {
+          page,
+          limit: pageSize,
+          total: nextItems.length,
+          totalPages: Math.max(1, Math.ceil(nextItems.length / Math.max(pageSize, 1))),
+          usedFallbackSort: false,
+        }
+      : {
+          page: Number(result?.meta?.page || page),
+          limit: Number(result?.meta?.limit || pageSize),
+          total: Number(result?.meta?.total || 0),
+          totalPages: Number(result?.meta?.totalPages || 1),
+          usedFallbackSort: Boolean(result?.meta?.usedFallbackSort),
+        };
+
+    setItems(nextItems);
+    setMeta(nextMeta);
     setLoading(false);
   };
+
   useLazyModuleEffect(activeModule, "creators", () => {
     load();
-  }, []);
-  const updateStatus = async (item, status) => {
-    await api.put("creators/" + item.id, { ...item, status });
-    setItems((arr) =>
-      arr.map((i) => (i.id === item.id ? { ...i, status } : i)),
-    );
+  }, [status, platform, search, sortBy, sortDirection, page, pageSize]);
+
+  const updateStatus = async (item, nextStatus) => {
+    await api.put("creators/" + item.id, { status: nextStatus });
+    await load();
   };
 
   const empty = {
@@ -3413,6 +3469,7 @@ function CreatorCRM({ activeModule }) {
     status: "Not Contacted",
     notes: "",
   };
+
   const save = async (data) => {
     if (editing?.id) {
       await api.put("creators/" + editing.id, data);
@@ -3423,16 +3480,22 @@ function CreatorCRM({ activeModule }) {
     }
     setOpen(false);
     setEditing(null);
-    load();
-  };
-  const del = async (id) => {
-    await api.del("creators/" + id);
-    load();
-    toast.success("Creator deleted");
+    await load();
   };
 
-  const filtered =
-    status === "all" ? items : items.filter((i) => i.status === status);
+  const del = async (id) => {
+    await api.del("creators/" + id);
+    toast.success("Creator deleted");
+    const isLastItemOnPage = items.length === 1 && page > 1;
+    if (isLastItemOnPage) {
+      setPage((currentPage) => Math.max(1, currentPage - 1));
+      return;
+    }
+    await load();
+  };
+
+  const showingFrom = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+  const showingTo = meta.total === 0 ? 0 : Math.min(meta.total, meta.page * meta.limit);
 
   if (loading)
     return (
@@ -3450,7 +3513,7 @@ function CreatorCRM({ activeModule }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
             Creator CRM
@@ -3469,16 +3532,97 @@ function CreatorCRM({ activeModule }) {
           <Plus className="h-4 w-4" /> New creator
         </Button>
       </div>
-      <Tabs value={status} onValueChange={setStatus}>
+
+      <Tabs value={status} onValueChange={(value) => { setStatus(value); setPage(1); }}>
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
-          {CREATOR_STATUS.map((s) => (
-            <TabsTrigger key={s} value={s}>
-              {s}
+          {CREATOR_STATUS.map((entry) => (
+            <TabsTrigger key={entry} value={entry}>
+              {entry}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
+
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[220px]">
+              <p className="text-xs text-muted-foreground mb-1">Search name / username / niche / contact</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Search creators…"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            </div>
+            <div className="min-w-[160px]">
+              <p className="text-xs text-muted-foreground mb-1">Platform</p>
+              <Select value={platform} onValueChange={(value) => { setPlatform(value); setPage(1); }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Platforms</SelectItem>
+                  {CREATOR_PLATFORM_OPTIONS.map((entry) => (
+                    <SelectItem key={entry} value={entry}>
+                      {entry}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[160px]">
+              <p className="text-xs text-muted-foreground mb-1">Sort By</p>
+              <Select value={sortBy} onValueChange={(value) => { setSortBy(value); setPage(1); }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CREATOR_SORT_OPTIONS.map((entry) => (
+                    <SelectItem key={entry.value} value={entry.value}>
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[160px]">
+              <p className="text-xs text-muted-foreground mb-1">Page Size</p>
+              <Select value={String(pageSize)} onValueChange={(value) => { setPageSize(Number(value)); setPage(1); }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CREATOR_PAGE_SIZE_OPTIONS.map((entry) => (
+                    <SelectItem key={entry} value={String(entry)}>
+                      {entry} rows
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                setSortDirection((currentDirection) => currentDirection === "asc" ? "desc" : "asc");
+                setPage(1);
+              }}
+            >
+              <ArrowUpDown className="h-4 w-4" />
+              {sortDirection === "asc" ? "Ascending" : "Descending"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-secondary/30">
@@ -3495,32 +3639,32 @@ function CreatorCRM({ activeModule }) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((c) => (
-              <tr key={c.id} className="border-b hover:bg-secondary/30">
+            {items.map((creator) => (
+              <tr key={creator.id} className="border-b hover:bg-secondary/30">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="text-xs">
-                        {c.name
+                        {creator.name
                           .split(" ")
-                          .map((n) => n[0])
+                          .map((part) => part[0])
                           .slice(0, 2)
                           .join("")}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="font-medium">{c.name}</p>
-                      {c.username ? (
+                      <p className="font-medium">{creator.name}</p>
+                      {creator.username ? (
                         <a
-                          href={creatorProfileUrl(c.username, c.platform)}
+                          href={creatorProfileUrl(creator.username, creator.platform)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(event) => event.stopPropagation()}
                           className="text-xs text-muted-foreground hover:text-blue-400 hover:underline inline-flex items-center gap-1 max-w-[220px] truncate"
-                          title={creatorProfileUrl(c.username, c.platform)}
+                          title={creatorProfileUrl(creator.username, creator.platform)}
                         >
                           <span className="truncate">
-                            {creatorHandleLabel(c.username, c.platform)}
+                            {creatorHandleLabel(creator.username, creator.platform)}
                           </span>
                           <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
                         </a>
@@ -3531,39 +3675,39 @@ function CreatorCRM({ activeModule }) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant="outline">{c.platform}</Badge>
+                  <Badge variant="outline">{creator.platform}</Badge>
                 </td>
                 <td className="px-4 py-3 text-right font-medium">
-                  {(c.followers / 1000).toFixed(0)}K
+                  {Number(creator.followers || 0).toLocaleString("id-ID")}
                 </td>
                 <td className="px-4 py-3 text-right text-muted-foreground">
-                  {c.engagement}%
+                  {Number(creator.engagement || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%
                 </td>
                 <td className="px-4 py-3 text-muted-foreground text-xs">
-                  {c.niche}
+                  {creator.niche || "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <span
-                    className={`font-medium ${c.valuesScore >= 90 ? "text-emerald-400" : c.valuesScore >= 80 ? "text-amber-400" : "text-rose-400"}`}
+                    className={`font-medium ${creator.valuesScore >= 90 ? "text-emerald-400" : creator.valuesScore >= 80 ? "text-amber-400" : "text-rose-400"}`}
                   >
-                    {c.valuesScore}
+                    {creator.valuesScore}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right text-muted-foreground">
-                  {fmtShort(c.fee)}
+                  {fmtShort(creator.fee)}
                 </td>
                 <td className="px-4 py-3">
                   <Select
-                    value={c.status}
-                    onValueChange={(v) => updateStatus(c, v)}
+                    value={creator.status}
+                    onValueChange={(value) => updateStatus(creator, value)}
                   >
                     <SelectTrigger className="h-8 text-xs w-[140px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {CREATOR_STATUS.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
+                      {CREATOR_STATUS.map((entry) => (
+                        <SelectItem key={entry} value={entry}>
+                          {entry}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -3579,7 +3723,7 @@ function CreatorCRM({ activeModule }) {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
                         onClick={() => {
-                          setEditing(c);
+                          setEditing(creator);
                           setOpen(true);
                         }}
                       >
@@ -3588,7 +3732,7 @@ function CreatorCRM({ activeModule }) {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => del(c.id)}
+                        onClick={() => del(creator.id)}
                         className="text-rose-400"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
@@ -3599,20 +3743,49 @@ function CreatorCRM({ activeModule }) {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {items.length === 0 && (
               <tr>
                 <td
                   colSpan={9}
                   className="p-12 text-center text-muted-foreground"
                 >
                   <Users2 className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                  No creators yet. Click "New creator" to add one.
+                  No creators found for the current filter.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </Card>
+
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-sm text-muted-foreground">
+          Showing {showingFrom.toLocaleString("id-ID")}–{showingTo.toLocaleString("id-ID")} of {meta.total.toLocaleString("id-ID")} creator records
+          {meta.usedFallbackSort ? " · Sort field fallback applied" : ""}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={meta.page <= 1}
+            onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {meta.page} of {meta.totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={meta.page >= meta.totalPages}
+            onClick={() => setPage((currentPage) => Math.min(meta.totalPages, currentPage + 1))}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+
       <CreatorModal
         open={open}
         onOpenChange={setOpen}
@@ -3626,7 +3799,9 @@ function CreatorCRM({ activeModule }) {
 function CreatorModal({ open, onOpenChange, initial, onSave }) {
   const [form, setForm] = useState(initial);
   useEffect(() => setForm(initial), [initial, open]);
-  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const update = (key, value) => setForm((currentForm) => ({ ...currentForm, [key]: value }));
+  const canSave = Boolean(String(form.name || "").trim() && String(form.platform || "").trim());
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
@@ -3643,7 +3818,7 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
             <Label>Name</Label>
             <Input
               value={form.name || ""}
-              onChange={(e) => update("name", e.target.value)}
+              onChange={(event) => update("name", event.target.value)}
               placeholder="Ahmad Fauzan"
             />
           </div>
@@ -3651,7 +3826,7 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
             <Label>Username</Label>
             <Input
               value={form.username || ""}
-              onChange={(e) => update("username", e.target.value)}
+              onChange={(event) => update("username", event.target.value)}
               placeholder="@ahmadfauzan"
             />
           </div>
@@ -3659,15 +3834,15 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
             <Label>Platform</Label>
             <Select
               value={form.platform}
-              onValueChange={(v) => update("platform", v)}
+              onValueChange={(value) => update("platform", value)}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PLATFORMS.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
+                {CREATOR_PLATFORM_OPTIONS.map((entry) => (
+                  <SelectItem key={entry} value={entry}>
+                    {entry}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -3677,15 +3852,15 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
             <Label>Status</Label>
             <Select
               value={form.status}
-              onValueChange={(v) => update("status", v)}
+              onValueChange={(value) => update("status", value)}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {CREATOR_STATUS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
+                {CREATOR_STATUS.map((entry) => (
+                  <SelectItem key={entry} value={entry}>
+                    {entry}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -3695,7 +3870,7 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
             <Label>Followers</Label>
             <NumberInput
               value={form.followers || 0}
-              onChange={(v) => update("followers", v)}
+              onChange={(value) => update("followers", value)}
             />
           </div>
           <div className="space-y-2">
@@ -3703,14 +3878,14 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
             <NumberInput
               decimal
               value={form.engagement || 0}
-              onChange={(v) => update("engagement", v)}
+              onChange={(value) => update("engagement", value)}
             />
           </div>
           <div className="col-span-2 space-y-2">
             <Label>Niche</Label>
             <Input
               value={form.niche || ""}
-              onChange={(e) => update("niche", e.target.value)}
+              onChange={(event) => update("niche", event.target.value)}
               placeholder="Athletic & Lifestyle"
             />
           </div>
@@ -3719,7 +3894,7 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
             <NumberInput
               max={100}
               value={form.audienceFit || 0}
-              onChange={(v) => update("audienceFit", v)}
+              onChange={(value) => update("audienceFit", value)}
             />
           </div>
           <div className="space-y-2">
@@ -3727,28 +3902,28 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
             <NumberInput
               max={100}
               value={form.valuesScore || 0}
-              onChange={(v) => update("valuesScore", v)}
+              onChange={(value) => update("valuesScore", value)}
             />
           </div>
           <div className="space-y-2">
             <Label>Contact (email/phone)</Label>
             <Input
               value={form.contact || ""}
-              onChange={(e) => update("contact", e.target.value)}
+              onChange={(event) => update("contact", event.target.value)}
             />
           </div>
           <div className="space-y-2">
             <Label>Estimated Fee (IDR)</Label>
             <NumberInput
               value={form.fee || 0}
-              onChange={(v) => update("fee", v)}
+              onChange={(value) => update("fee", value)}
             />
           </div>
           <div className="col-span-2 space-y-2">
             <Label>Notes</Label>
             <Textarea
               value={form.notes || ""}
-              onChange={(e) => update("notes", e.target.value)}
+              onChange={(event) => update("notes", event.target.value)}
               rows={3}
             />
           </div>
@@ -3757,7 +3932,7 @@ function CreatorModal({ open, onOpenChange, initial, onSave }) {
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={() => onSave(form)}>
+          <Button disabled={!canSave} onClick={() => onSave(form)}>
             {initial?.id ? "Save changes" : "Add creator"}
           </Button>
         </DialogFooter>

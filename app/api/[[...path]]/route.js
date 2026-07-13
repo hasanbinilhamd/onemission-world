@@ -30,6 +30,11 @@ import { reportsService } from '@/lib/reports';
 import { getCachedValue, invalidateCacheByPrefix, invalidateCacheKey } from '@/lib/server-cache';
 import { districtService } from '@/lib/shipping/district-service';
 import { normalizeShippingError, shippingService } from '@/lib/shipping';
+import {
+  buildCreatorListQuery,
+  sanitizeCreatorPayload,
+  validateCreatorPayload,
+} from '@/lib/creator/service';
 import { v4 as uuid } from 'uuid';
 import {
   ensureInventoryRowsForProduct,
@@ -57,6 +62,66 @@ const COLLECTION_MODELS = {
   chartofaccounts: 'chartOfAccount',
   financialaccounts: 'financialAccount',
 };
+
+const GENERIC_COLLECTION_LIST_CONFIG = {
+  product: {
+    orderBy: [{ name: 'asc' }],
+  },
+  inventory: {
+    orderBy: [{ productId: 'asc' }, { color: 'asc' }, { size: 'asc' }],
+  },
+  plan: {
+    orderBy: [{ dueDate: 'asc' }, { title: 'asc' }],
+  },
+  content: {
+    orderBy: [{ deadline: 'asc' }, { title: 'asc' }],
+  },
+  creator: {
+    orderBy: [{ name: 'asc' }],
+  },
+  school: {
+    orderBy: [{ name: 'asc' }],
+  },
+  timeline: {
+    orderBy: [{ year: 'asc' }, { startDate: 'asc' }, { name: 'asc' }],
+  },
+  finance: {
+    orderBy: [{ year: 'desc' }, { month: 'desc' }],
+  },
+  event: {
+    orderBy: [{ date: 'asc' }, { name: 'asc' }],
+  },
+  notification: {
+    orderBy: [{ createdAt: 'desc' }],
+  },
+  rawMaterial: {
+    orderBy: [{ name: 'asc' }, { color: 'asc' }],
+  },
+  chartOfAccount: {
+    orderBy: [{ accountCode: 'asc' }],
+  },
+  financialAccount: {
+    orderBy: [{ name: 'asc' }],
+  },
+};
+
+function getGenericCollectionOrderBy(modelName) {
+  return GENERIC_COLLECTION_LIST_CONFIG[modelName]?.orderBy || undefined;
+}
+
+async function listGenericCollection(model, modelName) {
+  const orderBy = getGenericCollectionOrderBy(modelName);
+
+  try {
+    return await model.findMany(orderBy ? { orderBy } : undefined);
+  } catch (error) {
+    if (!orderBy) {
+      throw error;
+    }
+
+    return model.findMany();
+  }
+}
 
 async function readJson(request) {
   try {
@@ -3121,12 +3186,111 @@ async function handle(request, { params }) {
       }
     }
 
+    // ---------- CREATORS ----------
+    if (segs[0] === 'creators') {
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const query = buildCreatorListQuery(url.searchParams);
+        const creatorListArgs = {
+          where: query.where,
+          orderBy: query.orderBy,
+        };
+
+        if (query.format === 'paginated') {
+          const [items, total] = await prisma.$transaction([
+            prisma.creator.findMany({
+              ...creatorListArgs,
+              skip: query.skip,
+              take: query.take,
+            }),
+            prisma.creator.count({ where: query.where }),
+          ]);
+
+          const totalPages = total > 0 ? Math.ceil(total / query.limit) : 1;
+
+          return NextResponse.json({
+            data: items,
+            meta: {
+              page: query.page,
+              limit: query.limit,
+              total,
+              totalPages,
+              sortBy: query.sort.field,
+              sortDirection: query.sort.direction,
+              usedFallbackSort: query.sort.usedFallback,
+              ...query.filters,
+            },
+          });
+        }
+
+        const items = await prisma.creator.findMany(creatorListArgs);
+        return NextResponse.json(items);
+      }
+
+      if (method === 'GET' && segs.length === 2) {
+        const creator = await prisma.creator.findUnique({ where: { id: segs[1] } });
+        if (!creator) {
+          return NextResponse.json({ error: 'Creator not found.' }, { status: 404 });
+        }
+        return NextResponse.json(creator);
+      }
+
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+        const creatorData = sanitizeCreatorPayload(body);
+        const validationError = validateCreatorPayload(creatorData);
+
+        if (validationError) {
+          return NextResponse.json({ error: validationError }, { status: 400 });
+        }
+
+        const creator = await prisma.creator.create({
+          data: {
+            id: uuid(),
+            ...creatorData,
+          },
+        });
+
+        return NextResponse.json(creator);
+      }
+
+      if (method === 'PUT' && segs.length === 2) {
+        const existingCreator = await prisma.creator.findUnique({ where: { id: segs[1] } });
+        if (!existingCreator) {
+          return NextResponse.json({ error: 'Creator not found.' }, { status: 404 });
+        }
+
+        const body = await readJson(request);
+        const creatorData = sanitizeCreatorPayload(body, { partial: true });
+        const validationError = validateCreatorPayload({
+          ...existingCreator,
+          ...creatorData,
+        });
+
+        if (validationError) {
+          return NextResponse.json({ error: validationError }, { status: 400 });
+        }
+
+        const creator = await prisma.creator.update({
+          where: { id: segs[1] },
+          data: creatorData,
+        });
+
+        return NextResponse.json(creator);
+      }
+
+      if (method === 'DELETE' && segs.length === 2) {
+        await prisma.creator.delete({ where: { id: segs[1] } });
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     // Generic CRUD
     const modelName = COLLECTION_MODELS[segs[0]];
     if (modelName) {
       const model = prisma[modelName];
       if (method === 'GET' && segs.length === 1) {
-        const docs = await model.findMany({ orderBy: { accountCode: 'asc' } }).catch(() => model.findMany());
+        const docs = await listGenericCollection(model, modelName);
         return NextResponse.json(docs);
       }
       if (method === 'POST' && segs.length === 1) {
