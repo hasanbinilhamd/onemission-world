@@ -1,104 +1,51 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Bold,
   CalendarDays,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Circle,
-  ClipboardList,
-  Edit3,
-  ExternalLink,
-  Heading2,
-  Image as ImageIcon,
-  Italic,
-  Link2,
-  List,
-  MessageSquare,
-  Paperclip,
+  Download,
+  FileText,
+  Loader2,
   Plus,
-  Quote,
   Search,
   Trash2,
-  Upload,
-  Video,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  CONTENT_SCRIPT_ALLOWED_MIME_TYPES,
+  CONTENT_SCRIPT_CATEGORY_OPTIONS,
+  CONTENT_SCRIPT_MAX_FILE_SIZE_BYTES,
+} from "@/lib/content-script/constants";
 
-const STATUS_OPTIONS = [
-  "Draft",
-  "Idea",
-  "Writing Script",
-  "Ready To Shoot",
-  "Editing",
-  "Ready",
-  "Published",
-  "Cancelled",
+const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTH_OPTIONS = [
+  { value: 0, label: "January" },
+  { value: 1, label: "February" },
+  { value: 2, label: "March" },
+  { value: 3, label: "April" },
+  { value: 4, label: "May" },
+  { value: 5, label: "June" },
+  { value: 6, label: "July" },
+  { value: 7, label: "August" },
+  { value: 8, label: "September" },
+  { value: 9, label: "October" },
+  { value: 10, label: "November" },
+  { value: 11, label: "December" },
 ];
-
-const PLATFORM_OPTIONS = [
-  "Instagram",
-  "TikTok",
-  "Youtube",
-  "Facebook",
-  "Threads",
-  "Website",
-];
-
-const CATEGORY_OPTIONS = [
-  "Product",
-  "Education",
-  "Promotion",
-  "Branding",
-  "Event",
-  "Announcement",
-  "Campaign",
-];
-
-const PRIORITY_OPTIONS = ["Low", "Medium", "High"];
-
-const DEFAULT_CHECKLIST_ITEMS = [
-  "Research",
-  "Idea Approved",
-  "Script",
-  "Voice Over",
-  "Shooting",
-  "Editing",
-  "Subtitle",
-  "Thumbnail",
-  "Upload",
-  "Publish",
-];
-
-const STATUS_BADGE_CLASS = {
-  Draft: "bg-slate-100 text-slate-700 border-slate-200",
-  Idea: "bg-violet-100 text-violet-700 border-violet-200",
-  "Writing Script": "bg-blue-100 text-blue-700 border-blue-200",
-  "Ready To Shoot": "bg-cyan-100 text-cyan-700 border-cyan-200",
-  Editing: "bg-amber-100 text-amber-700 border-amber-200",
-  Ready: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  Published: "bg-green-100 text-green-700 border-green-200",
-  Cancelled: "bg-rose-100 text-rose-700 border-rose-200",
-};
-
-const PLATFORM_SHORT_LABEL = {
-  Instagram: "IG",
-  TikTok: "TT",
-  Youtube: "YT",
-  Facebook: "FB",
-  Threads: "TH",
-  Website: "WEB",
+const SUMMARY_FALLBACK = {
+  totalFiles: 0,
+  scheduledThisWeek: 0,
+  campaignCount: 0,
+  articleCount: 0,
 };
 
 function apiPath(path) {
@@ -123,6 +70,10 @@ async function apiRequest(path, init = {}) {
   return payload;
 }
 
+function toDateString(date) {
+  return new Date(date).toISOString().split("T")[0];
+}
+
 function formatMonthTitle(date) {
   return date.toLocaleDateString("en-US", {
     month: "long",
@@ -131,7 +82,7 @@ function formatMonthTitle(date) {
 }
 
 function formatDateLabel(dateString) {
-  if (!dateString) return "Unscheduled";
+  if (!dateString) return "—";
   const date = new Date(`${dateString}T00:00:00`);
   if (Number.isNaN(date.getTime())) return dateString;
   return date.toLocaleDateString("en-US", {
@@ -142,747 +93,636 @@ function formatDateLabel(dateString) {
   });
 }
 
-function toDateString(date) {
-  return new Date(date).toISOString().split("T")[0];
-}
+function buildCalendarDays(monthDate) {
+  const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const firstWeekday = (firstDay.getDay() + 6) % 7;
+  const startDate = new Date(firstDay);
+  startDate.setDate(firstDay.getDate() - firstWeekday);
+  const today = toDateString(new Date());
 
-function buildMonthKey(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
+  return Array.from({ length: 42 }, (_, index) => {
+    const currentDate = new Date(startDate);
+    currentDate.setDate(startDate.getDate() + index);
+    const dateString = toDateString(currentDate);
+
+    return {
+      date: currentDate,
+      dateString,
+      dayNumber: currentDate.getDate(),
+      isCurrentMonth: currentDate.getMonth() === monthDate.getMonth(),
+      isToday: dateString === today,
+    };
+  });
 }
 
 function shiftMonth(date, delta) {
   return new Date(date.getFullYear(), date.getMonth() + delta, 1);
 }
 
-function buildCalendarDays(monthDate) {
-  const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-  const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
-  const firstWeekday = (firstDay.getDay() + 6) % 7;
-  const startDate = new Date(firstDay);
-  startDate.setDate(firstDay.getDate() - firstWeekday);
-
-  const days = [];
-  for (let index = 0; index < 42; index += 1) {
-    const currentDate = new Date(startDate);
-    currentDate.setDate(startDate.getDate() + index);
-    days.push({
-      date: currentDate,
-      dateString: toDateString(currentDate),
-      isCurrentMonth: currentDate.getMonth() === monthDate.getMonth(),
-      isToday: toDateString(currentDate) === toDateString(new Date()),
-      isWeekend: currentDate.getDay() === 0 || currentDate.getDay() === 6,
-      dayNumber: currentDate.getDate(),
-      isPastVisibleMonth: currentDate < firstDay,
-      isAfterVisibleMonth: currentDate > lastDay,
-    });
-  }
-
-  return days;
+function buildYearOptions(baseYear) {
+  return Array.from({ length: 9 }, (_, index) => baseYear - 4 + index);
 }
 
-function createChecklistItems() {
-  return DEFAULT_CHECKLIST_ITEMS.map((label, index) => ({
-    id: `temp-check-${index}-${label}`,
-    label,
-    isCompleted: false,
-    sortOrder: index,
-  }));
-}
-
-function createEmptyPlannerForm(dateString = "") {
+function createEmptyCreateForm(calendarDate = "") {
   return {
-    id: "",
     title: "",
-    platforms: [],
-    category: "Product",
-    priority: "Medium",
-    status: "Draft",
-    assignedUserId: "",
-    assignedUserName: "",
-    publishDate: dateString,
-    publishTime: "09:00",
-    reminderDate: "",
-    contentBriefRichText: "",
-    scriptRichText: "",
-    captionRichText: "",
-    ctaText: "",
-    hashtags: [],
-    notesRichText: "",
-    checklists: createChecklistItems(),
-    assets: [],
-    comments: [],
+    category: CONTENT_SCRIPT_CATEGORY_OPTIONS[0],
+    calendarDate,
+    pdfFile: null,
   };
-}
-
-function RichTextEditor({ label, value, onChange, placeholder = "Start writing..." }) {
-  const editorRef = useRef(null);
-
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || "";
-    }
-  }, [value]);
-
-  const runCommand = (command, commandValue = undefined) => {
-    editorRef.current?.focus();
-    document.execCommand(command, false, commandValue);
-    onChange(editorRef.current?.innerHTML || "");
-  };
-
-  const promptLink = () => {
-    const url = window.prompt("Enter URL");
-    if (url) {
-      runCommand("createLink", url);
-    }
-  };
-
-  const promptImage = () => {
-    const url = window.prompt("Enter image URL");
-    if (url) {
-      runCommand("insertImage", url);
-    }
-  };
-
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      <div className="rounded-xl border border-border bg-white overflow-hidden">
-        <div className="flex flex-wrap items-center gap-1 border-b border-border/60 bg-[#F7F8FA] px-2 py-2">
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => runCommand("formatBlock", "h2")}>
-            <Heading2 className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => runCommand("bold")}>
-            <Bold className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => runCommand("italic")}>
-            <Italic className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => runCommand("insertUnorderedList")}>
-            <List className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => runCommand("insertOrderedList")}>
-            <ClipboardList className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => runCommand("formatBlock", "blockquote")}>
-            <Quote className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={promptLink}>
-            <Link2 className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={promptImage}>
-            <ImageIcon className="h-4 w-4" />
-          </Button>
-        </div>
-        <div
-          ref={editorRef}
-          contentEditable
-          suppressContentEditableWarning
-          className="min-h-[160px] px-4 py-3 text-sm outline-none [&_h2]:text-lg [&_h2]:font-semibold [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-5 [&_ol]:pl-5"
-          onInput={(event) => onChange(event.currentTarget.innerHTML)}
-          data-placeholder={placeholder}
-          style={{ whiteSpace: "pre-wrap" }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function MultiSelectToggle({ label, options, selectedValues, onToggle, renderValue = (value) => value }) {
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => {
-          const active = selectedValues.includes(option);
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => onToggle(option)}
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${active ? "border-blue-500 bg-blue-500/10 text-blue-600" : "border-border bg-white text-muted-foreground hover:bg-[#F7F8FA]"}`}
-            >
-              {renderValue(option)}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function HashtagInput({ values, onChange }) {
-  const [draft, setDraft] = useState("");
-
-  const addDraft = () => {
-    const normalized = draft
-      .split(",")
-      .map((value) => value.trim().replace(/^#/, ""))
-      .filter(Boolean);
-    if (normalized.length === 0) return;
-    const next = [...new Set([...values, ...normalized])];
-    onChange(next);
-    setDraft("");
-  };
-
-  return (
-    <div className="space-y-1.5">
-      <Label>Hashtags</Label>
-      <div className="rounded-xl border border-border bg-white p-3 space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {values.map((tag) => (
-            <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 text-blue-600 px-3 py-1 text-xs font-medium">
-              #{tag}
-              <button type="button" onClick={() => onChange(values.filter((value) => value !== tag))}>
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <Input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Add hashtags separated by comma"
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addDraft();
-              }
-            }}
-          />
-          <Button type="button" variant="outline" onClick={addDraft}>Add</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ChecklistEditor({ items, onChange }) {
-  const [draft, setDraft] = useState("");
-
-  const addChecklistItem = () => {
-    const label = draft.trim();
-    if (!label) return;
-    onChange([
-      ...items,
-      {
-        id: `temp-check-${Date.now()}`,
-        label,
-        isCompleted: false,
-        sortOrder: items.length,
-      },
-    ]);
-    setDraft("");
-  };
-
-  return (
-    <div className="space-y-1.5">
-      <Label>Production Checklist</Label>
-      <div className="rounded-xl border border-border bg-white p-3 space-y-2">
-        {items.map((item, index) => (
-          <div key={item.id || `${item.label}-${index}`} className="flex items-center gap-2 rounded-lg border border-border/50 px-3 py-2">
-            <button
-              type="button"
-              onClick={() => onChange(items.map((entry, entryIndex) => entryIndex === index ? { ...entry, isCompleted: !entry.isCompleted } : entry))}
-            >
-              {item.isCompleted ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
-            </button>
-            <Input
-              value={item.label}
-              onChange={(event) => onChange(items.map((entry, entryIndex) => entryIndex === index ? { ...entry, label: event.target.value } : entry))}
-              className="border-0 px-0 shadow-none focus-visible:ring-0"
-            />
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => onChange(items.filter((_, entryIndex) => entryIndex !== index))}>
-              <Trash2 className="h-4 w-4 text-rose-400" />
-            </Button>
-          </div>
-        ))}
-        <div className="flex gap-2 pt-2">
-          <Input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Add checklist item" />
-          <Button type="button" variant="outline" onClick={addChecklistItem}>Add</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function inferAssetType(mimeType = "", name = "") {
-  const normalizedMime = String(mimeType || "").toLowerCase();
-  const normalizedName = String(name || "").toLowerCase();
-  if (normalizedMime.startsWith("image/")) return "Image";
-  if (normalizedMime === "application/pdf" || normalizedName.endsWith(".pdf")) return "PDF";
-  if (normalizedMime.startsWith("video/")) return "Video";
-  return "Asset";
 }
 
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Failed to read file."));
+    reader.onerror = () => reject(new Error("Failed to read PDF file."));
     reader.readAsDataURL(file);
   });
 }
 
-function AssetsEditor({ items, onChange }) {
-  const [linkType, setLinkType] = useState("Canva Link");
-  const [linkName, setLinkName] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
+async function normalizeSelectedPdfFile(file) {
+  if (!file) {
+    throw new Error("PDF file is required.");
+  }
 
-  const addLinkAsset = () => {
-    if (!linkUrl.trim()) {
-      toast.error("Asset URL is required.");
-      return;
-    }
-    onChange([
-      ...items,
-      {
-        id: `temp-asset-${Date.now()}`,
-        assetType: linkType,
-        name: linkName.trim() || linkType,
-        url: linkUrl.trim(),
-        mimeType: "",
-        sortOrder: items.length,
-      },
-    ]);
-    setLinkName("");
-    setLinkUrl("");
+  if (!CONTENT_SCRIPT_ALLOWED_MIME_TYPES.includes(file.type)) {
+    throw new Error("Only PDF files are allowed.");
+  }
+
+  if (file.size > CONTENT_SCRIPT_MAX_FILE_SIZE_BYTES) {
+    throw new Error("PDF file size must be 20 MB or less.");
+  }
+
+  return {
+    originalFilename: file.name,
+    mimeType: file.type,
+    size: file.size,
+    dataUrl: await readFileAsDataUrl(file),
   };
+}
 
-  const handleFileChange = async (event) => {
-    const files = Array.from(event.target.files || []);
-    if (files.length === 0) return;
+function getCurrentUserLabel() {
+  if (typeof window === "undefined") return "";
 
-    try {
-      const uploaded = await Promise.all(files.map(async (file, index) => ({
-        id: `temp-file-${Date.now()}-${index}`,
-        assetType: inferAssetType(file.type, file.name),
-        name: file.name,
-        url: await readFileAsDataUrl(file),
-        mimeType: file.type,
-        sortOrder: items.length + index,
-      })));
-      onChange([...items, ...uploaded]);
-      event.target.value = "";
-    } catch (error) {
-      toast.error(error.message || "Failed to upload asset.");
-    }
-  };
+  try {
+    const rawUser = window.localStorage.getItem("om_user");
+    if (!rawUser) return "";
+    const parsedUser = JSON.parse(rawUser);
+    return parsedUser?.name || parsedUser?.email || parsedUser?.id || "";
+  } catch {
+    return "";
+  }
+}
+
+function DayListModal({
+  open,
+  onOpenChange,
+  dateString,
+  items,
+  onOpenDetail,
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Content Files</DialogTitle>
+          <DialogDescription>{formatDateLabel(dateString)}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          {items.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+              No PDF files scheduled on this date.
+            </div>
+          ) : (
+            items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onOpenDetail(item.id)}
+                className="w-full rounded-xl border border-border bg-white px-4 py-3 text-left hover:bg-[#F7F8FA] transition-colors"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] font-semibold">PDF</Badge>
+                      <p className="truncate text-sm font-medium">{item.title}</p>
+                    </div>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{item.pdfFilename}</p>
+                  </div>
+                  <Badge variant="secondary" className="shrink-0">{item.category}</Badge>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreateContentModal({
+  open,
+  onOpenChange,
+  form,
+  onFormChange,
+  onSelectPdf,
+  onSave,
+  saving,
+}) {
+  const canSave = Boolean(form.title.trim() && form.category && form.calendarDate && form.pdfFile);
 
   return (
-    <div className="space-y-1.5">
-      <Label>Assets</Label>
-      <div className="rounded-xl border border-border bg-white p-3 space-y-3">
-        <div className="flex flex-col gap-2">
-          {items.map((asset, index) => (
-            <div key={asset.id || `${asset.name}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  {asset.assetType === "Image" ? <ImageIcon className="h-4 w-4 text-blue-500" /> : asset.assetType === "Video" ? <Video className="h-4 w-4 text-rose-500" /> : asset.assetType === "PDF" ? <FileText className="h-4 w-4 text-amber-500" /> : <Link2 className="h-4 w-4 text-emerald-500" />}
-                  <p className="text-sm font-medium truncate">{asset.name || asset.assetType}</p>
-                  <Badge variant="outline" className="text-[10px]">{asset.assetType}</Badge>
-                </div>
-                <a href={asset.url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline truncate inline-flex items-center gap-1 mt-1">
-                  Open Asset <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => onChange(items.filter((_, assetIndex) => assetIndex !== index))}>
-                <Trash2 className="h-4 w-4 text-rose-400" />
-              </Button>
-            </div>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <Label className="text-xs text-muted-foreground">Upload Files</Label>
-          <Input type="file" multiple accept="image/*,application/pdf,video/*" onChange={handleFileChange} className="max-w-sm" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end pt-2 border-t border-border/50">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New Content Script</DialogTitle>
+          <DialogDescription>{formatDateLabel(form.calendarDate)}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label>Link Type</Label>
-            <Select value={linkType} onValueChange={setLinkType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Label>Date</Label>
+            <Input value={form.calendarDate} readOnly className="bg-[#F7F8FA]" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Title *</Label>
+            <Input
+              value={form.title}
+              onChange={(event) => onFormChange({ ...form, title: event.target.value })}
+              placeholder="Running campaign script"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Category *</Label>
+            <Select value={form.category} onValueChange={(value) => onFormChange({ ...form, category: value })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Canva Link">Canva Link</SelectItem>
-                <SelectItem value="Google Drive URL">Google Drive URL</SelectItem>
-                <SelectItem value="External URL">External URL</SelectItem>
+                {CONTENT_SCRIPT_CATEGORY_OPTIONS.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Name</Label>
-            <Input value={linkName} onChange={(event) => setLinkName(event.target.value)} placeholder="Asset name" />
+            <Label>Upload PDF *</Label>
+            <Input
+              type="file"
+              accept="application/pdf"
+              onChange={(event) => onSelectPdf(event.target.files?.[0] || null)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Only PDF files are allowed. Maximum size: 20 MB.
+            </p>
+            {form.pdfFile ? (
+              <div className="rounded-xl border border-border bg-[#F7F8FA] px-3 py-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-rose-500" />
+                  <span className="truncate font-medium">{form.pdfFile.originalFilename}</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {(Number(form.pdfFile.size || 0) / (1024 * 1024)).toFixed(2)} MB
+                </p>
+              </div>
+            ) : null}
           </div>
-          <div className="space-y-1.5">
-            <Label>URL</Label>
-            <Input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} placeholder="https://..." />
-          </div>
-          <Button type="button" variant="outline" onClick={addLinkAsset}>Add Link</Button>
         </div>
-      </div>
-    </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={onSave} disabled={!canSave || saving}>
+            {saving ? "Saving…" : "Save Content"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ContentDetailModal({
+  open,
+  onOpenChange,
+  item,
+  loading,
+  replacing,
+  deleting,
+  onReplacePdf,
+  onDelete,
+}) {
+  const isBusy = replacing || deleting;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Content File Detail</DialogTitle>
+          <DialogDescription>
+            Review the uploaded PDF script or content brief.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20 text-sm text-muted-foreground gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading content file…
+          </div>
+        ) : item ? (
+          <div className="space-y-5 py-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-border bg-[#F7F8FA] px-4 py-3">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Title</p>
+                <p className="mt-1 text-sm font-medium">{item.title}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-[#F7F8FA] px-4 py-3">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Date</p>
+                <p className="mt-1 text-sm font-medium">{formatDateLabel(item.calendarDate)}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-[#F7F8FA] px-4 py-3">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Category</p>
+                <p className="mt-1 text-sm font-medium">{item.category}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-[#F7F8FA] px-4 py-3">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">PDF File Name</p>
+                <p className="mt-1 text-sm font-medium break-all">{item.pdfFilename}</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-white overflow-hidden">
+              <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 bg-[#F7F8FA]">
+                <div>
+                  <p className="text-sm font-semibold">Preview</p>
+                  <p className="text-xs text-muted-foreground">Inline PDF preview</p>
+                </div>
+                <a
+                  href={item.pdfUrl}
+                  download={item.pdfFilename}
+                  className="inline-flex items-center gap-2 rounded-md bg-[#111827] px-3 py-2 text-xs font-medium text-white hover:bg-[#1F2937]"
+                >
+                  <Download className="h-3.5 w-3.5" /> Download
+                </a>
+              </div>
+              <div className="p-3">
+                <object data={item.pdfUrl} type="application/pdf" className="h-[60vh] w-full rounded-xl border border-border">
+                  <div className="flex h-[60vh] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border text-center text-sm text-muted-foreground px-6">
+                    <FileText className="h-8 w-8 text-rose-500" />
+                    <p>Preview is not available in this browser.</p>
+                    <a href={item.pdfUrl} download={item.pdfFilename} className="text-blue-600 hover:underline">
+                      Download PDF
+                    </a>
+                  </div>
+                </object>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-3 items-end rounded-2xl border border-border bg-white px-4 py-4">
+              <div className="space-y-1.5">
+                <Label>Replace PDF</Label>
+                <Input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(event) => onReplacePdf(event.target.files?.[0] || null, () => {
+                    event.target.value = "";
+                  })}
+                  disabled={isBusy}
+                />
+                <p className="text-xs text-muted-foreground">Only PDF files are allowed. Maximum size: 20 MB.</p>
+              </div>
+              <Button variant="destructive" onClick={onDelete} disabled={isBusy}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                {deleting ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border px-4 py-12 text-center text-sm text-muted-foreground">
+            Content file detail is not available.
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export function ContentPlannerModule({ activeModule }) {
   const [monthDate, setMonthDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [items, setItems] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [summary, setSummary] = useState({ totalPlanned: 0, published: 0, ready: 0, editing: 0, draft: 0 });
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [platformFilter, setPlatformFilter] = useState("all");
-  const [assignedUserFilter, setAssignedUserFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(createEmptyPlannerForm());
-  const [selectedDate, setSelectedDate] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [commentDraft, setCommentDraft] = useState("");
-  const [commentSaving, setCommentSaving] = useState(false);
+  const [items, setItems] = useState([]);
+  const [summary, setSummary] = useState(SUMMARY_FALLBACK);
+  const [loading, setLoading] = useState(true);
 
-  const monthKey = buildMonthKey(monthDate);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState(createEmptyCreateForm());
+  const [saving, setSaving] = useState(false);
+
+  const [dayListOpen, setDayListOpen] = useState(false);
+  const [dayListDate, setDayListDate] = useState("");
+
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailItem, setDetailItem] = useState(null);
+  const [replacing, setReplacing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const month = String(monthDate.getMonth() + 1).padStart(2, "0");
+  const year = String(monthDate.getFullYear());
+  const calendarDays = useMemo(() => buildCalendarDays(monthDate), [monthDate]);
+  const yearOptions = useMemo(() => buildYearOptions(monthDate.getFullYear()), [monthDate]);
+  const itemsByDate = useMemo(() => {
+    return items.reduce((map, item) => {
+      const dateKey = String(item.calendarDate || "").trim();
+      if (!dateKey) return map;
+      if (!map[dateKey]) map[dateKey] = [];
+      map[dateKey].push(item);
+      return map;
+    }, {});
+  }, [items]);
+  const selectedDayItems = useMemo(() => itemsByDate[dayListDate] || [], [dayListDate, itemsByDate]);
 
   const load = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ month: monthKey });
-      if (search.trim()) params.set("search", search.trim());
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      if (platformFilter !== "all") params.set("platform", platformFilter);
-      if (assignedUserFilter !== "all") params.set("assignedUserId", assignedUserFilter);
+      const params = new URLSearchParams({ month, year });
       if (categoryFilter !== "all") params.set("category", categoryFilter);
-      if (priorityFilter !== "all") params.set("priority", priorityFilter);
+      if (search.trim()) params.set("search", search.trim());
       const result = await apiRequest(`content?${params.toString()}`);
       setItems(Array.isArray(result?.data) ? result.data : []);
-      setUsers(Array.isArray(result?.users) ? result.users : []);
-      setSummary(result?.summary || { totalPlanned: 0, published: 0, ready: 0, editing: 0, draft: 0 });
+      setSummary(result?.summary || SUMMARY_FALLBACK);
     } catch (error) {
-      toast.error(error.message || "Failed to load content planner.");
+      toast.error(error.message || "Failed to load content script calendar.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (open) {
-      const assigned = users.find((entry) => entry.id === form.assignedUserId);
-      if (assigned && assigned.name !== form.assignedUserName) {
-        setForm((current) => ({ ...current, assignedUserName: assigned.name }));
-      }
-    }
-  }, [form.assignedUserId, form.assignedUserName, open, users]);
-
-  useEffect(() => {
-    if (!open) {
-      setCommentDraft("");
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const planner = items.find((item) => item.id === form.id);
-    if (!planner && form.id) {
-      setForm((current) => ({ ...current, comments: [], assets: [], checklists: createChecklistItems() }));
-    }
-  }, [form.id, items, open]);
-
-  useEffect(() => {
-    if (!open && !saving) {
-      setForm(createEmptyPlannerForm(selectedDate));
-    }
-  }, [open, saving, selectedDate]);
-
-  useEffect(() => {
-    if (open && !form.id && selectedDate && !form.publishDate) {
-      setForm((current) => ({ ...current, publishDate: selectedDate }));
-    }
-  }, [form.id, form.publishDate, open, selectedDate]);
-
-  useEffect(() => {
-    if (open && !selectedDate && form.publishDate) {
-      setSelectedDate(form.publishDate);
-    }
-  }, [form.publishDate, open, selectedDate]);
-
-  useEffect(() => {
     if (activeModule !== "content") return;
     void load();
-  }, [activeModule, monthKey, search, statusFilter, platformFilter, assignedUserFilter, categoryFilter, priorityFilter]);
+  }, [activeModule, month, year, categoryFilter, search]);
 
-  const calendarDays = useMemo(() => buildCalendarDays(monthDate), [monthDate]);
-  const itemsByDate = useMemo(() => items.reduce((map, item) => {
-    const key = String(item.publishDate || "").trim();
-    if (!key) return map;
-    if (!map[key]) map[key] = [];
-    map[key].push(item);
-    return map;
-  }, {}), [items]);
-
-  const togglePlatform = (platform) => {
-    setForm((current) => ({
-      ...current,
-      platforms: current.platforms.includes(platform)
-        ? current.platforms.filter((entry) => entry !== platform)
-        : [...current.platforms, platform],
-    }));
+  const openCreateModal = (calendarDate) => {
+    setCreateForm(createEmptyCreateForm(calendarDate));
+    setCreateOpen(true);
   };
 
-  const openCreateModal = (dateString = toDateString(new Date())) => {
-    setSelectedDate(dateString);
-    setForm(createEmptyPlannerForm(dateString));
-    setOpen(true);
-  };
+  const handleSelectCreatePdf = async (file) => {
+    if (!file) {
+      setCreateForm((currentForm) => ({ ...currentForm, pdfFile: null }));
+      return;
+    }
 
-  const openEditModal = async (plannerId) => {
     try {
-      const result = await apiRequest(`content/${plannerId}`);
-      setSelectedDate(result.publishDate || "");
-      setForm({
-        ...createEmptyPlannerForm(result.publishDate || ""),
-        ...result,
-        platforms: Array.isArray(result.platforms) ? result.platforms : [],
-        hashtags: Array.isArray(result.hashtags) ? result.hashtags : [],
-        checklists: Array.isArray(result.checklists) && result.checklists.length > 0 ? result.checklists : createChecklistItems(),
-        assets: Array.isArray(result.assets) ? result.assets : [],
-        comments: Array.isArray(result.comments) ? result.comments : [],
-      });
-      setOpen(true);
+      const normalizedPdfFile = await normalizeSelectedPdfFile(file);
+      setCreateForm((currentForm) => ({
+        ...currentForm,
+        pdfFile: normalizedPdfFile,
+      }));
+      toast.success("PDF file selected.");
     } catch (error) {
-      toast.error(error.message || "Failed to load content detail.");
+      toast.error(error.message || "Failed to load PDF file.");
     }
   };
 
-  const savePlanner = async () => {
-    if (!form.title.trim()) {
+  const saveContent = async () => {
+    if (!createForm.title.trim()) {
       toast.error("Title is required.");
       return;
     }
-    if (form.platforms.length === 0) {
-      toast.error("Select at least one platform.");
-      return;
-    }
-    if (!form.publishDate) {
-      toast.error("Publish date is required.");
+
+    if (!createForm.category) {
+      toast.error("Category is required.");
       return;
     }
 
-    const payload = {
-      title: form.title.trim(),
-      platforms: form.platforms,
-      category: form.category,
-      priority: form.priority,
-      status: form.status,
-      assignedUserId: form.assignedUserId || "",
-      assignedUserName: form.assignedUserName || "",
-      publishDate: form.publishDate,
-      publishTime: form.publishTime || "",
-      reminderDate: form.reminderDate || "",
-      contentBriefRichText: form.contentBriefRichText || "",
-      scriptRichText: form.scriptRichText || "",
-      captionRichText: form.captionRichText || "",
-      ctaText: form.ctaText || "",
-      hashtags: form.hashtags,
-      notesRichText: form.notesRichText || "",
-      checklists: form.checklists.map((item, index) => ({
-        id: item.id,
-        label: item.label,
-        isCompleted: Boolean(item.isCompleted),
-        sortOrder: index,
-      })),
-      assets: form.assets.map((asset, index) => ({
-        id: asset.id,
-        assetType: asset.assetType,
-        name: asset.name || asset.assetType,
-        url: asset.url,
-        mimeType: asset.mimeType || "",
-        sortOrder: index,
-      })),
-    };
+    if (!createForm.pdfFile) {
+      toast.error("PDF file is required.");
+      return;
+    }
 
     setSaving(true);
     try {
-      if (form.id) {
-        await apiRequest(`content/${form.id}`, {
-          method: "PUT",
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await apiRequest("content", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-      }
-      toast.success("Content saved.");
-      setOpen(false);
-      await load();
-    } catch (error) {
-      toast.error(error.message || "Failed to save content.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const deletePlanner = async () => {
-    if (!form.id) {
-      setOpen(false);
-      return;
-    }
-    if (!window.confirm("Delete this content item?")) return;
-    setSaving(true);
-    try {
-      await apiRequest(`content/${form.id}`, { method: "DELETE" });
-      toast.success("Content deleted.");
-      setOpen(false);
-      await load();
-    } catch (error) {
-      toast.error(error.message || "Failed to delete content.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const movePlannerDate = async (plannerId, nextDate) => {
-    try {
-      await apiRequest(`content/${plannerId}`, {
-        method: "PUT",
-        body: JSON.stringify({ publishDate: nextDate }),
-      });
-      toast.success("Content date updated.");
-      await load();
-    } catch (error) {
-      toast.error(error.message || "Failed to move content.");
-    }
-  };
-
-  const addComment = async () => {
-    if (!form.id) {
-      toast.error("Save the content first before adding comments.");
-      return;
-    }
-    const comment = commentDraft.trim();
-    if (!comment) return;
-    setCommentSaving(true);
-    try {
-      const currentUser = typeof window !== "undefined" ? JSON.parse(window.localStorage.getItem("om_user") || "null") : null;
-      const result = await apiRequest(`content/${form.id}/comments`, {
+      await apiRequest("content", {
         method: "POST",
         body: JSON.stringify({
-          comment,
-          userId: currentUser?.id || "",
-          userName: currentUser?.name || currentUser?.email || "HQ User",
+          title: createForm.title.trim(),
+          category: createForm.category,
+          calendarDate: createForm.calendarDate,
+          createdBy: getCurrentUserLabel(),
+          pdfFile: createForm.pdfFile,
         }),
       });
-      setForm((current) => ({
-        ...current,
-        comments: [...(current.comments || []), result],
-      }));
-      setCommentDraft("");
-      toast.success("Comment added.");
+      toast.success("Content file saved.");
+      setCreateOpen(false);
+      setCreateForm(createEmptyCreateForm());
+      await load();
     } catch (error) {
-      toast.error(error.message || "Failed to add comment.");
+      toast.error(error.message || "Failed to save content file.");
     } finally {
-      setCommentSaving(false);
+      setSaving(false);
     }
   };
 
-  const renderPlatformSummary = (platforms = []) => platforms.map((platform) => PLATFORM_SHORT_LABEL[platform] || platform).join(" | ");
+  const openDayListModal = (calendarDate) => {
+    setDayListDate(calendarDate);
+    setDayListOpen(true);
+  };
+
+  const openDetailModal = async (itemId) => {
+    setDayListOpen(false);
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetailItem(null);
+    try {
+      const result = await apiRequest(`content/${itemId}`);
+      setDetailItem(result);
+    } catch (error) {
+      toast.error(error.message || "Failed to load content detail.");
+      setDetailOpen(false);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const replacePdf = async (file, clearInput) => {
+    if (!file || !detailItem?.id) {
+      clearInput?.();
+      return;
+    }
+
+    try {
+      setReplacing(true);
+      const normalizedPdfFile = await normalizeSelectedPdfFile(file);
+      const result = await apiRequest(`content/${detailItem.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          title: detailItem.title,
+          category: detailItem.category,
+          calendarDate: detailItem.calendarDate,
+          createdBy: detailItem.createdBy || getCurrentUserLabel(),
+          pdfFile: normalizedPdfFile,
+        }),
+      });
+      setDetailItem((currentItem) => currentItem ? {
+        ...currentItem,
+        ...result,
+        pdfUrl: normalizedPdfFile.dataUrl,
+      } : currentItem);
+      toast.success("PDF file replaced.");
+      await load();
+    } catch (error) {
+      toast.error(error.message || "Failed to replace PDF file.");
+    } finally {
+      clearInput?.();
+      setReplacing(false);
+    }
+  };
+
+  const deleteItem = async () => {
+    if (!detailItem?.id) return;
+    if (!window.confirm("Delete this content file?")) return;
+
+    try {
+      setDeleting(true);
+      await apiRequest(`content/${detailItem.id}`, { method: "DELETE" });
+      toast.success("Content file deleted.");
+      setDetailOpen(false);
+      setDetailItem(null);
+      await load();
+    } catch (error) {
+      toast.error(error.message || "Failed to delete content file.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Content Planner</h2>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Content Script Calendar
+          </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Plan social media and campaign content month by month with a shared production workflow.
+            Google Calendar style month view for scheduling PDF scripts and content briefs.
           </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-9 w-[240px]" placeholder="Search title, script, caption..." value={search} onChange={(event) => setSearch(event.target.value)} />
-          </div>
-          <Button className="gap-2" onClick={() => openCreateModal(toDateString(monthDate))}>
-            <Plus className="h-4 w-4" /> New Content
-          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground uppercase tracking-wider">This Month</p><p className="text-2xl font-semibold mt-1">{summary.totalPlanned}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground uppercase tracking-wider">Published</p><p className="text-2xl font-semibold mt-1 text-emerald-500">{summary.published}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground uppercase tracking-wider">Ready</p><p className="text-2xl font-semibold mt-1 text-cyan-600">{summary.ready}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground uppercase tracking-wider">Editing</p><p className="text-2xl font-semibold mt-1 text-amber-500">{summary.editing}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground uppercase tracking-wider">Draft</p><p className="text-2xl font-semibold mt-1 text-slate-600">{summary.draft}</p></CardContent></Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Files This Month</p>
+            <p className="text-2xl font-semibold mt-1">{Number(summary.totalFiles || 0).toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Scheduled This Week</p>
+            <p className="text-2xl font-semibold mt-1 text-emerald-500">{Number(summary.scheduledThisWeek || 0).toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Campaign Files</p>
+            <p className="text-2xl font-semibold mt-1 text-cyan-600">{Number(summary.campaignCount || 0).toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Articles</p>
+            <p className="text-2xl font-semibold mt-1 text-amber-500">{Number(summary.articleCount || 0).toLocaleString()}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-end gap-3 justify-between">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => setMonthDate((current) => shiftMonth(current, -1))}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="min-w-[220px] text-center">
-                <p className="text-sm text-muted-foreground uppercase tracking-wider">Month View</p>
-                <p className="text-xl font-semibold mt-1">{formatMonthTitle(monthDate)}</p>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="outline" size="icon" onClick={() => setMonthDate((currentDate) => shiftMonth(currentDate, -1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="min-w-[220px] text-center">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Month View</p>
+                  <p className="text-xl font-semibold mt-1">{formatMonthTitle(monthDate)}</p>
+                </div>
+                <Button variant="outline" size="icon" onClick={() => setMonthDate((currentDate) => shiftMonth(currentDate, 1))}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setMonthDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>
+                  Current Month
+                </Button>
               </div>
-              <Button variant="outline" size="icon" onClick={() => setMonthDate((current) => shiftMonth(current, 1))}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setMonthDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Current Month</Button>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CalendarDays className="h-4 w-4" />
+                7-column calendar layout with PDF script files by date.
+              </div>
             </div>
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="space-y-1.5 min-w-[150px]">
-                <Label>Platform</Label>
-                <Select value={platformFilter} onValueChange={setPlatformFilter}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Platforms</SelectItem>
-                    {PLATFORM_OPTIONS.map((platform) => <SelectItem key={platform} value={platform}>{platform}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="space-y-1.5 xl:col-span-2">
+                <Label>Search Title</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search content title..."
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5 min-w-[150px]">
-                <Label>Status</Label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    {STATUS_OPTIONS.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5 min-w-[150px]">
-                <Label>PIC</Label>
-                <Select value={assignedUserFilter} onValueChange={setAssignedUserFilter}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All PIC</SelectItem>
-                    {users.map((user) => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5 min-w-[150px]">
+              <div className="space-y-1.5">
                 <Label>Category</Label>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {CATEGORY_OPTIONS.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}
+                    {CONTENT_SCRIPT_CATEGORY_OPTIONS.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5 min-w-[130px]">
-                <Label>Priority</Label>
-                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+              <div className="space-y-1.5">
+                <Label>Month</Label>
+                <Select
+                  value={String(monthDate.getMonth())}
+                  onValueChange={(value) => setMonthDate(new Date(monthDate.getFullYear(), Number(value), 1))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Priority</SelectItem>
-                    {PRIORITY_OPTIONS.map((priority) => <SelectItem key={priority} value={priority}>{priority}</SelectItem>)}
+                    {MONTH_OPTIONS.map((entry) => (
+                      <SelectItem key={entry.value} value={String(entry.value)}>
+                        {entry.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Year</Label>
+                <Select
+                  value={String(monthDate.getFullYear())}
+                  onValueChange={(value) => setMonthDate(new Date(Number(value), monthDate.getMonth(), 1))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map((entry) => (
+                      <SelectItem key={entry} value={String(entry)}>
+                        {entry}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -892,202 +732,113 @@ export function ContentPlannerModule({ activeModule }) {
       </Card>
 
       {loading ? (
-        <div className="space-y-4">
-          <CardContent className="grid grid-cols-1 md:grid-cols-7 gap-3 p-0">
-            {Array.from({ length: 14 }).map((_, index) => (
-              <Card key={index} className="min-h-[160px] animate-pulse bg-muted/30 border-border/40" />
-            ))}
-          </CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+          {Array.from({ length: 14 }).map((_, index) => (
+            <Card key={index} className="h-[160px] animate-pulse bg-muted/30 border-border/40" />
+          ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((dayLabel) => (
-            <div key={dayLabel} className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 pb-1">
-              {dayLabel}
-            </div>
-          ))}
-          {calendarDays.map((day) => {
-            const dayItems = itemsByDate[day.dateString] || [];
-            return (
-              <div
-                key={day.dateString}
-                className={`rounded-2xl border min-h-[150px] bg-white p-3 space-y-2 transition-colors ${day.isCurrentMonth ? "border-border/60" : "border-border/30 bg-[#F7F8FA]/60 text-muted-foreground"} ${day.isToday ? "ring-2 ring-blue-500/20" : ""}`}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  const plannerId = event.dataTransfer.getData("text/plain");
-                  if (plannerId) {
-                    void movePlannerDate(plannerId, day.dateString);
-                  }
-                }}
-              >
-                <button type="button" className="w-full text-left" onClick={() => openCreateModal(day.dateString)}>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`text-sm font-semibold ${day.isToday ? "text-blue-600" : "text-foreground"}`}>{day.dayNumber}</span>
-                    {day.isToday ? <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-600">Today</Badge> : null}
-                  </div>
-                </button>
-                <div className="space-y-2">
-                  {dayItems.slice(0, 3).map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      draggable
-                      onDragStart={(event) => event.dataTransfer.setData("text/plain", item.id)}
-                      onClick={() => openEditModal(item.id)}
-                      className="w-full text-left rounded-xl border border-border/50 bg-[#F7F8FA] px-3 py-2 hover:bg-white transition-colors"
-                    >
-                      <p className="text-sm font-medium truncate">{item.title}</p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${STATUS_BADGE_CLASS[item.status] || STATUS_BADGE_CLASS.Draft}`}>{item.status}</span>
-                        <span className="text-[11px] text-muted-foreground truncate">{renderPlatformSummary(item.platforms)}</span>
-                      </div>
-                    </button>
-                  ))}
-                  {dayItems.length > 3 ? (
-                    <button type="button" className="text-xs font-medium text-blue-600 hover:underline" onClick={() => openCreateModal(day.dateString)}>
-                      +{dayItems.length - 3} more
-                    </button>
-                  ) : null}
+        <div className="overflow-x-auto">
+          <div className="min-w-[760px] rounded-2xl border border-border overflow-hidden bg-border">
+            <div className="grid grid-cols-7 gap-px bg-border">
+              {WEEKDAY_LABELS.map((label) => (
+                <div key={label} className="bg-[#F7F8FA] px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  {label}
                 </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-px bg-border">
+              {calendarDays.map((day) => {
+                const dayItems = itemsByDate[day.dateString] || [];
+                return (
+                  <div
+                    key={day.dateString}
+                    className={[
+                      "group flex h-[150px] flex-col bg-white px-3 py-3 transition-colors hover:bg-[#FAFBFD] md:h-[165px] xl:h-[185px]",
+                      !day.isCurrentMonth ? "bg-[#F7F8FA]/70 text-muted-foreground" : "",
+                      day.isToday ? "bg-blue-50/70" : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-semibold ${day.isToday ? "text-blue-700" : "text-foreground"}`}>
+                          {day.dayNumber}
+                        </span>
+                        {day.isToday ? (
+                          <Badge variant="outline" className="border-blue-300 text-blue-700 text-[10px]">Today</Badge>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openCreateModal(day.dateString)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-white text-muted-foreground shadow-sm transition-opacity hover:bg-[#F7F8FA] hover:text-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                        title="Add content file"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="mt-3 flex-1 space-y-1 overflow-hidden">
+                      {dayItems.slice(0, 3).map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => openDetailModal(item.id)}
+                          className="flex w-full items-center gap-2 rounded-md bg-[#EEF3FA] px-2.5 py-2 text-left hover:bg-[#E6EEF9] transition-colors"
+                          title={item.title}
+                        >
+                          <Badge variant="outline" className="shrink-0 border-blue-200 bg-white text-[10px] font-semibold text-blue-700">
+                            PDF
+                          </Badge>
+                          <span className="truncate text-xs font-medium text-[#111827]">📄 {item.title}</span>
+                        </button>
+                      ))}
+                      {dayItems.length > 3 ? (
+                        <button
+                          type="button"
+                          onClick={() => openDayListModal(day.dateString)}
+                          className="pl-1 text-left text-xs font-medium text-blue-600 hover:underline"
+                        >
+                          +{dayItems.length - 3} more
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[80vw] max-w-[1200px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <DialogTitle className="text-xl">Content Planner</DialogTitle>
-                <DialogDescription>{formatDateLabel(selectedDate || form.publishDate)}</DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-          <div className="space-y-6 py-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              <div className="space-y-1.5 md:col-span-2">
-                <Label>Title</Label>
-                <Input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Launch Pro Sport Legging" />
-              </div>
-              <MultiSelectToggle label="Platform" options={PLATFORM_OPTIONS} selectedValues={form.platforms} onToggle={togglePlatform} renderValue={(platform) => PLATFORM_SHORT_LABEL[platform] || platform} />
-              <div className="space-y-1.5">
-                <Label>Category</Label>
-                <Select value={form.category} onValueChange={(value) => setForm((current) => ({ ...current, category: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORY_OPTIONS.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Priority</Label>
-                <Select value={form.priority} onValueChange={(value) => setForm((current) => ({ ...current, priority: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRIORITY_OPTIONS.map((priority) => <SelectItem key={priority} value={priority}>{priority}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>PIC</Label>
-                <Select value={form.assignedUserId || "__none__"} onValueChange={(value) => setForm((current) => {
-                  if (value === "__none__") {
-                    return { ...current, assignedUserId: "", assignedUserName: "" };
-                  }
-                  const selectedUser = users.find((entry) => entry.id === value);
-                  return { ...current, assignedUserId: value, assignedUserName: selectedUser?.name || "" };
-                })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Unassigned</SelectItem>
-                    {users.map((user) => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Publish Date</Label>
-                <Input type="date" value={form.publishDate} onChange={(event) => { setSelectedDate(event.target.value); setForm((current) => ({ ...current, publishDate: event.target.value })); }} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Publish Time</Label>
-                <Input type="time" value={form.publishTime} onChange={(event) => setForm((current) => ({ ...current, publishTime: event.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Reminder Date</Label>
-                <Input type="date" value={form.reminderDate} onChange={(event) => setForm((current) => ({ ...current, reminderDate: event.target.value }))} />
-              </div>
-            </div>
+      <CreateContentModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        form={createForm}
+        onFormChange={setCreateForm}
+        onSelectPdf={handleSelectCreatePdf}
+        onSave={saveContent}
+        saving={saving}
+      />
 
-            <RichTextEditor label="Content Brief" value={form.contentBriefRichText} onChange={(value) => setForm((current) => ({ ...current, contentBriefRichText: value }))} placeholder="Content brief and objectives..." />
-            <RichTextEditor label="Script" value={form.scriptRichText} onChange={(value) => setForm((current) => ({ ...current, scriptRichText: value }))} placeholder="Write the full script here..." />
-            <RichTextEditor label="Caption" value={form.captionRichText} onChange={(value) => setForm((current) => ({ ...current, captionRichText: value }))} placeholder="Write the social media caption..." />
+      <DayListModal
+        open={dayListOpen}
+        onOpenChange={setDayListOpen}
+        dateString={dayListDate}
+        items={selectedDayItems}
+        onOpenDetail={openDetailModal}
+      />
 
-            <div className="space-y-1.5">
-              <Label>CTA</Label>
-              <Textarea value={form.ctaText} onChange={(event) => setForm((current) => ({ ...current, ctaText: event.target.value }))} rows={3} placeholder="Call to action..." />
-            </div>
-
-            <HashtagInput values={form.hashtags} onChange={(next) => setForm((current) => ({ ...current, hashtags: next }))} />
-            <ChecklistEditor items={form.checklists} onChange={(next) => setForm((current) => ({ ...current, checklists: next }))} />
-            <AssetsEditor items={form.assets} onChange={(next) => setForm((current) => ({ ...current, assets: next }))} />
-            <RichTextEditor label="Notes" value={form.notesRichText} onChange={(value) => setForm((current) => ({ ...current, notesRichText: value }))} placeholder="Internal notes..." />
-
-            <div className="space-y-1.5">
-              <Label>Comments</Label>
-              <div className="rounded-xl border border-border bg-white p-3 space-y-3">
-                {form.id ? (
-                  <>
-                    <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
-                      {(form.comments || []).length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No comments yet.</p>
-                      ) : form.comments.map((comment) => (
-                        <div key={comment.id} className="rounded-lg border border-border/50 px-3 py-2.5">
-                          <div className="flex items-center justify-between gap-3 mb-1">
-                            <span className="text-sm font-medium">{comment.userName || "HQ User"}</span>
-                            <span className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleString("id-ID")}</span>
-                          </div>
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{comment.comment}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <Textarea value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} rows={2} placeholder="Write a comment..." />
-                      <Button type="button" onClick={addComment} disabled={commentSaving}>{commentSaving ? "Saving…" : "Comment"}</Button>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Save the content first to start a discussion.</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 mr-auto">
-              {form.id ? (
-                <Button type="button" variant="destructive" onClick={deletePlanner} disabled={saving}>
-                  Delete Content
-                </Button>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
-              <Button type="button" onClick={savePlanner} disabled={saving}>{saving ? "Saving…" : "Save Content"}</Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ContentDetailModal
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        item={detailItem}
+        loading={detailLoading}
+        replacing={replacing}
+        deleting={deleting}
+        onReplacePdf={replacePdf}
+        onDelete={deleteItem}
+      />
     </div>
   );
 }

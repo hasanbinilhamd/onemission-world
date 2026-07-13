@@ -217,77 +217,18 @@ model Content {
 }
 
 model ContentPlanner {
-  id                   String                 @id
-  title                String
-  platforms            String[]
-  category             String                 @default("Product")
-  priority             String                 @default("Medium")
-  status               String                 @default("Draft")
-  assignedUserId       String                 @default("")
-  assignedUserName     String                 @default("")
-  publishDate          String                 @default("")
-  publishTime          String                 @default("")
-  reminderDate         String                 @default("")
-  reminderNotifiedAt   DateTime?
-  contentBriefRichText String                 @default("")
-  scriptRichText       String                 @default("")
-  captionRichText      String                 @default("")
-  ctaText              String                 @default("")
-  hashtags             String[]
-  notesRichText        String                 @default("")
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  checklists           ContentChecklist[]
-  assets               ContentAsset[]
-  comments             ContentComment[]
+  id          String   @id
+  title       String
+  category    String   @default("Other")
+  calendarDate String
+  pdfUrl      String
+  pdfFilename String
+  createdBy   String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@index([publishDate])
-  @@index([status])
+  @@index([calendarDate])
   @@index([category])
-  @@index([priority])
-  @@index([assignedUserId])
-  @@index([reminderDate])
-}
-
-model ContentChecklist {
-  id               String         @id
-  contentPlannerId String
-  contentPlanner   ContentPlanner @relation(fields: [contentPlannerId], references: [id], onDelete: Cascade)
-  label            String
-  isCompleted      Boolean        @default(false)
-  sortOrder        Int            @default(0)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-
-  @@index([contentPlannerId])
-}
-
-model ContentAsset {
-  id               String         @id
-  contentPlannerId String
-  contentPlanner   ContentPlanner @relation(fields: [contentPlannerId], references: [id], onDelete: Cascade)
-  assetType        String
-  name             String         @default("")
-  url              String
-  mimeType         String         @default("")
-  sortOrder        Int            @default(0)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-
-  @@index([contentPlannerId])
-}
-
-model ContentComment {
-  id               String         @id
-  contentPlannerId String
-  contentPlanner   ContentPlanner @relation(fields: [contentPlannerId], references: [id], onDelete: Cascade)
-  userId           String         @default("")
-  userName         String         @default("")
-  comment          String
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-
-  @@index([contentPlannerId])
   @@index([createdAt])
 }
 

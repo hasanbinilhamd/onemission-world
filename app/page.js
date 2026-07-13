@@ -1147,38 +1147,38 @@ function Dashboard({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Content Planner</CardTitle>
-            <CardDescription>This month marketing readiness</CardDescription>
+            <CardTitle className="text-base">Content Script Calendar</CardTitle>
+            <CardDescription>This month PDF script and brief schedule</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Planned</p>
-                <p className="text-lg font-semibold mt-1">{Number(contentPlannerSummary.totalPlanned || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Files</p>
+                <p className="text-lg font-semibold mt-1">{Number(contentPlannerSummary.totalFiles || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Published</p>
-                <p className="text-lg font-semibold mt-1 text-emerald-500">{Number(contentPlannerSummary.published || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">This Week</p>
+                <p className="text-lg font-semibold mt-1 text-emerald-500">{Number(contentPlannerSummary.scheduledThisWeek || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Ready</p>
-                <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(contentPlannerSummary.ready || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Campaign</p>
+                <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(contentPlannerSummary.campaignCount || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Editing / Draft</p>
-                <p className="text-lg font-semibold mt-1 text-amber-500">{Number((contentPlannerSummary.editing || 0) + (contentPlannerSummary.draft || 0)).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Article</p>
+                <p className="text-lg font-semibold mt-1 text-amber-500">{Number(contentPlannerSummary.articleCount || 0).toLocaleString()}</p>
               </div>
             </div>
             <div className="space-y-2">
               {upcomingContent.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No planned content this month.</p>
+                <p className="text-sm text-muted-foreground">No content scripts scheduled this month.</p>
               ) : (
                 upcomingContent.map((item) => (
                   <button key={item.id} type="button" onClick={onOpenContentPlanner} className="w-full text-left rounded-xl border border-border/60 px-3 py-3 hover:bg-[#F7F8FA] transition-colors">
                     <p className="text-sm font-medium truncate">{item.title}</p>
                     <div className="flex items-center justify-between gap-2 mt-1 text-xs text-muted-foreground">
-                      <span className="truncate">{(item.platforms || []).join(" | ") || "No Platform"}</span>
-                      <span>{item.publishDate || "Unscheduled"}</span>
+                      <span className="truncate">{item.category || "Other"}</span>
+                      <span>{item.calendarDate || "Unscheduled"}</span>
                     </div>
                   </button>
                 ))
