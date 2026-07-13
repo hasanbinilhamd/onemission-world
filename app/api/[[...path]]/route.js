@@ -369,6 +369,56 @@ function buildMasterDataCacheKey(name, suffix = '') {
   return `master:${name}:${suffix}`;
 }
 
+function normalizeContentPlannerSummary(items = []) {
+  return {
+    totalPlanned: items.length,
+    published: items.filter((item) => item.status === 'Published').length,
+    ready: items.filter((item) => item.status === 'Ready').length,
+    editing: items.filter((item) => item.status === 'Editing').length,
+    draft: items.filter((item) => ['Draft', 'Idea', 'Writing Script', 'Ready To Shoot'].includes(item.status)).length,
+  };
+}
+
+async function dispatchDueContentReminders(prismaClient) {
+  const today = new Date().toISOString().split('T')[0];
+  const dueItems = await prismaClient.contentPlanner.findMany({
+    where: {
+      reminderDate: today,
+      reminderNotifiedAt: null,
+      status: {
+        notIn: ['Published', 'Cancelled'],
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+      publishDate: true,
+    },
+    take: 25,
+  });
+
+  for (const item of dueItems) {
+    const reminderMessage = item.publishDate && item.publishDate > today
+      ? `Reminder: ${item.title} is scheduled for ${item.publishDate}.`
+      : `Reminder: ${item.title} requires attention today.`;
+
+    await notificationService.dispatch({
+      type: 'CONTENT_REMINDER',
+      payload: {
+        contentId: item.id,
+        title: item.title,
+        message: reminderMessage,
+      },
+      prismaClient,
+    });
+
+    await prismaClient.contentPlanner.update({
+      where: { id: item.id },
+      data: { reminderNotifiedAt: new Date() },
+    });
+  }
+}
+
 async function handle(request, { params }) {
   const segs = params?.path || [];
   const method = request.method;
@@ -1030,6 +1080,7 @@ async function handle(request, { params }) {
     // ---------- NOTIFICATIONS ----------
     if (segs[0] === 'notifications') {
       if (segs[1] === 'summary' && method === 'GET') {
+        await dispatchDueContentReminders(prisma);
         const summary = await notificationService.getSummary({ prismaClient: prisma });
         return NextResponse.json(summary);
       }
@@ -1045,6 +1096,7 @@ async function handle(request, { params }) {
       }
 
       if (method === 'GET' && segs.length === 1) {
+        await dispatchDueContentReminders(prisma);
         const url = new URL(request.url);
         const result = await notificationService.list({
           prismaClient: prisma,
@@ -2795,6 +2847,278 @@ async function handle(request, { params }) {
       if (!current) return NextResponse.json({ error: 'Raw material not found' }, { status: 404 });
       const updated = await prisma.rawMaterial.update({ where: { id }, data: body });
       return NextResponse.json(updated);
+    }
+
+    // ---------- CONTENT PLANNER ----------
+    if (segs[0] === 'content') {
+      if (method === 'GET' && segs.length === 1) {
+        await dispatchDueContentReminders(prisma);
+        const url = new URL(request.url);
+        const month = String(url.searchParams.get('month') || '').trim();
+        const search = String(url.searchParams.get('search') || '').trim();
+        const status = String(url.searchParams.get('status') || '').trim();
+        const platform = String(url.searchParams.get('platform') || '').trim();
+        const assignedUserId = String(url.searchParams.get('assignedUserId') || '').trim();
+        const category = String(url.searchParams.get('category') || '').trim();
+        const priority = String(url.searchParams.get('priority') || '').trim();
+
+        const where = {};
+        if (month) {
+          where.publishDate = { startsWith: month };
+        }
+        if (status && status !== 'all') {
+          where.status = status;
+        }
+        if (platform && platform !== 'all') {
+          where.platforms = { has: platform };
+        }
+        if (assignedUserId && assignedUserId !== 'all') {
+          where.assignedUserId = assignedUserId;
+        }
+        if (category && category !== 'all') {
+          where.category = category;
+        }
+        if (priority && priority !== 'all') {
+          where.priority = priority;
+        }
+        if (search) {
+          where.OR = [
+            { title: { contains: search, mode: 'insensitive' } },
+            { contentBriefRichText: { contains: search, mode: 'insensitive' } },
+            { scriptRichText: { contains: search, mode: 'insensitive' } },
+            { captionRichText: { contains: search, mode: 'insensitive' } },
+          ];
+        }
+
+        const [items, users] = await Promise.all([
+          prisma.contentPlanner.findMany({
+            where,
+            select: {
+              id: true,
+              title: true,
+              platforms: true,
+              category: true,
+              priority: true,
+              status: true,
+              assignedUserId: true,
+              assignedUserName: true,
+              publishDate: true,
+              publishTime: true,
+              reminderDate: true,
+            },
+            orderBy: [
+              { publishDate: 'asc' },
+              { publishTime: 'asc' },
+              { title: 'asc' },
+            ],
+          }),
+          prisma.user.findMany({
+            where: { status: 'Active' },
+            select: { id: true, name: true },
+            orderBy: { name: 'asc' },
+          }),
+        ]);
+
+        return NextResponse.json({
+          month,
+          summary: normalizeContentPlannerSummary(items),
+          users,
+          data: items,
+        });
+      }
+
+      if (method === 'GET' && segs.length === 2) {
+        await dispatchDueContentReminders(prisma);
+        const planner = await prisma.contentPlanner.findUnique({
+          where: { id: segs[1] },
+          include: {
+            checklists: { orderBy: { sortOrder: 'asc' } },
+            assets: { orderBy: { sortOrder: 'asc' } },
+            comments: { orderBy: { createdAt: 'asc' } },
+          },
+        });
+        if (!planner) return NextResponse.json({ error: 'Content planner item not found.' }, { status: 404 });
+        return NextResponse.json(planner);
+      }
+
+      if (method === 'POST' && segs.length === 1) {
+        const body = await readJson(request);
+        const title = String(body.title || '').trim();
+        if (!title) return NextResponse.json({ error: 'Title is required.' }, { status: 400 });
+        if (!Array.isArray(body.platforms) || body.platforms.length === 0) {
+          return NextResponse.json({ error: 'At least one platform is required.' }, { status: 400 });
+        }
+        if (!String(body.publishDate || '').trim()) {
+          return NextResponse.json({ error: 'Publish date is required.' }, { status: 400 });
+        }
+
+        let assignedUserName = String(body.assignedUserName || '').trim();
+        if (body.assignedUserId) {
+          const assignedUser = await prisma.user.findUnique({ where: { id: body.assignedUserId }, select: { id: true, name: true } });
+          assignedUserName = assignedUser?.name || assignedUserName;
+        }
+
+        const planner = await prisma.contentPlanner.create({
+          data: {
+            id: uuid(),
+            title,
+            platforms: Array.isArray(body.platforms) ? body.platforms.map((entry) => String(entry || '').trim()).filter(Boolean) : [],
+            category: String(body.category || 'Product').trim() || 'Product',
+            priority: String(body.priority || 'Medium').trim() || 'Medium',
+            status: String(body.status || 'Draft').trim() || 'Draft',
+            assignedUserId: String(body.assignedUserId || '').trim(),
+            assignedUserName,
+            publishDate: String(body.publishDate || '').trim(),
+            publishTime: String(body.publishTime || '').trim(),
+            reminderDate: String(body.reminderDate || '').trim(),
+            contentBriefRichText: String(body.contentBriefRichText || ''),
+            scriptRichText: String(body.scriptRichText || ''),
+            captionRichText: String(body.captionRichText || ''),
+            ctaText: String(body.ctaText || ''),
+            hashtags: Array.isArray(body.hashtags) ? body.hashtags.map((entry) => String(entry || '').trim()).filter(Boolean) : [],
+            notesRichText: String(body.notesRichText || ''),
+            checklists: {
+              create: Array.isArray(body.checklists) ? body.checklists.map((item, index) => ({
+                id: uuid(),
+                label: String(item.label || '').trim(),
+                isCompleted: Boolean(item.isCompleted),
+                sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : index,
+              })).filter((item) => item.label) : [],
+            },
+            assets: {
+              create: Array.isArray(body.assets) ? body.assets.map((item, index) => ({
+                id: uuid(),
+                assetType: String(item.assetType || 'Asset').trim() || 'Asset',
+                name: String(item.name || '').trim(),
+                url: String(item.url || '').trim(),
+                mimeType: String(item.mimeType || '').trim(),
+                sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : index,
+              })).filter((item) => item.url) : [],
+            },
+          },
+          include: {
+            checklists: { orderBy: { sortOrder: 'asc' } },
+            assets: { orderBy: { sortOrder: 'asc' } },
+            comments: { orderBy: { createdAt: 'asc' } },
+          },
+        });
+
+        await dispatchDueContentReminders(prisma);
+        return NextResponse.json(planner);
+      }
+
+      if (method === 'PUT' && segs.length === 2) {
+        const body = await readJson(request);
+        const existingPlanner = await prisma.contentPlanner.findUnique({
+          where: { id: segs[1] },
+          include: {
+            checklists: true,
+            assets: true,
+            comments: true,
+          },
+        });
+        if (!existingPlanner) return NextResponse.json({ error: 'Content planner item not found.' }, { status: 404 });
+
+        let assignedUserName = body.assignedUserName !== undefined ? String(body.assignedUserName || '').trim() : existingPlanner.assignedUserName;
+        if (body.assignedUserId !== undefined && String(body.assignedUserId || '').trim()) {
+          const assignedUser = await prisma.user.findUnique({ where: { id: body.assignedUserId }, select: { id: true, name: true } });
+          assignedUserName = assignedUser?.name || assignedUserName;
+        }
+
+        const updated = await prisma.$transaction(async (tx) => {
+          await tx.contentPlanner.update({
+            where: { id: segs[1] },
+            data: {
+              title: body.title !== undefined ? String(body.title || '').trim() : existingPlanner.title,
+              platforms: Array.isArray(body.platforms) ? body.platforms.map((entry) => String(entry || '').trim()).filter(Boolean) : existingPlanner.platforms,
+              category: body.category !== undefined ? String(body.category || '').trim() || 'Product' : existingPlanner.category,
+              priority: body.priority !== undefined ? String(body.priority || '').trim() || 'Medium' : existingPlanner.priority,
+              status: body.status !== undefined ? String(body.status || '').trim() || 'Draft' : existingPlanner.status,
+              assignedUserId: body.assignedUserId !== undefined ? String(body.assignedUserId || '').trim() : existingPlanner.assignedUserId,
+              assignedUserName,
+              publishDate: body.publishDate !== undefined ? String(body.publishDate || '').trim() : existingPlanner.publishDate,
+              publishTime: body.publishTime !== undefined ? String(body.publishTime || '').trim() : existingPlanner.publishTime,
+              reminderDate: body.reminderDate !== undefined ? String(body.reminderDate || '').trim() : existingPlanner.reminderDate,
+              reminderNotifiedAt: body.reminderDate !== undefined ? null : existingPlanner.reminderNotifiedAt,
+              contentBriefRichText: body.contentBriefRichText !== undefined ? String(body.contentBriefRichText || '') : existingPlanner.contentBriefRichText,
+              scriptRichText: body.scriptRichText !== undefined ? String(body.scriptRichText || '') : existingPlanner.scriptRichText,
+              captionRichText: body.captionRichText !== undefined ? String(body.captionRichText || '') : existingPlanner.captionRichText,
+              ctaText: body.ctaText !== undefined ? String(body.ctaText || '') : existingPlanner.ctaText,
+              hashtags: Array.isArray(body.hashtags) ? body.hashtags.map((entry) => String(entry || '').trim()).filter(Boolean) : existingPlanner.hashtags,
+              notesRichText: body.notesRichText !== undefined ? String(body.notesRichText || '') : existingPlanner.notesRichText,
+            },
+          });
+
+          if (Array.isArray(body.checklists)) {
+            await tx.contentChecklist.deleteMany({ where: { contentPlannerId: segs[1] } });
+            const checklistRows = body.checklists
+              .map((item, index) => ({
+                id: uuid(),
+                contentPlannerId: segs[1],
+                label: String(item.label || '').trim(),
+                isCompleted: Boolean(item.isCompleted),
+                sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : index,
+              }))
+              .filter((item) => item.label);
+            if (checklistRows.length > 0) {
+              await tx.contentChecklist.createMany({ data: checklistRows });
+            }
+          }
+
+          if (Array.isArray(body.assets)) {
+            await tx.contentAsset.deleteMany({ where: { contentPlannerId: segs[1] } });
+            const assetRows = body.assets
+              .map((item, index) => ({
+                id: uuid(),
+                contentPlannerId: segs[1],
+                assetType: String(item.assetType || 'Asset').trim() || 'Asset',
+                name: String(item.name || '').trim(),
+                url: String(item.url || '').trim(),
+                mimeType: String(item.mimeType || '').trim(),
+                sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : index,
+              }))
+              .filter((item) => item.url);
+            if (assetRows.length > 0) {
+              await tx.contentAsset.createMany({ data: assetRows });
+            }
+          }
+
+          return tx.contentPlanner.findUnique({
+            where: { id: segs[1] },
+            include: {
+              checklists: { orderBy: { sortOrder: 'asc' } },
+              assets: { orderBy: { sortOrder: 'asc' } },
+              comments: { orderBy: { createdAt: 'asc' } },
+            },
+          });
+        });
+
+        await dispatchDueContentReminders(prisma);
+        return NextResponse.json(updated);
+      }
+
+      if (method === 'DELETE' && segs.length === 2) {
+        await prisma.contentPlanner.delete({ where: { id: segs[1] } });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (method === 'POST' && segs.length === 3 && segs[2] === 'comments') {
+        const body = await readJson(request);
+        const existingPlanner = await prisma.contentPlanner.findUnique({ where: { id: segs[1] }, select: { id: true } });
+        if (!existingPlanner) return NextResponse.json({ error: 'Content planner item not found.' }, { status: 404 });
+        const comment = String(body.comment || '').trim();
+        if (!comment) return NextResponse.json({ error: 'Comment is required.' }, { status: 400 });
+        const createdComment = await prisma.contentComment.create({
+          data: {
+            id: uuid(),
+            contentPlannerId: segs[1],
+            userId: String(body.userId || '').trim(),
+            userName: String(body.userName || 'HQ User').trim() || 'HQ User',
+            comment,
+          },
+        });
+        return NextResponse.json(createdComment);
+      }
     }
 
     // Generic CRUD

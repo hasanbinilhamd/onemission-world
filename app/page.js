@@ -105,6 +105,11 @@ const SystemConfigurationModule = dynamic(
   { loading: () => <ListSkeleton count={6} /> },
 );
 
+const ContentPlannerModule = dynamic(
+  () => import("@/components/onemission/content-planner-module").then((module) => module.ContentPlannerModule),
+  { loading: () => <KanbanSkeleton columns={6} /> },
+);
+
 // Normalize Indonesian phone number for wa.me link
 function whatsappUrl(phone) {
   if (!phone) return null;
@@ -729,6 +734,7 @@ function Dashboard({
   activeModule,
   onOpenOrderReference = () => {},
   onOpenLowStockInventory = () => {},
+  onOpenContentPlanner = () => {},
 }) {
   const [summary, setSummary] = useState(null);
   const [details, setDetails] = useState(null);
@@ -786,6 +792,8 @@ function Dashboard({
   const recentCashActivities = details?.recentCashActivities || [];
   const lowStockItems = details?.lowStockItems || [];
   const productionSummary = details?.productionSummary || {};
+  const contentPlannerSummary = details?.contentPlannerSummary || {};
+  const upcomingContent = details?.upcomingContent || [];
   const cashPositionSummary = details?.cashPositionSummary || [];
 
   const paymentStatusBadge = (status) => {
@@ -1071,7 +1079,7 @@ function Dashboard({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Latest Orders</CardTitle>
@@ -1137,6 +1145,47 @@ function Dashboard({
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Content Planner</CardTitle>
+            <CardDescription>This month marketing readiness</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Planned</p>
+                <p className="text-lg font-semibold mt-1">{Number(contentPlannerSummary.totalPlanned || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Published</p>
+                <p className="text-lg font-semibold mt-1 text-emerald-500">{Number(contentPlannerSummary.published || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Ready</p>
+                <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(contentPlannerSummary.ready || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Editing / Draft</p>
+                <p className="text-lg font-semibold mt-1 text-amber-500">{Number((contentPlannerSummary.editing || 0) + (contentPlannerSummary.draft || 0)).toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {upcomingContent.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No planned content this month.</p>
+              ) : (
+                upcomingContent.map((item) => (
+                  <button key={item.id} type="button" onClick={onOpenContentPlanner} className="w-full text-left rounded-xl border border-border/60 px-3 py-3 hover:bg-[#F7F8FA] transition-colors">
+                    <p className="text-sm font-medium truncate">{item.title}</p>
+                    <div className="flex items-center justify-between gap-2 mt-1 text-xs text-muted-foreground">
+                      <span className="truncate">{(item.platforms || []).join(" | ") || "No Platform"}</span>
+                      <span>{item.publishDate || "Unscheduled"}</span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Low Stock Alert</CardTitle>
@@ -3316,357 +3365,8 @@ function PlanModal({ open, onOpenChange, initial, onSave }) {
 }
 
 // =========== CONTENT PLANNER ===========
-const CONTENT_STATUS = [
-  "Idea",
-  "Draft",
-  "Shooting",
-  "Editing",
-  "Scheduled",
-  "Published",
-];
-const PLATFORMS = ["Instagram", "TikTok", "YouTube", "Threads"];
-
 function ContentModule({ activeModule }) {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [view, setView] = useState("kanban");
-  const load = async () => {
-    setLoading(true);
-    setItems(await api.get("content"));
-    setLoading(false);
-  };
-  useLazyModuleEffect(activeModule, "content", () => {
-    load();
-  }, []);
-
-  const empty = {
-    title: "",
-    platform: "Instagram",
-    format: "Reel",
-    caption: "",
-    objective: "",
-    cta: "",
-    owner: "",
-    deadline: "",
-    status: "Idea",
-  };
-  const save = async (data) => {
-    if (editing?.id) await api.put("content/" + editing.id, data);
-    else await api.post("content", data);
-    setOpen(false);
-    setEditing(null);
-    load();
-    toast.success("Saved");
-  };
-  const del = async (id) => {
-    await api.del("content/" + id);
-    load();
-    toast.success("Deleted");
-  };
-  const moveStatus = async (item, status) => {
-    await api.put("content/" + item.id, { ...item, status });
-    setItems((arr) =>
-      arr.map((i) => (i.id === item.id ? { ...i, status } : i)),
-    );
-  };
-
-  if (loading)
-    return (
-      <div className="space-y-6">
-        <div>
-          <div className="h-8 w-44 bg-muted/60 rounded animate-pulse mb-1" />
-          <div className="h-4 w-56 bg-muted/40 rounded animate-pulse" />
-        </div>
-        <KanbanSkeleton columns={4} />
-      </div>
-    );
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
-            Content Planner
-          </h2>
-          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Manage all content across platforms
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Tabs value={view} onValueChange={setView}>
-            <TabsList>
-              <TabsTrigger value="kanban">Kanban</TabsTrigger>
-              <TabsTrigger value="list">List</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setOpen(true);
-            }}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" /> New content
-          </Button>
-        </div>
-      </div>
-
-      {view === "kanban" ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {CONTENT_STATUS.map((s) => {
-            const col = items.filter((i) => i.status === s);
-            return (
-              <div key={s} className="space-y-2">
-                <div className="flex items-center justify-between px-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {s}
-                  </p>
-                  <Badge variant="outline" className="text-xs">
-                    {col.length}
-                  </Badge>
-                </div>
-                <div className="space-y-2 min-h-[200px]">
-                  {col.map((item) => (
-                    <Card
-                      key={item.id}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setEditing(item);
-                        setOpen(true);
-                      }}
-                    >
-                      <CardContent className="p-3 space-y-2">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] font-normal"
-                        >
-                          {item.platform}
-                        </Badge>
-                        <p className="text-sm font-medium leading-tight">
-                          {item.title}
-                        </p>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{item.owner?.split(" ")[0]}</span>
-                          <span>{item.deadline?.slice(5)}</span>
-                        </div>
-                        <Select
-                          value={item.status}
-                          onValueChange={(v) => moveStatus(item, v)}
-                        >
-                          <SelectTrigger
-                            className="h-7 text-xs"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CONTENT_STATUS.map((s) => (
-                              <SelectItem key={s} value={s}>
-                                {s}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <Card className="">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-secondary/30">
-              <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
-                <th className="px-4 py-3 font-medium">Title</th>
-                <th className="px-4 py-3 font-medium">Platform</th>
-                <th className="px-4 py-3 font-medium">Format</th>
-                <th className="px-4 py-3 font-medium">Owner</th>
-                <th className="px-4 py-3 font-medium">Deadline</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((c) => (
-                <tr key={c.id} className="border-b hover:bg-secondary/30">
-                  <td className="px-4 py-3 font-medium">{c.title}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant="outline">{c.platform}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {c.format}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.owner}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {c.deadline}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge>{c.status}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setEditing(c);
-                            setOpen(true);
-                          }}
-                        >
-                          <Edit3 className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => del(c.id)}
-                          className="text-rose-400"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      )}
-
-      <ContentModal
-        open={open}
-        onOpenChange={setOpen}
-        initial={editing || empty}
-        onSave={save}
-      />
-    </div>
-  );
-}
-
-function ContentModal({ open, onOpenChange, initial, onSave }) {
-  const [form, setForm] = useState(initial);
-  useEffect(() => setForm(initial), [initial, open]);
-  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>
-            {initial?.id ? "Edit content" : "New content"}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
-          <div className="space-y-2">
-            <Label>Title</Label>
-            <Input
-              value={form.title || ""}
-              onChange={(e) => update("title", e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Platform</Label>
-              <Select
-                value={form.platform}
-                onValueChange={(v) => update("platform", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLATFORMS.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Format</Label>
-              <Input
-                value={form.format || ""}
-                onChange={(e) => update("format", e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Caption</Label>
-            <Textarea
-              value={form.caption || ""}
-              onChange={(e) => update("caption", e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Objective</Label>
-              <Input
-                value={form.objective || ""}
-                onChange={(e) => update("objective", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>CTA</Label>
-              <Input
-                value={form.cta || ""}
-                onChange={(e) => update("cta", e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label>Owner</Label>
-              <Input
-                value={form.owner || ""}
-                onChange={(e) => update("owner", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Deadline</Label>
-              <Input
-                type="date"
-                value={form.deadline || ""}
-                onChange={(e) => update("deadline", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) => update("status", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CONTENT_STATUS.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={() => onSave(form)}>Save</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+  return <ContentPlannerModule activeModule={activeModule} />;
 }
 
 // =========== CREATOR CRM ===========
@@ -16844,6 +16544,7 @@ function App() {
         activeModule={active}
         onOpenOrderReference={openOrderReference}
         onOpenLowStockInventory={openLowStockInventory}
+        onOpenContentPlanner={() => handleNavClick("content")}
       />
     ),
     products: () => <ProductsModule activeModule={active} />,
