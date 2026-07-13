@@ -33,8 +33,8 @@ import { normalizeShippingError, shippingService } from '@/lib/shipping';
 import {
   buildStoredPdfPayload,
   buildContentScriptSummary,
-  CONTENT_SCRIPT_CATEGORY_OPTIONS,
   resolveContentScriptMonthKey,
+  resolveMappedContentScriptCategory,
   sanitizeContentScriptPayload,
   validateContentScriptPayload,
 } from '@/lib/content-script/service';
@@ -2897,7 +2897,10 @@ async function handle(request, { params }) {
         };
 
         if (category && category !== 'all') {
-          where.category = CONTENT_SCRIPT_CATEGORY_OPTIONS.includes(category) ? category : 'Other';
+          const mappedCategory = resolveMappedContentScriptCategory(category);
+          if (mappedCategory) {
+            where.category = mappedCategory;
+          }
         }
 
         if (search) {

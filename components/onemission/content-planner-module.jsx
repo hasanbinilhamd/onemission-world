@@ -44,8 +44,8 @@ const MONTH_OPTIONS = [
 const SUMMARY_FALLBACK = {
   totalFiles: 0,
   scheduledThisWeek: 0,
-  campaignCount: 0,
-  articleCount: 0,
+  communityCount: 0,
+  educationCount: 0,
 };
 
 function apiPath(path) {
@@ -624,14 +624,14 @@ export function ContentPlannerModule({ activeModule }) {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Campaign Files</p>
-            <p className="text-2xl font-semibold mt-1 text-cyan-600">{Number(summary.campaignCount || 0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Community Files</p>
+            <p className="text-2xl font-semibold mt-1 text-cyan-600">{Number(summary.communityCount || 0).toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Articles</p>
-            <p className="text-2xl font-semibold mt-1 text-amber-500">{Number(summary.articleCount || 0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Education Files</p>
+            <p className="text-2xl font-semibold mt-1 text-amber-500">{Number(summary.educationCount || 0).toLocaleString()}</p>
           </CardContent>
         </Card>
       </div>
@@ -784,13 +784,15 @@ export function ContentPlannerModule({ activeModule }) {
                           key={item.id}
                           type="button"
                           onClick={() => openDetailModal(item.id)}
-                          className="flex w-full items-center gap-2 rounded-md bg-[#EEF3FA] px-2.5 py-2 text-left hover:bg-[#E6EEF9] transition-colors"
-                          title={item.title}
+                          className="w-full rounded-md bg-[#EEF3FA] px-2.5 py-2 text-left hover:bg-[#E6EEF9] transition-colors"
+                          title={`${item.category} — ${item.title}`}
                         >
-                          <Badge variant="outline" className="shrink-0 border-blue-200 bg-white text-[10px] font-semibold text-blue-700">
-                            PDF
-                          </Badge>
-                          <span className="truncate text-xs font-medium text-[#111827]">📄 {item.title}</span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="shrink-0 border-blue-200 bg-white text-[10px] font-semibold text-blue-700">
+                              📄 {item.category}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 truncate text-[11px] font-medium text-[#111827]">{item.title}</p>
                         </button>
                       ))}
                       {dayItems.length > 3 ? (

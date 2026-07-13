@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   buildContentScriptSummary,
   buildStoredPdfPayload,
+  normalizeContentScriptCategory,
   resolveContentScriptMonthKey,
   validateContentScriptPayload,
 } from '../lib/content-script/service.js';
@@ -34,7 +35,7 @@ test('buildStoredPdfPayload validates pdf files and returns unique filename', ()
 
 test('validateContentScriptPayload requires title, category, date, and pdf file when creating', () => {
   assert.equal(
-    validateContentScriptPayload({ title: '', category: 'Campaign', calendarDate: '2026-07-13', pdfFile: {} }, { requirePdf: true }),
+    validateContentScriptPayload({ title: '', category: 'Community', calendarDate: '2026-07-13', pdfFile: {} }, { requirePdf: true }),
     'Title is required.',
   );
   assert.equal(
@@ -42,32 +43,45 @@ test('validateContentScriptPayload requires title, category, date, and pdf file 
     'Category is required.',
   );
   assert.equal(
-    validateContentScriptPayload({ title: 'Launch', category: 'Campaign', calendarDate: '', pdfFile: {} }, { requirePdf: true }),
+    validateContentScriptPayload({ title: 'Launch', category: 'Community', calendarDate: '', pdfFile: {} }, { requirePdf: true }),
     'Calendar date is required.',
   );
   assert.equal(
-    validateContentScriptPayload({ title: 'Launch', category: 'Campaign', calendarDate: '2026-07-13' }, { requirePdf: true }),
+    validateContentScriptPayload({ title: 'Launch', category: 'Community', calendarDate: '2026-07-13' }, { requirePdf: true }),
     'PDF file is required.',
   );
   assert.equal(
-    validateContentScriptPayload({ title: 'Launch', category: 'Campaign', calendarDate: '2026-07-13', pdfFile: {} }, { requirePdf: true }),
+    validateContentScriptPayload({ title: 'Launch', category: 'Community', calendarDate: '2026-07-13', pdfFile: {} }, { requirePdf: true }),
     null,
   );
+});
+
+test('normalizeContentScriptCategory maps legacy category values into content pillar categories', () => {
+  assert.equal(normalizeContentScriptCategory('Instagram Feed'), 'Product');
+  assert.equal(normalizeContentScriptCategory('Campaign'), 'Community');
+  assert.equal(normalizeContentScriptCategory('Article'), 'Education');
+  assert.equal(normalizeContentScriptCategory('Other'), 'Story');
+  assert.equal(normalizeContentScriptCategory('Unknown Category'), 'Story');
 });
 
 test('buildContentScriptSummary calculates dashboard friendly metrics', () => {
   const items = [
     { category: 'Campaign', calendarDate: '2026-07-13' },
     { category: 'Article', calendarDate: '2026-07-14' },
-    { category: 'Campaign', calendarDate: '2026-07-20' },
+    { category: 'Community', calendarDate: '2026-07-20' },
+    { category: 'Proofen', calendarDate: '2026-07-15' },
+    { category: 'Product', calendarDate: '2026-07-15' },
   ];
 
   const result = buildContentScriptSummary(items, new Date('2026-07-13T08:00:00Z'));
 
   assert.deepEqual(result, {
-    totalFiles: 3,
-    scheduledThisWeek: 2,
-    campaignCount: 2,
-    articleCount: 1,
+    totalFiles: 5,
+    scheduledThisWeek: 4,
+    storyCount: 0,
+    educationCount: 1,
+    proofenCount: 1,
+    productCount: 1,
+    communityCount: 2,
   });
 });

@@ -1161,12 +1161,12 @@ function Dashboard({
                 <p className="text-lg font-semibold mt-1 text-emerald-500">{Number(contentPlannerSummary.scheduledThisWeek || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Campaign</p>
-                <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(contentPlannerSummary.campaignCount || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Community</p>
+                <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(contentPlannerSummary.communityCount || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Article</p>
-                <p className="text-lg font-semibold mt-1 text-amber-500">{Number(contentPlannerSummary.articleCount || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Education</p>
+                <p className="text-lg font-semibold mt-1 text-amber-500">{Number(contentPlannerSummary.educationCount || 0).toLocaleString()}</p>
               </div>
             </div>
             <div className="space-y-2">
@@ -1177,7 +1177,7 @@ function Dashboard({
                   <button key={item.id} type="button" onClick={onOpenContentPlanner} className="w-full text-left rounded-xl border border-border/60 px-3 py-3 hover:bg-[#F7F8FA] transition-colors">
                     <p className="text-sm font-medium truncate">{item.title}</p>
                     <div className="flex items-center justify-between gap-2 mt-1 text-xs text-muted-foreground">
-                      <span className="truncate">{item.category || "Other"}</span>
+                      <span className="truncate">{item.category || "Story"}</span>
                       <span>{item.calendarDate || "Unscheduled"}</span>
                     </div>
                   </button>
