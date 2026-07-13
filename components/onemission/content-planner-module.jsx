@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarDays,
   ChevronLeft,
@@ -44,8 +45,11 @@ const MONTH_OPTIONS = [
 const SUMMARY_FALLBACK = {
   totalFiles: 0,
   scheduledThisWeek: 0,
-  communityCount: 0,
+  storyCount: 0,
   educationCount: 0,
+  productCount: 0,
+  communityCount: 0,
+  proofenCount: 0,
 };
 
 function apiPath(path) {
@@ -71,7 +75,11 @@ async function apiRequest(path, init = {}) {
 }
 
 function toDateString(date) {
-  return new Date(date).toISOString().split("T")[0];
+  const value = new Date(date);
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatMonthTitle(date) {
@@ -121,6 +129,28 @@ function shiftMonth(date, delta) {
 
 function buildYearOptions(baseYear) {
   return Array.from({ length: 9 }, (_, index) => baseYear - 4 + index);
+}
+
+function buildSummaryFromItems(items = []) {
+  return items.reduce((summary, item) => {
+    const category = String(item?.category || "").trim();
+    summary.totalFiles += 1;
+
+    if (category === "Story") summary.storyCount += 1;
+    if (category === "Education") summary.educationCount += 1;
+    if (category === "Product") summary.productCount += 1;
+    if (category === "Community") summary.communityCount += 1;
+    if (category === "Proofen") summary.proofenCount += 1;
+
+    return summary;
+  }, {
+    totalFiles: 0,
+    storyCount: 0,
+    educationCount: 0,
+    productCount: 0,
+    communityCount: 0,
+    proofenCount: 0,
+  });
 }
 
 function createEmptyCreateForm(calendarDate = "") {
@@ -242,11 +272,12 @@ function CreateContentModal({
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label>Date</Label>
-            <Input value={form.calendarDate} readOnly className="bg-[#F7F8FA]" />
+            <Input value={form.calendarDate} readOnly className="h-10 bg-[#F7F8FA]" />
           </div>
           <div className="space-y-1.5">
             <Label>Title *</Label>
             <Input
+              className="h-10"
               value={form.title}
               onChange={(event) => onFormChange({ ...form, title: event.target.value })}
               placeholder="Running campaign script"
@@ -255,7 +286,7 @@ function CreateContentModal({
           <div className="space-y-1.5">
             <Label>Category *</Label>
             <Select value={form.category} onValueChange={(value) => onFormChange({ ...form, category: value })}>
-              <SelectTrigger>
+              <SelectTrigger className="h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -270,6 +301,7 @@ function CreateContentModal({
           <div className="space-y-1.5">
             <Label>Upload PDF *</Label>
             <Input
+              className="h-10"
               type="file"
               accept="application/pdf"
               onChange={(event) => onSelectPdf(event.target.files?.[0] || null)}
@@ -379,6 +411,7 @@ function ContentDetailModal({
               <div className="space-y-1.5">
                 <Label>Replace PDF</Label>
                 <Input
+                  className="h-10"
                   type="file"
                   accept="application/pdf"
                   onChange={(event) => onReplacePdf(event.target.files?.[0] || null, () => {
@@ -409,7 +442,7 @@ export function ContentPlannerModule({ activeModule }) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [items, setItems] = useState([]);
-  const [summary, setSummary] = useState(SUMMARY_FALLBACK);
+  const [scheduledThisMonthCount, setScheduledThisMonthCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -439,16 +472,29 @@ export function ContentPlannerModule({ activeModule }) {
     }, {});
   }, [items]);
   const selectedDayItems = useMemo(() => itemsByDate[dayListDate] || [], [dayListDate, itemsByDate]);
+  const contentSummary = useMemo(() => ({
+    ...SUMMARY_FALLBACK,
+    ...buildSummaryFromItems(items),
+  }), [items]);
+  const calendarViewKey = `${year}-${month}-${categoryFilter}-${search.trim()}-${items.length}-${loading ? "loading" : "ready"}`;
 
   const load = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ month, year });
-      if (categoryFilter !== "all") params.set("category", categoryFilter);
-      if (search.trim()) params.set("search", search.trim());
-      const result = await apiRequest(`content?${params.toString()}`);
-      setItems(Array.isArray(result?.data) ? result.data : []);
-      setSummary(result?.summary || SUMMARY_FALLBACK);
+      const filteredParams = new URLSearchParams({ month, year });
+      if (categoryFilter !== "all") filteredParams.set("category", categoryFilter);
+      if (search.trim()) filteredParams.set("search", search.trim());
+
+      const monthParams = new URLSearchParams({ month, year });
+
+      const [filteredResult, monthResult] = await Promise.all([
+        apiRequest(`content?${filteredParams.toString()}`),
+        apiRequest(`content?${monthParams.toString()}`),
+      ]);
+
+      const nextItems = Array.isArray(filteredResult?.data) ? filteredResult.data : [];
+      setItems(nextItems);
+      setScheduledThisMonthCount(Array.isArray(monthResult?.data) ? monthResult.data.length : 0);
     } catch (error) {
       toast.error(error.message || "Failed to load content script calendar.");
     } finally {
@@ -609,32 +655,61 @@ export function ContentPlannerModule({ activeModule }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card>
+      <motion.div
+        key={`${calendarViewKey}-summary`}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.16, ease: "easeOut" }}
+        className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6"
+      >
+        <Card className="border-border/70 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Files This Month</p>
-            <p className="text-2xl font-semibold mt-1">{Number(summary.totalFiles || 0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Scripts</p>
+            <p className="mt-1 text-2xl font-semibold">{Number(contentSummary.totalFiles || 0).toLocaleString()}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Matching current filters</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/70 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Scheduled This Week</p>
-            <p className="text-2xl font-semibold mt-1 text-emerald-500">{Number(summary.scheduledThisWeek || 0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Scheduled This Month</p>
+            <p className="mt-1 text-2xl font-semibold text-emerald-600">{Number(scheduledThisMonthCount || 0).toLocaleString()}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{formatMonthTitle(monthDate)}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/70 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Community Files</p>
-            <p className="text-2xl font-semibold mt-1 text-cyan-600">{Number(summary.communityCount || 0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Story</p>
+            <p className="mt-1 text-2xl font-semibold text-fuchsia-600">{Number(contentSummary.storyCount || 0).toLocaleString()}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/70 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Education Files</p>
-            <p className="text-2xl font-semibold mt-1 text-amber-500">{Number(summary.educationCount || 0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Education</p>
+            <p className="mt-1 text-2xl font-semibold text-blue-600">{Number(contentSummary.educationCount || 0).toLocaleString()}</p>
           </CardContent>
         </Card>
-      </div>
+        <Card className="border-border/70 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Product</p>
+            <p className="mt-1 text-2xl font-semibold text-emerald-600">{Number(contentSummary.productCount || 0).toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Community + Proofen</p>
+            <div className="mt-2 space-y-1.5 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Community</span>
+                <span className="font-semibold text-amber-600">{Number(contentSummary.communityCount || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Proofen</span>
+                <span className="font-semibold text-violet-600">{Number(contentSummary.proofenCount || 0).toLocaleString()}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       <Card>
         <CardContent className="pt-4 pb-4">
@@ -661,13 +736,13 @@ export function ContentPlannerModule({ activeModule }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-              <div className="space-y-1.5 xl:col-span-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-[minmax(0,8fr)_minmax(0,5fr)_minmax(0,4fr)_minmax(0,3fr)] lg:items-end">
+              <div className="space-y-1.5">
                 <Label>Search Title</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    className="pl-9"
+                    className="h-10 pl-9"
                     placeholder="Search content title..."
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
@@ -677,7 +752,7 @@ export function ContentPlannerModule({ activeModule }) {
               <div className="space-y-1.5">
                 <Label>Category</Label>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -696,7 +771,7 @@ export function ContentPlannerModule({ activeModule }) {
                   value={String(monthDate.getMonth())}
                   onValueChange={(value) => setMonthDate(new Date(monthDate.getFullYear(), Number(value), 1))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -714,7 +789,7 @@ export function ContentPlannerModule({ activeModule }) {
                   value={String(monthDate.getFullYear())}
                   onValueChange={(value) => setMonthDate(new Date(Number(value), monthDate.getMonth(), 1))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -731,87 +806,110 @@ export function ContentPlannerModule({ activeModule }) {
         </CardContent>
       </Card>
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-          {Array.from({ length: 14 }).map((_, index) => (
-            <Card key={index} className="h-[160px] animate-pulse bg-muted/30 border-border/40" />
-          ))}
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <div className="min-w-[760px] rounded-2xl border border-border overflow-hidden bg-border">
-            <div className="grid grid-cols-7 gap-px bg-border">
-              {WEEKDAY_LABELS.map((label) => (
-                <div key={label} className="bg-[#F7F8FA] px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {label}
-                </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={calendarViewKey}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          className="space-y-4"
+        >
+          {loading ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-7">
+              {Array.from({ length: 14 }).map((_, index) => (
+                <Card key={index} className="h-[156px] animate-pulse border-border/50 bg-muted/30 md:h-[170px] xl:h-[190px]" />
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-px bg-border">
-              {calendarDays.map((day) => {
-                const dayItems = itemsByDate[day.dateString] || [];
-                return (
-                  <div
-                    key={day.dateString}
-                    className={[
-                      "group flex h-[150px] flex-col bg-white px-3 py-3 transition-colors hover:bg-[#FAFBFD] md:h-[165px] xl:h-[185px]",
-                      !day.isCurrentMonth ? "bg-[#F7F8FA]/70 text-muted-foreground" : "",
-                      day.isToday ? "bg-blue-50/70" : "",
-                    ].filter(Boolean).join(" ")}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-semibold ${day.isToday ? "text-blue-700" : "text-foreground"}`}>
-                          {day.dayNumber}
-                        </span>
-                        {day.isToday ? (
-                          <Badge variant="outline" className="border-blue-300 text-blue-700 text-[10px]">Today</Badge>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => openCreateModal(day.dateString)}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-white text-muted-foreground shadow-sm transition-opacity hover:bg-[#F7F8FA] hover:text-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                        title="Add content file"
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="min-w-[760px] overflow-hidden rounded-2xl border border-border/80 bg-border shadow-sm">
+                <div className="grid grid-cols-7 gap-px bg-border">
+                  {WEEKDAY_LABELS.map((label) => (
+                    <div key={label} className="bg-[#F7F8FA] px-3 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground md:px-4">
+                      {label}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-px bg-border">
+                  {calendarDays.map((day) => {
+                    const dayItems = itemsByDate[day.dateString] || [];
+                    return (
+                      <motion.div
+                        layout
+                        key={day.dateString}
+                        className={[
+                          "group flex h-[156px] flex-col bg-white px-3 py-3 transition-colors hover:bg-[#FAFBFD] md:h-[170px] xl:h-[190px]",
+                          !day.isCurrentMonth ? "bg-[#F7F8FA]/70 text-muted-foreground" : "",
+                          day.isToday ? "bg-blue-50/70" : "",
+                        ].filter(Boolean).join(" ")}
                       >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="mt-3 flex-1 space-y-1 overflow-hidden">
-                      {dayItems.slice(0, 3).map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => openDetailModal(item.id)}
-                          className="w-full rounded-md bg-[#EEF3FA] px-2.5 py-2 text-left hover:bg-[#E6EEF9] transition-colors"
-                          title={`${item.category} — ${item.title}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="shrink-0 border-blue-200 bg-white text-[10px] font-semibold text-blue-700">
-                              📄 {item.category}
-                            </Badge>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className={`text-sm font-semibold ${day.isToday ? "text-blue-700" : "text-foreground"}`}>
+                              {day.dayNumber}
+                            </span>
+                            {day.isToday ? (
+                              <div className="mt-1">
+                                <Badge variant="outline" className="border-blue-300 bg-white/80 text-[10px] text-blue-700">
+                                  Today
+                                </Badge>
+                              </div>
+                            ) : null}
                           </div>
-                          <p className="mt-1 truncate text-[11px] font-medium text-[#111827]">{item.title}</p>
-                        </button>
-                      ))}
-                      {dayItems.length > 3 ? (
-                        <button
-                          type="button"
-                          onClick={() => openDayListModal(day.dateString)}
-                          className="pl-1 text-left text-xs font-medium text-blue-600 hover:underline"
-                        >
-                          +{dayItems.length - 3} more
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
+                          <button
+                            type="button"
+                            onClick={() => openCreateModal(day.dateString)}
+                            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-white text-muted-foreground shadow-sm transition-opacity hover:bg-[#F7F8FA] hover:text-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                            title="Add content file"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="mt-3 flex-1 space-y-1.5 overflow-hidden">
+                          <AnimatePresence initial={false}>
+                            {dayItems.slice(0, 3).map((item) => (
+                              <motion.button
+                                layout
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                transition={{ duration: 0.14, ease: "easeOut" }}
+                                key={item.id}
+                                type="button"
+                                onClick={() => openDetailModal(item.id)}
+                                className="w-full rounded-lg border border-blue-100 bg-[#EEF3FA] px-2.5 py-2 text-left hover:bg-[#E6EEF9] transition-colors"
+                                title={`${item.category} — ${item.title}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="shrink-0 border-blue-200 bg-white text-[10px] font-semibold text-blue-700">
+                                    📄 {item.category}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1 truncate text-[11px] font-medium text-[#111827]">{item.title}</p>
+                              </motion.button>
+                            ))}
+                          </AnimatePresence>
+                          {dayItems.length > 3 ? (
+                            <button
+                              type="button"
+                              onClick={() => openDayListModal(day.dateString)}
+                              className="pl-1 text-left text-xs font-medium text-blue-600 hover:underline"
+                            >
+                              +{dayItems.length - 3} more
+                            </button>
+                          ) : null}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </motion.div>
+      </AnimatePresence>
 
       <CreateContentModal
         open={createOpen}
