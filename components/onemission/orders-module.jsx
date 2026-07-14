@@ -241,6 +241,10 @@ function getTimelinePresentation(entry) {
       title: "Payment Received",
       description: "Automatically confirmed after successful payment.",
     },
+    WAITING_PAYMENT: {
+      title: "Waiting Payment",
+      description: "Order has been created and is waiting for payment confirmation.",
+    },
     PACKING_STARTED: {
       title: "Packing Started",
       description: "Warehouse has started preparing this order.",

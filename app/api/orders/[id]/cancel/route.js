@@ -19,10 +19,10 @@ function buildCustomerAuthErrorResponse(error) {
 }
 
 export async function POST(request, { params }) {
-  let authenticatedCustomer;
+  let authenticatedCustomer = null;
 
   try {
-    authenticatedCustomer = await authenticateCustomerRequest(request, { optional: false });
+    authenticatedCustomer = await authenticateCustomerRequest(request, { optional: true });
   } catch (error) {
     return buildCustomerAuthErrorResponse(error);
   }
@@ -32,7 +32,7 @@ export async function POST(request, { params }) {
   try {
     const order = await orderService.cancelOrderByCustomer({
       orderId: params.id,
-      customerEmail: authenticatedCustomer?.customer?.email || '',
+      customerEmail: authenticatedCustomer?.customer?.email || payload.email || '',
       reason: payload.reason,
     });
 

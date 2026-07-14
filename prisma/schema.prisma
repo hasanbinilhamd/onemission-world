@@ -557,6 +557,7 @@ model Customer {
   lastLoginAt             DateTime?
   authProvider            String            @default("LOCAL")
   customerType            String            @default("Individual")
+  isGuest                 Boolean           @default(false)
   preferredSalesChannelId String?
   preferredSalesChannel   SalesChannel?     @relation(fields: [preferredSalesChannelId], references: [id])
   provinceId              String            @default("")
@@ -726,6 +727,8 @@ model PaymentAttempt {
   attemptNumber         String          @unique
   checkoutSessionId     String
   checkoutSession       CheckoutSession @relation(fields: [checkoutSessionId], references: [id], onDelete: Cascade)
+  orderId               String?
+  order                 Order?          @relation("OrderPaymentAttempts", fields: [orderId], references: [id], onDelete: SetNull)
   provider              String
   providerReference     String          @default("")
   providerTransactionId String          @default("")
@@ -744,9 +747,10 @@ model PaymentAttempt {
   expiresAt             DateTime
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
-  order                 Order?
+  currentForOrder       Order?          @relation("OrderCurrentPaymentAttempt")
 
   @@index([checkoutSessionId])
+  @@index([orderId])
   @@index([status])
 }
 
@@ -756,8 +760,9 @@ model Order {
   publicOrderNumber   String      @unique
   checkoutSessionId   String      @unique
   checkoutSession     CheckoutSession @relation(fields: [checkoutSessionId], references: [id], onDelete: Cascade)
-  paymentAttemptId    String      @unique
-  paymentAttempt      PaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Cascade)
+  paymentAttemptId    String?     @unique
+  paymentAttempt      PaymentAttempt? @relation("OrderCurrentPaymentAttempt", fields: [paymentAttemptId], references: [id], onDelete: SetNull)
+  paymentAttempts     PaymentAttempt[] @relation("OrderPaymentAttempts")
   paymentReference    String      @default("")
   customerId          String
   customerCode        String      @default("")
