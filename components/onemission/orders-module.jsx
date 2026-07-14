@@ -96,6 +96,28 @@ const ordersApi = {
     });
     return response.json();
   },
+  async approveReturn(id) {
+    const response = await fetch(`/api/admin/returns/${id}/approve`, {
+      method: "POST",
+    });
+    return response.json();
+  },
+  async rejectReturn(id, payload) {
+    const response = await fetch(`/api/admin/returns/${id}/reject`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+  async updateRefundStatus(id, payload) {
+    const response = await fetch(`/api/admin/returns/${id}/refund-status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
 };
 
 const fmtCurrency = (value) => "Rp " + Number(value || 0).toLocaleString("id-ID");
@@ -152,6 +174,11 @@ function orderStatusBadge(status) {
     COMPLETED: "bg-emerald-600/10 text-emerald-700",
     CANCELLED: "bg-rose-500/10 text-rose-600",
     REFUNDED: "bg-fuchsia-500/10 text-fuchsia-600",
+    RETURN_REQUESTED: "bg-orange-500/10 text-orange-600",
+    RETURN_APPROVED: "bg-cyan-500/10 text-cyan-700",
+    RETURN_REJECTED: "bg-rose-500/10 text-rose-600",
+    REFUND_PROCESSING: "bg-violet-500/10 text-violet-700",
+    REFUND_COMPLETED: "bg-emerald-500/10 text-emerald-700",
   };
 
   return (
@@ -238,6 +265,30 @@ function getTimelinePresentation(entry) {
       title: "Refunded",
       description: "Refund has been successfully processed.",
     },
+    RETURN_REQUESTED: {
+      title: "Return Requested",
+      description: "Customer submitted a return request.",
+    },
+    RETURN_PENDING_REVIEW: {
+      title: "Pending Review",
+      description: "Return request is waiting seller review.",
+    },
+    RETURN_APPROVED: {
+      title: "Return Approved",
+      description: "Return request has been approved.",
+    },
+    RETURN_REJECTED: {
+      title: "Return Rejected",
+      description: "Return request has been rejected.",
+    },
+    REFUND_PROCESSING: {
+      title: "Refund Processing",
+      description: "Refund is currently being processed.",
+    },
+    REFUND_COMPLETED: {
+      title: "Refund Completed",
+      description: "Refund has been completed.",
+    },
     MANUAL_INVENTORY_ADJUSTMENT: {
       title: "Manual Inventory Adjustment",
       description: "Inventory was manually adjusted by warehouse staff.",
@@ -294,6 +345,8 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   const [shipmentService, setShipmentService] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [shippingDate, setShippingDate] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [refundStatus, setRefundStatus] = useState("NONE");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -305,6 +358,8 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
     setShipmentService(order.shipment?.service || "");
     setTrackingNumber(order.shipment?.trackingNumber || "");
     setShippingDate(toDatetimeLocalInputValue(order.shipment?.shippingDate));
+    setRejectReason("");
+    setRefundStatus(order.returnRequest?.refundStatus || "NONE");
   }, [order, open, userName]);
 
   useEffect(() => {
@@ -320,6 +375,58 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   const shouldShowShipmentInformation = shipmentLocked || [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(fulfillmentStatus);
   const trackShipmentUrl = buildShipmentTrackingUrl(shipmentCourier || order.shipment?.courier, trackingNumber || order.shipment?.trackingNumber);
   const showTrackShipmentButton = Boolean(trackingNumber || order.shipment?.trackingNumber);
+
+  const approveReturn = async () => {
+    if (!order?.returnRequest?.id) return;
+    setSaving(true);
+    try {
+      const result = await ordersApi.approveReturn(order.returnRequest.id);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Return approved successfully.");
+      onUpdated?.(result);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const rejectReturn = async () => {
+    if (!order?.returnRequest?.id) return;
+    if (!rejectReason.trim()) {
+      toast.error("Reject Reason is required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await ordersApi.rejectReturn(order.returnRequest.id, { rejectReason });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Return rejected successfully.");
+      onUpdated?.(result);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveRefundStatus = async () => {
+    if (!order?.returnRequest?.id) return;
+    setSaving(true);
+    try {
+      const result = await ordersApi.updateRefundStatus(order.returnRequest.id, { refundStatus });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Refund status updated successfully.");
+      onUpdated?.(result);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const saveFulfillment = async () => {
     if (!order?.id) return;
@@ -469,6 +576,60 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
             <DetailRow label="Tax" value={fmtCurrency(order.tax)} />
             <DetailRow label="Grand Total" value={fmtCurrency(order.grandTotal)} />
           </DetailSection>
+
+          {order.returnRequest ? (
+            <DetailSection title="Return Management">
+              <DetailRow label="Reason" value={order.returnRequest.reason} />
+              <DetailRow label="Description" value={order.returnRequest.description || "—"} />
+              <DetailRow label="Request Date" value={fmtDateTime(order.returnRequest.requestedAt)} />
+              <DetailRow label="Return Status" value={order.returnRequest.status} />
+              <DetailRow label="Refund Status" value={order.returnRequest.refundStatus} />
+              {order.returnRequest.rejectReason ? (
+                <DetailRow label="Reject Reason" value={order.returnRequest.rejectReason} />
+              ) : null}
+              {Array.isArray(order.returnRequest.attachments) && order.returnRequest.attachments.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 py-3">
+                  {order.returnRequest.attachments.map((attachment, index) => (
+                    <a key={`${order.returnRequest.id}-attachment-${index}`} href={attachment} target="_blank" rel="noreferrer" className="rounded-lg border border-border/30 overflow-hidden bg-muted/20">
+                      <img src={attachment} alt={`Return attachment ${index + 1}`} className="w-full h-32 object-cover" />
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-3">
+                <div className="space-y-1.5">
+                  <Label>Reject Reason</Label>
+                  <Textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Required only when rejecting a return request..." rows={3} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Refund Status</Label>
+                  <Select value={refundStatus} onValueChange={setRefundStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">None</SelectItem>
+                      <SelectItem value="PROCESSING">Processing</SelectItem>
+                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 py-2">
+                {order.returnRequest.status === "REQUESTED" ? (
+                  <>
+                    <Button type="button" variant="outline" onClick={approveReturn} disabled={saving}>
+                      Approve Return
+                    </Button>
+                    <Button type="button" variant="destructive" onClick={rejectReturn} disabled={saving}>
+                      Reject Return
+                    </Button>
+                  </>
+                ) : null}
+                <Button type="button" variant="outline" onClick={saveRefundStatus} disabled={saving}>
+                  Update Refund Status
+                </Button>
+              </div>
+            </DetailSection>
+          ) : null}
 
           <DetailSection title="Fulfillment Management">
             <div className="grid grid-cols-2 gap-4 py-3">

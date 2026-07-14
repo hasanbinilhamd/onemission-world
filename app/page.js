@@ -793,6 +793,7 @@ function Dashboard({
   const lowStockItems = details?.lowStockItems || [];
   const productionSummary = details?.productionSummary || {};
   const contentPlannerSummary = details?.contentPlannerSummary || {};
+  const returnSummary = details?.returnSummary || {};
   const upcomingContent = details?.upcomingContent || [];
   const cashPositionSummary = details?.cashPositionSummary || [];
 
@@ -1183,6 +1184,36 @@ function Dashboard({
                   </button>
                 ))
               )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Returns & Refunds</CardTitle>
+            <CardDescription>Current order return and refund workload</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Pending Return</p>
+                <p className="text-lg font-semibold mt-1">{Number(returnSummary.pendingReturn || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Approved Return</p>
+                <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(returnSummary.approvedReturn || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Processing</p>
+                <p className="text-lg font-semibold mt-1 text-amber-500">{Number(returnSummary.refundProcessing || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Completed</p>
+                <p className="text-lg font-semibold mt-1 text-emerald-600">{Number(returnSummary.refundCompleted || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2 col-span-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Cancelled Orders</p>
+                <p className="text-lg font-semibold mt-1 text-rose-500">{Number(returnSummary.cancelledOrders || 0).toLocaleString()}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
