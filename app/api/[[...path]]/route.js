@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkoutService, normalizeCheckoutError } from '@/lib/checkout';
+import { authenticateCustomerRequest, normalizeCustomerAuthError } from '@/lib/customer-auth';
 import { generateCustomerCode } from '@/lib/customer-auth/customer-number';
 import { dashboardService } from '@/lib/dashboard';
 import { financePostingService } from '@/lib/finance-posting';
@@ -160,6 +161,14 @@ function buildPaymentAttemptErrorResponse(error) {
   return NextResponse.json(
     { error: normalized.message },
     { status: normalized.statusCode || 500 }
+  );
+}
+
+function buildCustomerAuthErrorResponse(error) {
+  const normalized = normalizeCustomerAuthError(error);
+  return NextResponse.json(
+    { error: normalized.message },
+    { status: normalized.statusCode || 500 },
   );
 }
 
@@ -561,9 +570,19 @@ async function handle(request, { params }) {
     // ---------- CHECKOUT ----------
     if (segs[0] === 'checkout' && segs[1] === 'session' && method === 'POST' && segs.length === 2) {
       const body = await readJson(request);
+      let authenticatedCustomer = null;
 
       try {
-        const session = await checkoutService.createCheckoutSession(body);
+        authenticatedCustomer = await authenticateCustomerRequest(request, { optional: true });
+      } catch (error) {
+        return buildCustomerAuthErrorResponse(error);
+      }
+
+      try {
+        const session = await checkoutService.createCheckoutSession({
+          ...body,
+          authenticatedCustomerId: authenticatedCustomer?.customer?.id || '',
+        });
         return NextResponse.json(session);
       } catch (error) {
         return buildCheckoutErrorResponse(error);

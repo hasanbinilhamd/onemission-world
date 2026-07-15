@@ -10,6 +10,8 @@ function createCheckoutService({
   expiresAt,
   sessionStatus = 'DRAFT',
   processingKey = null,
+  existingCustomerByEmail = null,
+  existingCustomerByPhone = null,
 } = {}) {
   const customer = {
     id: 'customer-1',
@@ -105,7 +107,26 @@ function createCheckoutService({
 
   const prismaClient = {
     customer: {
-      findUnique: async ({ where }) => (where.id === customer.id ? customer : null),
+      findUnique: async ({ where }) => {
+        if (where.id) {
+          return where.id === customer.id ? customer : null;
+        }
+
+        if (where.email) {
+          return where.email === existingCustomerByEmail?.email ? existingCustomerByEmail : null;
+        }
+
+        if (where.phone) {
+          return where.phone === existingCustomerByPhone?.phone ? existingCustomerByPhone : null;
+        }
+
+        return null;
+      },
+      update: async ({ where, data }) => ({
+        ...(existingCustomerByEmail && where.id === existingCustomerByEmail.id ? existingCustomerByEmail : existingCustomerByPhone || customer),
+        ...data,
+      }),
+      create: async ({ data }) => ({ ...data }),
     },
     salesChannel: {
       findUnique: async ({ where }) => (where.id === salesChannel.id ? salesChannel : null),
@@ -204,6 +225,17 @@ const validPayload = {
   },
 };
 
+const guestPayload = {
+  ...validPayload,
+  customerId: undefined,
+  customer: {
+    customerName: 'John Doe',
+    email: 'john@example.com',
+    phone: '+628123456789',
+    customerType: 'Individual',
+  },
+};
+
 test('rejects inactive product during checkout validation', async () => {
   const { service } = createCheckoutService({ productStatus: 'Inactive' });
 
@@ -245,6 +277,47 @@ test('rejects invalid shipping during checkout validation', async () => {
   await assert.rejects(
     service.createCheckoutSession(validPayload),
     (error) => error.code === 'CHECKOUT_SHIPPING_RATE_INVALID',
+  );
+});
+
+test('allows authenticated checkout to bypass guest email conflict checks', async () => {
+  const { service } = createCheckoutService({
+    existingCustomerByEmail: {
+      id: 'registered-customer-1',
+      customerCode: 'CUS-9999',
+      customerName: 'Registered Customer',
+      email: 'john@example.com',
+      phone: '+628000000000',
+      status: 'Active',
+      isGuest: false,
+    },
+  });
+
+  const session = await service.createCheckoutSession({
+    ...guestPayload,
+    authenticatedCustomerId: 'customer-1',
+  });
+
+  assert.equal(session.customer.id, 'customer-1');
+  assert.equal(session.customer.email, 'john@example.com');
+});
+
+test('keeps guest checkout protected when email belongs to a registered customer', async () => {
+  const { service } = createCheckoutService({
+    existingCustomerByEmail: {
+      id: 'registered-customer-1',
+      customerCode: 'CUS-9999',
+      customerName: 'Registered Customer',
+      email: 'john@example.com',
+      phone: '+628000000000',
+      status: 'Active',
+      isGuest: false,
+    },
+  });
+
+  await assert.rejects(
+    service.createCheckoutSession(guestPayload),
+    (error) => error.code === 'CHECKOUT_CUSTOMER_LOGIN_REQUIRED',
   );
 });
 
