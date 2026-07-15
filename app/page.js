@@ -13,6 +13,7 @@ import {
   School,
   Route,
   Wallet,
+  CreditCard,
   PartyPopper,
   FileBarChart2,
   Bell,
@@ -83,6 +84,10 @@ import {
 const OrdersModule = dynamic(
   () => import("@/components/onemission/orders-module").then((module) => module.OrdersModule),
   { loading: () => <TableSkeleton rows={8} cols={7} /> },
+);
+const CheckoutSessionsModule = dynamic(
+  () => import("@/components/onemission/checkout-sessions-module").then((module) => module.CheckoutSessionsModule),
+  { loading: () => <TableSkeleton rows={8} cols={8} /> },
 );
 
 const UsersSettingsModule = dynamic(
@@ -506,6 +511,7 @@ const NAV_GROUPS = [
     children: [
       { id: "customers", label: "Customers", icon: Users },
       { id: "orders", label: "Orders", icon: ShoppingCart },
+      { id: "checkoutsessions", label: "Checkout Sessions", icon: CreditCard },
       { id: "saleschannels", label: "Sales Channels", icon: Globe },
       { id: "schools", label: "School Partners", icon: School },
     ],
@@ -16848,6 +16854,7 @@ function App() {
         onReferenceSelectionHandled={() => setOrderReferenceSelection(null)}
       />
     ),
+    checkoutsessions: () => <CheckoutSessionsModule />,
     saleschannels: () => <SalesChannelsModule activeModule={active} />,
     campaigns: () => <ComingSoonModule pageId="campaigns" />,
     productanalytics: () => <ProductAnalyticsModule activeModule={active} />,

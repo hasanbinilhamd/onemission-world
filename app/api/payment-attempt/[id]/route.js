@@ -11,7 +11,7 @@ function buildPaymentAttemptErrorResponse(error) {
 
 export async function GET(_request, { params }) {
   try {
-    const attempt = await paymentAttemptService.getPaymentAttemptById(params.id);
+    const attempt = await paymentAttemptService.getPaymentAttemptStateById(params.id);
     return NextResponse.json(paymentAttemptService.buildPaymentAttemptResponse(attempt));
   } catch (error) {
     return buildPaymentAttemptErrorResponse(error);
