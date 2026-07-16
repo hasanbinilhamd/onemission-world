@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withDevTiming } from '@/lib/dev-timing';
-import { requireHqPermission, writeAuditLog } from '@/lib/hq-security';
+import { requireHqPermission } from '@/lib/hq-security';
 import { normalizeOrderError, orderService } from '@/lib/order';
 
 function buildOrderErrorResponse(error) {
@@ -11,28 +11,22 @@ function buildOrderErrorResponse(error) {
   );
 }
 
-export async function POST(request, { params }) {
+export async function GET(request) {
   return withDevTiming(request, async () => {
-    let authContext;
+    const url = new URL(request.url);
 
     try {
-      authContext = await requireHqPermission(request, 'sales', 'fulfillment');
+      await requireHqPermission(request, 'sales', 'view');
     } catch (error) {
       return NextResponse.json({ error: error.message }, { status: error.statusCode || 403 });
     }
 
     try {
-      const response = await orderService.approveReturnRequest({
-        returnRequestId: params.id,
-        updatedBy: authContext.user.email || authContext.user.name,
-      });
-
-      await writeAuditLog({
-        user: authContext.user,
-        module: 'SALES',
-        action: 'REFUND_APPROVED',
-        description: `Approved refund request ${params.id}.`,
-        metadata: { returnRequestId: params.id },
+      const response = await orderService.listRefundRequests({
+        page: url.searchParams.get('page') || 1,
+        limit: url.searchParams.get('limit') || 10,
+        search: url.searchParams.get('search') || '',
+        refundStatus: url.searchParams.get('refundStatus') || 'all',
       });
 
       return NextResponse.json(response);

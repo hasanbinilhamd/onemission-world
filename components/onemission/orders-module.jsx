@@ -582,14 +582,36 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
           </DetailSection>
 
           {order.returnRequest ? (
-            <DetailSection title="Return Management">
+            <DetailSection title="Refund Overview">
+              <DetailRow label="Request Type" value={order.returnRequest.requestType || "PRODUCT_RETURN"} />
               <DetailRow label="Reason" value={order.returnRequest.reason} />
               <DetailRow label="Description" value={order.returnRequest.description || "—"} />
               <DetailRow label="Request Date" value={fmtDateTime(order.returnRequest.requestedAt)} />
-              <DetailRow label="Return Status" value={order.returnRequest.status} />
               <DetailRow label="Refund Status" value={order.returnRequest.refundStatus} />
+              <DetailRow label="Refund Amount" value={fmtCurrency(order.returnRequest.refundAmount || order.grandTotal || 0)} />
+              <DetailRow label="Refund Reference" value={order.returnRequest.refundReference || "—"} />
+              <DetailRow label="Refund Provider ID" value={order.returnRequest.refundProviderId || "—"} />
               {order.returnRequest.rejectReason ? (
                 <DetailRow label="Reject Reason" value={order.returnRequest.rejectReason} />
+              ) : null}
+              {Array.isArray(order.returnRequest.timeline) && order.returnRequest.timeline.length > 0 ? (
+                <div className="space-y-3 py-3">
+                  {order.returnRequest.timeline.map((entry) => (
+                    <div key={`${entry.status}-${entry.timestamp}`} className="rounded-lg border border-border/30 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-foreground">{entry.label}</p>
+                        <span className="text-xs text-muted-foreground">{fmtDateTime(entry.timestamp)}</span>
+                      </div>
+                      {entry.notes ? (
+                        <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                          {String(entry.notes).split("\n").filter(Boolean).map((line, index) => (
+                            <p key={`${entry.status}-note-${index}`}>{line}</p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
               ) : null}
               {Array.isArray(order.returnRequest.attachments) && order.returnRequest.attachments.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 py-3">
@@ -600,37 +622,8 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
                   ))}
                 </div>
               ) : null}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-3">
-                <div className="space-y-1.5">
-                  <Label>Reject Reason</Label>
-                  <Textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Required only when rejecting a return request..." rows={3} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Refund Status</Label>
-                  <Select value={refundStatus} onValueChange={setRefundStatus}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NONE">None</SelectItem>
-                      <SelectItem value="PROCESSING">Processing</SelectItem>
-                      <SelectItem value="COMPLETED">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2 py-2">
-                {order.returnRequest.status === "REQUESTED" ? (
-                  <>
-                    <Button type="button" variant="outline" onClick={approveReturn} disabled={saving}>
-                      Approve Return
-                    </Button>
-                    <Button type="button" variant="destructive" onClick={rejectReturn} disabled={saving}>
-                      Reject Return
-                    </Button>
-                  </>
-                ) : null}
-                <Button type="button" variant="outline" onClick={saveRefundStatus} disabled={saving}>
-                  Update Refund Status
-                </Button>
+              <div className="rounded-lg border border-border/30 bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
+                Use the Refund Requests module to approve or reject refund requests. Refund completion is synchronized automatically from Midtrans webhook events.
               </div>
             </DetailSection>
           ) : null}

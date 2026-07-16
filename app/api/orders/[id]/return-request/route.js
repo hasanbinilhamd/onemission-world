@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateCustomerRequest, normalizeCustomerAuthError } from '@/lib/customer-auth';
+import { writeAuditLog } from '@/lib/hq-security';
 import { normalizeOrderError, orderService } from '@/lib/order';
 
 function buildOrderErrorResponse(error) {
@@ -36,6 +37,21 @@ export async function POST(request, { params }) {
       reason: payload.reason,
       description: payload.description,
       attachments: Array.isArray(payload.attachments) ? payload.attachments : [],
+    });
+
+    await writeAuditLog({
+      user: authenticatedCustomer?.customer ? {
+        name: authenticatedCustomer.customer.customerName,
+        email: authenticatedCustomer.customer.email,
+      } : payload.email ? { email: payload.email } : null,
+      module: 'SALES',
+      action: 'CUSTOMER_RETURN_REQUESTED',
+      description: `Customer submitted a return refund request for order ${order.publicOrderNumber || order.orderNumber || params.id}.`,
+      metadata: {
+        orderId: order.id,
+        publicOrderNumber: order.publicOrderNumber,
+        reason: payload.reason || '',
+      },
     });
 
     return NextResponse.json(order);

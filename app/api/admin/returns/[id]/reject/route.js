@@ -32,8 +32,8 @@ export async function POST(request, { params }) {
       await writeAuditLog({
         user: authContext.user,
         module: 'SALES',
-        action: 'RETURN_REJECTED',
-        description: `Rejected return request ${params.id}.`,
+        action: 'REFUND_REJECTED',
+        description: `Rejected refund request ${params.id}.`,
         metadata: { returnRequestId: params.id },
       });
 

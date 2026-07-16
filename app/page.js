@@ -89,6 +89,10 @@ const CheckoutSessionsModule = dynamic(
   () => import("@/components/onemission/checkout-sessions-module").then((module) => module.CheckoutSessionsModule),
   { loading: () => <TableSkeleton rows={8} cols={8} /> },
 );
+const RefundRequestsModule = dynamic(
+  () => import("@/components/onemission/refund-requests-module").then((module) => module.RefundRequestsModule),
+  { loading: () => <TableSkeleton rows={8} cols={8} /> },
+);
 
 const UsersSettingsModule = dynamic(
   () => import("@/components/onemission/settings-governance").then((module) => module.UsersSettingsModule),
@@ -511,6 +515,7 @@ const NAV_GROUPS = [
     children: [
       { id: "customers", label: "Customers", icon: Users },
       { id: "orders", label: "Orders", icon: ShoppingCart },
+      { id: "refundrequests", label: "Refund Requests", icon: Wallet },
       { id: "checkoutsessions", label: "Checkout Sessions", icon: CreditCard },
       { id: "saleschannels", label: "Sales Channels", icon: Globe },
       { id: "schools", label: "School Partners", icon: School },
@@ -1201,24 +1206,24 @@ function Dashboard({
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Pending Return</p>
-                <p className="text-lg font-semibold mt-1">{Number(returnSummary.pendingReturn || 0).toLocaleString()}</p>
-              </div>
-              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Approved Return</p>
-                <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(returnSummary.approvedReturn || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Requested</p>
+                <p className="text-lg font-semibold mt-1">{Number(returnSummary.refundRequested || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Processing</p>
-                <p className="text-lg font-semibold mt-1 text-amber-500">{Number(returnSummary.refundProcessing || 0).toLocaleString()}</p>
+                <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(returnSummary.refundProcessing || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Completed</p>
                 <p className="text-lg font-semibold mt-1 text-emerald-600">{Number(returnSummary.refundCompleted || 0).toLocaleString()}</p>
               </div>
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Rejected</p>
+                <p className="text-lg font-semibold mt-1 text-rose-500">{Number(returnSummary.refundRejected || 0).toLocaleString()}</p>
+              </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2 col-span-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Cancelled Orders</p>
-                <p className="text-lg font-semibold mt-1 text-rose-500">{Number(returnSummary.cancelledOrders || 0).toLocaleString()}</p>
+                <p className="text-lg font-semibold mt-1 text-amber-500">{Number(returnSummary.cancelledOrders || 0).toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -16854,6 +16859,7 @@ function App() {
         onReferenceSelectionHandled={() => setOrderReferenceSelection(null)}
       />
     ),
+    refundrequests: () => <RefundRequestsModule />,
     checkoutsessions: () => <CheckoutSessionsModule />,
     saleschannels: () => <SalesChannelsModule activeModule={active} />,
     campaigns: () => <ComingSoonModule pageId="campaigns" />,
