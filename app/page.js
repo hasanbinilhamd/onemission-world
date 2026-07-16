@@ -1210,6 +1210,10 @@ function Dashboard({
                 <p className="text-lg font-semibold mt-1">{Number(returnSummary.refundRequested || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Approved</p>
+                <p className="text-lg font-semibold mt-1 text-blue-600">{Number(returnSummary.refundApproved || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Processing</p>
                 <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(returnSummary.refundProcessing || 0).toLocaleString()}</p>
               </div>
@@ -1220,6 +1224,10 @@ function Dashboard({
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Rejected</p>
                 <p className="text-lg font-semibold mt-1 text-rose-500">{Number(returnSummary.refundRejected || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Failed</p>
+                <p className="text-lg font-semibold mt-1 text-red-800">{Number(returnSummary.refundFailed || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2 col-span-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Cancelled Orders</p>

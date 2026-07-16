@@ -31,6 +31,7 @@ const REFUND_STATUS_OPTIONS = [
   { value: "PROCESSING", label: "PROCESSING" },
   { value: "COMPLETED", label: "COMPLETED" },
   { value: "REJECTED", label: "REJECTED" },
+  { value: "FAILED", label: "FAILED" },
 ];
 
 function fmtCurrency(value) {
@@ -54,9 +55,10 @@ function refundStatusBadge(status) {
   const styles = {
     REQUESTED: "bg-amber-500/10 text-amber-600",
     APPROVED: "bg-cyan-500/10 text-cyan-700",
-    PROCESSING: "bg-violet-500/10 text-violet-700",
+    PROCESSING: "bg-indigo-500/10 text-indigo-700",
     COMPLETED: "bg-emerald-500/10 text-emerald-700",
     REJECTED: "bg-rose-500/10 text-rose-600",
+    FAILED: "bg-red-900/10 text-red-800",
     NONE: "bg-slate-500/10 text-slate-600",
   };
 
@@ -93,6 +95,12 @@ const refundRequestsApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+  async retry(id) {
+    const response = await fetch(`/api/admin/returns/${id}/retry`, {
+      method: "POST",
     });
     return response.json();
   },
@@ -143,8 +151,24 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
     }
   };
 
-  const canApprove = item.refundStatus === "REQUESTED" || item.refundStatus === "APPROVED";
-  const canReject = item.refundStatus === "REQUESTED" || item.refundStatus === "APPROVED";
+  const handleRetry = async () => {
+    setSaving(true);
+    try {
+      const result = await refundRequestsApi.retry(item.id);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(result?.returnRequest?.refundStatus === 'PROCESSING' ? "Refund sent to Midtrans successfully." : "Refund retry processed.");
+      onUpdated?.(result);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const canApprove = item.refundStatus === "REQUESTED";
+  const canRetry = item.refundStatus === "APPROVED" || item.refundStatus === "FAILED";
+  const canReject = item.refundStatus === "REQUESTED" || item.refundStatus === "APPROVED" || item.refundStatus === "FAILED";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -177,6 +201,7 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Reference</span><span className="font-mono text-xs text-right">{item.refundReference || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Provider</span><span className="font-medium text-right">{item.refundProvider || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Midtrans Refund ID</span><span className="font-mono text-xs text-right">{item.refundProviderId || "—"}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Failure Reason</span><span className="font-medium text-right">{item.refundFailureReason || "—"}</span></div>
               </CardContent>
             </Card>
           </div>
@@ -265,6 +290,11 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
               Reject Refund
             </Button>
           ) : null}
+          {canRetry ? (
+            <Button variant="outline" onClick={handleRetry} disabled={saving}>
+              Retry Refund
+            </Button>
+          ) : null}
           {canApprove ? (
             <Button onClick={handleApprove} disabled={saving}>
               Approve Refund
@@ -344,7 +374,7 @@ export function RefundRequestsModule() {
         <CardContent className="pt-4 pb-4">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-end">
             <div className="lg:col-span-2">
-              <p className="text-xs text-muted-foreground mb-1">Search order number / customer</p>
+              <p className="text-xs text-muted-foreground mb-1">Search order number / customer / email</p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input className="pl-9" placeholder="Search refund request…" value={search} onChange={(event) => setSearch(event.target.value)} />

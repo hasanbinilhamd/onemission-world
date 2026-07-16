@@ -856,6 +856,8 @@ model ReturnRequest {
   customerId       String
   customer         Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   requestType      String   @default("PRODUCT_RETURN")
+  previousOrderStatus String @default("")
+  previousFulfillmentStatus String @default("")
   reason           String
   description      String   @default("")
   status           String   @default("REQUESTED")
@@ -865,6 +867,7 @@ model ReturnRequest {
   refundAmount     Float    @default(0)
   refundProvider   String   @default("")
   refundProviderId String   @default("")
+  refundFailureReason String @default("")
   refundMetadata   Json?
   attachments      String[]
   requestedAt      DateTime @default(now())
@@ -874,6 +877,7 @@ model ReturnRequest {
   refundApprovedAt DateTime?
   refundProcessingAt DateTime?
   refundCompletedAt DateTime?
+  lastRefundAttemptAt DateTime?
   rejectedAt       DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

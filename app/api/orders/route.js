@@ -30,6 +30,7 @@ export async function GET(request) {
         sortOrder: url.searchParams.get('sortOrder') || 'desc',
         paymentStatus: url.searchParams.get('paymentStatus') || '',
         fulfillmentStatus: url.searchParams.get('fulfillmentStatus') || '',
+        status: url.searchParams.get('status') || 'ALL',
         startDate: url.searchParams.get('startDate') || '',
         endDate: url.searchParams.get('endDate') || '',
         courier: url.searchParams.get('courier') || '',

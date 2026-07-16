@@ -62,11 +62,30 @@ const SORT_OPTIONS = [
   { value: "fulfillmentStatus:asc", label: "Fulfillment Status" },
 ];
 
+const ORDER_STATUS_TABS = [
+  { value: "ALL", label: "All", summaryKey: "all" },
+  { value: "PENDING_PAYMENT", label: "Pending Payment", summaryKey: "pendingPayment" },
+  { value: "PAID", label: "Paid", summaryKey: "paid" },
+  { value: "NEED_FULFILLMENT", label: "Need Fulfillment", summaryKey: "needFulfillment" },
+  { value: "PROCESSING", label: "Processing", summaryKey: "processing" },
+  { value: "PACKED", label: "Packed", summaryKey: "packed" },
+  { value: "SHIPPED", label: "Shipped", summaryKey: "shipped" },
+  { value: "DELIVERED", label: "Delivered", summaryKey: "delivered" },
+  { value: "COMPLETED", label: "Completed", summaryKey: "completed" },
+  { value: "CANCELLED", label: "Cancelled", summaryKey: "cancelled" },
+  { value: "REFUND_REQUESTED", label: "Refund Requested", summaryKey: "refundRequested" },
+  { value: "REFUND_APPROVED", label: "Refund Approved", summaryKey: "refundApproved" },
+  { value: "REFUND_PROCESSING", label: "Refund Processing", summaryKey: "refundProcessing" },
+  { value: "REFUND_COMPLETED", label: "Refund Completed", summaryKey: "refundCompleted" },
+  { value: "REFUND_REJECTED", label: "Refund Rejected", summaryKey: "refundRejected" },
+  { value: "REFUND_FAILED", label: "Refund Failed", summaryKey: "refundFailed" },
+];
+
 const DEFAULT_SORT = SORT_OPTIONS[0].value;
 const DEFAULT_LIMIT = 10;
 
 const ordersApi = {
-  async list({ page, limit, search, sortBy, sortOrder, paymentStatus, fulfillmentStatus, startDate, endDate, courier }) {
+  async list({ page, limit, search, sortBy, sortOrder, paymentStatus, fulfillmentStatus, status, startDate, endDate, courier }) {
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),
@@ -77,6 +96,7 @@ const ordersApi = {
     if (search) params.set("search", search);
     if (paymentStatus) params.set("paymentStatus", paymentStatus);
     if (fulfillmentStatus) params.set("fulfillmentStatus", fulfillmentStatus);
+    if (status) params.set("status", status);
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
     if (courier) params.set("courier", courier);
@@ -137,9 +157,10 @@ function paymentStatusBadge(status) {
   const styles = {
     PAID: "bg-emerald-500/10 text-emerald-600",
     PENDING: "bg-amber-500/10 text-amber-600",
-    FAILED: "bg-rose-500/10 text-rose-600",
+    FAILED: "bg-red-900/10 text-red-800",
     EXPIRED: "bg-slate-500/10 text-slate-600",
     CREATED: "bg-blue-500/10 text-blue-600",
+    REFUNDED: "bg-emerald-500/10 text-emerald-700",
   };
 
   return (
@@ -151,12 +172,14 @@ function paymentStatusBadge(status) {
 
 function fulfillmentStatusBadge(status) {
   const styles = {
-    PENDING: "bg-slate-500/10 text-slate-600",
+    WAITING_PAYMENT: "bg-slate-500/10 text-slate-600",
+    PENDING: "bg-emerald-500/10 text-emerald-600",
     PICKING: "bg-blue-500/10 text-blue-600",
     PACKING: "bg-violet-500/10 text-violet-600",
     READY_TO_SHIP: "bg-cyan-500/10 text-cyan-700",
     SHIPPED: "bg-amber-500/10 text-amber-600",
     DELIVERED: "bg-emerald-600/10 text-emerald-700",
+    CANCELLED: "bg-rose-500/10 text-rose-600",
   };
 
   return (
@@ -168,17 +191,26 @@ function fulfillmentStatusBadge(status) {
 
 function orderStatusBadge(status) {
   const styles = {
+    PENDING_PAYMENT: "bg-slate-500/10 text-slate-600",
+    PAID: "bg-emerald-500/10 text-emerald-600",
     READY_FOR_FULFILLMENT: "bg-slate-500/10 text-slate-600",
+    NEED_FULFILLMENT: "bg-slate-500/10 text-slate-600",
     PROCESSING: "bg-blue-500/10 text-blue-600",
+    PACKED: "bg-cyan-500/10 text-cyan-700",
     SHIPPED: "bg-amber-500/10 text-amber-600",
+    DELIVERED: "bg-emerald-600/10 text-emerald-700",
     COMPLETED: "bg-emerald-600/10 text-emerald-700",
     CANCELLED: "bg-rose-500/10 text-rose-600",
     REFUNDED: "bg-fuchsia-500/10 text-fuchsia-600",
-    RETURN_REQUESTED: "bg-orange-500/10 text-orange-600",
-    RETURN_APPROVED: "bg-cyan-500/10 text-cyan-700",
-    RETURN_REJECTED: "bg-rose-500/10 text-rose-600",
-    REFUND_PROCESSING: "bg-violet-500/10 text-violet-700",
+    REFUND_REQUESTED: "bg-orange-500/10 text-orange-600",
+    REFUND_APPROVED: "bg-blue-500/10 text-blue-600",
+    REFUND_PROCESSING: "bg-indigo-500/10 text-indigo-700",
     REFUND_COMPLETED: "bg-emerald-500/10 text-emerald-700",
+    REFUND_REJECTED: "bg-rose-500/10 text-rose-600",
+    REFUND_FAILED: "bg-red-900/10 text-red-800",
+    RETURN_REQUESTED: "bg-orange-500/10 text-orange-600",
+    RETURN_APPROVED: "bg-blue-500/10 text-blue-600",
+    RETURN_REJECTED: "bg-rose-500/10 text-rose-600",
   };
 
   return (
@@ -265,17 +297,25 @@ function getTimelinePresentation(entry) {
       title: "Cancelled",
       description: "This order has been cancelled.",
     },
+    FULFILLMENT_CANCELLED: {
+      title: "Fulfillment Cancelled",
+      description: "Fulfillment was synchronized with the cancelled order.",
+    },
+    ORDER_RESTORED: {
+      title: "Order Restored",
+      description: "Order was restored after refund rejection.",
+    },
     REFUNDED: {
       title: "Refunded",
       description: "Refund has been successfully processed.",
     },
     RETURN_REQUESTED: {
-      title: "Return Requested",
-      description: "Customer submitted a return request.",
+      title: "Refund Requested",
+      description: "Customer submitted a refund request.",
     },
     RETURN_PENDING_REVIEW: {
       title: "Pending Review",
-      description: "Return request is waiting seller review.",
+      description: "Refund request is waiting HQ review.",
     },
     RETURN_APPROVED: {
       title: "Return Approved",
@@ -285,13 +325,25 @@ function getTimelinePresentation(entry) {
       title: "Return Rejected",
       description: "Return request has been rejected.",
     },
+    REFUND_APPROVED: {
+      title: "Refund Approved",
+      description: "Refund was approved by HQ and is ready to be sent to Midtrans.",
+    },
     REFUND_PROCESSING: {
       title: "Refund Processing",
-      description: "Refund is currently being processed.",
+      description: "Refund request has been sent to Midtrans and is waiting webhook confirmation.",
     },
     REFUND_COMPLETED: {
       title: "Refund Completed",
       description: "Refund has been completed.",
+    },
+    REFUND_FAILED: {
+      title: "Refund Failed",
+      description: "Refund request could not be processed and may require retry.",
+    },
+    REFUND_REJECTED: {
+      title: "Refund Rejected",
+      description: "Refund request has been rejected.",
     },
     MANUAL_INVENTORY_ADJUSTMENT: {
       title: "Manual Inventory Adjustment",
@@ -756,6 +808,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [sortValue, setSortValue] = useState(DEFAULT_SORT);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
+  const [statusTab, setStatusTab] = useState("ALL");
   const [fulfillmentStatusFilter, setFulfillmentStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -763,14 +816,24 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   const [detailOrder, setDetailOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: DEFAULT_LIMIT, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
-  const [summary, setSummary] = useState({ pending: 0, picking: 0, packing: 0, readyToShip: 0, shipped: 0, delivered: 0 });
-  const visibleSummary = useMemo(() => ({
-    pending: summary.pending,
-    packing: summary.packing + summary.picking,
-    readyToShip: summary.readyToShip,
-    shipped: summary.shipped,
-    delivered: summary.delivered,
-  }), [summary]);
+  const [summary, setSummary] = useState({
+    all: 0,
+    pendingPayment: 0,
+    paid: 0,
+    needFulfillment: 0,
+    processing: 0,
+    packed: 0,
+    shipped: 0,
+    delivered: 0,
+    completed: 0,
+    cancelled: 0,
+    refundRequested: 0,
+    refundApproved: 0,
+    refundProcessing: 0,
+    refundCompleted: 0,
+    refundRejected: 0,
+    refundFailed: 0,
+  });
   const [pendingReference, setPendingReference] = useState("");
 
   const [sortBy, sortOrder] = useMemo(() => sortValue.split(":"), [sortValue]);
@@ -785,6 +848,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
       sortOrder,
       paymentStatus: paymentStatusFilter === "all" ? "" : paymentStatusFilter,
       fulfillmentStatus: fulfillmentStatusFilter === "all" ? "" : fulfillmentStatusFilter,
+      status: statusTab,
       startDate: dateFrom,
       endDate: dateTo,
       courier: courierFilter,
@@ -793,16 +857,50 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
       toast.error(result.error);
       setItems([]);
       setPagination({ page: 1, limit: DEFAULT_LIMIT, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
-      setSummary({ pending: 0, picking: 0, packing: 0, readyToShip: 0, shipped: 0, delivered: 0 });
+      setSummary({
+        all: 0,
+        pendingPayment: 0,
+        paid: 0,
+        needFulfillment: 0,
+        processing: 0,
+        packed: 0,
+        shipped: 0,
+        delivered: 0,
+        completed: 0,
+        cancelled: 0,
+        refundRequested: 0,
+        refundApproved: 0,
+        refundProcessing: 0,
+        refundCompleted: 0,
+        refundRejected: 0,
+        refundFailed: 0,
+      });
       setLoading(false);
       return;
     }
 
     setItems(Array.isArray(result?.data) ? result.data : []);
     setPagination(result?.pagination || { page: 1, limit, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
-    setSummary(result?.summary || { pending: 0, picking: 0, packing: 0, readyToShip: 0, shipped: 0, delivered: 0 });
+    setSummary(result?.summary || {
+      all: 0,
+      pendingPayment: 0,
+      paid: 0,
+      needFulfillment: 0,
+      processing: 0,
+      packed: 0,
+      shipped: 0,
+      delivered: 0,
+      completed: 0,
+      cancelled: 0,
+      refundRequested: 0,
+      refundApproved: 0,
+      refundProcessing: 0,
+      refundCompleted: 0,
+      refundRejected: 0,
+      refundFailed: 0,
+    });
     setLoading(false);
-  }, [courierFilter, dateFrom, dateTo, fulfillmentStatusFilter, limit, page, paymentStatusFilter, search, sortBy, sortOrder]);
+  }, [courierFilter, dateFrom, dateTo, fulfillmentStatusFilter, limit, page, paymentStatusFilter, search, sortBy, sortOrder, statusTab]);
 
   useEffect(() => {
     load();
@@ -810,7 +908,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
 
   useEffect(() => {
     setPage(1);
-  }, [search, sortValue, limit, paymentStatusFilter, fulfillmentStatusFilter, dateFrom, dateTo, courierFilter]);
+  }, [search, sortValue, limit, paymentStatusFilter, fulfillmentStatusFilter, statusTab, dateFrom, dateTo, courierFilter]);
 
   useEffect(() => {
     const nextReference = String(initialReferenceSelection?.referenceNumber || "").trim();
@@ -885,17 +983,14 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
         {[
-          { label: "Pending", value: visibleSummary.pending, icon: PackageCheck },
-          // TEMPORARILY DISABLED
-          // Picking is intentionally hidden in HQ while warehouse fulfillment
-          // starts directly from Packing. Historical Picking data is merged into
-          // the visible Packing summary for reporting continuity.
-          { label: "Packing", value: visibleSummary.packing, icon: PackageCheck },
-          { label: "Ready To Ship", value: visibleSummary.readyToShip, icon: Truck },
-          { label: "Shipped", value: visibleSummary.shipped, icon: Truck },
-          { label: "Delivered", value: visibleSummary.delivered, icon: CheckCircle2 },
+          { label: "Pending Payment", value: summary.pendingPayment, icon: PackageCheck },
+          { label: "Need Fulfillment", value: summary.needFulfillment, icon: PackageCheck },
+          { label: "Processing", value: summary.processing, icon: PackageCheck },
+          { label: "Packed", value: summary.packed, icon: PackageCheck },
+          { label: "Shipped", value: summary.shipped, icon: Truck },
+          { label: "Refund Requested", value: summary.refundRequested, icon: CheckCircle2 },
         ].map((card) => {
           const Icon = card.icon;
           return (
@@ -912,6 +1007,26 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
             </Card>
           );
         })}
+      </div>
+
+      <div className="rounded-2xl border border-border/60 bg-white p-3">
+        <div className="flex flex-wrap gap-2">
+          {ORDER_STATUS_TABS.map((tab) => {
+            const isActive = statusTab === tab.value;
+            const count = Number(summary[tab.summaryKey] || 0).toLocaleString();
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setStatusTab(tab.value)}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition-colors ${isActive ? 'border-[#111827] bg-[#111827] text-white' : 'border-border bg-white text-muted-foreground hover:bg-muted/40 hover:text-foreground'}`}
+              >
+                <span>{tab.label}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] ${isActive ? 'bg-white/15 text-white' : 'bg-muted text-foreground'}`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <Card>
@@ -1024,6 +1139,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Customer Name</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Total Amount</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Payment Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Order Status</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Fulfillment Status</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Total Items</th>
                   </tr>
@@ -1041,6 +1157,12 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
                       <td className="px-4 py-3 font-medium">{order.customerName}</td>
                       <td className="px-4 py-3 text-right font-medium">{fmtCurrency(order.totalAmount)}</td>
                       <td className="px-4 py-3">{paymentStatusBadge(order.paymentStatus)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {orderStatusBadge(order.status)}
+                          {order.returnRequest?.refundStatus && order.returnRequest.refundStatus !== 'NONE' ? orderStatusBadge(`REFUND_${order.returnRequest.refundStatus}`) : null}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">{fulfillmentStatusBadge(getVisibleFulfillmentStatus(order.fulfillmentStatusLabel || order.fulfillmentStatus))}</td>
                       <td className="px-4 py-3 text-right">{order.totalItems}</td>
                     </tr>

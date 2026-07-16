@@ -22,7 +22,7 @@ export async function POST(request, { params }) {
     }
 
     try {
-      const response = await orderService.approveReturnRequest({
+      const response = await orderService.retryRefundRequest({
         returnRequestId: params.id,
         updatedBy: authContext.user.email || authContext.user.name,
       });
@@ -30,36 +30,17 @@ export async function POST(request, { params }) {
       await writeAuditLog({
         user: authContext.user,
         module: 'SALES',
-        action: 'REFUND_APPROVED',
-        description: `Approved refund request ${params.id}.`,
-        metadata: { returnRequestId: params.id },
+        action: response.returnRequest?.refundStatus === 'PROCESSING' ? 'REFUND_SENT_TO_MIDTRANS' : 'REFUND_FAILED',
+        description: response.returnRequest?.refundStatus === 'PROCESSING'
+          ? `Retried refund request ${params.id} and sent it to Midtrans.`
+          : `Retried refund request ${params.id}, but it failed again.`,
+        metadata: {
+          returnRequestId: params.id,
+          refundStatus: response.returnRequest?.refundStatus || '',
+          refundReference: response.returnRequest?.refundReference || '',
+          refundFailureReason: response.returnRequest?.refundFailureReason || '',
+        },
       });
-
-      if (response?.returnRequest?.refundStatus === 'PROCESSING') {
-        await writeAuditLog({
-          user: authContext.user,
-          module: 'SALES',
-          action: 'REFUND_SENT_TO_MIDTRANS',
-          description: `Refund request ${params.id} was sent to Midtrans.`,
-          metadata: {
-            returnRequestId: params.id,
-            refundReference: response.returnRequest.refundReference || '',
-          },
-        });
-      }
-
-      if (response?.returnRequest?.refundStatus === 'FAILED') {
-        await writeAuditLog({
-          user: authContext.user,
-          module: 'SALES',
-          action: 'REFUND_FAILED',
-          description: `Refund request ${params.id} failed to send to Midtrans.`,
-          metadata: {
-            returnRequestId: params.id,
-            refundFailureReason: response.returnRequest.refundFailureReason || '',
-          },
-        });
-      }
 
       return NextResponse.json(response);
     } catch (error) {

@@ -37,6 +37,21 @@ export async function POST(request, { params }) {
         metadata: { returnRequestId: params.id },
       });
 
+      if (response?.returnRequest?.requestType === 'ORDER_CANCELLATION' && response?.returnRequest?.previousOrderStatus) {
+        await writeAuditLog({
+          user: authContext.user,
+          module: 'SALES',
+          action: 'ORDER_RESTORED',
+          description: `Order ${response.publicOrderNumber || response.orderNumber || ''} was restored after refund rejection.`,
+          metadata: {
+            returnRequestId: params.id,
+            orderId: response.id,
+            restoredOrderStatus: response.status,
+            restoredFulfillmentStatus: response.fulfillmentStatus,
+          },
+        });
+      }
+
       return NextResponse.json(response);
     } catch (error) {
       return buildOrderErrorResponse(error);
