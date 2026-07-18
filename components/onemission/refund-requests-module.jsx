@@ -124,7 +124,11 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
         toast.error(result.error);
         return;
       }
-      toast.success("Refund approved and sent to Midtrans.");
+      if (result?.returnRequest?.refundStatus === 'FAILED') {
+        toast.error(result.returnRequest.failureDisplayMessage || 'Refund failed to send to Midtrans.');
+      } else {
+        toast.success('Refund approved and sent to Midtrans.');
+      }
       onUpdated?.(result);
     } finally {
       setSaving(false);
@@ -159,7 +163,11 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
         toast.error(result.error);
         return;
       }
-      toast.success(result?.returnRequest?.refundStatus === 'PROCESSING' ? "Refund sent to Midtrans successfully." : "Refund retry processed.");
+      if (result?.returnRequest?.refundStatus === 'FAILED') {
+        toast.error(result.returnRequest.failureDisplayMessage || 'Refund retry failed.');
+      } else {
+        toast.success('Refund sent to Midtrans successfully.');
+      }
       onUpdated?.(result);
     } finally {
       setSaving(false);
@@ -188,6 +196,7 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Status</span><span>{refundStatusBadge(item.refundStatus)}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Request Type</span><span className="font-medium">{item.requestType || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Amount</span><span className="font-medium">{fmtCurrency(item.refundAmount)}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Retry Count</span><span className="font-medium">{Number(item.retryCount || 0)}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Reason</span><span className="font-medium text-right">{item.reason || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Description</span><span className="font-medium text-right">{item.description || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Reject Reason</span><span className="font-medium text-right">{item.rejectReason || "—"}</span></div>
@@ -196,12 +205,17 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
             <Card>
               <CardContent className="pt-5 pb-4 space-y-2 text-sm">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Payment Information</p>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Gateway</span><span className="font-medium text-right">{item.gatewayName || item.refundProvider || 'MIDTRANS'}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Payment Method</span><span className="font-medium text-right">{item.order?.payment?.paymentMethod || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Payment Status</span><span className="font-medium text-right">{item.order?.payment?.status || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Reference</span><span className="font-mono text-xs text-right">{item.refundReference || "—"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Provider</span><span className="font-medium text-right">{item.refundProvider || "—"}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Key</span><span className="font-mono text-xs text-right">{item.refundKey || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Midtrans Refund ID</span><span className="font-mono text-xs text-right">{item.refundProviderId || "—"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Failure Reason</span><span className="font-medium text-right">{item.refundFailureReason || "—"}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Current Gateway Status</span><span className="font-medium text-right">{item.currentGatewayStatus || item.refundStatus || "—"}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Request Time</span><span className="font-medium text-right">{fmtDateTime(item.requestTime)}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Response Time</span><span className="font-medium text-right">{fmtDateTime(item.responseTime)}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Failure Reason</span><span className="font-medium text-right">{item.failureDisplayMessage || '—'}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Retry Available</span><span className="font-medium text-right">{item.retryAvailable ? 'Yes' : 'No'}</span></div>
               </CardContent>
             </Card>
           </div>
@@ -243,6 +257,40 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No refund timeline is available yet.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-5 pb-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Refund Attempt History</p>
+              {Array.isArray(item.attempts) && item.attempts.length > 0 ? (
+                <div className="space-y-3">
+                  {item.attempts.map((attempt) => (
+                    <div key={attempt.id} className="rounded-lg border border-border/40 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">Attempt #{attempt.attemptNumber}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{attempt.gatewayName}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {refundStatusBadge(attempt.status)}
+                          <span className="text-xs text-muted-foreground">{fmtDateTime(attempt.createdAt)}</span>
+                        </div>
+                      </div>
+                      <div className="grid gap-2 md:grid-cols-2 mt-3 text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between gap-3"><span>Refund Key</span><span className="font-mono text-[11px] text-right">{attempt.refundKey || '—'}</span></div>
+                        <div className="flex items-center justify-between gap-3"><span>Midtrans Refund ID</span><span className="font-mono text-[11px] text-right">{attempt.midtransRefundId || '—'}</span></div>
+                        <div className="flex items-center justify-between gap-3"><span>HTTP Status</span><span className="font-medium text-right">{attempt.httpStatus ?? '—'}</span></div>
+                        <div className="flex items-center justify-between gap-3"><span>Status Code</span><span className="font-medium text-right">{attempt.statusCode || '—'}</span></div>
+                        <div className="flex items-center justify-between gap-3"><span>Status Message</span><span className="font-medium text-right">{attempt.statusMessage || '—'}</span></div>
+                        <div className="flex items-center justify-between gap-3"><span>Response Time</span><span className="font-medium text-right">{fmtDateTime(attempt.responseAt)}</span></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No refund attempts recorded yet.</p>
               )}
             </CardContent>
           </Card>

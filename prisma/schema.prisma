@@ -850,41 +850,74 @@ model OrderTimeline {
 }
 
 model ReturnRequest {
-  id               String   @id
-  orderId          String   @unique
-  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  customerId       String
-  customer         Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  requestType      String   @default("PRODUCT_RETURN")
-  previousOrderStatus String @default("")
-  previousFulfillmentStatus String @default("")
-  reason           String
-  description      String   @default("")
-  status           String   @default("REQUESTED")
-  rejectReason     String   @default("")
-  refundStatus     String   @default("NONE")
-  refundReference  String   @default("")
-  refundAmount     Float    @default(0)
-  refundProvider   String   @default("")
-  refundProviderId String   @default("")
-  refundFailureReason String @default("")
-  refundMetadata   Json?
-  attachments      String[]
-  requestedAt      DateTime @default(now())
-  approvedAt       DateTime?
-  completedAt      DateTime?
-  refundRequestedAt DateTime?
-  refundApprovedAt DateTime?
-  refundProcessingAt DateTime?
-  refundCompletedAt DateTime?
-  lastRefundAttemptAt DateTime?
-  rejectedAt       DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                        String          @id
+  orderId                   String          @unique
+  order                     Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customerId                String
+  customer                  Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  requestType               String          @default("PRODUCT_RETURN")
+  previousOrderStatus       String          @default("")
+  previousFulfillmentStatus String          @default("")
+  reason                    String
+  description               String          @default("")
+  status                    String          @default("REQUESTED")
+  rejectReason              String          @default("")
+  refundStatus              String          @default("NONE")
+  refundReference           String          @default("")
+  refundAmount              Float           @default(0)
+  refundProvider            String          @default("")
+  refundProviderId          String          @default("")
+  refundFailureReason       String          @default("")
+  refundFailureSource       String          @default("")
+  retryAvailable            Boolean         @default(false)
+  refundMetadata            Json?
+  attachments               String[]
+  requestedAt               DateTime        @default(now())
+  approvedAt                DateTime?
+  completedAt               DateTime?
+  refundRequestedAt         DateTime?
+  refundApprovedAt          DateTime?
+  refundProcessingAt        DateTime?
+  refundCompletedAt         DateTime?
+  lastRefundAttemptAt       DateTime?
+  rejectedAt                DateTime?
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+  refundAttempts            RefundAttempt[]
 
   @@index([customerId])
   @@index([requestType])
   @@index([status])
   @@index([refundStatus])
   @@index([requestedAt])
+}
+
+model RefundAttempt {
+  id               String        @id
+  returnRequestId  String
+  returnRequest    ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  attemptNumber    Int
+  gatewayName      String        @default("MIDTRANS")
+  status           String        @default("PENDING")
+  refundKey        String        @default("")
+  midtransRefundId String        @default("")
+  transactionId    String        @default("")
+  httpStatus       Int?
+  statusCode       String        @default("")
+  statusMessage    String        @default("")
+  requestBody      Json?
+  responseBody     Json?
+  responseAt       DateTime?
+  failureSource    String        @default("")
+  failureReason    String        @default("")
+  failureCode      String        @default("")
+  retryAvailable   Boolean       @default(false)
+  createdBy        String        @default("")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([returnRequestId, attemptNumber])
+  @@index([returnRequestId])
+  @@index([status])
+  @@index([refundKey])
 }

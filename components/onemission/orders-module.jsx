@@ -329,6 +329,14 @@ function getTimelinePresentation(entry) {
       title: "Refund Approved",
       description: "Refund was approved by HQ and is ready to be sent to Midtrans.",
     },
+    REFUND_SENT_TO_MIDTRANS: {
+      title: "Refund Sent to Midtrans",
+      description: "Refund request has been submitted to Midtrans and is waiting gateway confirmation.",
+    },
+    REFUND_RETRIED: {
+      title: "Refund Retried",
+      description: "Refund request was retried and sent again to Midtrans.",
+    },
     REFUND_PROCESSING: {
       title: "Refund Processing",
       description: "Refund request has been sent to Midtrans and is waiting webhook confirmation.",
