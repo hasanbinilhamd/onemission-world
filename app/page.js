@@ -1941,12 +1941,60 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
               onChange={(v) => update("sellingPrice", v)}
             />
           </div>
+          <div className="col-span-2 pt-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+              Product Information
+            </p>
+          </div>
           <div className="col-span-2 space-y-2">
             <Label>Description</Label>
             <Textarea
               value={form.description || ""}
               onChange={(e) => update("description", e.target.value)}
+              rows={4}
             />
+          </div>
+          <div className="col-span-2 space-y-2">
+            <Label>Materials</Label>
+            <Textarea
+              value={form.materials || ""}
+              onChange={(e) => update("materials", e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="col-span-2 space-y-2">
+            <Label>Care Instructions</Label>
+            <Textarea
+              value={form.careInstructions || ""}
+              onChange={(e) => update("careInstructions", e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="col-span-2 space-y-2">
+            <Label>Shipping Information</Label>
+            <Textarea
+              value={form.shippingInformation || ""}
+              onChange={(e) => update("shippingInformation", e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="col-span-2 space-y-2">
+            <Label>Size Guide Image URL</Label>
+            <Input
+              value={form.sizeGuideImageUrl || ""}
+              onChange={(e) => update("sizeGuideImageUrl", e.target.value)}
+              placeholder="https://..."
+            />
+            {form.sizeGuideImageUrl ? (
+              <img
+                src={form.sizeGuideImageUrl}
+                alt="Size guide preview"
+                className="w-full max-h-48 object-contain rounded-md border mt-2 bg-white"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                }}
+              />
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label>Colors (comma)</Label>

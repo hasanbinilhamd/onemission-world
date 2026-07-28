@@ -1,0 +1,5 @@
+ALTER TABLE "Product"
+ADD COLUMN "materials" TEXT NOT NULL DEFAULT '',
+ADD COLUMN "careInstructions" TEXT NOT NULL DEFAULT '',
+ADD COLUMN "shippingInformation" TEXT NOT NULL DEFAULT '',
+ADD COLUMN "sizeGuideImageUrl" TEXT NOT NULL DEFAULT '';

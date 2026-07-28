@@ -118,24 +118,28 @@ model AuditLog {
 }
 
 model Product {
-  id             String          @id
-  name           String
-  sku            String
-  category       String
-  brand          String
-  status         String
-  costPrice      Float
-  sellingPrice   Float
-  description    String
-  tags           String[]
-  colors         String[]
-  sizes          String[]
-  notes          String          @default("")
-  imageUrl       String          @default("")
-  inventory        Inventory[]
-  stockMovements   StockMovement[]
-  boms             BOM[]
-  productionOrders ProductionOrder[]
+  id                  String          @id
+  name                String
+  sku                 String
+  category            String
+  brand               String
+  status              String
+  costPrice           Float
+  sellingPrice        Float
+  description         String
+  materials           String          @default("")
+  careInstructions    String          @default("")
+  shippingInformation String          @default("")
+  sizeGuideImageUrl   String          @default("")
+  tags                String[]
+  colors              String[]
+  sizes               String[]
+  notes               String          @default("")
+  imageUrl            String          @default("")
+  inventory           Inventory[]
+  stockMovements      StockMovement[]
+  boms                BOM[]
+  productionOrders    ProductionOrder[]
 }
 
 model Inventory {
