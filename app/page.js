@@ -118,6 +118,10 @@ const ContentPlannerModule = dynamic(
   () => import("@/components/onemission/content-planner-module").then((module) => module.ContentPlannerModule),
   { loading: () => <KanbanSkeleton columns={6} /> },
 );
+const NewsletterModule = dynamic(
+  () => import("@/components/onemission/newsletter-module").then((module) => module.NewsletterModule),
+  { loading: () => <TableSkeleton rows={8} cols={6} /> },
+);
 
 // Normalize Indonesian phone number for wa.me link
 function whatsappUrl(phone) {
@@ -551,6 +555,7 @@ const NAV_GROUPS = [
       { id: "content", label: "Content", icon: CalendarDays },
       { id: "creators", label: "Creators", icon: Users2 },
       { id: "campaigns", label: "Campaigns", icon: Megaphone },
+      { id: "newsletter", label: "Newsletter", icon: Mail },
     ],
   },
   {
@@ -16782,6 +16787,7 @@ function App() {
     rawmaterials: () => <RawMaterialModule activeModule={active} />,
     planning: () => <PlanningModule activeModule={active} />,
     content: () => <ContentModule activeModule={active} />,
+    newsletter: () => <NewsletterModule />,
     creators: () => <CreatorCRM activeModule={active} />,
     schools: () => <SchoolCRM activeModule={active} />,
     timeline: () => <TimelineModule activeModule={active} />,
