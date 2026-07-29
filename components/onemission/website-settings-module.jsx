@@ -51,6 +51,8 @@ function createHeroItem(displayOrder = 1) {
     mobileUrl: "",
     displayOrder,
     active: true,
+    scale: 1,
+    verticalOffset: 0,
   };
 }
 
@@ -296,18 +298,30 @@ export function WebsiteSettingsModule({ user }) {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label>Active</Label>
-                      <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
-                        <Switch
-                          checked={Boolean(item.active)}
-                          disabled={!canManage}
-                          onCheckedChange={(value) => updateHeroItem(item.id, "active", value)}
-                        />
-                      </div>
+                      <Label>Scale</Label>
+                      <Input
+                        type="number"
+                        min="0.1"
+                        step="0.01"
+                        value={item.scale ?? 1}
+                        disabled={!canManage}
+                        onChange={(event) => updateHeroItem(item.id, "scale", event.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label>Vertical Offset</Label>
+                      <Input
+                        type="number"
+                        step="1"
+                        value={item.verticalOffset ?? 0}
+                        disabled={!canManage}
+                        onChange={(event) => updateHeroItem(item.id, "verticalOffset", event.target.value)}
+                      />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_180px] gap-4">
                     <div className="space-y-1.5">
                       <Label>Desktop URL</Label>
                       <Input
@@ -325,6 +339,16 @@ export function WebsiteSettingsModule({ user }) {
                         onChange={(event) => updateHeroItem(item.id, "mobileUrl", event.target.value)}
                         placeholder="https://ik.imagekit.io/..."
                       />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Active</Label>
+                      <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
+                        <Switch
+                          checked={Boolean(item.active)}
+                          disabled={!canManage}
+                          onCheckedChange={(value) => updateHeroItem(item.id, "active", value)}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -633,14 +633,16 @@ enum WebsiteMediaType {
 }
 
 model WebsiteHero {
-  id           String           @id
-  mediaType    WebsiteMediaType
-  desktopUrl   String
-  mobileUrl    String           @default("")
-  displayOrder Int              @default(0)
-  isActive     Boolean          @default(true)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id             String           @id
+  mediaType      WebsiteMediaType
+  desktopUrl     String
+  mobileUrl      String           @default("")
+  displayOrder   Int              @default(0)
+  isActive       Boolean          @default(true)
+  scale          Float            @default(1)
+  verticalOffset Float            @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([displayOrder])
   @@index([isActive])
