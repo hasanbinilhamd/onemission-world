@@ -114,6 +114,11 @@ const SystemConfigurationModule = dynamic(
   { loading: () => <ListSkeleton count={6} /> },
 );
 
+const WebsiteSettingsModule = dynamic(
+  () => import("@/components/onemission/website-settings-module").then((module) => module.WebsiteSettingsModule),
+  { loading: () => <ListSkeleton count={6} /> },
+);
+
 const ContentPlannerModule = dynamic(
   () => import("@/components/onemission/content-planner-module").then((module) => module.ContentPlannerModule),
   { loading: () => <KanbanSkeleton columns={6} /> },
@@ -595,6 +600,7 @@ const NAV_GROUPS = [
         icon: Bell,
       },
       { id: "systemconfig", label: "System Configuration", icon: SettingsIcon },
+      { id: "website", label: "Website", icon: Globe },
     ],
   },
 ];
@@ -16939,6 +16945,7 @@ function App() {
     rolespermissions: () => <RolesPermissionsSettingsModule user={user} />,
     notificationsettings: () => <NotificationSettingsModule user={user} />,
     systemconfig: () => <SystemConfigurationModule user={user} />,
+    website: () => <WebsiteSettingsModule user={user} />,
   }[active];
 
   const logout = async () => {

@@ -627,6 +627,50 @@ model CustomerSession {
   @@index([revokedAt])
 }
 
+enum WebsiteMediaType {
+  IMAGE
+  VIDEO
+}
+
+model WebsiteHero {
+  id           String           @id
+  mediaType    WebsiteMediaType
+  desktopUrl   String
+  mobileUrl    String           @default("")
+  displayOrder Int              @default(0)
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([displayOrder])
+  @@index([isActive])
+}
+
+model WebsiteBrandVideo {
+  id        String   @id
+  videoUrl  String
+  posterUrl String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model WebsiteProductStory {
+  id           String           @id
+  mediaType    WebsiteMediaType
+  mediaUrl     String
+  description  String
+  displayOrder Int              @default(0)
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([displayOrder])
+  @@index([isActive])
+}
+
 enum NewsletterSubscriberStatus {
   ACTIVE
   UNSUBSCRIBED
