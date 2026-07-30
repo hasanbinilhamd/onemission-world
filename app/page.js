@@ -16764,6 +16764,10 @@ function App() {
 
     let mounted = true;
     const run = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+
       try {
         const result = await api.get("notifications/summary");
         if (!mounted) return;
@@ -16776,13 +16780,23 @@ function App() {
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void run();
+      }
+    };
+
     setNotificationSummaryLoading(true);
-    run();
-    const intervalId = window.setInterval(run, 30_000);
+    void run();
+    const intervalId = window.setInterval(() => {
+      void run();
+    }, 30_000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       mounted = false;
       window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [user]);
 
