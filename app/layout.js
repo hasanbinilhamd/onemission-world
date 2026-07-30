@@ -2,6 +2,7 @@ import './globals.css'
 import { Providers } from './providers'
 import { Space_Grotesk } from 'next/font/google'
 import PWARegister from '@/components/onemission/pwa-register'
+import { initializeCache } from '@/lib/cache'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -38,6 +39,8 @@ export const viewport = {
   maximumScale: 5,
   viewportFit: 'cover',
 }
+
+void initializeCache()
 
 export default function RootLayout({ children }) {
   return (
