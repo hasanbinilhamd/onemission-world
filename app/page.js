@@ -11343,20 +11343,6 @@ function TrialBalanceModule({ onNavigateToLedger, activeModule }) {
                 className="w-40"
               />
             </div>
-            <div className="space-y-1.5 min-w-[220px]">
-              <Label>Financial Account</Label>
-              <Select value={financialAccountId} onValueChange={setFinancialAccountId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Financial Accounts</SelectItem>
-                  {financialAccounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -11364,7 +11350,6 @@ function TrialBalanceModule({ onNavigateToLedger, activeModule }) {
               onClick={() => {
                 setDateFrom(firstOfMonth);
                 setDateTo(today);
-                setFinancialAccountId("all");
               }}
             >
               Reset to Current Month
