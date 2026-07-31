@@ -136,10 +136,26 @@ model Product {
   sizes               String[]
   notes               String          @default("")
   imageUrl            String          @default("")
+  hoverImageUrl       String          @default("")
+  galleryItems        ProductGallery[]
   inventory           Inventory[]
   stockMovements      StockMovement[]
   boms                BOM[]
   productionOrders    ProductionOrder[]
+}
+
+model ProductGallery {
+  id         String           @id
+  productId  String
+  product    Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaUrl   String
+  mediaType  WebsiteMediaType
+  sortOrder  Int              @default(0)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([productId])
+  @@index([productId, sortOrder])
 }
 
 model Inventory {

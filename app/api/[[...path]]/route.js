@@ -28,6 +28,7 @@ import { notificationService, invalidateNotificationSettingsCache } from '@/lib/
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
 import { reportsService } from '@/lib/reports';
+import { invalidateCommerceProductCache } from '@/lib/commerce';
 import { getCachedValue, invalidateCacheByPrefix, invalidateCacheKey } from '@/lib/server-cache';
 import { districtService } from '@/lib/shipping/district-service';
 import { normalizeShippingError, shippingService } from '@/lib/shipping';
@@ -438,6 +439,134 @@ function isFinishedGoodsInventoryAccount(account) {
 }
 
 const MASTER_DATA_CACHE_TTL_MS = 300_000;
+
+const PRODUCT_GALLERY_MEDIA_TYPE = {
+  IMAGE: 'IMAGE',
+  VIDEO: 'VIDEO',
+};
+
+function normalizeOptionalProductMediaUrl(value, fieldLabel = 'Media URL') {
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  if (!/^https?:\/\//i.test(normalized)) {
+    throw new Error(`${fieldLabel} must be a valid URL.`);
+  }
+
+  return normalized;
+}
+
+function normalizeProductStringArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => String(entry || '').trim())
+    .filter(Boolean);
+}
+
+function normalizeProductGalleryItems(items = [], { regenerateIds = false } = {}) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item, index) => {
+      const mediaUrl = normalizeOptionalProductMediaUrl(item?.mediaUrl, 'Gallery Media URL');
+      if (!mediaUrl) {
+        return null;
+      }
+
+      const mediaType = String(item?.mediaType || PRODUCT_GALLERY_MEDIA_TYPE.IMAGE).trim().toUpperCase() === PRODUCT_GALLERY_MEDIA_TYPE.VIDEO
+        ? PRODUCT_GALLERY_MEDIA_TYPE.VIDEO
+        : PRODUCT_GALLERY_MEDIA_TYPE.IMAGE;
+      const parsedSortOrder = Number.parseInt(String(item?.sortOrder ?? index + 1), 10);
+      const sortOrder = Number.isFinite(parsedSortOrder) && parsedSortOrder > 0 ? parsedSortOrder : index + 1;
+
+      return {
+        id: regenerateIds || !item?.id ? uuid() : String(item.id),
+        mediaUrl,
+        mediaType,
+        sortOrder,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
+    .map((item, index) => ({
+      ...item,
+      sortOrder: index + 1,
+    }));
+}
+
+function buildProductMutationPayload(input = {}, { regenerateGalleryIds = false } = {}) {
+  const gallerySource = Array.isArray(input.gallery)
+    ? input.gallery
+    : Array.isArray(input.galleryItems)
+      ? input.galleryItems
+      : [];
+
+  return {
+    productData: {
+      name: String(input.name || '').trim(),
+      sku: String(input.sku || '').trim(),
+      category: String(input.category || '').trim(),
+      brand: String(input.brand || '').trim(),
+      status: String(input.status || '').trim(),
+      costPrice: Number(input.costPrice) || 0,
+      sellingPrice: Number(input.sellingPrice) || 0,
+      description: String(input.description || '').trim(),
+      materials: String(input.materials || '').trim(),
+      careInstructions: String(input.careInstructions || '').trim(),
+      shippingInformation: String(input.shippingInformation || '').trim(),
+      sizeGuideImageUrl: normalizeOptionalProductMediaUrl(input.sizeGuideImageUrl, 'Size Guide Image URL'),
+      tags: normalizeProductStringArray(input.tags),
+      colors: normalizeProductStringArray(input.colors),
+      sizes: normalizeProductStringArray(input.sizes),
+      notes: String(input.notes || '').trim(),
+      imageUrl: normalizeOptionalProductMediaUrl(input.imageUrl, 'Thumbnail Image URL'),
+      hoverImageUrl: normalizeOptionalProductMediaUrl(input.hoverImageUrl, 'Hover Image URL'),
+    },
+    galleryItems: normalizeProductGalleryItems(gallerySource, { regenerateIds: regenerateGalleryIds }),
+  };
+}
+
+function buildProductCatalogResponse(product) {
+  return {
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    category: product.category,
+    brand: product.brand,
+    status: product.status,
+    costPrice: product.costPrice,
+    sellingPrice: product.sellingPrice,
+    description: product.description,
+    materials: product.materials,
+    careInstructions: product.careInstructions,
+    shippingInformation: product.shippingInformation,
+    sizeGuideImageUrl: product.sizeGuideImageUrl,
+    tags: Array.isArray(product.tags) ? product.tags : [],
+    colors: Array.isArray(product.colors) ? product.colors : [],
+    sizes: Array.isArray(product.sizes) ? product.sizes : [],
+    notes: product.notes,
+    imageUrl: product.imageUrl,
+    hoverImageUrl: product.hoverImageUrl || '',
+    gallery: Array.isArray(product.galleryItems)
+      ? product.galleryItems
+          .map((item) => ({
+            id: item.id,
+            mediaUrl: item.mediaUrl,
+            mediaType: item.mediaType,
+            sortOrder: item.sortOrder,
+          }))
+          .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
+      : [],
+  };
+}
+
 
 function getReportFilters(url) {
   return {
@@ -2506,38 +2635,122 @@ async function handle(request, { params }) {
         });
         return NextResponse.json(docs);
       }
+
+      const docs = await prisma.product.findMany({
+        include: {
+          galleryItems: {
+            orderBy: [
+              { sortOrder: 'asc' },
+              { createdAt: 'asc' },
+            ],
+          },
+        },
+        orderBy: { name: 'asc' },
+      });
+      return NextResponse.json(docs.map(buildProductCatalogResponse));
     }
 
     // ---------- PRODUCTS — special POST: create inventory rows during product lifecycle ----------
     if (segs[0] === 'products' && method === 'POST' && segs.length === 1) {
       const body = await readJson(request);
       const productId = uuid();
+      let productMutation;
+      try {
+        productMutation = buildProductMutationPayload(body, { regenerateGalleryIds: true });
+      } catch (error) {
+        return NextResponse.json({ error: error.message || 'Product media is invalid.' }, { status: 400 });
+      }
+      const { productData, galleryItems } = productMutation;
       const systemSettings = await getSystemSettingsMap(prisma);
       const defaultThreshold = readNumberSetting(systemSettings.default_minimum_stock_threshold, 5);
 
       const product = await prisma.$transaction(async (tx) => {
-        const created = await tx.product.create({ data: { id: productId, ...body } });
+        const created = await tx.product.create({
+          data: {
+            id: productId,
+            ...productData,
+          },
+        });
+
+        if (galleryItems.length > 0) {
+          await tx.productGallery.createMany({
+            data: galleryItems.map((item) => ({
+              id: item.id,
+              productId: created.id,
+              mediaUrl: item.mediaUrl,
+              mediaType: item.mediaType,
+              sortOrder: item.sortOrder,
+            })),
+          });
+        }
+
         await ensureInventoryRowsForProduct(tx, {
           productId: created.id,
           colors: created.colors,
           sizes: created.sizes,
           threshold: Math.trunc(defaultThreshold),
         });
-        return created;
+
+        return tx.product.findUnique({
+          where: { id: created.id },
+          include: {
+            galleryItems: {
+              orderBy: [
+                { sortOrder: 'asc' },
+                { createdAt: 'asc' },
+              ],
+            },
+          },
+        });
       });
 
       invalidateCacheByPrefix('master:commerce-categories:');
-      return NextResponse.json(product);
+      await invalidateCommerceProductCache();
+      return NextResponse.json(buildProductCatalogResponse(product));
     }
 
     // ---------- PRODUCTS — special PUT: add only missing inventory rows for new colors or sizes ----------
     if (segs[0] === 'products' && method === 'PUT' && segs.length === 2) {
       const body = await readJson(request);
+      let productMutation;
+      try {
+        productMutation = buildProductMutationPayload(body);
+      } catch (error) {
+        return NextResponse.json({ error: error.message || 'Product media is invalid.' }, { status: 400 });
+      }
+      const { productData, galleryItems } = productMutation;
       const systemSettings = await getSystemSettingsMap(prisma);
       const defaultThreshold = readNumberSetting(systemSettings.default_minimum_stock_threshold, 5);
-      const updatedProduct = await prisma.product.update({
-        where: { id: segs[1] },
-        data: body,
+      const updatedProduct = await prisma.$transaction(async (tx) => {
+        await tx.productGallery.deleteMany({ where: { productId: segs[1] } });
+        const updated = await tx.product.update({
+          where: { id: segs[1] },
+          data: productData,
+        });
+
+        if (galleryItems.length > 0) {
+          await tx.productGallery.createMany({
+            data: galleryItems.map((item) => ({
+              id: item.id,
+              productId: segs[1],
+              mediaUrl: item.mediaUrl,
+              mediaType: item.mediaType,
+              sortOrder: item.sortOrder,
+            })),
+          });
+        }
+
+        return tx.product.findUnique({
+          where: { id: segs[1] },
+          include: {
+            galleryItems: {
+              orderBy: [
+                { sortOrder: 'asc' },
+                { createdAt: 'asc' },
+              ],
+            },
+          },
+        });
       });
 
       await ensureInventoryRowsForProduct(prisma, {
@@ -2548,7 +2761,8 @@ async function handle(request, { params }) {
       });
 
       invalidateCacheByPrefix('master:commerce-categories:');
-      return NextResponse.json(updatedProduct);
+      await invalidateCommerceProductCache();
+      return NextResponse.json(buildProductCatalogResponse(updatedProduct));
     }
 
     // ---------- PRODUCTS — repair-inventory: maintenance-only, idempotent and concurrency-safe ----------
@@ -2567,6 +2781,7 @@ async function handle(request, { params }) {
         products,
         threshold: Math.trunc(defaultThreshold),
       });
+      await invalidateCommerceProductCache();
       return NextResponse.json(result);
     }
 
@@ -2649,6 +2864,7 @@ async function handle(request, { params }) {
         });
       }
 
+      await invalidateCommerceProductCache();
       return NextResponse.json(result.inventory);
     }
 
@@ -2882,6 +3098,7 @@ async function handle(request, { params }) {
             prismaClient: prisma,
           });
         }
+        await invalidateCommerceProductCache();
         return NextResponse.json(movement);
       }
     }
@@ -3213,7 +3430,10 @@ async function handle(request, { params }) {
         }
         await model.delete({ where: { id } });
         if (modelName === 'financialAccount') invalidateCacheKey(buildMasterDataCacheKey('financialaccounts'));
-        if (modelName === 'product') invalidateCacheByPrefix('master:commerce-categories:');
+        if (modelName === 'product') {
+          invalidateCacheByPrefix('master:commerce-categories:');
+          await invalidateCommerceProductCache();
+        }
         return NextResponse.json({ ok: true });
       }
     }
@@ -3724,6 +3944,7 @@ async function handle(request, { params }) {
           prismaClient: prisma,
         });
 
+        await invalidateCommerceProductCache();
         return NextResponse.json(completedOrder);
       }
 
