@@ -70,6 +70,7 @@ import {
   RefreshCw,
   ArrowUpDown,
   Paperclip,
+  TicketPercent,
 } from "lucide-react";
 import {
   TableSkeleton,
