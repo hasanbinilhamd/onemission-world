@@ -28,6 +28,7 @@ import { notificationService, invalidateNotificationSettingsCache } from '@/lib/
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
 import { reportsService } from '@/lib/reports';
+import { invalidateCommerceProductCache } from '@/lib/commerce';
 import { getCachedValue, invalidateCacheByPrefix, invalidateCacheKey } from '@/lib/server-cache';
 import { districtService } from '@/lib/shipping/district-service';
 import { normalizeShippingError, shippingService } from '@/lib/shipping';
@@ -2527,6 +2528,7 @@ async function handle(request, { params }) {
       });
 
       invalidateCacheByPrefix('master:commerce-categories:');
+      await invalidateCommerceProductCache();
       return NextResponse.json(product);
     }
 
@@ -2548,6 +2550,7 @@ async function handle(request, { params }) {
       });
 
       invalidateCacheByPrefix('master:commerce-categories:');
+      await invalidateCommerceProductCache();
       return NextResponse.json(updatedProduct);
     }
 
@@ -2567,6 +2570,7 @@ async function handle(request, { params }) {
         products,
         threshold: Math.trunc(defaultThreshold),
       });
+      await invalidateCommerceProductCache();
       return NextResponse.json(result);
     }
 
@@ -2649,6 +2653,7 @@ async function handle(request, { params }) {
         });
       }
 
+      await invalidateCommerceProductCache();
       return NextResponse.json(result.inventory);
     }
 
@@ -2882,6 +2887,7 @@ async function handle(request, { params }) {
             prismaClient: prisma,
           });
         }
+        await invalidateCommerceProductCache();
         return NextResponse.json(movement);
       }
     }
@@ -3213,7 +3219,10 @@ async function handle(request, { params }) {
         }
         await model.delete({ where: { id } });
         if (modelName === 'financialAccount') invalidateCacheKey(buildMasterDataCacheKey('financialaccounts'));
-        if (modelName === 'product') invalidateCacheByPrefix('master:commerce-categories:');
+        if (modelName === 'product') {
+          invalidateCacheByPrefix('master:commerce-categories:');
+          await invalidateCommerceProductCache();
+        }
         return NextResponse.json({ ok: true });
       }
     }
@@ -3724,6 +3733,7 @@ async function handle(request, { params }) {
           prismaClient: prisma,
         });
 
+        await invalidateCommerceProductCache();
         return NextResponse.json(completedOrder);
       }
 
