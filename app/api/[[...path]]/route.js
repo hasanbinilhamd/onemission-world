@@ -533,7 +533,7 @@ function buildProductMutationPayload(input = {}, { regenerateGalleryIds = false 
   };
 }
 
-function buildProductCatalogResponse(product) {
+function buildProductCatalogResponse(product, reviewSummary = null) {
   return {
     id: product.id,
     name: product.name,
@@ -554,6 +554,8 @@ function buildProductCatalogResponse(product) {
     notes: product.notes,
     imageUrl: product.imageUrl,
     hoverImageUrl: product.hoverImageUrl || '',
+    averageRating: Number(reviewSummary?.averageRating || 0),
+    reviewCount: Number(reviewSummary?.reviewCount || 0),
     gallery: Array.isArray(product.galleryItems)
       ? product.galleryItems
           .map((item) => ({
@@ -2762,7 +2764,8 @@ async function handle(request, { params }) {
 
       invalidateCacheByPrefix('master:commerce-categories:');
       await invalidateCommerceProductCache();
-      return NextResponse.json(buildProductCatalogResponse(updatedProduct));
+      const reviewSummaryMap = await getPublishedProductReviewSummaryMap(prisma, [updatedProduct.id]);
+      return NextResponse.json(buildProductCatalogResponse(updatedProduct, reviewSummaryMap.get(updatedProduct.id)));
     }
 
     // ---------- PRODUCTS — repair-inventory: maintenance-only, idempotent and concurrency-safe ----------
