@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const order = await orderService.getOrderByNumber(params.orderNumber);
+    const order = await orderService.getOrderByNumberForCustomer(params.orderNumber);
 
     if (String(authenticatedCustomer.customer.email || '').trim().toLowerCase() !== String(order.customerEmail || '').trim().toLowerCase()) {
       return NextResponse.json({ error: 'Order was not found.' }, { status: 404 });

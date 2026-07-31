@@ -127,6 +127,10 @@ const NewsletterModule = dynamic(
   () => import("@/components/onemission/newsletter-module").then((module) => module.NewsletterModule),
   { loading: () => <TableSkeleton rows={8} cols={6} /> },
 );
+const ProductReviewsModule = dynamic(
+  () => import("@/components/onemission/product-reviews-module").then((module) => module.ProductReviewsModule),
+  { loading: () => <TableSkeleton rows={8} cols={8} /> },
+);
 
 // Normalize Indonesian phone number for wa.me link
 function whatsappUrl(phone) {
@@ -561,6 +565,7 @@ const NAV_GROUPS = [
       { id: "creators", label: "Creators", icon: Users2 },
       { id: "campaigns", label: "Campaigns", icon: Megaphone },
       { id: "newsletter", label: "Newsletter", icon: Mail },
+      { id: "productreviews", label: "Product Reviews", icon: MessageCircle },
     ],
   },
   {
@@ -1632,6 +1637,11 @@ function ProductsModule({ activeModule }) {
                         {p.sku}
                       </span>
                     </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-medium text-amber-500">★ {Number(p.averageRating || 0).toFixed(1)}</span>
+                      <span>·</span>
+                      <span>{Number(p.reviewCount || 0).toLocaleString()} reviews</span>
+                    </div>
                     {p.description && (
                       <p className="text-xs text-muted-foreground line-clamp-2">
                         {p.description}
@@ -1736,6 +1746,11 @@ function ProductsModule({ activeModule }) {
                             <p className="font-medium">{p.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {p.brand}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              <span className="font-medium text-amber-500">★ {Number(p.averageRating || 0).toFixed(1)}</span>
+                              <span className="mx-1">·</span>
+                              <span>{Number(p.reviewCount || 0).toLocaleString()} reviews</span>
                             </p>
                           </div>
                         </div>
@@ -17088,6 +17103,7 @@ function App() {
     planning: () => <PlanningModule activeModule={active} />,
     content: () => <ContentModule activeModule={active} />,
     newsletter: () => <NewsletterModule />,
+    productreviews: () => <ProductReviewsModule />,
     creators: () => <CreatorCRM activeModule={active} />,
     schools: () => <SchoolCRM activeModule={active} />,
     timeline: () => <TimelineModule activeModule={active} />,
