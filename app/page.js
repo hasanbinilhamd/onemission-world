@@ -2155,16 +2155,11 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
             ) : null}
           </div>
           <div className="col-span-2 space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <Label>Gallery</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Used only on Product Detail. Reorder items with Move Up and Move Down.
-                </p>
-              </div>
-              <Button type="button" variant="secondary" onClick={addGalleryItem}>
-                <Plus className="h-4 w-4 mr-2" /> Add Media
-              </Button>
+            <div>
+              <Label>Gallery</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Used only on Product Detail. Reorder items with Move Up and Move Down.
+              </p>
             </div>
             {form.gallery?.length > 0 ? (
               <div className="space-y-3">
@@ -2266,6 +2261,11 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                 No gallery media yet. Add media to build the Product Detail gallery.
               </div>
             )}
+            <div className="flex justify-start">
+              <Button type="button" variant="secondary" onClick={addGalleryItem}>
+                <Plus className="h-4 w-4 mr-2" /> Add Media
+              </Button>
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Colors (comma)</Label>
