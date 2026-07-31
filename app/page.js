@@ -1384,8 +1384,14 @@ function ProductsModule({ activeModule }) {
     tags: [],
     colors: ["Black"],
     sizes: ["M", "L", "XL"],
+    materials: "",
+    careInstructions: "",
+    shippingInformation: "",
+    sizeGuideImageUrl: "",
     notes: "",
     imageUrl: "",
+    hoverImageUrl: "",
+    gallery: [],
   };
 
   const save = async (data) => {
@@ -1858,15 +1864,117 @@ function ProductsModule({ activeModule }) {
   );
 }
 
+function createProductGalleryFormItem(sortOrder = 1) {
+  return {
+    id: `gallery-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    mediaUrl: "",
+    mediaType: "IMAGE",
+    sortOrder,
+  };
+}
+
+function normalizeProductGalleryFormItems(items = []) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item, index) => ({
+      id: item?.id || createProductGalleryFormItem(index + 1).id,
+      mediaUrl: String(item?.mediaUrl || "").trim(),
+      mediaType: String(item?.mediaType || "IMAGE").trim().toUpperCase() === "VIDEO" ? "VIDEO" : "IMAGE",
+      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : index + 1,
+    }))
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
+    .map((item, index) => ({
+      ...item,
+      sortOrder: index + 1,
+    }));
+}
+
+function normalizeProductFormState(initial = {}) {
+  return {
+    ...initial,
+    name: String(initial?.name || ""),
+    sku: String(initial?.sku || ""),
+    category: String(initial?.category || PRODUCT_CATEGORIES[0] || ""),
+    brand: String(initial?.brand || ""),
+    status: String(initial?.status || PRODUCT_STATUS[0] || "Active"),
+    costPrice: Number(initial?.costPrice) || 0,
+    sellingPrice: Number(initial?.sellingPrice) || 0,
+    description: String(initial?.description || ""),
+    materials: String(initial?.materials || ""),
+    careInstructions: String(initial?.careInstructions || ""),
+    shippingInformation: String(initial?.shippingInformation || ""),
+    sizeGuideImageUrl: String(initial?.sizeGuideImageUrl || ""),
+    tags: Array.isArray(initial?.tags) ? initial.tags : [],
+    colors: Array.isArray(initial?.colors) ? initial.colors : [],
+    sizes: Array.isArray(initial?.sizes) ? initial.sizes : [],
+    notes: String(initial?.notes || ""),
+    imageUrl: String(initial?.imageUrl || ""),
+    hoverImageUrl: String(initial?.hoverImageUrl || ""),
+    gallery: normalizeProductGalleryFormItems(initial?.gallery || initial?.galleryItems || []),
+  };
+}
+
 function ProductModal({ open, onOpenChange, initial, onSave }) {
-  const [form, setForm] = useState(initial);
+  const [form, setForm] = useState(() => normalizeProductFormState(initial));
+
   useEffect(() => {
-    setForm(initial);
+    setForm(normalizeProductFormState(initial));
   }, [initial, open]);
-  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+
+  const updateGallery = (updater) => {
+    setForm((current) => {
+      const nextGallery = normalizeProductGalleryFormItems(updater(current.gallery || []));
+      return {
+        ...current,
+        gallery: nextGallery,
+      };
+    });
+  };
+
+  const updateGalleryItem = (itemId, key, value) => {
+    updateGallery((items) => items.map((item) => (
+      item.id === itemId ? { ...item, [key]: value } : item
+    )));
+  };
+
+  const addGalleryItem = () => {
+    updateGallery((items) => ([
+      ...items,
+      createProductGalleryFormItem(items.length + 1),
+    ]));
+  };
+
+  const removeGalleryItem = (itemId) => {
+    updateGallery((items) => items.filter((item) => item.id !== itemId));
+  };
+
+  const moveGalleryItem = (itemId, direction) => {
+    updateGallery((items) => {
+      const currentIndex = items.findIndex((item) => item.id === itemId);
+      if (currentIndex === -1) {
+        return items;
+      }
+
+      const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= items.length) {
+        return items;
+      }
+
+      const nextItems = [...items];
+      const [movedItem] = nextItems.splice(currentIndex, 1);
+      nextItems.splice(targetIndex, 0, movedItem);
+      return nextItems;
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>
             {initial?.id ? "Edit product" : "New product"}
@@ -1875,7 +1983,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
             Define product details for the catalog
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto scrollbar-thin pr-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto scrollbar-thin pr-2">
           <div className="col-span-2 space-y-2">
             <Label>Product name</Label>
             <Input
@@ -1901,15 +2009,15 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
             <Label>Category</Label>
             <Select
               value={form.category}
-              onValueChange={(v) => update("category", v)}
+              onValueChange={(value) => update("category", value)}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PRODUCT_CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
+                {PRODUCT_CATEGORIES.map((categoryValue) => (
+                  <SelectItem key={categoryValue} value={categoryValue}>
+                    {categoryValue}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1919,15 +2027,15 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
             <Label>Status</Label>
             <Select
               value={form.status}
-              onValueChange={(v) => update("status", v)}
+              onValueChange={(value) => update("status", value)}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PRODUCT_STATUS.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
+                {PRODUCT_STATUS.map((statusValue) => (
+                  <SelectItem key={statusValue} value={statusValue}>
+                    {statusValue}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1937,14 +2045,14 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
             <Label>Cost Price (IDR)</Label>
             <NumberInput
               value={form.costPrice || 0}
-              onChange={(v) => update("costPrice", v)}
+              onChange={(value) => update("costPrice", value)}
             />
           </div>
           <div className="space-y-2">
             <Label>Selling Price (IDR)</Label>
             <NumberInput
               value={form.sellingPrice || 0}
-              onChange={(v) => update("sellingPrice", v)}
+              onChange={(value) => update("sellingPrice", value)}
             />
           </div>
           <div className="col-span-2 pt-2">
@@ -1996,11 +2104,168 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                 src={form.sizeGuideImageUrl}
                 alt="Size guide preview"
                 className="w-full max-h-48 object-contain rounded-md border mt-2 bg-white"
-                onError={(e) => {
-                  e.target.style.display = "none";
+                onError={(event) => {
+                  event.target.style.display = "none";
                 }}
               />
             ) : null}
+          </div>
+          <div className="col-span-2 pt-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+              Product Media
+            </p>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <Label>Thumbnail Image URL</Label>
+            <Input
+              value={form.imageUrl || ""}
+              onChange={(e) => update("imageUrl", e.target.value)}
+              placeholder="https://..."
+            />
+            {form.imageUrl ? (
+              <img
+                src={form.imageUrl}
+                alt="Thumbnail preview"
+                className="w-full max-h-44 object-contain rounded-md border mt-2 bg-white"
+                onError={(event) => {
+                  event.target.style.display = "none";
+                }}
+              />
+            ) : null}
+          </div>
+          <div className="col-span-2 space-y-2">
+            <Label>Hover Image URL</Label>
+            <Input
+              value={form.hoverImageUrl || ""}
+              onChange={(e) => update("hoverImageUrl", e.target.value)}
+              placeholder="https://..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Used only on desktop hover in Ecommerce product cards. If empty, Thumbnail Image remains active.
+            </p>
+            {form.hoverImageUrl ? (
+              <img
+                src={form.hoverImageUrl}
+                alt="Hover image preview"
+                className="w-full max-h-44 object-contain rounded-md border mt-2 bg-white"
+                onError={(event) => {
+                  event.target.style.display = "none";
+                }}
+              />
+            ) : null}
+          </div>
+          <div className="col-span-2 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label>Gallery</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Used only on Product Detail. Reorder items with Move Up and Move Down.
+                </p>
+              </div>
+              <Button type="button" variant="secondary" onClick={addGalleryItem}>
+                <Plus className="h-4 w-4 mr-2" /> Add Media
+              </Button>
+            </div>
+            {form.gallery?.length > 0 ? (
+              <div className="space-y-3">
+                {form.gallery.map((item, index) => (
+                  <div key={item.id} className="rounded-xl border border-border/70 p-4 space-y-3 bg-muted/10">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">Gallery Media {index + 1}</p>
+                        <p className="text-xs text-muted-foreground">Sort Order: {item.sortOrder}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveGalleryItem(item.id, "up")}
+                          disabled={index === 0}
+                        >
+                          Move Up
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveGalleryItem(item.id, "down")}
+                          disabled={index === (form.gallery.length - 1)}
+                        >
+                          Move Down
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-rose-500 hover:text-rose-500"
+                          onClick={() => removeGalleryItem(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" /> Remove
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-2 space-y-2">
+                        <Label>Media URL</Label>
+                        <Input
+                          value={item.mediaUrl}
+                          onChange={(e) => updateGalleryItem(item.id, "mediaUrl", e.target.value)}
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Media Type</Label>
+                        <Select
+                          value={item.mediaType}
+                          onValueChange={(value) => updateGalleryItem(item.id, "mediaType", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="IMAGE">Image</SelectItem>
+                            <SelectItem value="VIDEO">Video</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border bg-white min-h-[180px] flex items-center justify-center overflow-hidden">
+                      {item.mediaUrl ? (
+                        item.mediaType === "VIDEO" ? (
+                          <video
+                            src={item.mediaUrl}
+                            controls
+                            playsInline
+                            className="w-full max-h-64 bg-black"
+                          />
+                        ) : (
+                          <img
+                            src={item.mediaUrl}
+                            alt={`Gallery preview ${index + 1}`}
+                            className="w-full max-h-64 object-contain"
+                            onError={(event) => {
+                              event.target.style.display = "none";
+                              event.target.parentElement.dataset.previewError = "true";
+                            }}
+                          />
+                        )
+                      ) : null}
+                      {!item.mediaUrl ? (
+                        <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
+                          <ImageOff className="h-8 w-8 opacity-40" />
+                          <span className="text-xs opacity-60">No media URL</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border/80 p-6 text-center text-sm text-muted-foreground">
+                No gallery media yet. Add media to build the Product Detail gallery.
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Colors (comma)</Label>
@@ -2011,7 +2276,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                   "colors",
                   e.target.value
                     .split(",")
-                    .map((s) => s.trim())
+                    .map((entry) => entry.trim())
                     .filter(Boolean),
                 )
               }
@@ -2026,7 +2291,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                   "sizes",
                   e.target.value
                     .split(",")
-                    .map((s) => s.trim())
+                    .map((entry) => entry.trim())
                     .filter(Boolean),
                 )
               }
@@ -2041,29 +2306,11 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                   "tags",
                   e.target.value
                     .split(",")
-                    .map((s) => s.trim())
+                    .map((entry) => entry.trim())
                     .filter(Boolean),
                 )
               }
             />
-          </div>
-          <div className="col-span-2 space-y-2">
-            <Label>Photo URL (optional)</Label>
-            <Input
-              value={form.imageUrl || ""}
-              onChange={(e) => update("imageUrl", e.target.value)}
-              placeholder="https://..."
-            />
-            {form.imageUrl && (
-              <img
-                src={form.imageUrl}
-                alt="Preview"
-                className="w-full max-h-36 object-cover rounded-md border mt-2"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                }}
-              />
-            )}
           </div>
           <div className="col-span-2 space-y-2">
             <Label>Notes</Label>
@@ -2078,7 +2325,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={() => onSave(form)}>
+          <Button onClick={() => onSave({ ...form, gallery: normalizeProductGalleryFormItems(form.gallery || []) })}>
             {initial?.id ? "Save changes" : "Create product"}
           </Button>
         </DialogFooter>
