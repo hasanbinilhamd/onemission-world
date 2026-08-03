@@ -38,14 +38,14 @@ model Role {
 }
 
 model RolePermission {
-  id         String   @id
-  roleId     String
-  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  moduleKey  String
-  actionKey  String
-  isAllowed  Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  moduleKey String
+  actionKey String
+  isAllowed Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([roleId, moduleKey, actionKey])
   @@index([moduleKey])
@@ -68,32 +68,32 @@ model SystemSetting {
 }
 
 model NotificationSetting {
-  id          String   @id
-  category    String
-  settingKey  String   @unique
-  label       String
-  isEnabled   Boolean  @default(true)
-  updatedBy   String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id
+  category   String
+  settingKey String   @unique
+  label      String
+  isEnabled  Boolean  @default(true)
+  updatedBy  String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([category])
 }
 
 model UserSession {
-  id             String   @id
+  id             String    @id
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash      String   @unique
-  device         String   @default("")
-  browser        String   @default("")
-  ipAddress      String   @default("")
-  userAgent      String   @default("")
-  lastActivityAt DateTime @default(now())
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash      String    @unique
+  device         String    @default("")
+  browser        String    @default("")
+  ipAddress      String    @default("")
+  userAgent      String    @default("")
+  lastActivityAt DateTime  @default(now())
   expiresAt      DateTime
   revokedAt      DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([userId])
   @@index([expiresAt])
@@ -118,7 +118,7 @@ model AuditLog {
 }
 
 model Product {
-  id                  String          @id
+  id                  String            @id
   name                String
   sku                 String
   category            String
@@ -127,16 +127,16 @@ model Product {
   costPrice           Float
   sellingPrice        Float
   description         String
-  materials           String          @default("")
-  careInstructions    String          @default("")
-  shippingInformation String          @default("")
-  sizeGuideImageUrl   String          @default("")
+  materials           String            @default("")
+  careInstructions    String            @default("")
+  shippingInformation String            @default("")
+  sizeGuideImageUrl   String            @default("")
   tags                String[]
   colors              String[]
   sizes               String[]
-  notes               String          @default("")
-  imageUrl            String          @default("")
-  hoverImageUrl       String          @default("")
+  notes               String            @default("")
+  imageUrl            String            @default("")
+  hoverImageUrl       String            @default("")
   galleryItems        ProductGallery[]
   productReviews      ProductReview[]
   inventory           Inventory[]
@@ -146,14 +146,14 @@ model Product {
 }
 
 model ProductGallery {
-  id         String           @id
-  productId  String
-  product    Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  mediaUrl   String
-  mediaType  WebsiteMediaType
-  sortOrder  Int              @default(0)
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  id        String           @id
+  productId String
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaUrl  String
+  mediaType WebsiteMediaType
+  sortOrder Int              @default(0)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   @@index([productId])
   @@index([productId, sortOrder])
@@ -211,17 +211,17 @@ model StockMovement {
 }
 
 model Plan {
-  id           String   @id
-  level        String
-  title        String
-  objective    String
-  progress     Int
-  status       String
-  owner        String
-  dueDate      String
-  notes        String   @default("")
-  keyResults   String[]
-  actionItems  String[]
+  id          String   @id
+  level       String
+  title       String
+  objective   String
+  progress    Int
+  status      String
+  owner       String
+  dueDate     String
+  notes       String   @default("")
+  keyResults  String[]
+  actionItems String[]
 }
 
 model Content {
@@ -238,15 +238,15 @@ model Content {
 }
 
 model ContentPlanner {
-  id          String   @id
-  title       String
-  category    String   @default("Other")
+  id           String   @id
+  title        String
+  category     String   @default("Other")
   calendarDate String
-  pdfUrl      String
-  pdfFilename String
-  createdBy   String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  pdfUrl       String
+  pdfFilename  String
+  createdBy    String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([calendarDate])
   @@index([category])
@@ -320,17 +320,17 @@ model Event {
 }
 
 model Notification {
-  id         String  @id
-  type       String
-  module     String  @default("")
-  title      String
-  message    String
-  actionUrl  String  @default("")
-  actionLabel String @default("")
-  referenceId String @default("")
-  createdAt  String
-  read       Boolean
-  severity   String
+  id          String  @id
+  type        String
+  module      String  @default("")
+  title       String
+  message     String
+  actionUrl   String  @default("")
+  actionLabel String  @default("")
+  referenceId String  @default("")
+  createdAt   String
+  read        Boolean
+  severity    String
 }
 
 model Supplier {
@@ -416,15 +416,15 @@ model ProductionResult {
 }
 
 model BOM {
-  id          String    @id
-  bomCode     String    @unique
-  productId   String
-  product     Product   @relation(fields: [productId], references: [id])
-  version     String    @default("1.0")
-  description String    @default("")
-  status      String    @default("Active")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id               String            @id
+  bomCode          String            @unique
+  productId        String
+  product          Product           @relation(fields: [productId], references: [id])
+  version          String            @default("1.0")
+  description      String            @default("")
+  status           String            @default("Active")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   items            BOMItem[]
   productionOrders ProductionOrder[]
 
@@ -491,26 +491,26 @@ model ExpenseCategory {
 }
 
 model CashTransaction {
-  id                  String            @id
+  id                  String           @id
   transactionDate     String
   transactionType     String
   financialAccountId  String
-  financialAccount    FinancialAccount  @relation(fields: [financialAccountId], references: [id])
+  financialAccount    FinancialAccount @relation(fields: [financialAccountId], references: [id])
   chartOfAccountId    String
-  chartOfAccount      ChartOfAccount    @relation(fields: [chartOfAccountId], references: [id])
+  chartOfAccount      ChartOfAccount   @relation(fields: [chartOfAccountId], references: [id])
   expenseCategoryId   String?
-  expenseCategory     ExpenseCategory?  @relation(fields: [expenseCategoryId], references: [id])
-  expenseCategoryName String            @default("")
+  expenseCategory     ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id])
+  expenseCategoryName String           @default("")
   amount              Float
-  referenceNumber     String            @default("")
-  description         String            @default("")
-  vendor              String            @default("")
-  paymentMethod       String            @default("")
-  attachment          String            @default("")
-  notes               String            @default("")
-  createdBy           String            @default("")
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  referenceNumber     String           @default("")
+  description         String           @default("")
+  vendor              String           @default("")
+  paymentMethod       String           @default("")
+  attachment          String           @default("")
+  notes               String           @default("")
+  createdBy           String           @default("")
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
   @@index([expenseCategoryId])
   @@index([transactionType])
@@ -550,39 +550,46 @@ model JournalEntryLine {
 }
 
 model SalesChannel {
-  id               String            @id
-  channelCode      String            @unique
-  channelName      String
-  channelType      String
-  description      String            @default("")
-  status           String            @default("Active")
-  isDefault        Boolean           @default(false)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  customers        Customer[]
+  id          String     @id
+  channelCode String     @unique
+  channelName String
+  channelType String
+  description String     @default("")
+  status      String     @default("Active")
+  isDefault   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  customers   Customer[]
 }
 
 model Promotion {
-  id              String           @id
-  code            String           @unique
-  title           String
-  description     String           @default("")
-  promotionType   String           @default("VOUCHER")
-  discountType    String           @default("PERCENTAGE")
-  percentageValue Float            @default(0)
-  fixedAmount     Float            @default(0)
-  minimumPurchase Float            @default(0)
-  maximumDiscount Float            @default(0)
-  quota           Int              @default(0)
-  isPublic        Boolean          @default(true)
-  status          String           @default("ACTIVE")
-  startDate       DateTime?
-  endDate         DateTime?
-  deletedAt       DateTime?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  usages          PromotionUsage[]
+  id                     String           @id
+  code                   String           @unique
+  title                  String
+  description            String           @default("")
+  promotionType          String           @default("VOUCHER")
+  discountType           String           @default("PERCENTAGE")
+  percentageValue        Float            @default(0)
+  fixedAmount            Float            @default(0)
+  minimumPurchase        Float            @default(0)
+  maximumDiscount        Float            @default(0)
+  maximumShippingSubsidy Float            @default(0)
+  quota                  Int              @default(0)
+  usageLimitPerCustomer  Int              @default(1)
+  targetScope            String           @default("ENTIRE_STORE")
+  targetProductIds       String[]         @default([])
+  targetCategories       String[]         @default([])
+  courierRestrictions    String[]         @default([])
+  isPublic               Boolean          @default(true)
+  status                 String           @default("ACTIVE")
+  startDate              DateTime?
+  endDate                DateTime?
+  deletedAt              DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  usages                 PromotionUsage[]
 
+  @@index([promotionType])
   @@index([status])
   @@index([deletedAt])
   @@index([startDate])
@@ -599,49 +606,49 @@ model PromotionUsage {
   order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
 
-  @@unique([promotionId, customerId])
   @@index([promotionId])
   @@index([customerId])
+  @@index([promotionId, customerId])
   @@index([orderId])
 }
 
 model Customer {
-  id                      String            @id
-  customerCode            String            @unique
-  customerName            String
-  email                   String?           @unique
-  phone                   String?           @unique
-  passwordHash            String?
-  passwordResetToken      String?
+  id                          String            @id
+  customerCode                String            @unique
+  customerName                String
+  email                       String?           @unique
+  phone                       String?           @unique
+  passwordHash                String?
+  passwordResetToken          String?
   passwordResetTokenExpiresAt DateTime?
-  googleId                String?           @unique
-  emailVerified           Boolean           @default(false)
-  emailVerifiedAt         DateTime?
-  avatarUrl               String?
-  lastLoginAt             DateTime?
-  authProvider            String            @default("LOCAL")
-  customerType            String            @default("Individual")
-  isGuest                 Boolean           @default(false)
-  preferredSalesChannelId String?
-  preferredSalesChannel   SalesChannel?     @relation(fields: [preferredSalesChannelId], references: [id])
-  provinceId              String            @default("")
-  province                String            @default("")
-  cityId                  String            @default("")
-  city                    String            @default("")
-  districtId              String            @default("")
-  district                String            @default("")
-  postalCode              String            @default("")
-  streetAddress           String            @default("")
-  country                 String            @default("Indonesia")
-  notes                   String            @default("")
-  status                  String            @default("Active")
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
-  sessions                CustomerSession[]
-  addresses               CustomerAddress[]
-  productReviews          ProductReview[]
-  promotionUsages         PromotionUsage[]
-  returnRequests          ReturnRequest[]
+  googleId                    String?           @unique
+  emailVerified               Boolean           @default(false)
+  emailVerifiedAt             DateTime?
+  avatarUrl                   String?
+  lastLoginAt                 DateTime?
+  authProvider                String            @default("LOCAL")
+  customerType                String            @default("Individual")
+  isGuest                     Boolean           @default(false)
+  preferredSalesChannelId     String?
+  preferredSalesChannel       SalesChannel?     @relation(fields: [preferredSalesChannelId], references: [id])
+  provinceId                  String            @default("")
+  province                    String            @default("")
+  cityId                      String            @default("")
+  city                        String            @default("")
+  districtId                  String            @default("")
+  district                    String            @default("")
+  postalCode                  String            @default("")
+  streetAddress               String            @default("")
+  country                     String            @default("Indonesia")
+  notes                       String            @default("")
+  status                      String            @default("Active")
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+  sessions                    CustomerSession[]
+  addresses                   CustomerAddress[]
+  productReviews              ProductReview[]
+  promotionUsages             PromotionUsage[]
+  returnRequests              ReturnRequest[]
 
   @@index([passwordResetToken])
   @@index([passwordResetTokenExpiresAt])
@@ -671,17 +678,17 @@ model CustomerAddress {
 }
 
 model CustomerSession {
-  id               String   @id
+  id               String    @id
   customerId       String
-  customer         Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer         Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   refreshTokenHash String
-  device           String   @default("")
-  browser          String   @default("")
-  ipAddress        String   @default("")
-  userAgent        String   @default("")
+  device           String    @default("")
+  browser          String    @default("")
+  ipAddress        String    @default("")
+  userAgent        String    @default("")
   expiresAt        DateTime
-  lastUsedAt       DateTime @default(now())
-  createdAt        DateTime @default(now())
+  lastUsedAt       DateTime  @default(now())
+  createdAt        DateTime  @default(now())
   revokedAt        DateTime?
 
   @@index([customerId])
@@ -806,6 +813,7 @@ model CheckoutSession {
   discount            Float                 @default(0)
   tax                 Float                 @default(0)
   grandTotal          Float                 @default(0)
+  promotionSnapshot   Json?
   recipientName       String                @default("")
   phone               String                @default("")
   originDistrict      String
@@ -894,59 +902,60 @@ model PaymentAttempt {
 }
 
 model Order {
-  id                  String      @id
-  orderNumber         String      @unique
-  publicOrderNumber   String      @unique
-  checkoutSessionId   String      @unique
-  checkoutSession     CheckoutSession @relation(fields: [checkoutSessionId], references: [id], onDelete: Cascade)
-  paymentAttemptId    String?     @unique
-  paymentAttempt      PaymentAttempt? @relation("OrderCurrentPaymentAttempt", fields: [paymentAttemptId], references: [id], onDelete: SetNull)
-  paymentAttempts     PaymentAttempt[] @relation("OrderPaymentAttempts")
-  paymentReference    String      @default("")
-  customerId          String
-  customerCode        String      @default("")
-  customerName        String      @default("")
-  customerEmail       String      @default("")
-  customerPhone       String      @default("")
-  salesChannelId      String
-  salesChannelCode    String      @default("")
-  salesChannelName    String      @default("")
-  recipientName       String      @default("")
-  recipientPhone      String      @default("")
-  originDistrict      String      @default("")
-  destinationDistrict String      @default("")
-  courier             String      @default("")
-  courierService      String      @default("")
-  shippingDescription String      @default("")
-  estimatedDelivery   String      @default("")
-  provinceId          String      @default("")
-  provinceName        String      @default("")
-  cityId              String      @default("")
-  cityName            String      @default("")
-  districtId          String      @default("")
-  districtName        String      @default("")
-  postalCode          String      @default("")
-  streetAddress       String      @default("")
-  status              String      @default("READY_FOR_FULFILLMENT")
-  fulfillmentStatus   String      @default("PENDING")
-  shipmentCourier     String      @default("")
-  shipmentService     String      @default("")
-  trackingNumber      String      @default("")
-  shippingDate        DateTime?
-  currency            String      @default("IDR")
-  subtotal            Float       @default(0)
-  discount            Float       @default(0)
-  shippingCost        Float       @default(0)
-  tax                 Float       @default(0)
-  grandTotal          Float       @default(0)
+  id                           String           @id
+  orderNumber                  String           @unique
+  publicOrderNumber            String           @unique
+  checkoutSessionId            String           @unique
+  checkoutSession              CheckoutSession  @relation(fields: [checkoutSessionId], references: [id], onDelete: Cascade)
+  paymentAttemptId             String?          @unique
+  paymentAttempt               PaymentAttempt?  @relation("OrderCurrentPaymentAttempt", fields: [paymentAttemptId], references: [id], onDelete: SetNull)
+  paymentAttempts              PaymentAttempt[] @relation("OrderPaymentAttempts")
+  paymentReference             String           @default("")
+  customerId                   String
+  customerCode                 String           @default("")
+  customerName                 String           @default("")
+  customerEmail                String           @default("")
+  customerPhone                String           @default("")
+  salesChannelId               String
+  salesChannelCode             String           @default("")
+  salesChannelName             String           @default("")
+  recipientName                String           @default("")
+  recipientPhone               String           @default("")
+  originDistrict               String           @default("")
+  destinationDistrict          String           @default("")
+  courier                      String           @default("")
+  courierService               String           @default("")
+  shippingDescription          String           @default("")
+  estimatedDelivery            String           @default("")
+  provinceId                   String           @default("")
+  provinceName                 String           @default("")
+  cityId                       String           @default("")
+  cityName                     String           @default("")
+  districtId                   String           @default("")
+  districtName                 String           @default("")
+  postalCode                   String           @default("")
+  streetAddress                String           @default("")
+  status                       String           @default("READY_FOR_FULFILLMENT")
+  fulfillmentStatus            String           @default("PENDING")
+  shipmentCourier              String           @default("")
+  shipmentService              String           @default("")
+  trackingNumber               String           @default("")
+  shippingDate                 DateTime?
+  currency                     String           @default("IDR")
+  subtotal                     Float            @default(0)
+  discount                     Float            @default(0)
+  shippingCost                 Float            @default(0)
+  tax                          Float            @default(0)
+  grandTotal                   Float            @default(0)
+  promotionSnapshot            Json?
   orderConfirmationEmailSentAt DateTime?
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-  items               OrderItem[]
-  productReviews      ProductReview[]
-  promotionUsages     PromotionUsage[]
-  timelines           OrderTimeline[]
-  returnRequest       ReturnRequest?
+  createdAt                    DateTime         @default(now())
+  updatedAt                    DateTime         @updatedAt
+  items                        OrderItem[]
+  productReviews               ProductReview[]
+  promotionUsages              PromotionUsage[]
+  timelines                    OrderTimeline[]
+  returnRequest                ReturnRequest?
 
   @@index([customerId])
   @@index([salesChannelId])
@@ -955,23 +964,23 @@ model Order {
 }
 
 model OrderItem {
-  id            String @id
+  id            String         @id
   orderId       String
-  order         Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId     String
   variantId     String
   sku           String
   productName   String
   variantName   String
-  productImage  String  @default("")
+  productImage  String         @default("")
   price         Float
-  weight        Float   @default(0)
+  weight        Float          @default(0)
   quantity      Int
   subtotal      Float
-  currency      String  @default("IDR")
+  currency      String         @default("IDR")
   productReview ProductReview?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([orderId])
   @@index([productId])
@@ -979,21 +988,21 @@ model OrderItem {
 }
 
 model ProductReview {
-  id          String   @id
+  id          String    @id
   productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderItemId String   @unique
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItemId String    @unique
   orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
   customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   rating      Int
-  title       String   @default("")
+  title       String    @default("")
   comment     String
-  isPublished Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isPublished Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([productId])
   @@index([orderId])

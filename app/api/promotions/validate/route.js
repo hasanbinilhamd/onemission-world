@@ -38,11 +38,13 @@ export async function POST(request) {
   try {
     const payload = await readRequestBody(request);
     const response = await promotionService.validatePromotionPreview({
-      code: payload.code,
+      code: payload.code || '',
       customerId: authenticatedCustomer?.customer?.id || '',
       customerEmail: authenticatedCustomer?.customer?.email || payload.customerEmail || '',
       subtotal: payload.subtotal,
       shippingCost: payload.shippingCost,
+      items: payload.items || [],
+      courier: payload.courier || '',
     });
     return NextResponse.json(response);
   } catch (error) {
