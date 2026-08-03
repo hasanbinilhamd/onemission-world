@@ -132,6 +132,10 @@ const ProductReviewsModule = dynamic(
   () => import("@/components/onemission/product-reviews-module").then((module) => module.ProductReviewsModule),
   { loading: () => <TableSkeleton rows={8} cols={8} /> },
 );
+const PromotionsModule = dynamic(
+  () => import("@/components/onemission/promotions-module").then((module) => module.PromotionsModule),
+  { loading: () => <TableSkeleton rows={8} cols={8} /> },
+);
 
 // Normalize Indonesian phone number for wa.me link
 function whatsappUrl(phone) {
@@ -562,11 +566,11 @@ const NAV_GROUPS = [
     label: "Marketing",
     icon: Megaphone,
     children: [
+      { id: "promotions", label: "Promotions", icon: TicketPercent },
+      { id: "productreviews", label: "Product Reviews", icon: MessageCircle },
+      { id: "newsletter", label: "Newsletter", icon: Mail },
       { id: "content", label: "Content", icon: CalendarDays },
       { id: "creators", label: "Creators", icon: Users2 },
-      { id: "campaigns", label: "Campaigns", icon: Megaphone },
-      { id: "newsletter", label: "Newsletter", icon: Mail },
-      { id: "productreviews", label: "Product Reviews", icon: MessageCircle },
     ],
   },
   {
@@ -16306,11 +16310,6 @@ const COMING_SOON_META = {
       "Create and manage sales orders, track fulfillment status, and handle invoicing.",
   },
 
-  campaigns: {
-    title: "Campaigns",
-    description:
-      "Plan and track marketing campaigns, set goals, assign budgets, and measure performance.",
-  },
   productanalytics: {
     title: "Product Analytics",
     description:
@@ -17193,7 +17192,7 @@ function App() {
     refundrequests: () => <RefundRequestsModule />,
     checkoutsessions: () => <CheckoutSessionsModule />,
     saleschannels: () => <SalesChannelsModule activeModule={active} />,
-    campaigns: () => <ComingSoonModule pageId="campaigns" />,
+    promotions: () => <PromotionsModule />,
     productanalytics: () => <ProductAnalyticsModule activeModule={active} />,
     inventoryanalytics: () => <InventoryAnalyticsModule activeModule={active} />,
     financialanalytics: () => <FinancialAnalyticsModule activeModule={active} />,
