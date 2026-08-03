@@ -2,10 +2,30 @@ import { NextResponse } from 'next/server';
 import { authenticateCustomerRequest, normalizeCustomerAuthError } from '@/lib/customer-auth';
 import { normalizePromotionError, promotionService } from '@/lib/promotions';
 
+function getCustomerPromotionMessage(error) {
+  switch (error.code) {
+    case 'PROMOTION_NOT_FOUND':
+    case 'PROMOTION_INVALID_CODE':
+      return 'Voucher not found.';
+    case 'PROMOTION_EXPIRED':
+      return 'Voucher expired.';
+    case 'PROMOTION_QUOTA_EXCEEDED':
+    case 'PROMOTION_USAGE_LIMIT_REACHED':
+      return 'Voucher is no longer available.';
+    case 'PROMOTION_MINIMUM_PURCHASE_NOT_MET':
+      return 'Minimum purchase requirement not met.';
+    case 'PROMOTION_TARGET_NOT_MATCHED':
+    case 'PROMOTION_INACTIVE':
+    case 'PROMOTION_NOT_STARTED':
+    default:
+      return 'Voucher cannot be applied to this order.';
+  }
+}
+
 function buildPromotionErrorResponse(error) {
   const normalized = normalizePromotionError(error);
   return NextResponse.json(
-    { error: normalized.message, code: normalized.code },
+    { error: getCustomerPromotionMessage(normalized), code: normalized.code },
     { status: normalized.statusCode || 500 },
   );
 }
