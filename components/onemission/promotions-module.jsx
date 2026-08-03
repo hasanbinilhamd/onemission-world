@@ -49,10 +49,16 @@ const DISCOUNT_ONLY_TYPES = DISCOUNT_TYPES.filter((option) => option.value !== "
 
 const TARGET_SCOPES = [
   { value: "ENTIRE_STORE", label: "Entire Store" },
-  { value: "SPECIFIC_PRODUCT", label: "Specific Product" },
-  { value: "SPECIFIC_CATEGORY", label: "Specific Category" },
+  { value: "SELECTED_CATEGORIES", label: "Selected Categories" },
   { value: "SELECTED_PRODUCTS", label: "Selected Products" },
 ];
+
+const LEGACY_TARGET_SCOPE_MAP = {
+  SPECIFIC_PRODUCT: "SELECTED_PRODUCTS",
+  SPECIFIC_CATEGORY: "SELECTED_CATEGORIES",
+};
+
+const PRODUCT_SELECTOR_PAGE_SIZE = 10;
 
 const STATUS_OPTIONS = [
   { value: "ACTIVE", label: "ACTIVE" },
@@ -113,6 +119,22 @@ const promotionApi = {
     const response = await fetch(`/api/admin/promotions/${id}`, { method: "DELETE" });
     return response.json();
   },
+  async listProducts() {
+    const response = await fetch("/api/products");
+    const result = await response.json();
+    return Array.isArray(result) ? result : [];
+  },
+  async listCategories() {
+    const response = await fetch("/api/products?summary=basic");
+    const result = await response.json();
+    const categoryMap = new Map();
+    for (const product of Array.isArray(result) ? result : []) {
+      const categoryName = String(product.category || "").trim();
+      if (!categoryName) continue;
+      categoryMap.set(categoryName, { id: categoryName, name: categoryName });
+    }
+    return Array.from(categoryMap.values()).sort((left, right) => left.name.localeCompare(right.name));
+  },
 };
 
 function fmtCurrency(value) {
@@ -164,8 +186,27 @@ function normalizeDateForInput(value) {
   return date.toISOString().slice(0, 16);
 }
 
-function normalizeArrayText(value) {
-  return Array.isArray(value) ? value.join(", ") : String(value || "");
+function normalizeTargetScope(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  return LEGACY_TARGET_SCOPE_MAP[normalized] || normalized || "ENTIRE_STORE";
+}
+
+function normalizeArray(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => String(entry || "").trim()).filter(Boolean);
+  }
+  return String(value || "").split(",").map((entry) => entry.trim()).filter(Boolean);
+}
+
+function useDebouncedValue(value, delay = 250) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(timer);
+  }, [delay, value]);
+
+  return debounced;
 }
 
 function buildEmptyPromotion(promotionType = "VOUCHER") {
@@ -183,8 +224,8 @@ function buildEmptyPromotion(promotionType = "VOUCHER") {
     quota: 0,
     usageLimitPerCustomer: promotionType === "VOUCHER" ? 1 : 0,
     targetScope: "ENTIRE_STORE",
-    targetProductIds: "",
-    targetCategories: "",
+    targetProductIds: [],
+    targetCategories: [],
     courierRestrictions: "",
     status: "ACTIVE",
     startDate: "",
@@ -192,29 +233,239 @@ function buildEmptyPromotion(promotionType = "VOUCHER") {
   };
 }
 
+function SelectedChip({ label, onRemove }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground">
+      {label}
+      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onRemove} aria-label={`Remove ${label}`}>×</button>
+    </span>
+  );
+}
+
+function CategoryMultiSelect({ categories, selectedIds, onChange, products }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebouncedValue(searchTerm);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const filteredCategories = useMemo(() => {
+    const keyword = debouncedSearch.trim().toLowerCase();
+    return categories.filter((category) => !keyword || category.name.toLowerCase().includes(keyword));
+  }, [categories, debouncedSearch]);
+  const selectedCategories = categories.filter((category) => selectedSet.has(category.id));
+  const affectedProducts = products.filter((product) => selectedSet.has(product.category));
+
+  const toggleCategory = (categoryId) => {
+    onChange(selectedSet.has(categoryId)
+      ? selectedIds.filter((id) => id !== categoryId)
+      : [...selectedIds, categoryId]);
+  };
+
+  return (
+    <div className="md:col-span-2 space-y-3 rounded-xl border border-border/60 bg-[#F7F8FA] p-4">
+      <div className="space-y-1.5">
+        <Label>Selected Categories</Label>
+        <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search category..." />
+      </div>
+      <div className="max-h-44 overflow-y-auto rounded-lg border bg-background">
+        {filteredCategories.length === 0 ? (
+          <div className="p-3 text-sm text-muted-foreground">No categories found.</div>
+        ) : filteredCategories.map((category) => (
+          <button
+            key={category.id}
+            type="button"
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-secondary/60"
+            onClick={() => toggleCategory(category.id)}
+          >
+            <span>{category.name}</span>
+            <span className="text-emerald-600">{selectedSet.has(category.id) ? "✓" : ""}</span>
+          </button>
+        ))}
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Selected</p>
+        <div className="flex flex-wrap gap-2">
+          {selectedCategories.length === 0 ? <span className="text-xs text-muted-foreground">No category selected.</span> : selectedCategories.map((category) => (
+            <SelectedChip key={category.id} label={category.name} onRemove={() => toggleCategory(category.id)} />
+          ))}
+        </div>
+      </div>
+      <PreviewPanel
+        title="Affected Products"
+        countLabel={`${affectedProducts.length} Products`}
+        items={affectedProducts.map((product) => product.name)}
+      />
+    </div>
+  );
+}
+
+function ProductMultiSelect({ products, selectedIds, onChange }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PRODUCT_SELECTOR_PAGE_SIZE);
+  const debouncedSearch = useDebouncedValue(searchTerm);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  useEffect(() => {
+    setVisibleCount(PRODUCT_SELECTOR_PAGE_SIZE);
+  }, [debouncedSearch]);
+
+  const filteredProducts = useMemo(() => {
+    const keyword = debouncedSearch.trim().toLowerCase();
+    return products.filter((product) => {
+      if (!keyword) return true;
+      return product.name.toLowerCase().includes(keyword) || product.sku.toLowerCase().includes(keyword);
+    });
+  }, [debouncedSearch, products]);
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const selectedProducts = selectedIds.map((id) => products.find((product) => product.id === id) || { id, name: id, sku: "", imageUrl: "" });
+
+  const toggleProduct = (productId) => {
+    onChange(selectedSet.has(productId)
+      ? selectedIds.filter((id) => id !== productId)
+      : [...selectedIds, productId]);
+  };
+
+  return (
+    <div className="md:col-span-2 space-y-3 rounded-xl border border-border/60 bg-[#F7F8FA] p-4">
+      <div className="space-y-1.5">
+        <Label>Selected Products</Label>
+        <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search product..." />
+      </div>
+      <div className="max-h-72 overflow-y-auto rounded-lg border bg-background">
+        {visibleProducts.length === 0 ? (
+          <div className="p-3 text-sm text-muted-foreground">No products found.</div>
+        ) : visibleProducts.map((product) => (
+          <button
+            key={product.id}
+            type="button"
+            className="grid w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left hover:bg-secondary/60"
+            onClick={() => toggleProduct(product.id)}
+          >
+            {product.imageUrl ? (
+              <img src={product.imageUrl} alt={product.name} className="h-10 w-10 rounded-lg object-cover" />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-[10px] font-semibold text-muted-foreground">IMG</div>
+            )}
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium">{product.name}</span>
+              <span className="block truncate text-xs text-muted-foreground">SKU : {product.sku || "—"}</span>
+            </span>
+            <span className="text-emerald-600">{selectedSet.has(product.id) ? "✓" : ""}</span>
+          </button>
+        ))}
+        {visibleCount < filteredProducts.length ? (
+          <div className="border-t p-2 text-center">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setVisibleCount((current) => current + PRODUCT_SELECTOR_PAGE_SIZE)}>Load more</Button>
+          </div>
+        ) : null}
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Selected</p>
+        <div className="flex flex-wrap gap-2">
+          {selectedProducts.length === 0 ? <span className="text-xs text-muted-foreground">No product selected.</span> : selectedProducts.map((product) => (
+            <SelectedChip key={product.id} label={product.name} onRemove={() => toggleProduct(product.id)} />
+          ))}
+        </div>
+      </div>
+      <PreviewPanel
+        title="Selected Products"
+        countLabel={`${selectedProducts.length} Products`}
+        items={selectedProducts.map((product) => product.name)}
+      />
+    </div>
+  );
+}
+
+function PreviewPanel({ title, countLabel, items }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-background p-3">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
+      <p className="mt-1 text-sm font-semibold text-foreground">{countLabel}</p>
+      {items.length > 0 ? (
+        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+          {items.slice(0, 5).map((item, index) => <li key={`${item}-${index}`}>- {item}</li>)}
+          {items.length > 5 ? <li>...and {items.length - 5} more</li> : null}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 function PromotionFormDialog({ open, onOpenChange, initial, promotionType, onSave, loading = false }) {
   const [form, setForm] = useState(buildEmptyPromotion(promotionType));
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loadingTargets, setLoadingTargets] = useState(false);
   const isVoucher = form.promotionType === "VOUCHER";
   const isDiscount = form.promotionType === "AUTOMATIC_DISCOUNT";
   const isFreeShipping = form.promotionType === "FREE_SHIPPING";
+  const supportsProductTargeting = isVoucher || isDiscount;
 
   useEffect(() => {
     const nextType = initial?.promotionType || promotionType;
     setForm(initial ? {
       ...buildEmptyPromotion(nextType),
       ...initial,
-      targetProductIds: normalizeArrayText(initial.targetProductIds),
-      targetCategories: normalizeArrayText(initial.targetCategories),
-      courierRestrictions: normalizeArrayText(initial.courierRestrictions),
+      targetScope: normalizeTargetScope(initial.targetScope),
+      targetProductIds: normalizeArray(initial.targetProductIds),
+      targetCategories: normalizeArray(initial.targetCategories),
+      courierRestrictions: normalizeArray(initial.courierRestrictions).join(", "),
       startDate: normalizeDateForInput(initial.startDate),
       endDate: normalizeDateForInput(initial.endDate),
     } : buildEmptyPromotion(nextType));
   }, [initial, open, promotionType]);
 
+  const shouldLoadTargetData = open && supportsProductTargeting && form.targetScope !== "ENTIRE_STORE";
+
+  useEffect(() => {
+    if (!open || !supportsProductTargeting) return;
+    let isActive = true;
+    const loadCategories = async () => {
+      try {
+        const result = await promotionApi.listCategories();
+        if (isActive) setCategories(result);
+      } catch {
+        if (isActive) setCategories([]);
+      }
+    };
+    void loadCategories();
+    return () => { isActive = false; };
+  }, [open, supportsProductTargeting]);
+
+  useEffect(() => {
+    if (!shouldLoadTargetData || products.length > 0) return;
+    let isActive = true;
+    const loadProducts = async () => {
+      setLoadingTargets(true);
+      try {
+        const result = await promotionApi.listProducts();
+        if (!isActive) return;
+        setProducts(result
+          .filter((product) => product.status === "Active")
+          .map((product) => ({
+            id: product.id,
+            name: product.name || product.id,
+            sku: product.sku || "",
+            imageUrl: product.imageUrl || "",
+            category: product.category || "",
+          }))
+          .sort((left, right) => left.name.localeCompare(right.name)));
+      } catch {
+        if (isActive) setProducts([]);
+      } finally {
+        if (isActive) setLoadingTargets(false);
+      }
+    };
+    void loadProducts();
+    return () => { isActive = false; };
+  }, [products.length, shouldLoadTargetData]);
+
   const update = (key, value) => setForm((current) => {
     const next = { ...current, [key]: value };
     if (key === "promotionType" && value === "FREE_SHIPPING") next.discountType = "FREE_SHIPPING";
     if (key === "promotionType" && value === "AUTOMATIC_DISCOUNT" && next.discountType === "FREE_SHIPPING") next.discountType = "PERCENTAGE";
+    if (key === "targetScope" && value === "ENTIRE_STORE") {
+      next.targetProductIds = [];
+      next.targetCategories = [];
+    }
     return next;
   });
 
@@ -234,10 +485,18 @@ function PromotionFormDialog({ open, onOpenChange, initial, promotionType, onSav
         return;
       }
     }
+    if (supportsProductTargeting && form.targetScope === "SELECTED_CATEGORIES" && form.targetCategories.length === 0) {
+      toast.error("Please select at least one category.");
+      return;
+    }
+    if (supportsProductTargeting && form.targetScope === "SELECTED_PRODUCTS" && form.targetProductIds.length === 0) {
+      toast.error("Please select at least one product.");
+      return;
+    }
 
     await onSave({
       ...form,
-      code: isVoucher ? form.code.trim().toUpperCase() : form.code.trim().toUpperCase(),
+      code: form.code.trim().toUpperCase(),
       title: form.title.trim(),
       description: form.description.trim(),
       promotionType: form.promotionType,
@@ -251,9 +510,10 @@ function PromotionFormDialog({ open, onOpenChange, initial, promotionType, onSav
       maximumShippingSubsidy: Number(form.maximumShippingSubsidy || 0),
       quota: Number(form.quota || 0),
       usageLimitPerCustomer: Number(form.usageLimitPerCustomer || 0),
-      targetProductIds: String(form.targetProductIds || "").split(",").map((entry) => entry.trim()).filter(Boolean),
-      targetCategories: String(form.targetCategories || "").split(",").map((entry) => entry.trim()).filter(Boolean),
-      courierRestrictions: String(form.courierRestrictions || "").split(",").map((entry) => entry.trim()).filter(Boolean),
+      targetScope: supportsProductTargeting ? form.targetScope : "ENTIRE_STORE",
+      targetProductIds: form.targetScope === "SELECTED_PRODUCTS" ? form.targetProductIds : [],
+      targetCategories: form.targetScope === "SELECTED_CATEGORIES" ? form.targetCategories : [],
+      courierRestrictions: normalizeArray(form.courierRestrictions),
     });
   };
 
@@ -314,7 +574,7 @@ function PromotionFormDialog({ open, onOpenChange, initial, promotionType, onSav
             </div>
           ) : null}
 
-          {isDiscount ? (
+          {supportsProductTargeting ? (
             <>
               <div className="space-y-1.5">
                 <Label>Apply To</Label>
@@ -323,17 +583,23 @@ function PromotionFormDialog({ open, onOpenChange, initial, promotionType, onSav
                   <SelectContent>{TARGET_SCOPES.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              {form.targetScope === "SPECIFIC_PRODUCT" || form.targetScope === "SELECTED_PRODUCTS" ? (
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label>{form.targetScope === "SPECIFIC_PRODUCT" ? "Specific Product ID" : "Selected Product IDs"}</Label>
-                  <Input value={form.targetProductIds} onChange={(event) => update("targetProductIds", event.target.value)} placeholder="product-id-1, product-id-2" />
-                </div>
+              {loadingTargets && form.targetScope !== "ENTIRE_STORE" ? (
+                <div className="md:col-span-2 rounded-xl border border-border/60 bg-[#F7F8FA] p-4 text-sm text-muted-foreground">Loading catalog data…</div>
               ) : null}
-              {form.targetScope === "SPECIFIC_CATEGORY" ? (
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label>Specific Category</Label>
-                  <Input value={form.targetCategories} onChange={(event) => update("targetCategories", event.target.value)} placeholder="Leggings" />
-                </div>
+              {form.targetScope === "SELECTED_CATEGORIES" ? (
+                <CategoryMultiSelect
+                  categories={categories}
+                  selectedIds={form.targetCategories}
+                  onChange={(value) => update("targetCategories", value)}
+                  products={products}
+                />
+              ) : null}
+              {form.targetScope === "SELECTED_PRODUCTS" ? (
+                <ProductMultiSelect
+                  products={products}
+                  selectedIds={form.targetProductIds}
+                  onChange={(value) => update("targetProductIds", value)}
+                />
               ) : null}
             </>
           ) : null}
