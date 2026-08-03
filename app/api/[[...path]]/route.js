@@ -29,6 +29,7 @@ import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payme
 import { prisma } from '@/lib/prisma';
 import { reportsService } from '@/lib/reports';
 import { invalidateCommerceProductCache } from '@/lib/commerce';
+import { getPublishedProductReviewSummaryMap } from '@/lib/reviews';
 import { getCachedValue, invalidateCacheByPrefix, invalidateCacheKey } from '@/lib/server-cache';
 import { districtService } from '@/lib/shipping/district-service';
 import { normalizeShippingError, shippingService } from '@/lib/shipping';
@@ -2649,7 +2650,11 @@ async function handle(request, { params }) {
         },
         orderBy: { name: 'asc' },
       });
-      return NextResponse.json(docs.map(buildProductCatalogResponse));
+      const reviewSummaryMap = await getPublishedProductReviewSummaryMap(prisma, docs.map((product) => product.id));
+      return NextResponse.json(docs.map((product) => buildProductCatalogResponse(
+        product,
+        reviewSummaryMap.get(product.id),
+      )));
     }
 
     // ---------- PRODUCTS — special POST: create inventory rows during product lifecycle ----------
