@@ -769,6 +769,31 @@ model NewsletterSubscriber {
   @@index([source])
 }
 
+enum LaunchSubscriberStatus {
+  SUBSCRIBED
+  NOTIFIED
+  UNSUBSCRIBED
+}
+
+model LaunchSubscriber {
+  id               String                 @id
+  code             String                 @unique
+  phone            String                 @unique
+  countryCode      String                 @default("ID")
+  source           String                 @default("launch-page")
+  status           LaunchSubscriberStatus @default(SUBSCRIBED)
+  launchNotifiedAt DateTime?
+  notes            String                 @default("")
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  deletedAt        DateTime?
+
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
 enum VerificationType {
   REGISTER
   RESET_PASSWORD

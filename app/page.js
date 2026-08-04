@@ -128,6 +128,10 @@ const NewsletterModule = dynamic(
   () => import("@/components/onemission/newsletter-module").then((module) => module.NewsletterModule),
   { loading: () => <TableSkeleton rows={8} cols={6} /> },
 );
+const LaunchSubscribersModule = dynamic(
+  () => import("@/components/onemission/launch-subscribers-module").then((module) => module.LaunchSubscribersModule),
+  { loading: () => <TableSkeleton rows={8} cols={7} /> },
+);
 const ProductReviewsModule = dynamic(
   () => import("@/components/onemission/product-reviews-module").then((module) => module.ProductReviewsModule),
   { loading: () => <TableSkeleton rows={8} cols={8} /> },
@@ -567,8 +571,9 @@ const NAV_GROUPS = [
     icon: Megaphone,
     children: [
       { id: "promotions", label: "Promotions", icon: TicketPercent },
-      { id: "productreviews", label: "Product Reviews", icon: MessageCircle },
       { id: "newsletter", label: "Newsletter", icon: Mail },
+      { id: "launchsubscribers", label: "Launch Subscribers", icon: Users },
+      { id: "productreviews", label: "Product Reviews", icon: MessageCircle },
       { id: "content", label: "Content", icon: CalendarDays },
       { id: "creators", label: "Creators", icon: Users2 },
     ],
@@ -17103,6 +17108,7 @@ function App() {
     planning: () => <PlanningModule activeModule={active} />,
     content: () => <ContentModule activeModule={active} />,
     newsletter: () => <NewsletterModule />,
+    launchsubscribers: () => <LaunchSubscribersModule />,
     productreviews: () => <ProductReviewsModule />,
     creators: () => <CreatorCRM activeModule={active} />,
     schools: () => <SchoolCRM activeModule={active} />,
