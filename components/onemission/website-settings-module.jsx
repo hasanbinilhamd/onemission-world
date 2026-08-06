@@ -56,6 +56,17 @@ function createHeroItem(displayOrder = 1) {
   };
 }
 
+function createCollectionHeroItem(displayOrder = 1, heroType = "image") {
+  return {
+    id: createTemporaryId("collection-hero"),
+    mediaType: heroType === "video" ? "video" : "image",
+    desktopUrl: "",
+    mobileUrl: "",
+    displayOrder,
+    active: true,
+  };
+}
+
 function createProductStoryItem(displayOrder = 1) {
   return {
     id: createTemporaryId("product-story"),
@@ -83,6 +94,14 @@ export function WebsiteSettingsModule({ user }) {
     active: true,
   });
   const [productStoryItems, setProductStoryItems] = useState([]);
+  const [collectionHero, setCollectionHero] = useState({
+    heroType: "image",
+    title: "MEN'S COLLECTION",
+    description: "",
+    overlayOpacity: 35,
+    active: true,
+    mediaItems: [createCollectionHeroItem(1)],
+  });
   const canManage = permissionAllowed(user, "settings", "manage_configuration");
 
   const heroActiveCount = useMemo(() => {
@@ -115,6 +134,14 @@ export function WebsiteSettingsModule({ user }) {
       active: true,
     });
     setProductStoryItems(Array.isArray(result?.productStoryItems) ? result.productStoryItems : []);
+    setCollectionHero(result?.collectionHero || {
+      heroType: "image",
+      title: "MEN'S COLLECTION",
+      description: "",
+      overlayOpacity: 35,
+      active: true,
+      mediaItems: [createCollectionHeroItem(1)],
+    });
 
     if (silent) {
       setReloading(false);
@@ -147,6 +174,34 @@ export function WebsiteSettingsModule({ user }) {
     )));
   };
 
+  const updateCollectionHero = (key, value) => {
+    setCollectionHero((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "heroType") {
+        const mediaItems = Array.isArray(current.mediaItems) && current.mediaItems.length > 0
+          ? current.mediaItems
+          : [createCollectionHeroItem(1, value)];
+        next.mediaItems = (value === "slideshow" ? mediaItems : mediaItems.slice(0, 1)).map((item, index) => ({
+          ...item,
+          mediaType: value === "video" ? "video" : "image",
+          displayOrder: Number(item.displayOrder || index + 1),
+        }));
+      }
+      return next;
+    });
+  };
+
+  const updateCollectionHeroItem = (itemId, key, value) => {
+    setCollectionHero((current) => ({
+      ...current,
+      mediaItems: (current.mediaItems || []).map((item) => (
+        item.id === itemId
+          ? { ...item, [key]: value }
+          : item
+      )),
+    }));
+  };
+
   const addHeroItem = () => {
     const nextDisplayOrder = heroItems.reduce((max, item) => Math.max(max, Number(item.displayOrder || 0)), 0) + 1;
     setHeroItems((current) => [...current, createHeroItem(nextDisplayOrder)]);
@@ -154,6 +209,23 @@ export function WebsiteSettingsModule({ user }) {
 
   const removeHeroItem = (itemId) => {
     setHeroItems((current) => current.filter((item) => item.id !== itemId));
+  };
+
+  const addCollectionHeroItem = () => {
+    setCollectionHero((current) => {
+      const nextDisplayOrder = (current.mediaItems || []).reduce((max, item) => Math.max(max, Number(item.displayOrder || 0)), 0) + 1;
+      return {
+        ...current,
+        mediaItems: [...(current.mediaItems || []), createCollectionHeroItem(nextDisplayOrder, current.heroType)],
+      };
+    });
+  };
+
+  const removeCollectionHeroItem = (itemId) => {
+    setCollectionHero((current) => ({
+      ...current,
+      mediaItems: (current.mediaItems || []).filter((item) => item.id !== itemId),
+    }));
   };
 
   const addProductStoryItem = () => {
@@ -207,6 +279,20 @@ export function WebsiteSettingsModule({ user }) {
     toast.success("Website product story updated.");
   };
 
+  const saveCollectionHero = async () => {
+    setSavingTab("collection");
+    const result = await websiteApi.put("admin/website/collection", collectionHero);
+    setSavingTab("");
+
+    if (result?.error) {
+      toast.error(resolveApiErrorMessage(result, "Failed to save collection hero settings."));
+      return;
+    }
+
+    setCollectionHero(result || collectionHero);
+    toast.success("Collection hero updated.");
+  };
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading website CMS…</p>;
   }
@@ -229,6 +315,7 @@ export function WebsiteSettingsModule({ user }) {
       <Tabs defaultValue="hero" className="space-y-4">
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="hero">Hero</TabsTrigger>
+          <TabsTrigger value="collection">Collection</TabsTrigger>
           <TabsTrigger value="brand-video">Brand Video</TabsTrigger>
           <TabsTrigger value="product-story">Product Story</TabsTrigger>
         </TabsList>
@@ -361,6 +448,104 @@ export function WebsiteSettingsModule({ user }) {
                 {canManage ? (
                   <Button onClick={saveHero} disabled={savingTab === "hero"}>
                     {savingTab === "hero" ? "Saving…" : "Save Website Hero"}
+                  </Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="collection" className="space-y-4 mt-0">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Globe className="h-4 w-4" /> Collection Page Hero
+              </CardTitle>
+              <CardDescription>
+                Manage the single Collection page hero shown above the existing Commerce product grid. Filters, sorting, pagination, and product cards remain unchanged.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-4 py-3">
+                <p className="text-sm font-medium">Collection CMS Rules</p>
+                <p className="text-xs text-muted-foreground mt-1">Use one hero for the Collection page. Slideshow supports multiple ordered media items; Image and Video use one media item.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-end">
+                <div className="space-y-1.5">
+                  <Label>Collection Hero Type</Label>
+                  <Select value={collectionHero.heroType} onValueChange={(value) => updateCollectionHero("heroType", value)} disabled={!canManage}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="image">Image</SelectItem>
+                      <SelectItem value="slideshow">Slideshow</SelectItem>
+                      <SelectItem value="video">Video</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Active</Label>
+                  <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
+                    <Switch checked={Boolean(collectionHero.active)} disabled={!canManage} onCheckedChange={(value) => updateCollectionHero("active", value)} />
+                  </div>
+                </div>
+                <div className="space-y-1.5 xl:col-span-2">
+                  <Label>Overlay Opacity ({Number(collectionHero.overlayOpacity || 0)}%)</Label>
+                  <Input type="range" min="0" max="100" value={collectionHero.overlayOpacity} disabled={!canManage} onChange={(event) => updateCollectionHero("overlayOpacity", Number(event.target.value))} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Collection Title</Label>
+                <Input value={collectionHero.title || ""} disabled={!canManage} onChange={(event) => updateCollectionHero("title", event.target.value)} placeholder="MEN'S COLLECTION" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Collection Description</Label>
+                <Textarea value={collectionHero.description || ""} disabled={!canManage} onChange={(event) => updateCollectionHero("description", event.target.value)} rows={3} />
+              </div>
+
+              {(collectionHero.mediaItems || []).map((item, index) => (
+                <div key={item.id} className="rounded-xl border border-border/60 p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <p className="text-sm font-semibold">Media Item {index + 1}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Desktop URL is required. Mobile URL is optional.</p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => removeCollectionHeroItem(item.id)} disabled={!canManage || collectionHero.heroType !== "slideshow"} className="text-rose-500 hover:text-rose-600">
+                      <Trash2 className="h-4 w-4 mr-2" /> Remove
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div className="space-y-1.5 xl:col-span-2">
+                      <Label>Desktop URL</Label>
+                      <Input value={item.desktopUrl || ""} disabled={!canManage} onChange={(event) => updateCollectionHeroItem(item.id, "desktopUrl", event.target.value)} placeholder="https://ik.imagekit.io/..." />
+                    </div>
+                    <div className="space-y-1.5 xl:col-span-2">
+                      <Label>Mobile URL (optional)</Label>
+                      <Input value={item.mobileUrl || ""} disabled={!canManage} onChange={(event) => updateCollectionHeroItem(item.id, "mobileUrl", event.target.value)} placeholder="https://ik.imagekit.io/..." />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Display Order</Label>
+                      <Input type="number" min="0" value={item.displayOrder} disabled={!canManage || collectionHero.heroType !== "slideshow"} onChange={(event) => updateCollectionHeroItem(item.id, "displayOrder", event.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Active</Label>
+                      <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
+                        <Switch checked={Boolean(item.active)} disabled={!canManage} onCheckedChange={(value) => updateCollectionHeroItem(item.id, "active", value)} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <Button variant="outline" className="gap-2" onClick={addCollectionHeroItem} disabled={!canManage || collectionHero.heroType !== "slideshow"}>
+                  <Plus className="h-4 w-4" /> Add Media Item
+                </Button>
+                {canManage ? (
+                  <Button onClick={saveCollectionHero} disabled={savingTab === "collection"}>
+                    {savingTab === "collection" ? "Saving…" : "Save Collection Hero"}
                   </Button>
                 ) : null}
               </div>

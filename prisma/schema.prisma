@@ -742,6 +742,44 @@ model WebsiteProductStory {
   @@index([isActive])
 }
 
+enum WebsiteCollectionHeroType {
+  IMAGE
+  SLIDESHOW
+  VIDEO
+}
+
+model WebsiteCollectionHero {
+  id             String                       @id
+  heroType       WebsiteCollectionHeroType    @default(IMAGE)
+  title          String                       @default("MEN'S COLLECTION")
+  description    String                       @default("")
+  overlayOpacity Float                        @default(35)
+  isActive       Boolean                      @default(true)
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  mediaItems     WebsiteCollectionHeroMedia[]
+
+  @@index([heroType])
+  @@index([isActive])
+}
+
+model WebsiteCollectionHeroMedia {
+  id           String                @id
+  heroId       String
+  hero         WebsiteCollectionHero @relation(fields: [heroId], references: [id], onDelete: Cascade)
+  mediaType    WebsiteMediaType
+  desktopUrl   String
+  mobileUrl    String                @default("")
+  displayOrder Int                   @default(0)
+  isActive     Boolean               @default(true)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([heroId])
+  @@index([displayOrder])
+  @@index([isActive])
+}
+
 enum NewsletterSubscriberStatus {
   ACTIVE
   UNSUBSCRIBED
