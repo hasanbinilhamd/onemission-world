@@ -1898,6 +1898,16 @@ function createProductGalleryFormItem(sortOrder = 1) {
   };
 }
 
+function createProductShowcaseFormItem(sortOrder = 1) {
+  return {
+    id: `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    mediaUrl: "",
+    mediaType: "IMAGE",
+    sortOrder,
+    active: true,
+  };
+}
+
 function normalizeProductGalleryFormItems(items = []) {
   if (!Array.isArray(items)) {
     return [];
@@ -1909,6 +1919,26 @@ function normalizeProductGalleryFormItems(items = []) {
       mediaUrl: String(item?.mediaUrl || "").trim(),
       mediaType: String(item?.mediaType || "IMAGE").trim().toUpperCase() === "VIDEO" ? "VIDEO" : "IMAGE",
       sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : index + 1,
+    }))
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
+    .map((item, index) => ({
+      ...item,
+      sortOrder: index + 1,
+    }));
+}
+
+function normalizeProductShowcaseFormItems(items = []) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item, index) => ({
+      id: item?.id || createProductShowcaseFormItem(index + 1).id,
+      mediaUrl: String(item?.mediaUrl || "").trim(),
+      mediaType: String(item?.mediaType || "IMAGE").trim().toUpperCase() === "VIDEO" ? "VIDEO" : "IMAGE",
+      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : index + 1,
+      active: item?.active === undefined ? Boolean(item?.isActive ?? true) : Boolean(item.active),
     }))
     .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
     .map((item, index) => ({
@@ -1939,6 +1969,7 @@ function normalizeProductFormState(initial = {}) {
     imageUrl: String(initial?.imageUrl || ""),
     hoverImageUrl: String(initial?.hoverImageUrl || ""),
     gallery: normalizeProductGalleryFormItems(initial?.gallery || initial?.galleryItems || []),
+    productShowcaseItems: normalizeProductShowcaseFormItems(initial?.productShowcaseItems || initial?.showcaseItems || []),
   };
 }
 
@@ -1990,6 +2021,46 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
         return items;
       }
 
+      const nextItems = [...items];
+      const [movedItem] = nextItems.splice(currentIndex, 1);
+      nextItems.splice(targetIndex, 0, movedItem);
+      return nextItems;
+    });
+  };
+
+  const updateShowcase = (updater) => {
+    setForm((current) => {
+      const nextItems = normalizeProductShowcaseFormItems(updater(current.productShowcaseItems || []));
+      return {
+        ...current,
+        productShowcaseItems: nextItems,
+      };
+    });
+  };
+
+  const updateShowcaseItem = (itemId, key, value) => {
+    updateShowcase((items) => items.map((item) => (
+      item.id === itemId ? { ...item, [key]: value } : item
+    )));
+  };
+
+  const addShowcaseItem = () => {
+    updateShowcase((items) => ([
+      ...items,
+      createProductShowcaseFormItem(items.length + 1),
+    ]));
+  };
+
+  const removeShowcaseItem = (itemId) => {
+    updateShowcase((items) => items.filter((item) => item.id !== itemId));
+  };
+
+  const moveShowcaseItem = (itemId, direction) => {
+    updateShowcase((items) => {
+      const currentIndex = items.findIndex((item) => item.id === itemId);
+      if (currentIndex === -1) return items;
+      const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= items.length) return items;
       const nextItems = [...items];
       const [movedItem] = nextItems.splice(currentIndex, 1);
       nextItems.splice(targetIndex, 0, movedItem);
@@ -2292,6 +2363,84 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
               </Button>
             </div>
           </div>
+          <div className="col-span-2 space-y-3">
+            <div>
+              <Label>Product Showcase</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Visual storytelling media shown below product information on the Product Detail page. Active items render in Sort Order.
+              </p>
+            </div>
+            {form.productShowcaseItems?.length > 0 ? (
+              <div className="space-y-3">
+                {form.productShowcaseItems.map((item, index) => (
+                  <div key={item.id} className="rounded-xl border border-border/70 p-4 space-y-3 bg-muted/10">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">Showcase Media {index + 1}</p>
+                        <p className="text-xs text-muted-foreground">Sort Order: {item.sortOrder}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => moveShowcaseItem(item.id, "up")} disabled={index === 0}>Move Up</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => moveShowcaseItem(item.id, "down")} disabled={index === (form.productShowcaseItems.length - 1)}>Move Down</Button>
+                        <Button type="button" variant="ghost" size="sm" className="text-rose-500 hover:text-rose-500" onClick={() => removeShowcaseItem(item.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" /> Remove
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                      <div className="sm:col-span-2 space-y-2">
+                        <Label>Media URL</Label>
+                        <Input value={item.mediaUrl} onChange={(e) => updateShowcaseItem(item.id, "mediaUrl", e.target.value)} placeholder="https://..." />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Media Type</Label>
+                        <Select value={item.mediaType} onValueChange={(value) => updateShowcaseItem(item.id, "mediaType", value)}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="IMAGE">Image</SelectItem>
+                            <SelectItem value="VIDEO">Video</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Active</Label>
+                        <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
+                          <Switch checked={Boolean(item.active)} onCheckedChange={(value) => updateShowcaseItem(item.id, "active", value)} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Display Order</Label>
+                      <NumberInput value={item.sortOrder} onChange={(value) => updateShowcaseItem(item.id, "sortOrder", value)} />
+                    </div>
+                    <div className="rounded-lg border bg-background overflow-hidden min-h-[120px] flex items-center justify-center">
+                      {item.mediaUrl ? (
+                        item.mediaType === "VIDEO" ? (
+                          <video src={item.mediaUrl} controls className="w-full max-h-64 bg-black" />
+                        ) : (
+                          <img src={item.mediaUrl} alt={`Showcase preview ${index + 1}`} className="w-full max-h-64 object-contain" onError={(event) => { event.target.style.display = "none"; }} />
+                        )
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
+                          <ImageOff className="h-8 w-8 opacity-40" />
+                          <span className="text-xs opacity-60">No media URL</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border/80 p-6 text-center text-sm text-muted-foreground">
+                No showcase media yet. Add media to build visual storytelling for this product.
+              </div>
+            )}
+            <div className="flex justify-start">
+              <Button type="button" variant="secondary" onClick={addShowcaseItem}>
+                <Plus className="h-4 w-4 mr-2" /> Add Showcase Media
+              </Button>
+            </div>
+          </div>
           <div className="space-y-2">
             <Label>Colors (comma)</Label>
             <Input
@@ -2350,7 +2499,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={() => onSave({ ...form, gallery: normalizeProductGalleryFormItems(form.gallery || []) })}>
+          <Button onClick={() => onSave({ ...form, gallery: normalizeProductGalleryFormItems(form.gallery || []), productShowcaseItems: normalizeProductShowcaseFormItems(form.productShowcaseItems || []) })}>
             {initial?.id ? "Save changes" : "Create product"}
           </Button>
         </DialogFooter>

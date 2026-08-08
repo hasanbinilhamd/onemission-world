@@ -502,11 +502,50 @@ function normalizeProductGalleryItems(items = [], { regenerateIds = false } = {}
     }));
 }
 
+function normalizeProductShowcaseItems(items = [], { regenerateIds = false } = {}) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item, index) => {
+      const mediaUrl = normalizeOptionalProductMediaUrl(item?.mediaUrl, 'Product Showcase Media URL');
+      if (!mediaUrl) {
+        return null;
+      }
+
+      const mediaType = String(item?.mediaType || PRODUCT_GALLERY_MEDIA_TYPE.IMAGE).trim().toUpperCase() === PRODUCT_GALLERY_MEDIA_TYPE.VIDEO
+        ? PRODUCT_GALLERY_MEDIA_TYPE.VIDEO
+        : PRODUCT_GALLERY_MEDIA_TYPE.IMAGE;
+      const parsedSortOrder = Number.parseInt(String(item?.sortOrder ?? index + 1), 10);
+      const sortOrder = Number.isFinite(parsedSortOrder) && parsedSortOrder > 0 ? parsedSortOrder : index + 1;
+
+      return {
+        id: regenerateIds || !item?.id ? uuid() : String(item.id),
+        mediaUrl,
+        mediaType,
+        sortOrder,
+        isActive: item?.active === undefined ? Boolean(item?.isActive ?? true) : Boolean(item.active),
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
+    .map((item, index) => ({
+      ...item,
+      sortOrder: index + 1,
+    }));
+}
+
 function buildProductMutationPayload(input = {}, { regenerateGalleryIds = false } = {}) {
   const gallerySource = Array.isArray(input.gallery)
     ? input.gallery
     : Array.isArray(input.galleryItems)
       ? input.galleryItems
+      : [];
+  const showcaseSource = Array.isArray(input.productShowcaseItems)
+    ? input.productShowcaseItems
+    : Array.isArray(input.showcaseItems)
+      ? input.showcaseItems
       : [];
 
   return {
@@ -531,6 +570,7 @@ function buildProductMutationPayload(input = {}, { regenerateGalleryIds = false 
       hoverImageUrl: normalizeOptionalProductMediaUrl(input.hoverImageUrl, 'Hover Image URL'),
     },
     galleryItems: normalizeProductGalleryItems(gallerySource, { regenerateIds: regenerateGalleryIds }),
+    showcaseItems: normalizeProductShowcaseItems(showcaseSource, { regenerateIds: regenerateGalleryIds }),
   };
 }
 
@@ -564,6 +604,17 @@ function buildProductCatalogResponse(product, reviewSummary = null) {
             mediaUrl: item.mediaUrl,
             mediaType: item.mediaType,
             sortOrder: item.sortOrder,
+          }))
+          .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
+      : [],
+    productShowcaseItems: Array.isArray(product.showcaseItems)
+      ? product.showcaseItems
+          .map((item) => ({
+            id: item.id,
+            mediaUrl: item.mediaUrl,
+            mediaType: item.mediaType,
+            sortOrder: item.sortOrder,
+            active: Boolean(item.isActive),
           }))
           .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
       : [],
@@ -2647,6 +2698,12 @@ async function handle(request, { params }) {
               { createdAt: 'asc' },
             ],
           },
+          showcaseItems: {
+            orderBy: [
+              { sortOrder: 'asc' },
+              { createdAt: 'asc' },
+            ],
+          },
         },
         orderBy: { name: 'asc' },
       });
@@ -2667,7 +2724,7 @@ async function handle(request, { params }) {
       } catch (error) {
         return NextResponse.json({ error: error.message || 'Product media is invalid.' }, { status: 400 });
       }
-      const { productData, galleryItems } = productMutation;
+      const { productData, galleryItems, showcaseItems } = productMutation;
       const systemSettings = await getSystemSettingsMap(prisma);
       const defaultThreshold = readNumberSetting(systemSettings.default_minimum_stock_threshold, 5);
 
@@ -2691,6 +2748,19 @@ async function handle(request, { params }) {
           });
         }
 
+        if (showcaseItems.length > 0) {
+          await tx.productShowcase.createMany({
+            data: showcaseItems.map((item) => ({
+              id: item.id,
+              productId: created.id,
+              mediaUrl: item.mediaUrl,
+              mediaType: item.mediaType,
+              sortOrder: item.sortOrder,
+              isActive: item.isActive,
+            })),
+          });
+        }
+
         await ensureInventoryRowsForProduct(tx, {
           productId: created.id,
           colors: created.colors,
@@ -2702,6 +2772,12 @@ async function handle(request, { params }) {
           where: { id: created.id },
           include: {
             galleryItems: {
+              orderBy: [
+                { sortOrder: 'asc' },
+                { createdAt: 'asc' },
+              ],
+            },
+            showcaseItems: {
               orderBy: [
                 { sortOrder: 'asc' },
                 { createdAt: 'asc' },
@@ -2725,11 +2801,12 @@ async function handle(request, { params }) {
       } catch (error) {
         return NextResponse.json({ error: error.message || 'Product media is invalid.' }, { status: 400 });
       }
-      const { productData, galleryItems } = productMutation;
+      const { productData, galleryItems, showcaseItems } = productMutation;
       const systemSettings = await getSystemSettingsMap(prisma);
       const defaultThreshold = readNumberSetting(systemSettings.default_minimum_stock_threshold, 5);
       const updatedProduct = await prisma.$transaction(async (tx) => {
         await tx.productGallery.deleteMany({ where: { productId: segs[1] } });
+        await tx.productShowcase.deleteMany({ where: { productId: segs[1] } });
         const updated = await tx.product.update({
           where: { id: segs[1] },
           data: productData,
@@ -2747,10 +2824,29 @@ async function handle(request, { params }) {
           });
         }
 
+        if (showcaseItems.length > 0) {
+          await tx.productShowcase.createMany({
+            data: showcaseItems.map((item) => ({
+              id: item.id,
+              productId: segs[1],
+              mediaUrl: item.mediaUrl,
+              mediaType: item.mediaType,
+              sortOrder: item.sortOrder,
+              isActive: item.isActive,
+            })),
+          });
+        }
+
         return tx.product.findUnique({
           where: { id: segs[1] },
           include: {
             galleryItems: {
+              orderBy: [
+                { sortOrder: 'asc' },
+                { createdAt: 'asc' },
+              ],
+            },
+            showcaseItems: {
               orderBy: [
                 { sortOrder: 'asc' },
                 { createdAt: 'asc' },
