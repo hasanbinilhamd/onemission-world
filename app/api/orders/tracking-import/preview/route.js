@@ -8,6 +8,9 @@ import { FULFILLMENT_STATUS, getSynchronizedFulfillmentStatus } from '@/lib/orde
 const REQUIRED_COLUMNS = ['Order Number', 'Tracking Number'];
 const OPTIONAL_COLUMNS = ['Courier', 'Service', 'Shipping Date'];
 const ALL_COLUMNS = [...REQUIRED_COLUMNS, 'Order Date', 'Customer', ...OPTIONAL_COLUMNS];
+const TRACKING_TEMPLATE_SHEET_NAME = 'Tracking Template';
+const SHIPPING_DATE_FORMAT_HINT = 'Use DD-MM-YYYY format, for example 10-08-2026.';
+const BUSINESS_TIMEZONE_OFFSET_MINUTES = 7 * 60;
 
 function buildSummary(rows) {
   return {
@@ -26,13 +29,82 @@ function normalizeCell(value) {
   return String(value ?? '').trim();
 }
 
+function pad2(value) {
+  return String(value).padStart(2, '0');
+}
+
+function normalizeYear(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return NaN;
+  return numeric < 100 ? 2000 + numeric : numeric;
+}
+
+function isValidDateParts(day, month, year) {
+  if (!Number.isInteger(day) || !Number.isInteger(month) || !Number.isInteger(year)) return false;
+  if (year < 1900 || year > 2200 || month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+function buildBusinessDateIso(day, month, year) {
+  const timestamp = Date.UTC(year, month - 1, day, 0, 0, 0) - (BUSINESS_TIMEZONE_OFFSET_MINUTES * 60 * 1000);
+  return new Date(timestamp).toISOString();
+}
+
+function parseDateParts(dayValue, monthValue, yearValue) {
+  const day = Number(dayValue);
+  const month = Number(monthValue);
+  const year = normalizeYear(yearValue);
+  if (!isValidDateParts(day, month, year)) return null;
+  return buildBusinessDateIso(day, month, year);
+}
+
+function parseExcelSerialDate(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  const parsed = XLSX.SSF.parse_date_code(value);
+  if (!parsed) return null;
+  return parseDateParts(parsed.d, parsed.m, parsed.y);
+}
+
+function parseShippingDateText(value) {
+  const normalized = normalizeCell(value).replace(/^'/, '');
+  if (!normalized) return { value: '', error: '' };
+
+  const dateOnlyIso = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (dateOnlyIso) {
+    const parsed = parseDateParts(dateOnlyIso[3], dateOnlyIso[2], dateOnlyIso[1]);
+    return parsed ? { value: parsed, error: '' } : { value: '', error: SHIPPING_DATE_FORMAT_HINT };
+  }
+
+  const dayFirst = normalized.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/);
+  if (dayFirst) {
+    const parsed = parseDateParts(dayFirst[1], dayFirst[2], dayFirst[3]);
+    return parsed ? { value: parsed, error: '' } : { value: '', error: SHIPPING_DATE_FORMAT_HINT };
+  }
+
+  const isoDateTime = normalized.match(/^\d{4}-\d{2}-\d{2}[T\s]/);
+  if (isoDateTime) {
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime())
+      ? { value: '', error: SHIPPING_DATE_FORMAT_HINT }
+      : { value: parsed.toISOString(), error: '' };
+  }
+
+  return { value: '', error: SHIPPING_DATE_FORMAT_HINT };
+}
+
 function normalizeDateCell(value) {
-  if (!value) return '';
-  if (value instanceof Date) return value.toISOString();
-  const normalized = normalizeCell(value);
-  if (!normalized) return '';
-  const parsed = new Date(normalized);
-  return Number.isNaN(parsed.getTime()) ? normalized : parsed.toISOString();
+  if (!value) return { value: '', error: '' };
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime())
+      ? { value: '', error: SHIPPING_DATE_FORMAT_HINT }
+      : { value: value.toISOString(), error: '' };
+  }
+  if (typeof value === 'number') {
+    const parsed = parseExcelSerialDate(value);
+    return parsed ? { value: parsed, error: '' } : { value: '', error: SHIPPING_DATE_FORMAT_HINT };
+  }
+  return parseShippingDateText(value);
 }
 
 function validateRequiredColumns(headers) {
@@ -43,6 +115,61 @@ function validateRequiredColumns(headers) {
   return '';
 }
 
+function getCellDisplayValue(cell) {
+  if (!cell) return '';
+  if (cell.t === 's' || cell.t === 'str' || cell.t === 'inlineStr') return normalizeCell(cell.v);
+  if (cell.w !== undefined && cell.w !== null) return normalizeCell(cell.w);
+  if (cell.v !== undefined && cell.v !== null) return normalizeCell(cell.v);
+  return '';
+}
+
+function getShippingDateCellValue(cell) {
+  if (!cell) return '';
+  if (cell.t === 'n' && typeof cell.v === 'number') {
+    const parsed = XLSX.SSF.parse_date_code(cell.v);
+    if (parsed) return `${pad2(parsed.d)}-${pad2(parsed.m)}-${parsed.y}`;
+  }
+  if (cell.t === 'd' && cell.v instanceof Date) return cell.v;
+  return getCellDisplayValue(cell);
+}
+
+function parseWorksheetRows(worksheet) {
+  if (!worksheet?.['!ref']) return [];
+  const range = XLSX.utils.decode_range(worksheet['!ref']);
+  const headerRow = range.s.r;
+  const headers = [];
+
+  for (let columnIndex = range.s.c; columnIndex <= range.e.c; columnIndex += 1) {
+    const address = XLSX.utils.encode_cell({ r: headerRow, c: columnIndex });
+    const header = normalizeHeader(getCellDisplayValue(worksheet[address]));
+    if (header) headers.push({ header, columnIndex });
+  }
+
+  const rows = [];
+  for (let rowIndex = headerRow + 1; rowIndex <= range.e.r; rowIndex += 1) {
+    const row = {};
+    let hasContent = false;
+
+    headers.forEach(({ header, columnIndex }) => {
+      const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
+      const cell = worksheet[address];
+      const value = header === 'Shipping Date' ? getShippingDateCellValue(cell) : getCellDisplayValue(cell);
+      row[header] = value;
+
+      if (header === 'Tracking Number' && cell?.t === 'n') {
+        row.__trackingNumberWasNumeric = true;
+      }
+      if (normalizeCell(value)) {
+        hasContent = true;
+      }
+    });
+
+    if (hasContent) rows.push(row);
+  }
+
+  return rows;
+}
+
 function parseCsv(content) {
   const workbook = XLSX.read(content, { type: 'string', raw: false });
   const [sheetName] = workbook.SheetNames;
@@ -51,10 +178,12 @@ function parseCsv(content) {
 }
 
 function parseWorkbook(buffer) {
-  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true, raw: false });
-  const [sheetName] = workbook.SheetNames;
+  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false, raw: false });
+  const sheetName = workbook.SheetNames.includes(TRACKING_TEMPLATE_SHEET_NAME)
+    ? TRACKING_TEMPLATE_SHEET_NAME
+    : workbook.SheetNames[0];
   if (!sheetName) return [];
-  return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
+  return parseWorksheetRows(workbook.Sheets[sheetName]);
 }
 
 async function parseUploadedRows(file) {
@@ -117,7 +246,8 @@ function validateRow({ row, rowNumber, order, duplicateOrderNumbers, duplicateTr
   const trackingNumber = normalizeCell(row['Tracking Number']);
   const courier = normalizeCell(row.Courier);
   const service = normalizeCell(row.Service);
-  const shippingDate = normalizeDateCell(row['Shipping Date']);
+  const shippingDateResult = normalizeDateCell(row['Shipping Date']);
+  const shippingDate = shippingDateResult.value;
   const warnings = [];
 
   if (!orderNumber) {
@@ -132,8 +262,28 @@ function validateRow({ row, rowNumber, order, duplicateOrderNumbers, duplicateTr
   if (!trackingNumber) {
     return { rowNumber, orderId: order.id, orderNumber, trackingNumber, status: 'invalid', reason: 'Tracking number is required.' };
   }
+  if (row.__trackingNumberWasNumeric) {
+    return {
+      rowNumber,
+      orderId: order.id,
+      orderNumber,
+      trackingNumber,
+      status: 'invalid',
+      reason: 'Tracking Number must be stored as text to prevent Excel removing leading zeros. Use the exported template, format the cell as Text, or prefix the value with an apostrophe.',
+    };
+  }
   if (duplicateTrackingNumbers.has(trackingNumber)) {
     return { rowNumber, orderId: order.id, orderNumber, trackingNumber, status: 'invalid', reason: 'Duplicate tracking number in import file.' };
+  }
+  if (shippingDateResult.error) {
+    return {
+      rowNumber,
+      orderId: order.id,
+      orderNumber,
+      trackingNumber,
+      status: 'invalid',
+      reason: `Shipping Date format is invalid. ${shippingDateResult.error}`,
+    };
   }
 
   const fulfillmentStatus = getSynchronizedFulfillmentStatus({
@@ -216,7 +366,7 @@ export async function POST(request) {
         return NextResponse.json({ error: 'The uploaded file does not contain any rows.' }, { status: 400 });
       }
 
-      const headers = Object.keys(parsedRows[0] || {}).map(normalizeHeader);
+      const headers = Object.keys(parsedRows[0] || {}).map(normalizeHeader).filter((header) => !header.startsWith('__'));
       const missingColumnMessage = validateRequiredColumns(headers);
       if (missingColumnMessage) {
         return NextResponse.json({ error: missingColumnMessage }, { status: 400 });
@@ -227,6 +377,7 @@ export async function POST(request) {
         ALL_COLUMNS.forEach((column) => {
           nextRow[column] = row[column] ?? '';
         });
+        nextRow.__trackingNumberWasNumeric = Boolean(row.__trackingNumberWasNumeric);
         return nextRow;
       });
       const orderNumbers = canonicalRows.map((row) => normalizeCell(row['Order Number']));

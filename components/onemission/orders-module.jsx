@@ -1096,12 +1096,13 @@ function TrackingImportDialog({ open, onOpenChange, onCompleted }) {
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import Tracking Numbers</DialogTitle>
-          <DialogDescription>Upload the exported tracking template, review the preview, then confirm the import.</DialogDescription>
+          <DialogDescription>Upload the exported tracking template, review the preview, then confirm the import. Use DD-MM-YYYY for Shipping Date, for example 10-08-2026. Tracking Number is treated as text to preserve leading zeros.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Tracking Template File (.xlsx or .csv)</Label>
             <Input type="file" accept=".xlsx,.csv" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+            <p className="text-xs text-muted-foreground">Shipping Date format: DD-MM-YYYY (example: 10-08-2026). Keep Tracking Number as text so values like 00088127637 stay intact.</p>
           </div>
           <div className="flex justify-end">
             <Button variant="outline" onClick={handlePreview} disabled={loadingPreview || !file}>{loadingPreview ? 'Previewing…' : 'Preview Import'}</Button>
@@ -1125,6 +1126,7 @@ function TrackingImportDialog({ open, onOpenChange, onCompleted }) {
                     <Badge className={row.status === 'valid' ? 'bg-emerald-500/10 text-emerald-600' : row.status === 'skipped' ? 'bg-amber-500/10 text-amber-700' : 'bg-rose-500/10 text-rose-600'}>{row.status}</Badge>
                   </div>
                   <p className="mt-2 text-muted-foreground">Tracking: {row.trackingNumber || '—'}</p>
+                  {row.shippingDate ? <p className="mt-1 text-muted-foreground">Shipping Date: {fmtDateTime(row.shippingDate)}</p> : null}
                   {row.currentTrackingNumber && row.currentTrackingNumber !== row.trackingNumber ? <p className="mt-1 text-amber-700">Current: {row.currentTrackingNumber} · New: {row.trackingNumber}</p> : null}
                   {Array.isArray(row.warnings) && row.warnings.length > 0 ? <p className="mt-1 text-amber-700">{row.warnings.join(' · ')}</p> : null}
                   {row.reason ? <p className="mt-1 text-rose-600">{row.reason}</p> : null}
