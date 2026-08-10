@@ -126,6 +126,36 @@ const ordersApi = {
     });
     return response.json();
   },
+  async exportTrackingTemplate(orderIds) {
+    const params = new URLSearchParams({ orderIds: orderIds.join(',') });
+    const response = await fetch(`/api/orders/tracking-template?${params.toString()}`);
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.error || 'Tracking template could not be exported.');
+    }
+    return response.blob();
+  },
+  async previewTrackingImport(file) {
+    const formData = new FormData();
+    formData.set('file', file);
+    const response = await fetch('/api/orders/tracking-import/preview', {
+      method: 'POST',
+      body: formData,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.error || 'Tracking import preview could not be generated.');
+    }
+    return result;
+  },
+  async confirmTrackingImport(rows) {
+    const response = await fetch('/api/orders/tracking-import/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows }),
+    });
+    return response.json();
+  },
   async approveReturn(id) {
     const response = await fetch(`/api/admin/returns/${id}/approve`, {
       method: "POST",
@@ -1010,6 +1040,108 @@ function BulkTrackingDialog({ open, onOpenChange, selectedOrders, onSubmit, load
   );
 }
 
+
+function TrackingImportDialog({ open, onOpenChange, onCompleted }) {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setFile(null);
+    setPreview(null);
+  }, [open]);
+
+  const handlePreview = async () => {
+    if (!file) {
+      toast.error('Please choose a tracking template file.');
+      return;
+    }
+    setLoadingPreview(true);
+    try {
+      const result = await ordersApi.previewTrackingImport(file);
+      setPreview(result);
+    } catch (error) {
+      toast.error(error.message || 'Tracking import preview could not be generated.');
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    const validRows = (preview?.rows || []).filter((row) => row.status === 'valid');
+    if (validRows.length === 0) {
+      toast.error('There are no valid rows to import.');
+      return;
+    }
+    setConfirming(true);
+    try {
+      const result = await ordersApi.confirmTrackingImport(validRows);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      onOpenChange(false);
+      await onCompleted(result);
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const rows = Array.isArray(preview?.rows) ? preview.rows : [];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Import Tracking Numbers</DialogTitle>
+          <DialogDescription>Upload the exported tracking template, review the preview, then confirm the import.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Tracking Template File (.xlsx or .csv)</Label>
+            <Input type="file" accept=".xlsx,.csv" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={handlePreview} disabled={loadingPreview || !file}>{loadingPreview ? 'Previewing…' : 'Preview Import'}</Button>
+          </div>
+
+          {preview?.summary ? (
+            <div className="grid grid-cols-4 gap-3">
+              <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground uppercase tracking-wider">Total Rows</p><p className="text-2xl font-semibold">{preview.summary.total}</p></div>
+              <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground uppercase tracking-wider">Valid</p><p className="text-2xl font-semibold text-emerald-600">{preview.summary.valid}</p></div>
+              <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground uppercase tracking-wider">Invalid</p><p className="text-2xl font-semibold text-rose-600">{preview.summary.invalid}</p></div>
+              <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground uppercase tracking-wider">Skipped</p><p className="text-2xl font-semibold text-amber-600">{preview.summary.skipped}</p></div>
+            </div>
+          ) : null}
+
+          {rows.length > 0 ? (
+            <div className="space-y-2">
+              {rows.map((row) => (
+                <div key={`${row.rowNumber}-${row.orderNumber}`} className="rounded-xl border border-border/70 p-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-mono text-xs text-muted-foreground">Row {row.rowNumber} · {row.orderNumber || 'No Order Number'}</p>
+                    <Badge className={row.status === 'valid' ? 'bg-emerald-500/10 text-emerald-600' : row.status === 'skipped' ? 'bg-amber-500/10 text-amber-700' : 'bg-rose-500/10 text-rose-600'}>{row.status}</Badge>
+                  </div>
+                  <p className="mt-2 text-muted-foreground">Tracking: {row.trackingNumber || '—'}</p>
+                  {row.currentTrackingNumber && row.currentTrackingNumber !== row.trackingNumber ? <p className="mt-1 text-amber-700">Current: {row.currentTrackingNumber} · New: {row.trackingNumber}</p> : null}
+                  {Array.isArray(row.warnings) && row.warnings.length > 0 ? <p className="mt-1 text-amber-700">{row.warnings.join(' · ')}</p> : null}
+                  {row.reason ? <p className="mt-1 text-rose-600">{row.reason}</p> : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={confirming}>Cancel</Button>
+          <Button onClick={handleConfirm} disabled={confirming || !preview || Number(preview.summary?.valid || 0) === 0}>{confirming ? 'Importing…' : 'Confirm Import'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function OrdersModule({ user, initialReferenceSelection = null, onReferenceSelectionHandled = () => {} }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1052,6 +1184,8 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
   const [showBulkResult, setShowBulkResult] = useState(false);
+  const [showImportTracking, setShowImportTracking] = useState(false);
+  const [exportingTemplate, setExportingTemplate] = useState(false);
 
   const [sortBy, sortOrder] = useMemo(() => sortValue.split(":"), [sortValue]);
   const currentPageOrderIds = useMemo(() => items.map((order) => order.id), [items]);
@@ -1195,6 +1329,9 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
     if (value === "tracking") {
       setShowBulkTracking(true);
     }
+    if (value === "import-tracking") {
+      setShowImportTracking(true);
+    }
     window.setTimeout(() => setBulkAction(""), 0);
   };
 
@@ -1203,6 +1340,30 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
     setShowBulkResult(true);
     setSelectedOrderIds(new Set());
     await load();
+  };
+
+  const exportTrackingTemplate = async () => {
+    const orderIds = selectedCount > 0 ? Array.from(selectedOrderIds) : currentPageOrderIds;
+    if (orderIds.length === 0) {
+      toast.error('No orders are available to export.');
+      return;
+    }
+    setExportingTemplate(true);
+    try {
+      const blob = await ordersApi.exportTrackingTemplate(orderIds);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `onemission-tracking-template-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error(error.message || 'Tracking template could not be exported.');
+    } finally {
+      setExportingTemplate(false);
+    }
   };
 
   const submitBulkStatus = async ({ fulfillmentStatus, notes }) => {
@@ -1293,9 +1454,14 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
             Review incoming paid orders and manage internal fulfillment workflow
           </p>
         </div>
-        <Button variant="outline" size="icon" onClick={load} title="Refresh Orders">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2" onClick={exportTrackingTemplate} disabled={exportingTemplate || (selectedCount === 0 && currentPageOrderIds.length === 0)}>
+            {exportingTemplate ? 'Exporting…' : 'Export Tracking Template'}
+          </Button>
+          <Button variant="outline" size="icon" onClick={load} title="Refresh Orders">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
@@ -1441,6 +1607,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
                 <SelectContent>
                   <SelectItem value="status">Update Fulfillment Status</SelectItem>
                   <SelectItem value="tracking">Update Tracking Information</SelectItem>
+                  <SelectItem value="import-tracking">Import Tracking Numbers</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1546,6 +1713,11 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
         selectedOrders={selectedOrders}
         onSubmit={submitBulkTracking}
         loading={bulkLoading}
+      />
+      <TrackingImportDialog
+        open={showImportTracking}
+        onOpenChange={setShowImportTracking}
+        onCompleted={handleBulkCompleted}
       />
       <BulkResultDialog
         open={showBulkResult}
