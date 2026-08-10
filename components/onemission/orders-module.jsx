@@ -1343,9 +1343,9 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   };
 
   const exportTrackingTemplate = async () => {
-    const orderIds = selectedCount > 0 ? Array.from(selectedOrderIds) : currentPageOrderIds;
+    const orderIds = Array.from(selectedOrderIds);
     if (orderIds.length === 0) {
-      toast.error('No orders are available to export.');
+      toast.error('Please select at least one order before exporting the tracking template.');
       return;
     }
     setExportingTemplate(true);
@@ -1455,9 +1455,6 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2" onClick={exportTrackingTemplate} disabled={exportingTemplate || (selectedCount === 0 && currentPageOrderIds.length === 0)}>
-            {exportingTemplate ? 'Exporting…' : 'Export Tracking Template'}
-          </Button>
           <Button variant="outline" size="icon" onClick={load} title="Refresh Orders">
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -1602,14 +1599,19 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
           <CardContent className="py-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <p className="text-sm font-medium text-[#111827]">{selectedCount} order{selectedCount === 1 ? "" : "s"} selected</p>
-              <Select value={bulkAction} onValueChange={handleBulkActionChange}>
-                <SelectTrigger className="w-[240px]"><SelectValue placeholder="Bulk Actions" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="status">Update Fulfillment Status</SelectItem>
-                  <SelectItem value="tracking">Update Tracking Information</SelectItem>
-                  <SelectItem value="import-tracking">Import Tracking Numbers</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="outline" className="gap-2" onClick={exportTrackingTemplate} disabled={exportingTemplate}>
+                  {exportingTemplate ? 'Exporting…' : `Export Tracking Template (${selectedCount})`}
+                </Button>
+                <Select value={bulkAction} onValueChange={handleBulkActionChange}>
+                  <SelectTrigger className="w-[240px]"><SelectValue placeholder="Bulk Actions" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="status">Update Fulfillment Status</SelectItem>
+                    <SelectItem value="tracking">Update Tracking Information</SelectItem>
+                    <SelectItem value="import-tracking">Import Tracking Numbers</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
