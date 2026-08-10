@@ -57,7 +57,7 @@ const INVENTORY_ROWS = [
     productId: PRODUCT_COWBOY_RUNNING_CAP_ID,
     color: 'Black',
     size: 'AllSize',
-    quantity: 0,
+    quantity: 27,
     incoming: 0,
     threshold: 5,
   },
