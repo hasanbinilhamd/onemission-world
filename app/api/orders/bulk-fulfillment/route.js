@@ -3,7 +3,7 @@ import { withDevTiming } from '@/lib/dev-timing';
 import { requireHqPermission, writeAuditLog } from '@/lib/hq-security';
 import { normalizeOrderError, orderService } from '@/lib/order';
 import { prisma } from '@/lib/prisma';
-import { getSynchronizedFulfillmentStatus } from '@/lib/order/lifecycle';
+import { FULFILLMENT_STATUS, getSynchronizedFulfillmentStatus } from '@/lib/order/lifecycle';
 
 const BULK_OPERATION = {
   FULFILLMENT_STATUS: 'FULFILLMENT_STATUS',
@@ -41,6 +41,12 @@ async function getOrderReference(orderId) {
       publicOrderNumber: true,
       status: true,
       fulfillmentStatus: true,
+      courier: true,
+      courierService: true,
+      shipmentCourier: true,
+      shipmentService: true,
+      trackingNumber: true,
+      shippingDate: true,
     },
   });
   return order;
@@ -120,7 +126,7 @@ async function processTrackingBulk({ entries, payload, authContext }) {
       fulfillmentStatus: order.fulfillmentStatus,
     });
 
-    if (nextFulfillmentStatus === 'SHIPPED' || nextFulfillmentStatus === 'DELIVERED') {
+    if (nextFulfillmentStatus === FULFILLMENT_STATUS.SHIPPED || nextFulfillmentStatus === FULFILLMENT_STATUS.DELIVERED) {
       results.push({
         orderId,
         orderNumber: order.orderNumber || order.publicOrderNumber || orderId,
@@ -131,16 +137,27 @@ async function processTrackingBulk({ entries, payload, authContext }) {
       continue;
     }
 
+    if (nextFulfillmentStatus !== FULFILLMENT_STATUS.READY_TO_SHIP) {
+      results.push({
+        orderId,
+        orderNumber: order.orderNumber || order.publicOrderNumber || orderId,
+        status: 'failed',
+        reason: 'Order must be Ready To Ship before tracking information can be updated.',
+        code: 'ORDER_FULFILLMENT_TRANSITION_INVALID',
+      });
+      continue;
+    }
+
     try {
       const response = await orderService.updateFulfillmentStatus({
         orderId,
-        fulfillmentStatus: nextFulfillmentStatus,
+        fulfillmentStatus: FULFILLMENT_STATUS.SHIPPED,
         updatedBy: authContext.user.email || authContext.user.name,
         notes: payload.notes,
-        shipmentCourier: entry.shipmentCourier ?? payload.shipmentCourier ?? '',
-        shipmentService: entry.shipmentService ?? payload.shipmentService ?? '',
+        shipmentCourier: entry.shipmentCourier ?? payload.shipmentCourier ?? order.shipmentCourier ?? order.courier ?? '',
+        shipmentService: entry.shipmentService ?? payload.shipmentService ?? order.shipmentService ?? order.courierService ?? '',
         trackingNumber: entry.trackingNumber,
-        shippingDate: entry.shippingDate ?? payload.shippingDate ?? null,
+        shippingDate: entry.shippingDate ?? payload.shippingDate ?? order.shippingDate ?? null,
       });
 
       await writeAuditLog({
@@ -159,6 +176,7 @@ async function processTrackingBulk({ entries, payload, authContext }) {
         orderId,
         orderNumber: response.orderNumber || order.orderNumber,
         status: 'success',
+        fulfillmentStatus: response.fulfillmentStatus,
         trackingNumber: response.shipment?.trackingNumber || entry.trackingNumber,
       });
     } catch (error) {

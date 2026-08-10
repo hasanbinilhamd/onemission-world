@@ -950,7 +950,7 @@ function BulkTrackingDialog({ open, onOpenChange, selectedOrders, onSubmit, load
   };
 
   const submit = () => {
-    const missing = entries.filter((entry) => ![FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(entry.fulfillmentStatus) && !String(entry.trackingNumber || '').trim());
+    const missing = entries.filter((entry) => entry.fulfillmentStatus === FULFILLMENT_STATUS.READY_TO_SHIP && !String(entry.trackingNumber || '').trim());
     if (missing.length > 0) {
       toast.error(`Tracking number is required for ${missing.length} selected order${missing.length === 1 ? '' : 's'}.`);
       return;
@@ -982,13 +982,17 @@ function BulkTrackingDialog({ open, onOpenChange, selectedOrders, onSubmit, load
         <div className="space-y-2 mt-4">
           {entries.map((entry) => {
             const locked = [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(entry.fulfillmentStatus);
+            const notReadyToShip = !locked && entry.fulfillmentStatus !== FULFILLMENT_STATUS.READY_TO_SHIP;
+            const disabled = locked || notReadyToShip;
             return (
               <div key={entry.orderId} className="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)] gap-2 items-center rounded-xl border p-3">
                 <div>
                   <p className="font-mono text-xs text-muted-foreground">{entry.orderNumber}</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">{locked ? 'Shipment locked after dispatch' : 'Tracking number'}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {locked ? 'Shipment locked after dispatch' : notReadyToShip ? 'Must be Ready To Ship' : 'Will update tracking and mark as Shipped'}
+                  </p>
                 </div>
-                <Input value={entry.trackingNumber} onChange={(event) => updateEntry(entry.orderId, event.target.value)} placeholder="Tracking number" disabled={locked} className={locked ? 'opacity-70' : ''} />
+                <Input value={entry.trackingNumber} onChange={(event) => updateEntry(entry.orderId, event.target.value)} placeholder="Tracking number" disabled={disabled} className={disabled ? 'opacity-70' : ''} />
               </div>
             );
           })}
