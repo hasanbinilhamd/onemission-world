@@ -14,6 +14,7 @@ import {
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import {
   FULFILLMENT_STATUS,
   FULFILLMENT_STATUS_OPTIONS,
