@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import {
   FULFILLMENT_STATUS,
   FULFILLMENT_STATUS_OPTIONS,
+  FULFILLMENT_STATUS_TRANSITIONS,
 } from "@/lib/order/lifecycle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -111,6 +112,14 @@ const ordersApi = {
   async updateFulfillment(id, payload) {
     const response = await fetch(`/api/orders/${id}/fulfillment`, {
       method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+  async bulkFulfillment(payload) {
+    const response = await fetch('/api/orders/bulk-fulfillment', {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -808,6 +817,194 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   );
 }
 
+
+function buildBulkResultTitle(result) {
+  if (!result?.summary) return 'Bulk Update Completed';
+  const { successful = 0, failed = 0, skipped = 0 } = result.summary;
+  return `Bulk Update Completed — ${successful} success, ${skipped} skipped, ${failed} failed`;
+}
+
+function BulkResultDialog({ open, onOpenChange, result }) {
+  const results = Array.isArray(result?.results) ? result.results : [];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{buildBulkResultTitle(result)}</DialogTitle>
+          <DialogDescription>
+            Review which orders were updated, skipped, or failed.
+          </DialogDescription>
+        </DialogHeader>
+        {result?.summary ? (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground uppercase tracking-wider">Successful</p><p className="text-2xl font-semibold text-emerald-600">{result.summary.successful}</p></div>
+            <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground uppercase tracking-wider">Skipped</p><p className="text-2xl font-semibold text-amber-600">{result.summary.skipped}</p></div>
+            <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground uppercase tracking-wider">Failed</p><p className="text-2xl font-semibold text-rose-600">{result.summary.failed}</p></div>
+          </div>
+        ) : null}
+        <div className="space-y-2 mt-4">
+          {results.map((item) => (
+            <div key={`${item.orderId}-${item.status}`} className="rounded-xl border border-border/70 p-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-mono text-xs text-muted-foreground">{item.orderNumber || item.orderId}</p>
+                <Badge className={item.status === 'success' ? 'bg-emerald-500/10 text-emerald-600' : item.status === 'skipped' ? 'bg-amber-500/10 text-amber-700' : 'bg-rose-500/10 text-rose-600'}>{item.status}</Badge>
+              </div>
+              {item.reason ? <p className="text-muted-foreground mt-2">{item.reason}</p> : null}
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function getAllowedBulkFulfillmentOptions(selectedOrders) {
+  if (!Array.isArray(selectedOrders) || selectedOrders.length === 0) return [];
+  const allowedSets = selectedOrders.map((order) => {
+    const current = getVisibleFulfillmentStatus(order.fulfillmentStatus || FULFILLMENT_STATUS.PENDING);
+    return new Set((FULFILLMENT_STATUS_TRANSITIONS[current] || [current]).filter((status) => status !== FULFILLMENT_STATUS.PICKING));
+  });
+  return FULFILLMENT_STATUSES.filter((option) => allowedSets.every((set) => set.has(option.value)));
+}
+
+function BulkStatusDialog({ open, onOpenChange, selectedOrders, onSubmit, loading }) {
+  const allowedOptions = useMemo(() => getAllowedBulkFulfillmentOptions(selectedOrders), [selectedOrders]);
+  const [fulfillmentStatus, setFulfillmentStatus] = useState('');
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setFulfillmentStatus(allowedOptions[0]?.value || '');
+    setNotes('');
+  }, [allowedOptions, open]);
+
+  const submit = () => {
+    if (!fulfillmentStatus) {
+      toast.error('No valid fulfillment status is available for the selected orders.');
+      return;
+    }
+    onSubmit({ fulfillmentStatus, notes });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Update Fulfillment Status</DialogTitle>
+          <DialogDescription>Selected orders: {selectedOrders.length}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>New Status</Label>
+            <Select value={fulfillmentStatus} onValueChange={setFulfillmentStatus} disabled={allowedOptions.length === 0}>
+              <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+              <SelectContent>
+                {allowedOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Notes</Label>
+            <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="Optional fulfillment note" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button onClick={submit} disabled={loading || allowedOptions.length === 0}>{loading ? 'Updating…' : `Update ${selectedOrders.length} Orders`}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkTrackingDialog({ open, onOpenChange, selectedOrders, onSubmit, loading }) {
+  const [entries, setEntries] = useState([]);
+  const [shipmentCourier, setShipmentCourier] = useState('');
+  const [shipmentService, setShipmentService] = useState('');
+  const [shippingDate, setShippingDate] = useState('');
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setEntries(selectedOrders.map((order) => ({
+      orderId: order.id,
+      orderNumber: order.orderNumber || order.publicOrderNumber,
+      fulfillmentStatus: getVisibleFulfillmentStatus(order.fulfillmentStatus),
+      trackingNumber: order.shipment?.trackingNumber || '',
+      shipmentCourier: '',
+      shipmentService: '',
+      shippingDate: '',
+    })));
+    setShipmentCourier('');
+    setShipmentService('');
+    setShippingDate('');
+    setNotes('');
+  }, [open, selectedOrders]);
+
+  const updateEntry = (orderId, value) => {
+    setEntries((current) => current.map((entry) => entry.orderId === orderId ? { ...entry, trackingNumber: value } : entry));
+  };
+
+  const submit = () => {
+    const missing = entries.filter((entry) => ![FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(entry.fulfillmentStatus) && !String(entry.trackingNumber || '').trim());
+    if (missing.length > 0) {
+      toast.error(`Tracking number is required for ${missing.length} selected order${missing.length === 1 ? '' : 's'}.`);
+      return;
+    }
+    onSubmit({
+      entries: entries.map((entry) => ({
+        orderId: entry.orderId,
+        trackingNumber: entry.trackingNumber,
+      })),
+      shipmentCourier,
+      shipmentService,
+      shippingDate: shippingDate ? new Date(shippingDate).toISOString() : null,
+      notes,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Update Tracking Information</DialogTitle>
+          <DialogDescription>Enter one tracking number for each selected order.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="space-y-1.5"><Label>Courier Override</Label><Input value={shipmentCourier} onChange={(event) => setShipmentCourier(event.target.value)} placeholder="Use existing if empty" /></div>
+          <div className="space-y-1.5"><Label>Service Override</Label><Input value={shipmentService} onChange={(event) => setShipmentService(event.target.value)} placeholder="Use existing if empty" /></div>
+          <div className="space-y-1.5"><Label>Shipping Date</Label><Input type="datetime-local" value={shippingDate} onChange={(event) => setShippingDate(event.target.value)} /></div>
+        </div>
+        <div className="space-y-2 mt-4">
+          {entries.map((entry) => {
+            const locked = [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(entry.fulfillmentStatus);
+            return (
+              <div key={entry.orderId} className="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)] gap-2 items-center rounded-xl border p-3">
+                <div>
+                  <p className="font-mono text-xs text-muted-foreground">{entry.orderNumber}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{locked ? 'Shipment locked after dispatch' : 'Tracking number'}</p>
+                </div>
+                <Input value={entry.trackingNumber} onChange={(event) => updateEntry(entry.orderId, event.target.value)} placeholder="Tracking number" disabled={locked} className={locked ? 'opacity-70' : ''} />
+              </div>
+            );
+          })}
+        </div>
+        <div className="space-y-1.5 mt-4">
+          <Label>Notes</Label>
+          <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="Optional tracking note" />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button onClick={submit} disabled={loading}>{loading ? 'Saving…' : 'Save Tracking Information'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function OrdersModule({ user, initialReferenceSelection = null, onReferenceSelectionHandled = () => {} }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -843,8 +1040,19 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
     refundFailed: 0,
   });
   const [pendingReference, setPendingReference] = useState("");
+  const [selectedOrderIds, setSelectedOrderIds] = useState(() => new Set());
+  const [bulkAction, setBulkAction] = useState("");
+  const [showBulkStatus, setShowBulkStatus] = useState(false);
+  const [showBulkTracking, setShowBulkTracking] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
+  const [showBulkResult, setShowBulkResult] = useState(false);
 
   const [sortBy, sortOrder] = useMemo(() => sortValue.split(":"), [sortValue]);
+  const currentPageOrderIds = useMemo(() => items.map((order) => order.id), [items]);
+  const selectedOrders = useMemo(() => items.filter((order) => selectedOrderIds.has(order.id)), [items, selectedOrderIds]);
+  const selectedCount = selectedOrderIds.size;
+  const allCurrentPageSelected = currentPageOrderIds.length > 0 && currentPageOrderIds.every((orderId) => selectedOrderIds.has(orderId));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -919,6 +1127,11 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   }, [search, sortValue, limit, paymentStatusFilter, fulfillmentStatusFilter, statusTab, dateFrom, dateTo, courierFilter]);
 
   useEffect(() => {
+    setSelectedOrderIds(new Set());
+    setBulkAction("");
+  }, [page, search, sortValue, limit, paymentStatusFilter, fulfillmentStatusFilter, statusTab, dateFrom, dateTo, courierFilter]);
+
+  useEffect(() => {
     const nextReference = String(initialReferenceSelection?.referenceNumber || "").trim();
     if (!nextReference) {
       return;
@@ -947,6 +1160,95 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
     setPendingReference("");
     void openDetail(matchedOrder.id);
   }, [items, loading, pendingReference]);
+
+  const toggleOrderSelection = (orderId) => {
+    setSelectedOrderIds((current) => {
+      const next = new Set(current);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectCurrentPage = () => {
+    setSelectedOrderIds((current) => {
+      if (allCurrentPageSelected) {
+        return new Set();
+      }
+      return new Set(currentPageOrderIds);
+    });
+  };
+
+  const handleBulkActionChange = (value) => {
+    setBulkAction(value);
+    if (value === "status") {
+      setShowBulkStatus(true);
+    }
+    if (value === "tracking") {
+      setShowBulkTracking(true);
+    }
+    window.setTimeout(() => setBulkAction(""), 0);
+  };
+
+  const handleBulkCompleted = async (result) => {
+    setBulkResult(result);
+    setShowBulkResult(true);
+    setSelectedOrderIds(new Set());
+    await load();
+  };
+
+  const submitBulkStatus = async ({ fulfillmentStatus, notes }) => {
+    if (selectedOrders.length === 0) {
+      toast.error("Select at least one order first.");
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const result = await ordersApi.bulkFulfillment({
+        operation: "FULFILLMENT_STATUS",
+        orderIds: selectedOrders.map((order) => order.id),
+        fulfillmentStatus,
+        notes,
+      });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      setShowBulkStatus(false);
+      await handleBulkCompleted(result);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const submitBulkTracking = async ({ entries, shipmentCourier, shipmentService, shippingDate, notes }) => {
+    if (selectedOrders.length === 0) {
+      toast.error("Select at least one order first.");
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const result = await ordersApi.bulkFulfillment({
+        operation: "TRACKING",
+        entries,
+        shipmentCourier,
+        shipmentService,
+        shippingDate,
+        notes,
+      });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      setShowBulkTracking(false);
+      await handleBulkCompleted(result);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const openDetail = async (orderId) => {
     const result = await ordersApi.getById(orderId);
@@ -1124,6 +1426,23 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
         </CardContent>
       </Card>
 
+      {selectedCount > 0 ? (
+        <Card>
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-sm font-medium text-[#111827]">{selectedCount} order{selectedCount === 1 ? "" : "s"} selected</p>
+              <Select value={bulkAction} onValueChange={handleBulkActionChange}>
+                <SelectTrigger className="w-[240px]"><SelectValue placeholder="Bulk Actions" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="status">Update Fulfillment Status</SelectItem>
+                  <SelectItem value="tracking">Update Tracking Information</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -1141,6 +1460,9 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[rgba(17,24,39,0.04)]">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      <input type="checkbox" aria-label="Select all orders on current page" checked={allCurrentPageSelected} onChange={toggleSelectCurrentPage} />
+                    </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Internal Order Number</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Public Order Number</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Order Date</th>
@@ -1159,6 +1481,9 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
                       className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors cursor-pointer ${index % 2 === 0 ? "" : "bg-muted/10"}`}
                       onClick={() => openDetail(order.id)}
                     >
+                      <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
+                        <input type="checkbox" aria-label={`Select ${order.orderNumber}`} checked={selectedOrderIds.has(order.id)} onChange={() => toggleOrderSelection(order.id)} />
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{order.orderNumber}</td>
                       <td className="px-4 py-3 font-mono text-xs text-foreground">{order.publicOrderNumber}</td>
                       <td className="px-4 py-3 text-muted-foreground">{fmtDateTime(order.orderDate)}</td>
@@ -1202,6 +1527,25 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
         order={detailOrder}
         userName={user?.name || "HQ Admin"}
         onUpdated={handleOrderUpdated}
+      />
+      <BulkStatusDialog
+        open={showBulkStatus}
+        onOpenChange={setShowBulkStatus}
+        selectedOrders={selectedOrders}
+        onSubmit={submitBulkStatus}
+        loading={bulkLoading}
+      />
+      <BulkTrackingDialog
+        open={showBulkTracking}
+        onOpenChange={setShowBulkTracking}
+        selectedOrders={selectedOrders}
+        onSubmit={submitBulkTracking}
+        loading={bulkLoading}
+      />
+      <BulkResultDialog
+        open={showBulkResult}
+        onOpenChange={setShowBulkResult}
+        result={bulkResult}
       />
     </div>
   );
