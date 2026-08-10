@@ -154,10 +154,10 @@ async function processTrackingBulk({ entries, payload, authContext }) {
         fulfillmentStatus: FULFILLMENT_STATUS.SHIPPED,
         updatedBy: authContext.user.email || authContext.user.name,
         notes: payload.notes,
-        shipmentCourier: entry.shipmentCourier ?? payload.shipmentCourier ?? order.shipmentCourier ?? order.courier ?? '',
-        shipmentService: entry.shipmentService ?? payload.shipmentService ?? order.shipmentService ?? order.courierService ?? '',
+        shipmentCourier: entry.shipmentCourier || payload.shipmentCourier || order.shipmentCourier || order.courier || '',
+        shipmentService: entry.shipmentService || payload.shipmentService || order.shipmentService || order.courierService || '',
         trackingNumber: entry.trackingNumber,
-        shippingDate: entry.shippingDate ?? payload.shippingDate ?? order.shippingDate ?? null,
+        shippingDate: entry.shippingDate || payload.shippingDate || order.shippingDate || null,
       });
 
       await writeAuditLog({
