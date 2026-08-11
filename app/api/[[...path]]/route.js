@@ -1626,6 +1626,22 @@ async function handle(request, { params }) {
         return NextResponse.json(serializeProfitAllocationPolicy(created));
       }
 
+      if (method === 'DELETE' && segs[1] === 'policies' && segs.length === 3) {
+        const policyId = segs[2];
+        const existingPolicy = await prisma.profitAllocationPolicy.findUnique({ where: { id: policyId } });
+        if (!existingPolicy) return NextResponse.json({ error: 'Allocation policy not found.' }, { status: 404 });
+        if (existingPolicy.status === 'Active') {
+          return NextResponse.json({ error: 'Active allocation policy cannot be deleted. Activate another policy first.' }, { status: 409 });
+        }
+
+        try {
+          await prisma.profitAllocationPolicy.delete({ where: { id: policyId } });
+          return NextResponse.json({ ok: true });
+        } catch (error) {
+          return NextResponse.json({ error: 'This allocation policy cannot be deleted because it is currently in use.' }, { status: 409 });
+        }
+      }
+
       if (method === 'PUT' && segs[1] === 'policies' && segs.length === 3) {
         const policyId = segs[2];
         const existingPolicy = await prisma.profitAllocationPolicy.findUnique({

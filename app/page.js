@@ -9873,6 +9873,10 @@ function ProfitAllocationModule({ activeModule }) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(null);
+  const [savingPolicy, setSavingPolicy] = useState(false);
+  const [updatingStatusPolicyId, setUpdatingStatusPolicyId] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletingPolicyId, setDeletingPolicyId] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -9915,56 +9919,103 @@ function ProfitAllocationModule({ activeModule }) {
     selectedPolicy?.activeTotalPercentage ?? calculateAllocationTotal(rules),
   );
   const totalIsValid = Math.abs(activeTotal - 100) < 0.0001;
+  const actionBusy = savingPolicy || Boolean(updatingStatusPolicyId) || Boolean(deletingPolicyId);
 
   const openNewPolicy = () => {
+    if (actionBusy) return;
     setEditingPolicy(null);
     setShowForm(true);
   };
 
   const openEditPolicy = (policy) => {
+    if (actionBusy) return;
     setEditingPolicy(policy);
     setShowForm(true);
   };
 
   const savePolicy = async (payload) => {
-    const result = editingPolicy?.id
-      ? await api.put(`profitallocation/policies/${editingPolicy.id}`, payload)
-      : await api.post("profitallocation/policies", payload);
+    if (savingPolicy) return false;
+    setSavingPolicy(true);
+    try {
+      const result = editingPolicy?.id
+        ? await api.put(`profitallocation/policies/${editingPolicy.id}`, payload)
+        : await api.post("profitallocation/policies", payload);
 
-    if (result?.error) {
-      toast.error(result.error);
-      return;
+      if (result?.error) {
+        toast.error(result.error);
+        return false;
+      }
+
+      toast.success(
+        editingPolicy?.id
+          ? "Allocation policy updated"
+          : "Allocation policy created",
+      );
+      setShowForm(false);
+      setEditingPolicy(null);
+      await load();
+      return true;
+    } catch (error) {
+      toast.error("Allocation policy could not be saved.");
+      return false;
+    } finally {
+      setSavingPolicy(false);
     }
-
-    toast.success(
-      editingPolicy?.id
-        ? "Allocation policy updated"
-        : "Allocation policy created",
-    );
-    setShowForm(false);
-    setEditingPolicy(null);
-    await load();
   };
 
   const updatePolicyStatus = async (policy, status) => {
-    const result = await api.put(`profitallocation/policies/${policy.id}`, {
-      name: policy.name,
-      description: policy.description || "",
-      status,
-      rules: policy.rules || [],
-    });
+    if (updatingStatusPolicyId || deletingPolicyId || savingPolicy) return;
+    setUpdatingStatusPolicyId(policy.id);
+    try {
+      const result = await api.put(`profitallocation/policies/${policy.id}`, {
+        name: policy.name,
+        description: policy.description || "",
+        status,
+        rules: policy.rules || [],
+      });
 
-    if (result?.error) {
-      toast.error(result.error);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      toast.success(
+        status === "Active"
+          ? "Allocation policy activated"
+          : "Allocation policy updated",
+      );
+      await load();
+    } catch (error) {
+      toast.error("Allocation policy status could not be updated.");
+    } finally {
+      setUpdatingStatusPolicyId("");
+    }
+  };
+
+  const confirmDeletePolicy = async () => {
+    if (!deleteTarget || deletingPolicyId || actionBusy) return;
+    if (deleteTarget.status === "Active") {
+      toast.error("Active allocation policy cannot be deleted. Activate another policy first.");
+      setDeleteTarget(null);
       return;
     }
 
-    toast.success(
-      status === "Active"
-        ? "Allocation policy activated"
-        : "Allocation policy updated",
-    );
-    await load();
+    setDeletingPolicyId(deleteTarget.id);
+    try {
+      const result = await api.del(`profitallocation/policies/${deleteTarget.id}`);
+      if (result?.error) {
+        toast.error(result.error || "Failed to delete allocation policy.");
+        return;
+      }
+
+      toast.success("Allocation policy deleted successfully.");
+      setDeleteTarget(null);
+      await load();
+    } catch (error) {
+      toast.error("Failed to delete allocation policy.");
+    } finally {
+      setDeletingPolicyId("");
+    }
   };
 
   if (loading) {
@@ -9992,7 +10043,7 @@ function ProfitAllocationModule({ activeModule }) {
             create journals, cash movement, or spending limits.
           </p>
         </div>
-        <Button onClick={openNewPolicy} className="gap-2">
+        <Button onClick={openNewPolicy} className="gap-2" disabled={actionBusy}>
           <Plus className="h-4 w-4" /> New Policy
         </Button>
       </div>
@@ -10073,23 +10124,35 @@ function ProfitAllocationModule({ activeModule }) {
                   {selectedPolicy.status !== "Active" ? (
                     <Button
                       variant="outline"
+                      disabled={actionBusy}
                       onClick={() =>
                         updatePolicyStatus(selectedPolicy, "Active")
                       }
                     >
-                      Activate
+                      {updatingStatusPolicyId === selectedPolicy.id ? "Activating..." : "Activate"}
                     </Button>
                   ) : (
                     <Button
                       variant="outline"
+                      disabled={actionBusy}
                       onClick={() =>
                         updatePolicyStatus(selectedPolicy, "Inactive")
                       }
                     >
-                      Set Inactive
+                      {updatingStatusPolicyId === selectedPolicy.id ? "Updating..." : "Set Inactive"}
                     </Button>
                   )}
                   <Button
+                    variant="outline"
+                    disabled={actionBusy || selectedPolicy.status === "Active"}
+                    onClick={() => setDeleteTarget(selectedPolicy)}
+                    className="gap-2 text-rose-500 hover:text-rose-600"
+                    title={selectedPolicy.status === "Active" ? "Activate another policy before deleting this one." : "Delete allocation policy"}
+                  >
+                    <Trash2 className="h-4 w-4" /> {deletingPolicyId === selectedPolicy.id ? "Deleting..." : "Delete"}
+                  </Button>
+                  <Button
+                    disabled={actionBusy}
                     onClick={() => openEditPolicy(selectedPolicy)}
                     className="gap-2"
                   >
@@ -10203,12 +10266,37 @@ function ProfitAllocationModule({ activeModule }) {
         }}
         initial={editingPolicy}
         onSave={savePolicy}
+        saving={savingPolicy}
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(value) => !value && !deletingPolicyId && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Allocation Policy</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <span className="font-medium text-foreground">{deleteTarget?.name}</span>? This action only deletes the policy rules master and will not affect Finance transactions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(deletingPolicyId)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-500 hover:bg-rose-600 text-white"
+              disabled={Boolean(deletingPolicyId)}
+              onClick={(event) => {
+                event.preventDefault();
+                confirmDeletePolicy();
+              }}
+            >
+              {deletingPolicyId ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
+function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, saving = false }) {
   const buildEmpty = () => ({
     name: "",
     description: "",
@@ -10275,6 +10363,7 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
   };
 
   const submit = async () => {
+    if (saving) return;
     if (!form.name.trim()) {
       toast.error("Policy name is required");
       return;
@@ -10310,7 +10399,7 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(value) => !saving && onOpenChange(value)}>
       <DialogContent className="max-w-5xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -10405,6 +10494,7 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
               size="sm"
               onClick={addRule}
               className="gap-2"
+              disabled={saving}
             >
               <Plus className="h-4 w-4" /> Add Rule
             </Button>
@@ -10473,6 +10563,7 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
                     <td className="px-3 py-2">
                       <Switch
                         checked={rule.isActive !== false}
+                        disabled={saving}
                         onCheckedChange={(value) =>
                           updateRule(index, { isActive: value })
                         }
@@ -10484,6 +10575,7 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
                         variant="ghost"
                         size="icon"
                         className="text-rose-500"
+                        disabled={saving}
                         onClick={() => removeRule(index)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -10496,11 +10588,11 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={submit}>
-            {initial?.id ? "Save Changes" : "Create Policy"}
+          <Button onClick={submit} disabled={saving}>
+            {saving ? (initial?.id ? "Saving..." : "Creating...") : (initial?.id ? "Save Changes" : "Create Policy")}
           </Button>
         </DialogFooter>
       </DialogContent>
