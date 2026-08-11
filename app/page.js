@@ -575,6 +575,7 @@ const NAV_GROUPS = [
     icon: ShoppingCart,
     children: [
       { id: "customers", label: "Customers", icon: Users },
+      { id: "manualorders", label: "Manual Orders", icon: ClipboardList },
       { id: "orders", label: "Orders", icon: ShoppingCart },
       { id: "refundrequests", label: "Refund Requests", icon: Wallet },
       { id: "checkoutsessions", label: "Checkout Sessions", icon: CreditCard },
@@ -19828,6 +19829,286 @@ function SalesChannelsModule({ activeModule }) {
   );
 }
 
+
+// =========== MANUAL ORDERS ===========
+function ManualOrdersModule({ activeModule }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detail, setDetail] = useState(null);
+  const [salesChannels, setSalesChannels] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [form, setForm] = useState({
+    salesChannelId: "",
+    customerId: "walk-in",
+    paymentMethod: "Cash",
+    discount: 0,
+    notes: "",
+    items: [],
+  });
+
+  const productMap = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
+  const inventoryOptions = useMemo(() => inventory
+    .filter((row) => row.status !== "Inactive")
+    .map((row) => {
+      const product = productMap.get(row.productId) || {};
+      return {
+        ...row,
+        product,
+        label: `${product.name || row.productId} · ${row.color || "-"} / ${row.size || "-"} · Stock ${row.quantity}`,
+      };
+    }), [inventory, productMap]);
+
+  const load = async () => {
+    setLoading(true);
+    const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
+    const [ordersData, channelsData, customersData, inventoryData, productsData] = await Promise.all([
+      api.get("manualorders" + query),
+      api.get("saleschannels"),
+      api.get("customers"),
+      api.get("inventory"),
+      api.get("products?summary=basic"),
+    ]);
+    setItems(Array.isArray(ordersData) ? ordersData : []);
+    setSalesChannels(Array.isArray(channelsData) ? channelsData.filter((channel) => channel.status !== "Inactive") : []);
+    setCustomers(Array.isArray(customersData) ? customersData.filter((customer) => customer.status !== "Inactive") : []);
+    setInventory(Array.isArray(inventoryData) ? inventoryData : []);
+    setProducts(Array.isArray(productsData) ? productsData : []);
+    setLoading(false);
+  };
+
+  useLazyModuleEffect(activeModule, "manualorders", () => {
+    load();
+  }, [search]);
+
+  const resetForm = () => {
+    const offline = salesChannels.find((channel) => String(channel.channelName || "").toLowerCase().includes("offline"));
+    setForm({
+      salesChannelId: offline?.id || salesChannels[0]?.id || "",
+      customerId: "walk-in",
+      paymentMethod: "Cash",
+      discount: 0,
+      notes: "",
+      items: [],
+    });
+  };
+
+  const addItem = () => {
+    setForm((current) => ({ ...current, items: [...current.items, { inventoryId: "", productId: "", quantity: 1, unitPrice: 0, discount: 0 }] }));
+  };
+
+  const updateItem = (index, patch) => {
+    setForm((current) => ({
+      ...current,
+      items: current.items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item),
+    }));
+  };
+
+  const removeItem = (index) => {
+    setForm((current) => ({ ...current, items: current.items.filter((_, itemIndex) => itemIndex !== index) }));
+  };
+
+  const handleInventorySelect = (index, inventoryId) => {
+    const selected = inventoryOptions.find((row) => row.id === inventoryId);
+    const product = selected?.product || {};
+    updateItem(index, {
+      inventoryId,
+      productId: selected?.productId || "",
+      unitPrice: Number(product.sellingPrice || 0),
+    });
+  };
+
+  const totals = useMemo(() => {
+    const subtotal = form.items.reduce((sum, item) => sum + Math.max((Number(item.unitPrice || 0) * Number(item.quantity || 0)) - Number(item.discount || 0), 0), 0);
+    const discount = Number(form.discount || 0);
+    return { subtotal, discount, total: Math.max(subtotal - discount, 0) };
+  }, [form]);
+
+  const submit = async () => {
+    if (!form.salesChannelId) {
+      toast.error("Sales Channel is required");
+      return;
+    }
+    if (form.items.length === 0) {
+      toast.error("Add at least one item");
+      return;
+    }
+    const result = await api.post("manualorders", {
+      ...form,
+      customerId: form.customerId === "walk-in" ? "" : form.customerId,
+      discount: Number(form.discount || 0),
+      items: form.items.map((item) => ({ ...item, quantity: Number(item.quantity || 0), unitPrice: Number(item.unitPrice || 0), discount: Number(item.discount || 0) })),
+    });
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Manual Order created");
+    setOpen(false);
+    await load();
+  };
+
+  const openDetail = async (order) => {
+    const result = await api.get("manualorders/" + order.id);
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    setDetail(result);
+    setDetailOpen(true);
+  };
+
+  if (loading) {
+    return <TableSkeleton rows={8} cols={7} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Manual Orders</h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Record simple offline/manual sales without checkout session or payment gateway.</p>
+        </div>
+        <Button onClick={() => { resetForm(); setOpen(true); }} className="gap-2"><Plus className="h-4 w-4" /> New Manual Order</Button>
+      </div>
+
+      <div className="relative max-w-md">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input className="pl-8" placeholder="Search manual order, customer, or channel..." value={search} onChange={(event) => setSearch(event.target.value)} />
+      </div>
+
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-[#F7F8FA]">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Order #</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Sales Channel</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Total</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Payment</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">No manual orders found.</td></tr>
+              ) : items.map((order) => (
+                <tr key={order.id} className="border-b hover:bg-[#F7F8FA]/80 cursor-pointer" onClick={() => openDetail(order)}>
+                  <td className="px-4 py-3 font-mono text-xs">{order.orderNumber}</td>
+                  <td className="px-4 py-3">{order.salesChannel?.channelName || "—"}</td>
+                  <td className="px-4 py-3">{order.customer?.customerName || "Walk-in Customer"}</td>
+                  <td className="px-4 py-3 text-right font-semibold">{fmt(order.total)}</td>
+                  <td className="px-4 py-3">{order.paymentMethod}</td>
+                  <td className="px-4 py-3"><Badge className="bg-emerald-500/10 text-emerald-600">{order.status}</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-5xl max-h-[88vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>New Manual Order</DialogTitle>
+            <DialogDescription>Create a paid manual sale. Inventory and finance posting are processed atomically.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>Sales Channel</Label>
+                <Select value={form.salesChannelId} onValueChange={(value) => setForm((current) => ({ ...current, salesChannelId: value }))}>
+                  <SelectTrigger><SelectValue placeholder="Select channel" /></SelectTrigger>
+                  <SelectContent>{salesChannels.map((channel) => <SelectItem key={channel.id} value={channel.id}>{channel.channelName}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Customer</Label>
+                <Select value={form.customerId} onValueChange={(value) => setForm((current) => ({ ...current, customerId: value }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="walk-in">Walk-in Customer</SelectItem>
+                    {customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.customerName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Payment Method</Label>
+                <Select value={form.paymentMethod} onValueChange={(value) => setForm((current) => ({ ...current, paymentMethod: value }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="E-Wallet">E-Wallet</SelectItem>
+                    <SelectItem value="QRIS">QRIS</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label>Items</Label>
+              <Button variant="outline" size="sm" onClick={addItem}>Add Item</Button>
+            </div>
+            <div className="overflow-x-auto rounded-xl border">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b bg-[#F7F8FA]"><th className="px-3 py-2 text-left">Product / Variant</th><th className="px-3 py-2 text-left w-24">Qty</th><th className="px-3 py-2 text-left w-36">Unit Price</th><th className="px-3 py-2 text-left w-32">Discount</th><th className="px-3 py-2 text-right w-32">Subtotal</th><th className="w-10" /></tr></thead>
+                <tbody>
+                  {form.items.map((item, index) => {
+                    const lineSubtotal = Math.max(Number(item.unitPrice || 0) * Number(item.quantity || 0) - Number(item.discount || 0), 0);
+                    return (
+                      <tr key={index} className="border-b last:border-b-0">
+                        <td className="px-3 py-2 min-w-[320px]"><Select value={item.inventoryId} onValueChange={(value) => handleInventorySelect(index, value)}><SelectTrigger><SelectValue placeholder="Select product variant" /></SelectTrigger><SelectContent>{inventoryOptions.map((option) => <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>)}</SelectContent></Select></td>
+                        <td className="px-3 py-2"><Input type="number" min="1" value={item.quantity} onChange={(event) => updateItem(index, { quantity: Number(event.target.value || 0) })} /></td>
+                        <td className="px-3 py-2"><Input type="number" min="0" value={item.unitPrice} onChange={(event) => updateItem(index, { unitPrice: Number(event.target.value || 0) })} /></td>
+                        <td className="px-3 py-2"><Input type="number" min="0" value={item.discount} onChange={(event) => updateItem(index, { discount: Number(event.target.value || 0) })} /></td>
+                        <td className="px-3 py-2 text-right font-medium">{fmt(lineSubtotal)}</td>
+                        <td className="px-3 py-2"><Button variant="ghost" size="icon" className="text-rose-500" onClick={() => removeItem(index)}><Trash2 className="h-4 w-4" /></Button></td>
+                      </tr>
+                    );
+                  })}
+                  {form.items.length === 0 ? <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">No items added.</td></tr> : null}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5"><Label>Notes</Label><Textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={3} /></div>
+              <div className="rounded-xl border bg-[#F7F8FA] p-4 space-y-3">
+                <div className="flex justify-between"><span>Subtotal</span><span>{fmt(totals.subtotal)}</span></div>
+                <div className="flex justify-between items-center gap-3"><span>Order Discount</span><Input className="w-36" type="number" min="0" value={form.discount} onChange={(event) => setForm((current) => ({ ...current, discount: Number(event.target.value || 0) }))} /></div>
+                <div className="flex justify-between font-semibold text-lg border-t pt-3"><span>Total</span><span>{fmt(totals.total)}</span></div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={submit}>Create Manual Order</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{detail?.orderNumber || "Manual Order"}</DialogTitle><DialogDescription>Manual order detail, stock movement, and finance posting references.</DialogDescription></DialogHeader>
+          {detail ? <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-muted-foreground">Sales Channel</p><p className="font-medium">{detail.salesChannel?.channelName}</p></div><div><p className="text-muted-foreground">Customer</p><p className="font-medium">{detail.customer?.customerName || "Walk-in Customer"}</p></div><div><p className="text-muted-foreground">Payment</p><p className="font-medium">{detail.paymentMethod} · {detail.paymentStatus}</p></div><div><p className="text-muted-foreground">Total</p><p className="font-semibold">{fmt(detail.total)}</p></div></div>
+            <div className="rounded-xl border overflow-hidden"><table className="w-full text-sm"><thead><tr className="border-b bg-[#F7F8FA]"><th className="text-left px-3 py-2">Item</th><th className="text-right px-3 py-2">Qty</th><th className="text-right px-3 py-2">Subtotal</th></tr></thead><tbody>{detail.items?.map((item) => <tr key={item.id} className="border-b last:border-b-0"><td className="px-3 py-2">{item.productName}<p className="text-xs text-muted-foreground">{item.color} / {item.size}</p></td><td className="px-3 py-2 text-right">{item.quantity}</td><td className="px-3 py-2 text-right">{fmt(item.subtotal)}</td></tr>)}</tbody></table></div>
+            <div><p className="text-sm font-semibold mb-2">System Journals</p><div className="space-y-2">{detail.journals?.map((journal) => <div key={journal.id} className="rounded-lg border p-3 text-sm"><p className="font-medium">{journal.journalNumber} · {journal.journalSource}</p><p className="text-muted-foreground">{fmt(journal.totalDebit)}</p></div>)}</div></div>
+            <div><p className="text-sm font-semibold mb-2">Stock Movements</p><div className="space-y-2">{detail.stockMovements?.map((movement) => <div key={movement.id} className="rounded-lg border p-3 text-sm"><p className="font-medium">{movement.movementType} · {movement.color}/{movement.size}</p><p className="text-muted-foreground">Qty {movement.quantityChanged}</p></div>)}</div></div>
+          </div> : null}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // =========== CUSTOMERS ===========
 
 const CUSTOMER_TYPES = [
@@ -21475,6 +21756,7 @@ function App() {
     productionresults: () => <ProductionResultsModule activeModule={active} />,
     finishedgoods: () => <ComingSoonModule pageId="finishedgoods" />,
     customers: () => <CustomersModule activeModule={active} />,
+    manualorders: () => <ManualOrdersModule activeModule={active} />,
     orders: () => (
       <OrdersModule
         user={user}

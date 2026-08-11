@@ -228,6 +228,11 @@ function resolveCatchAllPermission(segs, method) {
       ? { moduleKey: 'finance', actionKey: 'view' }
       : null;
   }
+  if (segment === 'manualorders') {
+    return method === 'GET'
+      ? { moduleKey: 'sales', actionKey: 'view' }
+      : { moduleKey: 'sales', actionKey: 'update_order' };
+  }
   if (['products', 'suppliers', 'bom', 'rawmaterials', 'plans'].includes(segment)) {
     if (method === 'GET') return { moduleKey: 'operations', actionKey: 'view' };
     if (method === 'POST') return { moduleKey: 'operations', actionKey: 'create' };
@@ -1064,6 +1069,120 @@ async function buildProfitAllocationMonitoring(periodKey = '') {
 
 function normalizeContentPlannerSummary(items = []) {
   return buildContentScriptSummary(items);
+}
+
+function buildManualOrderNumber(date = new Date()) {
+  const yyyyMm = date.toISOString().slice(0, 7).replace('-', '');
+  return `MO-${yyyyMm}-`;
+}
+
+async function generateManualOrderNumber(tx) {
+  const prefix = buildManualOrderNumber(new Date());
+  const latest = await tx.manualOrder.findFirst({
+    where: { orderNumber: { startsWith: prefix } },
+    select: { orderNumber: true },
+    orderBy: { orderNumber: 'desc' },
+  });
+  const current = Number.parseInt(String(latest?.orderNumber || '').split('-').pop() || '0', 10);
+  return `${prefix}${String((Number.isFinite(current) ? current : 0) + 1).padStart(5, '0')}`;
+}
+
+function sanitizeManualOrderPayload(body = {}) {
+  return {
+    salesChannelId: String(body.salesChannelId || '').trim(),
+    customerId: String(body.customerId || '').trim(),
+    paymentMethod: String(body.paymentMethod || '').trim() || 'Cash',
+    discount: Math.max(Number(body.discount || 0), 0),
+    notes: String(body.notes || '').trim(),
+    items: Array.isArray(body.items) ? body.items.map((item) => ({
+      productId: String(item.productId || '').trim(),
+      inventoryId: String(item.inventoryId || '').trim(),
+      quantity: Math.trunc(Number(item.quantity || 0)),
+      unitPrice: Number(item.unitPrice || 0),
+      discount: Math.max(Number(item.discount || 0), 0),
+    })) : [],
+  };
+}
+
+function validateManualOrderPayload(payload) {
+  if (!payload.salesChannelId) return 'Sales Channel is required.';
+  if (!payload.paymentMethod) return 'Payment method is required.';
+  if (!Array.isArray(payload.items) || payload.items.length === 0) return 'At least one item is required.';
+  for (const item of payload.items) {
+    if (!item.productId) return 'Product is required for every item.';
+    if (!item.inventoryId) return 'Variant/inventory is required for every item.';
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0) return 'Quantity must be greater than 0.';
+    if (!Number.isFinite(item.unitPrice) || item.unitPrice < 0) return 'Unit price must be valid.';
+    if (!Number.isFinite(item.discount) || item.discount < 0) return 'Discount must be valid.';
+  }
+  return '';
+}
+
+async function createManualSalesJournals(tx, manualOrder, items, createdBy = '') {
+  const amount = Number(manualOrder.total || 0);
+  if (amount <= 0) throw new Error('Manual Order total must be greater than 0.');
+  const journalDate = new Date().toISOString().slice(0, 10);
+  const cashOrBankAccount = await financePostingService.resolveCashOrBankAccount(tx);
+  const salesRevenueAccount = await financePostingService.resolveSalesRevenueAccount(tx);
+  const salesJournalNumber = await financePostingService.generateJournalNumber(tx, journalDate);
+  const salesDescription = `Manual Sale ${manualOrder.orderNumber}`;
+  const salesJournal = await tx.journalEntry.create({
+    data: {
+      id: uuid(),
+      journalNumber: salesJournalNumber,
+      journalDate,
+      description: salesDescription,
+      referenceNumber: manualOrder.orderNumber,
+      journalSource: 'Manual Sale',
+      sourceId: manualOrder.id,
+      journalType: 'System',
+      status: 'Posted',
+      totalDebit: amount,
+      totalCredit: amount,
+      createdBy,
+      updatedBy: createdBy,
+      lines: {
+        create: [
+          { id: uuid(), chartOfAccountId: cashOrBankAccount.id, description: salesDescription, debitAmount: amount, creditAmount: 0 },
+          { id: uuid(), chartOfAccountId: salesRevenueAccount.id, description: salesDescription, debitAmount: 0, creditAmount: amount },
+        ],
+      },
+    },
+  });
+
+  const cogsAmount = items.reduce((sum, item) => sum + Number(item.costPrice || 0) * Number(item.quantity || 0), 0);
+  let cogsJournal = null;
+  if (cogsAmount > 0) {
+    const cogsAccount = await financePostingService.resolveCogsAccount(tx);
+    const inventoryAssetAccount = await financePostingService.resolveFinishedGoodsInventoryAccount(tx);
+    const cogsJournalNumber = await financePostingService.generateJournalNumber(tx, journalDate);
+    const cogsDescription = `Manual Sale COGS ${manualOrder.orderNumber}`;
+    cogsJournal = await tx.journalEntry.create({
+      data: {
+        id: uuid(),
+        journalNumber: cogsJournalNumber,
+        journalDate,
+        description: cogsDescription,
+        referenceNumber: manualOrder.orderNumber,
+        journalSource: 'Manual Sale COGS',
+        sourceId: manualOrder.id,
+        journalType: 'System',
+        status: 'Posted',
+        totalDebit: cogsAmount,
+        totalCredit: cogsAmount,
+        createdBy,
+        updatedBy: createdBy,
+        lines: {
+          create: [
+            { id: uuid(), chartOfAccountId: cogsAccount.id, description: cogsDescription, debitAmount: cogsAmount, creditAmount: 0 },
+            { id: uuid(), chartOfAccountId: inventoryAssetAccount.id, description: cogsDescription, debitAmount: 0, creditAmount: cogsAmount },
+          ],
+        },
+      },
+    });
+  }
+
+  return { salesJournal, cogsJournal };
 }
 
 async function dispatchDueContentReminders() {
@@ -2241,6 +2360,149 @@ async function handle(request, { params }) {
         });
 
         return NextResponse.json(serializeProfitAllocationPolicy(updated));
+      }
+    }
+
+    // ---------- MANUAL ORDERS ----------
+    if (segs[0] === 'manualorders') {
+      if (method === 'GET' && segs.length === 1) {
+        const url = new URL(request.url);
+        const search = String(url.searchParams.get('search') || '').trim().toLowerCase();
+        const orders = await prisma.manualOrder.findMany({
+          include: {
+            salesChannel: true,
+            customer: { select: { id: true, customerName: true, customerCode: true } },
+            items: { include: { product: { select: { id: true, name: true, sku: true } }, inventory: true } },
+          },
+          orderBy: [{ createdAt: 'desc' }],
+          take: 100,
+        });
+        const filtered = search
+          ? orders.filter((order) => [order.orderNumber, order.customer?.customerName, order.salesChannel?.channelName]
+              .some((value) => String(value || '').toLowerCase().includes(search)))
+          : orders;
+        return NextResponse.json(filtered);
+      }
+
+      if (method === 'GET' && segs.length === 2) {
+        const order = await prisma.manualOrder.findUnique({
+          where: { id: segs[1] },
+          include: {
+            salesChannel: true,
+            customer: { select: { id: true, customerName: true, customerCode: true, email: true, phone: true } },
+            items: { include: { product: true, inventory: true } },
+          },
+        });
+        if (!order) return NextResponse.json({ error: 'Manual Order not found.' }, { status: 404 });
+        const journals = await prisma.journalEntry.findMany({
+          where: { sourceId: order.id, journalType: 'System' },
+          include: { lines: { include: { chartOfAccount: true } } },
+          orderBy: { journalDate: 'asc' },
+        });
+        const stockMovements = await prisma.stockMovement.findMany({
+          where: { referenceId: order.id },
+          orderBy: { createdAt: 'asc' },
+        });
+        return NextResponse.json({ ...order, journals, stockMovements });
+      }
+
+      if (method === 'POST' && segs.length === 1) {
+        const payload = sanitizeManualOrderPayload(await readJson(request));
+        const validationError = validateManualOrderPayload(payload);
+        if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+        const actor = authContext?.user?.email || authContext?.user?.name || 'HQ Admin';
+
+        try {
+          const created = await prisma.$transaction(async (tx) => {
+            const salesChannel = await tx.salesChannel.findUnique({ where: { id: payload.salesChannelId } });
+            if (!salesChannel || salesChannel.status === 'Inactive') throw new Error('Sales Channel is not available.');
+            if (payload.customerId) {
+              const customer = await tx.customer.findUnique({ where: { id: payload.customerId } });
+              if (!customer) throw new Error('Customer not found.');
+            }
+
+            const itemRows = [];
+            for (const item of payload.items) {
+              const inventory = await tx.inventory.findUnique({ where: { id: item.inventoryId }, include: { product: true } });
+              if (!inventory || inventory.productId !== item.productId) throw new Error('Selected inventory variant is invalid.');
+              if (Number(inventory.quantity || 0) < item.quantity) throw new Error(`Insufficient inventory for ${inventory.product.name} ${inventory.color} ${inventory.size}.`);
+              const lineGross = item.unitPrice * item.quantity;
+              const lineSubtotal = Math.max(lineGross - item.discount, 0);
+              itemRows.push({
+                id: uuid(),
+                productId: inventory.productId,
+                inventoryId: inventory.id,
+                color: inventory.color,
+                size: inventory.size,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                discount: item.discount,
+                subtotal: lineSubtotal,
+                costPrice: Number(inventory.averageCost || inventory.product.costPrice || 0),
+                productName: inventory.product.name,
+                sku: inventory.product.sku,
+                previousQuantity: Number(inventory.quantity || 0),
+              });
+            }
+
+            const subtotal = itemRows.reduce((sum, item) => sum + item.subtotal, 0);
+            const total = Math.max(subtotal - payload.discount, 0);
+            if (total <= 0) throw new Error('Manual Order total must be greater than 0.');
+            const orderNumber = await generateManualOrderNumber(tx);
+            const manualOrder = await tx.manualOrder.create({
+              data: {
+                id: uuid(),
+                orderNumber,
+                salesChannelId: payload.salesChannelId,
+                customerId: payload.customerId || null,
+                subtotal,
+                discount: payload.discount,
+                tax: 0,
+                total,
+                paymentMethod: payload.paymentMethod,
+                paymentStatus: 'PAID',
+                status: 'COMPLETED',
+                notes: payload.notes,
+                createdBy: actor,
+                items: { create: itemRows.map(({ previousQuantity: _previousQuantity, ...row }) => row) },
+              },
+              include: { items: true, salesChannel: true, customer: true },
+            });
+
+            for (const item of itemRows) {
+              const nextQuantity = item.previousQuantity - item.quantity;
+              await tx.inventory.update({ where: { id: item.inventoryId }, data: { quantity: nextQuantity } });
+              await tx.stockMovement.create({
+                data: {
+                  id: uuid(),
+                  itemType: 'PRODUCT',
+                  inventoryId: item.inventoryId,
+                  productId: item.productId,
+                  color: item.color,
+                  size: item.size,
+                  movementDate: new Date().toISOString().slice(0, 10),
+                  movementType: 'SALE',
+                  quantity: item.quantity,
+                  quantityChanged: item.quantity,
+                  previousQuantity: item.previousQuantity,
+                  newQuantity: nextQuantity,
+                  notes: `Manual Order ${manualOrder.orderNumber}`,
+                  referenceType: 'MANUAL_ORDER',
+                  referenceId: manualOrder.id,
+                  referenceNumber: manualOrder.orderNumber,
+                  performedBy: actor,
+                },
+              });
+            }
+
+            await createManualSalesJournals(tx, manualOrder, itemRows, actor);
+            return manualOrder;
+          });
+
+          return NextResponse.json(created);
+        } catch (error) {
+          return NextResponse.json({ error: error.message || 'Manual Order could not be created.' }, { status: 400 });
+        }
       }
     }
 

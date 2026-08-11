@@ -142,6 +142,7 @@ model Product {
   productReviews      ProductReview[]
   inventory           Inventory[]
   stockMovements      StockMovement[]
+  manualOrderItems    ManualOrderItem[]
   boms                BOM[]
   productionOrders    ProductionOrder[]
 }
@@ -188,6 +189,7 @@ model Inventory {
   incoming       Int
   status         String          @default("Active")
   stockMovements StockMovement[]
+  manualOrderItems ManualOrderItem[]
 
   @@unique([productId, color, size])
 }
@@ -698,6 +700,57 @@ model JournalEntryLine {
   updatedAt        DateTime       @updatedAt
 }
 
+model ManualOrder {
+  id             String            @id
+  orderNumber    String            @unique
+  salesChannelId String
+  salesChannel   SalesChannel      @relation(fields: [salesChannelId], references: [id])
+  customerId     String?
+  customer       Customer?         @relation(fields: [customerId], references: [id])
+  subtotal       Float
+  discount       Float             @default(0)
+  tax            Float             @default(0)
+  total          Float
+  paymentMethod  String
+  paymentStatus  String            @default("PAID")
+  status         String            @default("COMPLETED")
+  notes          String            @default("")
+  createdBy      String            @default("")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  items          ManualOrderItem[]
+
+  @@index([salesChannelId])
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ManualOrderItem {
+  id            String      @id
+  manualOrderId String
+  manualOrder   ManualOrder @relation(fields: [manualOrderId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id])
+  inventoryId   String
+  inventory     Inventory   @relation(fields: [inventoryId], references: [id])
+  color         String      @default("")
+  size          String      @default("")
+  quantity      Int
+  unitPrice     Float
+  discount      Float       @default(0)
+  subtotal      Float
+  costPrice     Float       @default(0)
+  productName   String      @default("")
+  sku           String      @default("")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([manualOrderId])
+  @@index([productId])
+  @@index([inventoryId])
+}
+
 model SalesChannel {
   id          String     @id
   channelCode String     @unique
@@ -709,6 +762,7 @@ model SalesChannel {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   customers   Customer[]
+  manualOrders ManualOrder[]
 }
 
 model Promotion {
@@ -798,6 +852,7 @@ model Customer {
   productReviews              ProductReview[]
   promotionUsages             PromotionUsage[]
   returnRequests              ReturnRequest[]
+  manualOrders                ManualOrder[]
 
   @@index([passwordResetToken])
   @@index([passwordResetTokenExpiresAt])
