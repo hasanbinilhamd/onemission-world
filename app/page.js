@@ -9881,6 +9881,14 @@ function ProfitAllocationModule({ activeModule }) {
   const [monitoring, setMonitoring] = useState(null);
   const [monitoringLoading, setMonitoringLoading] = useState(false);
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
+  const [showAdjustmentForm, setShowAdjustmentForm] = useState(false);
+  const [savingAdjustment, setSavingAdjustment] = useState(false);
+  const [adjustmentForm, setAdjustmentForm] = useState({
+    sourceAllocationName: "",
+    destinationAllocationName: "",
+    amount: "",
+    reason: "",
+  });
   const [mappingOptions, setMappingOptions] = useState({ expenseCategories: [], chartOfAccounts: [] });
 
   const load = async () => {
@@ -10076,6 +10084,59 @@ function ProfitAllocationModule({ activeModule }) {
     }
   };
 
+  const openAdjustmentForm = () => {
+    const rows = monitoring?.rows || [];
+    setAdjustmentForm({
+      sourceAllocationName: rows[0]?.allocationName || "",
+      destinationAllocationName: rows.find((row) => row.allocationName !== rows[0]?.allocationName)?.allocationName || "",
+      amount: "",
+      reason: "",
+    });
+    setShowAdjustmentForm(true);
+  };
+
+  const saveAdjustment = async () => {
+    if (savingAdjustment) return;
+    if (!adjustmentForm.sourceAllocationName || !adjustmentForm.destinationAllocationName) {
+      toast.error("Source and destination allocation are required");
+      return;
+    }
+    if (adjustmentForm.sourceAllocationName === adjustmentForm.destinationAllocationName) {
+      toast.error("Source and destination allocation must be different");
+      return;
+    }
+    if (Number(adjustmentForm.amount || 0) <= 0) {
+      toast.error("Adjustment amount must be greater than 0");
+      return;
+    }
+    if (!adjustmentForm.reason.trim()) {
+      toast.error("Adjustment reason is required");
+      return;
+    }
+
+    setSavingAdjustment(true);
+    try {
+      const result = await api.post("profitallocation/adjustments", {
+        periodKey,
+        sourceAllocationName: adjustmentForm.sourceAllocationName,
+        destinationAllocationName: adjustmentForm.destinationAllocationName,
+        amount: Number(adjustmentForm.amount || 0),
+        reason: adjustmentForm.reason.trim(),
+      });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Allocation adjustment recorded");
+      setShowAdjustmentForm(false);
+      await loadMonitoring();
+    } catch (error) {
+      toast.error("Allocation adjustment could not be saved.");
+    } finally {
+      setSavingAdjustment(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -10148,9 +10209,14 @@ function ProfitAllocationModule({ activeModule }) {
               {monitoring?.periodStatus === "Snapshot Created" ? (
                 <Badge className="bg-emerald-500/10 text-emerald-600">Snapshot Created</Badge>
               ) : (
-                <Button variant="outline" onClick={createSnapshot} disabled={creatingSnapshot || monitoringLoading || !monitoring?.activePolicy}>
-                  {creatingSnapshot ? "Creating..." : "Create Snapshot"}
-                </Button>
+                <>
+                  <Button variant="outline" onClick={openAdjustmentForm} disabled={monitoringLoading || !monitoring?.canAdjust || (monitoring?.rows || []).length < 2}>
+                    Adjust
+                  </Button>
+                  <Button variant="outline" onClick={createSnapshot} disabled={creatingSnapshot || monitoringLoading || !monitoring?.activePolicy}>
+                    {creatingSnapshot ? "Creating..." : "Create Snapshot"}
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -10201,7 +10267,9 @@ function ProfitAllocationModule({ activeModule }) {
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">Allocation</th>
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">Mapping</th>
                       <th className="text-right px-4 py-3 font-medium text-muted-foreground">%</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Target</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Original Target</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Adjustment</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Adjusted Target</th>
                       <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actual</th>
                       <th className="text-right px-4 py-3 font-medium text-muted-foreground">Variance</th>
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
@@ -10209,7 +10277,7 @@ function ProfitAllocationModule({ activeModule }) {
                   </thead>
                   <tbody>
                     {(monitoring.rows || []).length === 0 ? (
-                      <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No allocation rows available.</td></tr>
+                      <tr><td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">No allocation rows available.</td></tr>
                     ) : (monitoring.rows || []).map((row) => (
                       <tr key={row.allocationName} className="border-b last:border-b-0">
                         <td className="px-4 py-3 font-medium text-[#111827]">{row.allocationName}</td>
@@ -10218,7 +10286,9 @@ function ProfitAllocationModule({ activeModule }) {
                           {row.mappedFinanceLabel ? <p className="text-xs text-muted-foreground mt-1">{row.mappedFinanceLabel}</p> : null}
                         </td>
                         <td className="px-4 py-3 text-right">{formatPercentage(row.percentage)}</td>
-                        <td className="px-4 py-3 text-right font-medium">{fmt(row.targetAmount)}</td>
+                        <td className="px-4 py-3 text-right font-medium">{fmt(row.originalTargetAmount)}</td>
+                        <td className={`px-4 py-3 text-right font-medium ${Number(row.adjustmentAmount || 0) < 0 ? "text-rose-500" : Number(row.adjustmentAmount || 0) > 0 ? "text-emerald-600" : ""}`}>{fmt(row.adjustmentAmount)}</td>
+                        <td className="px-4 py-3 text-right font-medium">{fmt(row.adjustedTargetAmount)}</td>
                         <td className="px-4 py-3 text-right font-medium">{fmt(row.actualAmount)}</td>
                         <td className={`px-4 py-3 text-right font-semibold ${Number(row.variance || 0) < 0 ? "text-rose-500" : "text-emerald-600"}`}>{fmt(row.variance)}</td>
                         <td className="px-4 py-3">
@@ -10229,6 +10299,30 @@ function ProfitAllocationModule({ activeModule }) {
                   </tbody>
                 </table>
               </div>
+
+              {(monitoring.adjustments || []).length > 0 ? (
+                <div className="rounded-xl border">
+                  <div className="border-b bg-[#F7F8FA] px-4 py-3">
+                    <p className="text-sm font-semibold text-[#111827]">Adjustment History</p>
+                  </div>
+                  <div className="divide-y">
+                    {monitoring.adjustments.map((adjustment) => (
+                      <div key={adjustment.id} className="px-4 py-3 text-sm">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <p className="font-medium text-[#111827]">
+                            {adjustment.sourceAllocationName} → {adjustment.destinationAllocationName}
+                          </p>
+                          <p className="font-semibold">{fmt(adjustment.amount)}</p>
+                        </div>
+                        <p className="text-muted-foreground mt-1">{adjustment.reason}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {adjustment.createdAt ? new Date(adjustment.createdAt).toLocaleString("id-ID") : "—"} {adjustment.createdBy ? `· ${adjustment.createdBy}` : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="py-8 text-center text-sm text-muted-foreground">Allocation monitoring is not available.</div>
@@ -10441,6 +10535,63 @@ function ProfitAllocationModule({ activeModule }) {
         saving={savingPolicy}
         mappingOptions={mappingOptions}
       />
+
+      <Dialog open={showAdjustmentForm} onOpenChange={(value) => !savingAdjustment && setShowAdjustmentForm(value)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Adjust Allocation</DialogTitle>
+            <DialogDescription>
+              Record a balanced period-specific reallocation. This does not modify Cash Out, Journal Entries, General Ledger, or policy percentages.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Source Allocation</Label>
+                <Select value={adjustmentForm.sourceAllocationName} onValueChange={(value) => setAdjustmentForm((current) => ({ ...current, sourceAllocationName: value }))} disabled={savingAdjustment}>
+                  <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+                  <SelectContent>
+                    {(monitoring?.rows || []).map((row) => (
+                      <SelectItem key={row.allocationName} value={row.allocationName}>{row.allocationName} · {fmt(row.adjustedTargetAmount)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Destination Allocation</Label>
+                <Select value={adjustmentForm.destinationAllocationName} onValueChange={(value) => setAdjustmentForm((current) => ({ ...current, destinationAllocationName: value }))} disabled={savingAdjustment}>
+                  <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
+                  <SelectContent>
+                    {(monitoring?.rows || []).map((row) => (
+                      <SelectItem key={row.allocationName} value={row.allocationName}>{row.allocationName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Adjustment Amount</Label>
+              <Input type="number" min="0" value={adjustmentForm.amount} onChange={(event) => setAdjustmentForm((current) => ({ ...current, amount: event.target.value }))} disabled={savingAdjustment} placeholder="Amount to move" />
+            </div>
+            <div className="rounded-xl border bg-[#F7F8FA] p-4 text-sm text-muted-foreground">
+              <p>
+                {adjustmentForm.sourceAllocationName || "Source"} <span className="text-rose-500 font-semibold">- {fmt(Number(adjustmentForm.amount || 0))}</span>
+              </p>
+              <p className="mt-1">
+                {adjustmentForm.destinationAllocationName || "Destination"} <span className="text-emerald-600 font-semibold">+ {fmt(Number(adjustmentForm.amount || 0))}</span>
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reason / Note</Label>
+              <Textarea value={adjustmentForm.reason} onChange={(event) => setAdjustmentForm((current) => ({ ...current, reason: event.target.value }))} disabled={savingAdjustment} rows={4} placeholder="Explain why this reallocation is needed" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdjustmentForm(false)} disabled={savingAdjustment}>Cancel</Button>
+            <Button onClick={saveAdjustment} disabled={savingAdjustment}>{savingAdjustment ? "Saving..." : "Save Adjustment"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(value) => !value && !deletingPolicyId && setDeleteTarget(null)}>
         <AlertDialogContent>

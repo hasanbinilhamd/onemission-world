@@ -917,16 +917,28 @@ async function calculateProfitAllocationActualMap({ periodStart, periodEnd, rule
   return actualMap;
 }
 
-function buildProfitAllocationMonitoringRows({ rules = [], netProfit = 0, actualMap = new Map(), useSnapshotTargets = false }) {
+function buildProfitAllocationAdjustmentMap(adjustments = []) {
+  const adjustmentMap = new Map();
+  for (const adjustment of adjustments) {
+    const amount = Number(adjustment.amount || 0);
+    adjustmentMap.set(adjustment.sourceAllocationName, Number(adjustmentMap.get(adjustment.sourceAllocationName) || 0) - amount);
+    adjustmentMap.set(adjustment.destinationAllocationName, Number(adjustmentMap.get(adjustment.destinationAllocationName) || 0) + amount);
+  }
+  return adjustmentMap;
+}
+
+function buildProfitAllocationMonitoringRows({ rules = [], netProfit = 0, actualMap = new Map(), adjustmentMap = new Map(), useSnapshotTargets = false }) {
   return rules
     .filter((rule) => rule.isActive !== false)
     .sort((left, right) => (left.displayOrder || 0) - (right.displayOrder || 0) || left.allocationName.localeCompare(right.allocationName))
     .map((rule) => {
       const percentage = Number(rule.percentage || 0);
-      const targetAmount = useSnapshotTargets ? Number(rule.targetAmount || 0) : Number(netProfit || 0) * percentage / 100;
+      const originalTargetAmount = useSnapshotTargets ? Number(rule.targetAmount || 0) : Number(netProfit || 0) * percentage / 100;
+      const adjustmentAmount = Number(adjustmentMap.get(rule.allocationName) || 0);
+      const adjustedTargetAmount = originalTargetAmount + adjustmentAmount;
       const actualAmount = Number(actualMap.get(rule.allocationName) || 0);
-      const variance = targetAmount - actualAmount;
-      const status = actualAmount > targetAmount + 0.009
+      const variance = adjustedTargetAmount - actualAmount;
+      const status = actualAmount > adjustedTargetAmount + 0.009
         ? 'Over Allocation'
         : Math.abs(variance) <= 0.009
           ? 'Fully Used'
@@ -934,7 +946,10 @@ function buildProfitAllocationMonitoringRows({ rules = [], netProfit = 0, actual
       return {
         allocationName: rule.allocationName,
         percentage,
-        targetAmount,
+        originalTargetAmount,
+        adjustmentAmount,
+        adjustedTargetAmount,
+        targetAmount: adjustedTargetAmount,
         actualAmount,
         variance,
         status,
@@ -963,22 +978,34 @@ async function buildProfitAllocationMonitoring(periodKey = '') {
     ? { netProfit: snapshot.netProfit }
     : await calculateProfitLossForAllocationPeriod(period);
   const rules = snapshot ? snapshot.rules : (activePolicy?.rules || []);
+  const adjustments = await prisma.profitAllocationAdjustment.findMany({
+    where: { periodKey: period.periodKey },
+    orderBy: [{ createdAt: 'desc' }],
+  });
+  const adjustmentMap = buildProfitAllocationAdjustmentMap(adjustments);
   const actualMap = await calculateProfitAllocationActualMap({ ...period, rules });
   const rows = buildProfitAllocationMonitoringRows({
     rules,
     netProfit: profit.netProfit,
     actualMap,
+    adjustmentMap,
     useSnapshotTargets: Boolean(snapshot),
   });
-  const totalTarget = rows.reduce((sum, row) => sum + row.targetAmount, 0);
+  const totalOriginalTarget = rows.reduce((sum, row) => sum + row.originalTargetAmount, 0);
+  const totalAdjustment = rows.reduce((sum, row) => sum + row.adjustmentAmount, 0);
+  const totalTarget = rows.reduce((sum, row) => sum + row.adjustedTargetAmount, 0);
   const totalActual = rows.reduce((sum, row) => sum + row.actualAmount, 0);
   return {
     period,
     periodStatus: snapshot ? 'Snapshot Created' : 'Open',
     snapshot,
+    adjustments,
+    canAdjust: !snapshot,
     activePolicy: activePolicy ? serializeProfitAllocationPolicy(activePolicy) : null,
     policy: snapshot ? { id: snapshot.policyId, name: snapshot.policyName } : (activePolicy ? serializeProfitAllocationPolicy(activePolicy) : null),
     netProfit: Number(profit.netProfit || 0),
+    totalOriginalTarget,
+    totalAdjustment,
     totalTarget,
     totalActual,
     totalVariance: totalTarget - totalActual,
@@ -1899,6 +1926,57 @@ async function handle(request, { params }) {
             },
           },
           include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }], include: PROFIT_ALLOCATION_RULE_INCLUDE } },
+        });
+
+        return NextResponse.json(created);
+      }
+
+      if (method === 'POST' && segs[1] === 'adjustments' && segs.length === 2) {
+        const authUser = authContext?.user || null;
+        const body = await readJson(request);
+        const period = resolveMonthlyAllocationPeriod(body.periodKey || body.period || '');
+        const sourceAllocationName = String(body.sourceAllocationName || '').trim();
+        const destinationAllocationName = String(body.destinationAllocationName || '').trim();
+        const amount = Number(body.amount || 0);
+        const reason = String(body.reason || '').trim();
+
+        if (!sourceAllocationName) return NextResponse.json({ error: 'Source allocation is required.' }, { status: 400 });
+        if (!destinationAllocationName) return NextResponse.json({ error: 'Destination allocation is required.' }, { status: 400 });
+        if (sourceAllocationName === destinationAllocationName) return NextResponse.json({ error: 'Source and destination allocation must be different.' }, { status: 400 });
+        if (!Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'Adjustment amount must be greater than 0.' }, { status: 400 });
+        if (!reason) return NextResponse.json({ error: 'Adjustment reason is required.' }, { status: 400 });
+
+        const existingSnapshot = await prisma.profitAllocationSnapshot.findUnique({ where: { periodKey: period.periodKey } });
+        if (existingSnapshot) {
+          return NextResponse.json({ error: 'Allocation adjustment is disabled for snapshotted periods.' }, { status: 409 });
+        }
+
+        const monitoring = await buildProfitAllocationMonitoring(period.periodKey);
+        const sourceRow = (monitoring.rows || []).find((row) => row.allocationName === sourceAllocationName);
+        const destinationRow = (monitoring.rows || []).find((row) => row.allocationName === destinationAllocationName);
+        if (!sourceRow || !destinationRow) {
+          return NextResponse.json({ error: 'Selected allocation could not be found for this period.' }, { status: 400 });
+        }
+        if (Number(sourceRow.adjustedTargetAmount || 0) - amount < -0.009) {
+          return NextResponse.json({ error: 'Source allocation adjusted target cannot become negative.' }, { status: 400 });
+        }
+        const policyId = monitoring.policy?.id || monitoring.activePolicy?.id;
+        if (!policyId) return NextResponse.json({ error: 'Active allocation policy is required before creating an adjustment.' }, { status: 400 });
+
+        const created = await prisma.profitAllocationAdjustment.create({
+          data: {
+            id: uuid(),
+            periodKey: period.periodKey,
+            periodLabel: period.periodLabel,
+            periodStart: period.periodStart,
+            periodEnd: period.periodEnd,
+            policyId,
+            sourceAllocationName,
+            destinationAllocationName,
+            amount,
+            reason,
+            createdBy: authUser?.email || authUser?.name || '',
+          },
         });
 
         return NextResponse.json(created);

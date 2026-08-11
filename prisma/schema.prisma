@@ -520,6 +520,7 @@ model ProfitAllocationPolicy {
   updatedAt   DateTime               @updatedAt
   rules       ProfitAllocationRule[]
   snapshots   ProfitAllocationSnapshot[]
+  adjustments  ProfitAllocationAdjustment[]
 
   @@index([status])
 }
@@ -592,6 +593,27 @@ model ProfitAllocationSnapshotRule {
   @@index([financeMappingType])
   @@index([mappedExpenseCategoryId])
   @@index([mappedChartOfAccountId])
+}
+
+model ProfitAllocationAdjustment {
+  id                        String                 @id
+  periodKey                 String
+  periodLabel               String
+  periodStart               String
+  periodEnd                 String
+  policyId                  String
+  policy                    ProfitAllocationPolicy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  sourceAllocationName      String
+  destinationAllocationName String
+  amount                    Float
+  reason                    String
+  createdBy                 String                 @default("")
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
+
+  @@index([periodKey])
+  @@index([policyId])
+  @@index([periodStart, periodEnd])
 }
 
 model CashTransaction {
