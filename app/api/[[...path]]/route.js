@@ -1087,33 +1087,55 @@ async function generateManualOrderNumber(tx) {
   return `${prefix}${String((Number.isFinite(current) ? current : 0) + 1).padStart(5, '0')}`;
 }
 
+function normalizeManualDiscountType(value = '') {
+  return String(value || '').trim().toUpperCase() === 'PERCENTAGE' ? 'PERCENTAGE' : 'FIXED';
+}
+
+function calculateManualDiscountAmount(baseAmount, discountType, discountValue) {
+  const base = Math.max(Number(baseAmount || 0), 0);
+  const value = Math.max(Number(discountValue || 0), 0);
+  const type = normalizeManualDiscountType(discountType);
+  const amount = type === 'PERCENTAGE' ? (base * Math.min(value, 100) / 100) : value;
+  return Math.min(amount, base);
+}
+
 function sanitizeManualOrderPayload(body = {}) {
+  const orderDiscountType = normalizeManualDiscountType(body.discountType || body.orderDiscountType || 'FIXED');
+  const orderDiscountValue = Number(body.discountValue ?? body.discount ?? 0);
   return {
     salesChannelId: String(body.salesChannelId || '').trim(),
     customerId: String(body.customerId || '').trim(),
     paymentMethod: String(body.paymentMethod || '').trim() || 'Cash',
-    discount: Math.max(Number(body.discount || 0), 0),
+    discountType: orderDiscountType,
+    discountValue: Number.isFinite(orderDiscountValue) ? Math.max(orderDiscountValue, 0) : 0,
     notes: String(body.notes || '').trim(),
-    items: Array.isArray(body.items) ? body.items.map((item) => ({
-      productId: String(item.productId || '').trim(),
-      inventoryId: String(item.inventoryId || '').trim(),
-      quantity: Math.trunc(Number(item.quantity || 0)),
-      unitPrice: Number(item.unitPrice || 0),
-      discount: Math.max(Number(item.discount || 0), 0),
-    })) : [],
+    items: Array.isArray(body.items) ? body.items.map((item) => {
+      const discountType = normalizeManualDiscountType(item.discountType || 'FIXED');
+      const discountValue = Number(item.discountValue ?? item.discount ?? 0);
+      return {
+        productId: String(item.productId || '').trim(),
+        inventoryId: String(item.inventoryId || '').trim(),
+        quantity: Math.trunc(Number(item.quantity || 0)),
+        unitPrice: Number(item.unitPrice || 0),
+        discountType,
+        discountValue: Number.isFinite(discountValue) ? Math.max(discountValue, 0) : 0,
+      };
+    }) : [],
   };
 }
 
 function validateManualOrderPayload(payload) {
   if (!payload.salesChannelId) return 'Sales Channel is required.';
   if (!payload.paymentMethod) return 'Payment method is required.';
+  if (payload.discountType === 'PERCENTAGE' && payload.discountValue > 100) return 'Order discount percentage cannot exceed 100%.';
   if (!Array.isArray(payload.items) || payload.items.length === 0) return 'At least one item is required.';
   for (const item of payload.items) {
     if (!item.productId) return 'Product is required for every item.';
     if (!item.inventoryId) return 'Variant/inventory is required for every item.';
-    if (!Number.isFinite(item.quantity) || item.quantity <= 0) return 'Quantity must be greater than 0.';
+    if (!Number.isInteger(item.quantity) || item.quantity <= 0) return 'Quantity must be a positive whole number.';
     if (!Number.isFinite(item.unitPrice) || item.unitPrice < 0) return 'Unit price must be valid.';
-    if (!Number.isFinite(item.discount) || item.discount < 0) return 'Discount must be valid.';
+    if (!Number.isFinite(item.discountValue) || item.discountValue < 0) return 'Discount must be valid.';
+    if (item.discountType === 'PERCENTAGE' && item.discountValue > 100) return 'Item discount percentage cannot exceed 100%.';
   }
   return '';
 }
@@ -2427,7 +2449,9 @@ async function handle(request, { params }) {
               if (!inventory || inventory.productId !== item.productId) throw new Error('Selected inventory variant is invalid.');
               if (Number(inventory.quantity || 0) < item.quantity) throw new Error(`Insufficient inventory for ${inventory.product.name} ${inventory.color} ${inventory.size}.`);
               const lineGross = item.unitPrice * item.quantity;
-              const lineSubtotal = Math.max(lineGross - item.discount, 0);
+              if (item.discountType === 'FIXED' && item.discountValue > lineGross) throw new Error('Item discount cannot exceed item subtotal.');
+              const itemDiscount = calculateManualDiscountAmount(lineGross, item.discountType, item.discountValue);
+              const lineSubtotal = Math.max(lineGross - itemDiscount, 0);
               itemRows.push({
                 id: uuid(),
                 productId: inventory.productId,
@@ -2436,7 +2460,7 @@ async function handle(request, { params }) {
                 size: inventory.size,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
-                discount: item.discount,
+                discount: itemDiscount,
                 subtotal: lineSubtotal,
                 costPrice: Number(inventory.averageCost || inventory.product.costPrice || 0),
                 productName: inventory.product.name,
@@ -2446,7 +2470,9 @@ async function handle(request, { params }) {
             }
 
             const subtotal = itemRows.reduce((sum, item) => sum + item.subtotal, 0);
-            const total = Math.max(subtotal - payload.discount, 0);
+            if (payload.discountType === 'FIXED' && payload.discountValue > subtotal) throw new Error('Order discount cannot exceed subtotal.');
+            const orderDiscount = calculateManualDiscountAmount(subtotal, payload.discountType, payload.discountValue);
+            const total = Math.max(subtotal - orderDiscount, 0);
             if (total <= 0) throw new Error('Manual Order total must be greater than 0.');
             const orderNumber = await generateManualOrderNumber(tx);
             const manualOrder = await tx.manualOrder.create({
@@ -2456,7 +2482,7 @@ async function handle(request, { params }) {
                 salesChannelId: payload.salesChannelId,
                 customerId: payload.customerId || null,
                 subtotal,
-                discount: payload.discount,
+                discount: orderDiscount,
                 tax: 0,
                 total,
                 paymentMethod: payload.paymentMethod,
@@ -3715,6 +3741,7 @@ async function handle(request, { params }) {
             category: true,
             status: true,
             costPrice: true,
+            sellingPrice: true,
           },
           orderBy: { name: 'asc' },
         });

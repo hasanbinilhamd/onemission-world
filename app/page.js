@@ -19842,11 +19842,13 @@ function ManualOrdersModule({ activeModule }) {
   const [customers, setCustomers] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [products, setProducts] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     salesChannelId: "",
     customerId: "walk-in",
     paymentMethod: "Cash",
-    discount: 0,
+    discountType: "FIXED",
+    discountValue: 0,
     notes: "",
     items: [],
   });
@@ -19891,14 +19893,15 @@ function ManualOrdersModule({ activeModule }) {
       salesChannelId: offline?.id || salesChannels[0]?.id || "",
       customerId: "walk-in",
       paymentMethod: "Cash",
-      discount: 0,
+      discountType: "FIXED",
+      discountValue: 0,
       notes: "",
       items: [],
     });
   };
 
   const addItem = () => {
-    setForm((current) => ({ ...current, items: [...current.items, { inventoryId: "", productId: "", quantity: 1, unitPrice: 0, discount: 0 }] }));
+    setForm((current) => ({ ...current, items: [...current.items, { inventoryId: "", productId: "", quantity: 1, unitPrice: 0, discountType: "FIXED", discountValue: 0 }] }));
   };
 
   const updateItem = (index, patch) => {
@@ -19922,13 +19925,36 @@ function ManualOrdersModule({ activeModule }) {
     });
   };
 
+  const calculateDiscountAmount = (baseAmount, discountType, discountValue) => {
+    const base = Math.max(Number(baseAmount || 0), 0);
+    const value = Math.max(Number(discountValue || 0), 0);
+    const amount = discountType === "PERCENTAGE" ? base * Math.min(value, 100) / 100 : value;
+    return Math.min(amount, base);
+  };
+
+  const getItemCalculation = (item) => {
+    const gross = Math.max(Number(item.unitPrice || 0) * Number(item.quantity || 0), 0);
+    const discount = calculateDiscountAmount(gross, item.discountType, item.discountValue);
+    return { gross, discount, net: Math.max(gross - discount, 0) };
+  };
+
   const totals = useMemo(() => {
-    const subtotal = form.items.reduce((sum, item) => sum + Math.max((Number(item.unitPrice || 0) * Number(item.quantity || 0)) - Number(item.discount || 0), 0), 0);
-    const discount = Number(form.discount || 0);
-    return { subtotal, discount, total: Math.max(subtotal - discount, 0) };
+    const itemCalculations = form.items.map(getItemCalculation);
+    const grossSubtotal = itemCalculations.reduce((sum, item) => sum + item.gross, 0);
+    const itemDiscount = itemCalculations.reduce((sum, item) => sum + item.discount, 0);
+    const netSubtotal = itemCalculations.reduce((sum, item) => sum + item.net, 0);
+    const orderDiscount = calculateDiscountAmount(netSubtotal, form.discountType, form.discountValue);
+    return {
+      grossSubtotal,
+      itemDiscount,
+      netSubtotal,
+      orderDiscount,
+      total: Math.max(netSubtotal - orderDiscount, 0),
+    };
   }, [form]);
 
   const submit = async () => {
+    if (submitting) return;
     if (!form.salesChannelId) {
       toast.error("Sales Channel is required");
       return;
@@ -19937,19 +19963,66 @@ function ManualOrdersModule({ activeModule }) {
       toast.error("Add at least one item");
       return;
     }
-    const result = await api.post("manualorders", {
-      ...form,
-      customerId: form.customerId === "walk-in" ? "" : form.customerId,
-      discount: Number(form.discount || 0),
-      items: form.items.map((item) => ({ ...item, quantity: Number(item.quantity || 0), unitPrice: Number(item.unitPrice || 0), discount: Number(item.discount || 0) })),
-    });
-    if (result?.error) {
-      toast.error(result.error);
+    for (const item of form.items) {
+      const selectedInventory = inventoryOptions.find((row) => row.id === item.inventoryId);
+      if (!selectedInventory) {
+        toast.error("Select product variant for every item");
+        return;
+      }
+      if (!Number.isInteger(Number(item.quantity)) || Number(item.quantity) <= 0) {
+        toast.error("Quantity must be a positive whole number");
+        return;
+      }
+      if (Number(item.quantity) > Number(selectedInventory.quantity || 0)) {
+        toast.error(`Quantity exceeds available stock for ${selectedInventory.product?.name || 'selected item'}`);
+        return;
+      }
+      if (item.discountType === "PERCENTAGE" && Number(item.discountValue || 0) > 100) {
+        toast.error("Item discount percentage cannot exceed 100%");
+        return;
+      }
+      const itemCalc = getItemCalculation(item);
+      if (item.discountType === "FIXED" && Number(item.discountValue || 0) > itemCalc.gross) {
+        toast.error("Item discount cannot exceed item subtotal");
+        return;
+      }
+    }
+    if (form.discountType === "PERCENTAGE" && Number(form.discountValue || 0) > 100) {
+      toast.error("Order discount percentage cannot exceed 100%");
       return;
     }
-    toast.success("Manual Order created");
-    setOpen(false);
-    await load();
+    if (form.discountType === "FIXED" && Number(form.discountValue || 0) > totals.netSubtotal) {
+      toast.error("Order discount cannot exceed subtotal");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await api.post("manualorders", {
+        ...form,
+        customerId: form.customerId === "walk-in" ? "" : form.customerId,
+        discount: totals.orderDiscount,
+        discountType: form.discountType,
+        discountValue: Number(form.discountValue || 0),
+        items: form.items.map((item) => ({
+          ...item,
+          quantity: Number(item.quantity || 0),
+          unitPrice: Number(item.unitPrice || 0),
+          discount: getItemCalculation(item).discount,
+          discountType: item.discountType || "FIXED",
+          discountValue: Number(item.discountValue || 0),
+        })),
+      });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Manual Order created");
+      setOpen(false);
+      await load();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const openDetail = async (order) => {
@@ -20012,7 +20085,7 @@ function ManualOrdersModule({ activeModule }) {
         </div>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(value) => !submitting && setOpen(value)}>
         <DialogContent className="max-w-5xl max-h-[88vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Manual Order</DialogTitle>
@@ -20058,17 +20131,19 @@ function ManualOrdersModule({ activeModule }) {
             </div>
             <div className="overflow-x-auto rounded-xl border">
               <table className="w-full text-sm">
-                <thead><tr className="border-b bg-[#F7F8FA]"><th className="px-3 py-2 text-left">Product / Variant</th><th className="px-3 py-2 text-left w-24">Qty</th><th className="px-3 py-2 text-left w-36">Unit Price</th><th className="px-3 py-2 text-left w-32">Discount</th><th className="px-3 py-2 text-right w-32">Subtotal</th><th className="w-10" /></tr></thead>
+                <thead><tr className="border-b bg-[#F7F8FA]"><th className="px-3 py-2 text-left">Product / Variant</th><th className="px-3 py-2 text-left w-24">Qty</th><th className="px-3 py-2 text-left w-36">Unit Price</th><th className="px-3 py-2 text-left w-56">Discount</th><th className="px-3 py-2 text-right w-32">Subtotal</th><th className="w-10" /></tr></thead>
                 <tbody>
                   {form.items.map((item, index) => {
-                    const lineSubtotal = Math.max(Number(item.unitPrice || 0) * Number(item.quantity || 0) - Number(item.discount || 0), 0);
+                    const itemCalc = getItemCalculation(item);
+                    const selectedInventory = inventoryOptions.find((row) => row.id === item.inventoryId);
+                    const quantityInvalid = selectedInventory && Number(item.quantity || 0) > Number(selectedInventory.quantity || 0);
                     return (
                       <tr key={index} className="border-b last:border-b-0">
                         <td className="px-3 py-2 min-w-[320px]"><Select value={item.inventoryId} onValueChange={(value) => handleInventorySelect(index, value)}><SelectTrigger><SelectValue placeholder="Select product variant" /></SelectTrigger><SelectContent>{inventoryOptions.map((option) => <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>)}</SelectContent></Select></td>
-                        <td className="px-3 py-2"><Input type="number" min="1" value={item.quantity} onChange={(event) => updateItem(index, { quantity: Number(event.target.value || 0) })} /></td>
+                        <td className="px-3 py-2"><Input type="number" min="1" max={selectedInventory?.quantity || undefined} value={item.quantity} className={quantityInvalid ? "border-rose-500" : ""} onChange={(event) => updateItem(index, { quantity: Number(event.target.value || 0) })} />{quantityInvalid ? <p className="text-[11px] text-rose-500 mt-1">Max {selectedInventory.quantity}</p> : null}</td>
                         <td className="px-3 py-2"><Input type="number" min="0" value={item.unitPrice} onChange={(event) => updateItem(index, { unitPrice: Number(event.target.value || 0) })} /></td>
-                        <td className="px-3 py-2"><Input type="number" min="0" value={item.discount} onChange={(event) => updateItem(index, { discount: Number(event.target.value || 0) })} /></td>
-                        <td className="px-3 py-2 text-right font-medium">{fmt(lineSubtotal)}</td>
+                        <td className="px-3 py-2"><div className="flex items-center gap-2"><Select value={item.discountType || "FIXED"} onValueChange={(value) => updateItem(index, { discountType: value, discountValue: 0 })}><SelectTrigger className="w-24"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="FIXED">Fixed</SelectItem><SelectItem value="PERCENTAGE">%</SelectItem></SelectContent></Select><Input type="number" min="0" max={(item.discountType || "FIXED") === "PERCENTAGE" ? 100 : itemCalc.gross} value={item.discountValue || 0} onChange={(event) => updateItem(index, { discountValue: Number(event.target.value || 0) })} /></div>{itemCalc.discount > 0 ? <p className="text-[11px] text-muted-foreground mt-1">-{fmt(itemCalc.discount)}</p> : null}</td>
+                        <td className="px-3 py-2 text-right font-medium"><p>{fmt(itemCalc.net)}</p>{itemCalc.gross !== itemCalc.net ? <p className="text-[11px] text-muted-foreground">Gross {fmt(itemCalc.gross)}</p> : null}</td>
                         <td className="px-3 py-2"><Button variant="ghost" size="icon" className="text-rose-500" onClick={() => removeItem(index)}><Trash2 className="h-4 w-4" /></Button></td>
                       </tr>
                     );
@@ -20081,15 +20156,27 @@ function ManualOrdersModule({ activeModule }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5"><Label>Notes</Label><Textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={3} /></div>
               <div className="rounded-xl border bg-[#F7F8FA] p-4 space-y-3">
-                <div className="flex justify-between"><span>Subtotal</span><span>{fmt(totals.subtotal)}</span></div>
-                <div className="flex justify-between items-center gap-3"><span>Order Discount</span><Input className="w-36" type="number" min="0" value={form.discount} onChange={(event) => setForm((current) => ({ ...current, discount: Number(event.target.value || 0) }))} /></div>
+                <div className="flex justify-between"><span>Gross Subtotal</span><span>{fmt(totals.grossSubtotal)}</span></div>
+                {totals.itemDiscount > 0 ? <div className="flex justify-between text-rose-500"><span>Item Discount</span><span>-{fmt(totals.itemDiscount)}</span></div> : null}
+                <div className="flex justify-between"><span>Net Item Subtotal</span><span>{fmt(totals.netSubtotal)}</span></div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>Order Discount</span>
+                  <div className="flex items-center gap-2">
+                    <Select value={form.discountType || "FIXED"} onValueChange={(value) => setForm((current) => ({ ...current, discountType: value, discountValue: 0 }))}>
+                      <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="FIXED">Fixed</SelectItem><SelectItem value="PERCENTAGE">%</SelectItem></SelectContent>
+                    </Select>
+                    <Input className="w-32" type="number" min="0" max={(form.discountType || "FIXED") === "PERCENTAGE" ? 100 : totals.netSubtotal} value={form.discountValue || 0} onChange={(event) => setForm((current) => ({ ...current, discountValue: Number(event.target.value || 0) }))} />
+                  </div>
+                </div>
+                {totals.orderDiscount > 0 ? <div className="flex justify-between text-rose-500"><span>Order Discount Amount</span><span>-{fmt(totals.orderDiscount)}</span></div> : null}
                 <div className="flex justify-between font-semibold text-lg border-t pt-3"><span>Total</span><span>{fmt(totals.total)}</span></div>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={submit}>Create Manual Order</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>Cancel</Button>
+            <Button onClick={submit} disabled={submitting}>{submitting ? "Creating Manual Order..." : "Create Manual Order"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
