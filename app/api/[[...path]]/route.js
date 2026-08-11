@@ -53,6 +53,10 @@ import {
   validateAllocationReduction,
 } from '@/lib/profit-allocation/hardening';
 import {
+  aggregateManualOrderInventoryQuantities,
+  validateManualOrderInventoryAvailability,
+} from '@/lib/manual-order/inventory';
+import {
   ensureInventoryRowsForProduct,
   repairAllProductInventoryRows,
 } from '@/lib/inventory/lifecycle';
@@ -2469,6 +2473,19 @@ async function handle(request, { params }) {
               });
             }
 
+            const requestedByInventory = aggregateManualOrderInventoryQuantities(itemRows);
+            const availability = validateManualOrderInventoryAvailability({
+              requestedByInventory,
+              inventoryRows: itemRows.map((row) => ({
+                id: row.inventoryId,
+                quantity: row.previousQuantity,
+                color: row.color,
+                size: row.size,
+                product: { name: row.productName },
+              })),
+            });
+            if (!availability.valid) throw new Error(availability.message);
+
             const subtotal = itemRows.reduce((sum, item) => sum + item.subtotal, 0);
             if (payload.discountType === 'FIXED' && payload.discountValue > subtotal) throw new Error('Order discount cannot exceed subtotal.');
             const orderDiscount = calculateManualDiscountAmount(subtotal, payload.discountType, payload.discountValue);
@@ -2495,9 +2512,36 @@ async function handle(request, { params }) {
               include: { items: true, salesChannel: true, customer: true },
             });
 
+            const deductionResults = new Map();
+            for (const [inventoryId, requestedQuantity] of requestedByInventory.entries()) {
+              const [deductionResult] = await tx.$queryRaw`
+                UPDATE "Inventory"
+                SET "quantity" = "quantity" - ${Math.trunc(Number(requestedQuantity || 0))}
+                WHERE "id" = ${inventoryId}
+                  AND "quantity" >= ${Math.trunc(Number(requestedQuantity || 0))}
+                RETURNING "id", "quantity" + ${Math.trunc(Number(requestedQuantity || 0))} AS "previousQuantity", "quantity" AS "newQuantity"
+              `;
+
+              if (!deductionResult) {
+                const row = itemRows.find((item) => item.inventoryId === inventoryId);
+                throw new Error(`Insufficient inventory for ${row?.productName || 'selected item'} ${row?.color || ''} ${row?.size || ''}.`);
+              }
+
+              deductionResults.set(inventoryId, {
+                previousQuantity: Number(deductionResult.previousQuantity || 0),
+                newQuantity: Number(deductionResult.newQuantity || 0),
+              });
+            }
+
+            const runningQuantities = new Map();
             for (const item of itemRows) {
-              const nextQuantity = item.previousQuantity - item.quantity;
-              await tx.inventory.update({ where: { id: item.inventoryId }, data: { quantity: nextQuantity } });
+              const deductionResult = deductionResults.get(item.inventoryId);
+              const previousQuantity = runningQuantities.has(item.inventoryId)
+                ? runningQuantities.get(item.inventoryId)
+                : deductionResult.previousQuantity;
+              const nextQuantity = previousQuantity - item.quantity;
+              runningQuantities.set(item.inventoryId, nextQuantity);
+
               await tx.stockMovement.create({
                 data: {
                   id: uuid(),
@@ -2510,7 +2554,7 @@ async function handle(request, { params }) {
                   movementType: 'SALE',
                   quantity: item.quantity,
                   quantityChanged: item.quantity,
-                  previousQuantity: item.previousQuantity,
+                  previousQuantity,
                   newQuantity: nextQuantity,
                   notes: `Manual Order ${manualOrder.orderNumber}`,
                   referenceType: 'MANUAL_ORDER',
