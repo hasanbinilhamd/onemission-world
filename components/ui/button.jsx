@@ -34,13 +34,87 @@ const buttonVariants = cva(
   }
 )
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
+function ButtonLoadingSpinner() {
+  return (
+    <svg
+      className="animate-spin"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+      />
+    </svg>
+  )
+}
+
+const Button = React.forwardRef(({
+  className,
+  variant,
+  size,
+  asChild = false,
+  disabled,
+  onClick,
+  children,
+  loading = false,
+  ...props
+}, ref) => {
+  const [internalLoading, setInternalLoading] = React.useState(false)
+  const isLoading = loading || internalLoading
   const Comp = asChild ? Slot : "button"
+
+  const handleClick = React.useCallback((event) => {
+    if (disabled || isLoading) {
+      event.preventDefault()
+      return
+    }
+
+    if (!onClick) return
+
+    try {
+      const result = onClick(event)
+      if (result && typeof result.then === "function") {
+        setInternalLoading(true)
+        Promise.resolve(result)
+          .finally(() => setInternalLoading(false))
+          .catch(() => {})
+      }
+    } catch (error) {
+      setInternalLoading(false)
+      throw error
+    }
+  }, [disabled, isLoading, onClick])
+
+  const content = isLoading ? (
+    <>
+      <ButtonLoadingSpinner />
+      {size === "icon" ? <span className="sr-only">Loading</span> : children}
+    </>
+  ) : children
+
   return (
     <Comp
+      {...props}
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
-      {...props} />
+      disabled={disabled || isLoading}
+      aria-busy={isLoading || undefined}
+      data-loading={isLoading ? "true" : undefined}
+      onClick={handleClick}
+    >
+      {content}
+    </Comp>
   );
 })
 Button.displayName = "Button"
