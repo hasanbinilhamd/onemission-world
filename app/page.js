@@ -9889,6 +9889,16 @@ function ProfitAllocationModule({ activeModule }) {
     amount: "",
     reason: "",
   });
+  const [showExecutionForm, setShowExecutionForm] = useState(false);
+  const [savingExecution, setSavingExecution] = useState(false);
+  const [executionForm, setExecutionForm] = useState({
+    allocationName: "",
+    amount: "",
+    executionDate: new Date().toISOString().slice(0, 10),
+    note: "",
+  });
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [mappingOptions, setMappingOptions] = useState({ expenseCategories: [], chartOfAccounts: [] });
 
   const load = async () => {
@@ -9934,6 +9944,21 @@ function ProfitAllocationModule({ activeModule }) {
     }
   };
 
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const result = await api.get("profitallocation/history");
+      if (result?.error) {
+        toast.error(result.error);
+        setHistory([]);
+        return;
+      }
+      setHistory(Array.isArray(result?.periods) ? result.periods : []);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   useLazyModuleEffect(
     activeModule,
     "profitallocation",
@@ -9950,6 +9975,15 @@ function ProfitAllocationModule({ activeModule }) {
       loadMonitoring();
     },
     [periodKey],
+  );
+
+  useLazyModuleEffect(
+    activeModule,
+    "profitallocation",
+    () => {
+      loadHistory();
+    },
+    [],
   );
 
   const activePolicy =
@@ -10077,6 +10111,7 @@ function ProfitAllocationModule({ activeModule }) {
       }
       toast.success("Allocation snapshot created");
       await loadMonitoring();
+      await loadHistory();
     } catch (error) {
       toast.error("Allocation snapshot could not be created.");
     } finally {
@@ -10134,6 +10169,59 @@ function ProfitAllocationModule({ activeModule }) {
       toast.error("Allocation adjustment could not be saved.");
     } finally {
       setSavingAdjustment(false);
+    }
+  };
+
+  const openExecutionForm = (row) => {
+    setExecutionForm({
+      allocationName: row.allocationName,
+      amount: "",
+      executionDate: new Date().toISOString().slice(0, 10),
+      note: "",
+    });
+    setShowExecutionForm(true);
+  };
+
+  const saveExecution = async () => {
+    if (savingExecution) return;
+    if (!executionForm.allocationName) {
+      toast.error("Allocation is required");
+      return;
+    }
+    if (Number(executionForm.amount || 0) <= 0) {
+      toast.error("Execution amount must be greater than 0");
+      return;
+    }
+    if (!executionForm.executionDate) {
+      toast.error("Execution date is required");
+      return;
+    }
+    if (!executionForm.note.trim()) {
+      toast.error("Execution note is required");
+      return;
+    }
+
+    setSavingExecution(true);
+    try {
+      const result = await api.post("profitallocation/executions", {
+        periodKey,
+        allocationName: executionForm.allocationName,
+        amount: Number(executionForm.amount || 0),
+        executionDate: executionForm.executionDate,
+        note: executionForm.note.trim(),
+      });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Allocation execution recorded successfully.");
+      setShowExecutionForm(false);
+      await loadMonitoring();
+      await loadHistory();
+    } catch (error) {
+      toast.error("Failed to record allocation execution. Please try again.");
+    } finally {
+      setSavingExecution(false);
     }
   };
 
@@ -10226,7 +10314,7 @@ function ProfitAllocationModule({ activeModule }) {
             <div className="py-8 text-center text-sm text-muted-foreground">Loading allocation monitoring...</div>
           ) : monitoring ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
                 <Card>
                   <CardContent className="p-4">
                     <p className="text-xs text-muted-foreground">Net Profit</p>
@@ -10247,8 +10335,20 @@ function ProfitAllocationModule({ activeModule }) {
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground">Remaining / Variance</p>
-                    <p className={`text-lg font-semibold mt-1 ${Number(monitoring.totalVariance || 0) < 0 ? "text-rose-500" : "text-emerald-600"}`}>{fmt(monitoring.totalVariance)}</p>
+                    <p className="text-xs text-muted-foreground">Executed</p>
+                    <p className="text-lg font-semibold mt-1">{fmt(monitoring.totalExecuted)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Execution Remaining</p>
+                    <p className="text-lg font-semibold mt-1">{fmt(monitoring.totalExecutionRemaining)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Execution Progress</p>
+                    <p className="text-lg font-semibold mt-1">{Number(monitoring.executionProgress || 0).toFixed(1)}%</p>
                   </CardContent>
                 </Card>
               </div>
@@ -10271,13 +10371,17 @@ function ProfitAllocationModule({ activeModule }) {
                       <th className="text-right px-4 py-3 font-medium text-muted-foreground">Adjustment</th>
                       <th className="text-right px-4 py-3 font-medium text-muted-foreground">Adjusted Target</th>
                       <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actual</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Executed</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Exec. Remaining</th>
                       <th className="text-right px-4 py-3 font-medium text-muted-foreground">Variance</th>
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Execution</th>
+                      <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody>
                     {(monitoring.rows || []).length === 0 ? (
-                      <tr><td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">No allocation rows available.</td></tr>
+                      <tr><td colSpan={13} className="px-4 py-10 text-center text-muted-foreground">No allocation rows available.</td></tr>
                     ) : (monitoring.rows || []).map((row) => (
                       <tr key={row.allocationName} className="border-b last:border-b-0">
                         <td className="px-4 py-3 font-medium text-[#111827]">{row.allocationName}</td>
@@ -10290,15 +10394,47 @@ function ProfitAllocationModule({ activeModule }) {
                         <td className={`px-4 py-3 text-right font-medium ${Number(row.adjustmentAmount || 0) < 0 ? "text-rose-500" : Number(row.adjustmentAmount || 0) > 0 ? "text-emerald-600" : ""}`}>{fmt(row.adjustmentAmount)}</td>
                         <td className="px-4 py-3 text-right font-medium">{fmt(row.adjustedTargetAmount)}</td>
                         <td className="px-4 py-3 text-right font-medium">{fmt(row.actualAmount)}</td>
+                        <td className="px-4 py-3 text-right font-medium">{fmt(row.executedAmount)}</td>
+                        <td className="px-4 py-3 text-right font-medium">{fmt(row.executionRemaining)}</td>
                         <td className={`px-4 py-3 text-right font-semibold ${Number(row.variance || 0) < 0 ? "text-rose-500" : "text-emerald-600"}`}>{fmt(row.variance)}</td>
                         <td className="px-4 py-3">
                           <Badge variant="outline" className={row.status === "Over Allocation" ? "border-rose-500/40 text-rose-500" : row.status === "Fully Used" ? "border-slate-300 text-slate-600" : "border-emerald-500/40 text-emerald-600"}>{row.status}</Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className={row.executionStatus === "Fully Executed" ? "border-emerald-500/40 text-emerald-600" : row.executionStatus === "Partially Executed" ? "border-amber-500/40 text-amber-600" : "border-slate-300 text-slate-500"}>{row.executionStatus}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Button variant="outline" size="sm" onClick={() => openExecutionForm(row)} disabled={Number(row.executionRemaining || 0) <= 0}>
+                            Execute
+                          </Button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              {(monitoring.executions || []).length > 0 ? (
+                <div className="rounded-xl border">
+                  <div className="border-b bg-[#F7F8FA] px-4 py-3">
+                    <p className="text-sm font-semibold text-[#111827]">Execution History</p>
+                  </div>
+                  <div className="divide-y">
+                    {monitoring.executions.map((execution) => (
+                      <div key={execution.id} className="px-4 py-3 text-sm">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <p className="font-medium text-[#111827]">{execution.allocationName}</p>
+                          <p className="font-semibold">{fmt(execution.amount)}</p>
+                        </div>
+                        <p className="text-muted-foreground mt-1">{execution.note}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {execution.executionDate ? new Date(execution.executionDate).toLocaleDateString("id-ID") : "—"} {execution.createdBy ? `· ${execution.createdBy}` : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {(monitoring.adjustments || []).length > 0 ? (
                 <div className="rounded-xl border">
@@ -10326,6 +10462,49 @@ function ProfitAllocationModule({ activeModule }) {
             </div>
           ) : (
             <div className="py-8 text-center text-sm text-muted-foreground">Allocation monitoring is not available.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Historical Allocation Reporting</CardTitle>
+          <CardDescription>Snapshot-based execution summary by period.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {historyLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Loading historical allocation report...</div>
+          ) : history.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No historical snapshots found.</div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-[#F7F8FA]">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Period</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Net Profit</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Allocated</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Executed</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Remaining</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((period) => (
+                    <tr key={period.periodKey} className="border-b last:border-b-0">
+                      <td className="px-4 py-3 font-medium text-[#111827]">{period.periodLabel}</td>
+                      <td className="px-4 py-3 text-right">{fmt(period.netProfit)}</td>
+                      <td className="px-4 py-3 text-right">{fmt(period.totalAllocated)}</td>
+                      <td className="px-4 py-3 text-right">{fmt(period.totalExecuted)}</td>
+                      <td className="px-4 py-3 text-right">{fmt(period.totalRemaining)}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className={period.executionStatus === "Fully Executed" ? "border-emerald-500/40 text-emerald-600" : period.executionStatus === "Partially Executed" ? "border-amber-500/40 text-amber-600" : "border-slate-300 text-slate-500"}>{period.executionStatus}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -10535,6 +10714,41 @@ function ProfitAllocationModule({ activeModule }) {
         saving={savingPolicy}
         mappingOptions={mappingOptions}
       />
+
+      <Dialog open={showExecutionForm} onOpenChange={(value) => !savingExecution && setShowExecutionForm(value)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Execute Allocation</DialogTitle>
+            <DialogDescription>
+              Record management execution for this allocation. This does not create Cash Out, Journal Entry, or General Ledger records.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Allocation</Label>
+              <Input value={executionForm.allocationName} disabled />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Executed Amount</Label>
+                <Input type="number" min="0" value={executionForm.amount} onChange={(event) => setExecutionForm((current) => ({ ...current, amount: event.target.value }))} disabled={savingExecution} placeholder="Amount executed" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Execution Date</Label>
+                <Input type="date" value={executionForm.executionDate} onChange={(event) => setExecutionForm((current) => ({ ...current, executionDate: event.target.value }))} disabled={savingExecution} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Note / Reason</Label>
+              <Textarea value={executionForm.note} onChange={(event) => setExecutionForm((current) => ({ ...current, note: event.target.value }))} disabled={savingExecution} rows={4} placeholder="Describe this allocation execution" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExecutionForm(false)} disabled={savingExecution}>Cancel</Button>
+            <Button onClick={saveExecution} disabled={savingExecution}>{savingExecution ? "Executing..." : "Save Execution"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showAdjustmentForm} onOpenChange={(value) => !savingAdjustment && setShowAdjustmentForm(value)}>
         <DialogContent className="max-w-2xl">

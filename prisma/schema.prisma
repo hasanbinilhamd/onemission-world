@@ -521,6 +521,7 @@ model ProfitAllocationPolicy {
   rules       ProfitAllocationRule[]
   snapshots   ProfitAllocationSnapshot[]
   adjustments  ProfitAllocationAdjustment[]
+  executions   ProfitAllocationExecution[]
 
   @@index([status])
 }
@@ -614,6 +615,28 @@ model ProfitAllocationAdjustment {
   @@index([periodKey])
   @@index([policyId])
   @@index([periodStart, periodEnd])
+}
+
+model ProfitAllocationExecution {
+  id             String                 @id
+  periodKey      String
+  periodLabel    String
+  periodStart    String
+  periodEnd      String
+  policyId       String
+  policy         ProfitAllocationPolicy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  allocationName String
+  amount         Float
+  executionDate  String
+  note           String
+  createdBy      String                 @default("")
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([periodKey])
+  @@index([policyId])
+  @@index([allocationName])
+  @@index([executionDate])
 }
 
 model CashTransaction {

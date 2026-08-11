@@ -927,7 +927,24 @@ function buildProfitAllocationAdjustmentMap(adjustments = []) {
   return adjustmentMap;
 }
 
-function buildProfitAllocationMonitoringRows({ rules = [], netProfit = 0, actualMap = new Map(), adjustmentMap = new Map(), useSnapshotTargets = false }) {
+function buildProfitAllocationExecutionMaps(executions = []) {
+  const executionMap = new Map();
+  const historyMap = new Map();
+  for (const execution of executions) {
+    executionMap.set(execution.allocationName, Number(executionMap.get(execution.allocationName) || 0) + Number(execution.amount || 0));
+    if (!historyMap.has(execution.allocationName)) historyMap.set(execution.allocationName, []);
+    historyMap.get(execution.allocationName).push(execution);
+  }
+  return { executionMap, historyMap };
+}
+
+function getProfitAllocationExecutionStatus(executedAmount, targetAmount) {
+  if (Number(executedAmount || 0) <= 0.009) return 'Not Executed';
+  if (Number(executedAmount || 0) >= Number(targetAmount || 0) - 0.009) return 'Fully Executed';
+  return 'Partially Executed';
+}
+
+function buildProfitAllocationMonitoringRows({ rules = [], netProfit = 0, actualMap = new Map(), adjustmentMap = new Map(), executionMap = new Map(), executionHistoryMap = new Map(), useSnapshotTargets = false }) {
   return rules
     .filter((rule) => rule.isActive !== false)
     .sort((left, right) => (left.displayOrder || 0) - (right.displayOrder || 0) || left.allocationName.localeCompare(right.allocationName))
@@ -937,6 +954,9 @@ function buildProfitAllocationMonitoringRows({ rules = [], netProfit = 0, actual
       const adjustmentAmount = Number(adjustmentMap.get(rule.allocationName) || 0);
       const adjustedTargetAmount = originalTargetAmount + adjustmentAmount;
       const actualAmount = Number(actualMap.get(rule.allocationName) || 0);
+      const executedAmount = Number(executionMap.get(rule.allocationName) || 0);
+      const executionRemaining = Math.max(adjustedTargetAmount - executedAmount, 0);
+      const executionStatus = getProfitAllocationExecutionStatus(executedAmount, adjustedTargetAmount);
       const variance = adjustedTargetAmount - actualAmount;
       const status = actualAmount > adjustedTargetAmount + 0.009
         ? 'Over Allocation'
@@ -951,6 +971,10 @@ function buildProfitAllocationMonitoringRows({ rules = [], netProfit = 0, actual
         adjustedTargetAmount,
         targetAmount: adjustedTargetAmount,
         actualAmount,
+        executedAmount,
+        executionRemaining,
+        executionStatus,
+        executionHistory: executionHistoryMap.get(rule.allocationName) || [],
         variance,
         status,
         displayOrder: rule.displayOrder || 0,
@@ -978,28 +1002,42 @@ async function buildProfitAllocationMonitoring(periodKey = '') {
     ? { netProfit: snapshot.netProfit }
     : await calculateProfitLossForAllocationPeriod(period);
   const rules = snapshot ? snapshot.rules : (activePolicy?.rules || []);
-  const adjustments = await prisma.profitAllocationAdjustment.findMany({
-    where: { periodKey: period.periodKey },
-    orderBy: [{ createdAt: 'desc' }],
-  });
+  const [adjustments, executions] = await Promise.all([
+    prisma.profitAllocationAdjustment.findMany({
+      where: { periodKey: period.periodKey },
+      orderBy: [{ createdAt: 'desc' }],
+    }),
+    prisma.profitAllocationExecution.findMany({
+      where: { periodKey: period.periodKey },
+      orderBy: [{ executionDate: 'desc' }, { createdAt: 'desc' }],
+    }),
+  ]);
   const adjustmentMap = buildProfitAllocationAdjustmentMap(adjustments);
+  const { executionMap, historyMap: executionHistoryMap } = buildProfitAllocationExecutionMaps(executions);
   const actualMap = await calculateProfitAllocationActualMap({ ...period, rules });
   const rows = buildProfitAllocationMonitoringRows({
     rules,
     netProfit: profit.netProfit,
     actualMap,
     adjustmentMap,
+    executionMap,
+    executionHistoryMap,
     useSnapshotTargets: Boolean(snapshot),
   });
   const totalOriginalTarget = rows.reduce((sum, row) => sum + row.originalTargetAmount, 0);
   const totalAdjustment = rows.reduce((sum, row) => sum + row.adjustmentAmount, 0);
   const totalTarget = rows.reduce((sum, row) => sum + row.adjustedTargetAmount, 0);
   const totalActual = rows.reduce((sum, row) => sum + row.actualAmount, 0);
+  const totalExecuted = rows.reduce((sum, row) => sum + row.executedAmount, 0);
+  const totalExecutionRemaining = Math.max(totalTarget - totalExecuted, 0);
+  const executionProgress = totalTarget > 0 ? Math.min((totalExecuted / totalTarget) * 100, 100) : 0;
+  const executionStatus = getProfitAllocationExecutionStatus(totalExecuted, totalTarget);
   return {
     period,
     periodStatus: snapshot ? 'Snapshot Created' : 'Open',
     snapshot,
     adjustments,
+    executions,
     canAdjust: !snapshot,
     activePolicy: activePolicy ? serializeProfitAllocationPolicy(activePolicy) : null,
     policy: snapshot ? { id: snapshot.policyId, name: snapshot.policyName } : (activePolicy ? serializeProfitAllocationPolicy(activePolicy) : null),
@@ -1008,6 +1046,10 @@ async function buildProfitAllocationMonitoring(periodKey = '') {
     totalAdjustment,
     totalTarget,
     totalActual,
+    totalExecuted,
+    totalExecutionRemaining,
+    executionProgress,
+    executionStatus,
     totalVariance: totalTarget - totalActual,
     rows,
   };
@@ -1875,6 +1917,39 @@ async function handle(request, { params }) {
         return NextResponse.json(result);
       }
 
+      if (method === 'GET' && segs[1] === 'history' && segs.length === 2) {
+        const snapshots = await prisma.profitAllocationSnapshot.findMany({
+          orderBy: [{ periodKey: 'desc' }],
+          include: { rules: true },
+          take: 24,
+        });
+        const periodKeys = snapshots.map((snapshot) => snapshot.periodKey);
+        const executions = periodKeys.length
+          ? await prisma.profitAllocationExecution.findMany({ where: { periodKey: { in: periodKeys } } })
+          : [];
+        const executionByPeriod = new Map();
+        executions.forEach((execution) => {
+          executionByPeriod.set(execution.periodKey, Number(executionByPeriod.get(execution.periodKey) || 0) + Number(execution.amount || 0));
+        });
+        return NextResponse.json({
+          periods: snapshots.map((snapshot) => {
+            const totalAllocated = snapshot.rules.reduce((sum, rule) => sum + Number(rule.targetAmount || 0), 0) || Number(snapshot.totalAllocated || 0);
+            const totalExecuted = Number(executionByPeriod.get(snapshot.periodKey) || 0);
+            const totalRemaining = Math.max(totalAllocated - totalExecuted, 0);
+            return {
+              periodKey: snapshot.periodKey,
+              periodLabel: snapshot.periodLabel,
+              netProfit: snapshot.netProfit,
+              totalAllocated,
+              totalExecuted,
+              totalRemaining,
+              executionProgress: totalAllocated > 0 ? Math.min((totalExecuted / totalAllocated) * 100, 100) : 0,
+              executionStatus: getProfitAllocationExecutionStatus(totalExecuted, totalAllocated),
+            };
+          }),
+        });
+      }
+
       if (method === 'POST' && segs[1] === 'snapshots' && segs.length === 2) {
         const authUser = authContext?.user || null;
         const body = await readJson(request);
@@ -1928,6 +2003,47 @@ async function handle(request, { params }) {
           include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }], include: PROFIT_ALLOCATION_RULE_INCLUDE } },
         });
 
+        return NextResponse.json(created);
+      }
+
+      if (method === 'POST' && segs[1] === 'executions' && segs.length === 2) {
+        const authUser = authContext?.user || null;
+        const body = await readJson(request);
+        const period = resolveMonthlyAllocationPeriod(body.periodKey || body.period || '');
+        const allocationName = String(body.allocationName || '').trim();
+        const amount = Number(body.amount || 0);
+        const executionDate = String(body.executionDate || new Date().toISOString().slice(0, 10)).trim();
+        const note = String(body.note || body.reason || '').trim();
+
+        if (!allocationName) return NextResponse.json({ error: 'Allocation is required.' }, { status: 400 });
+        if (!Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'Execution amount must be greater than 0.' }, { status: 400 });
+        if (!executionDate) return NextResponse.json({ error: 'Execution date is required.' }, { status: 400 });
+        if (!note) return NextResponse.json({ error: 'Execution note is required.' }, { status: 400 });
+
+        const monitoring = await buildProfitAllocationMonitoring(period.periodKey);
+        const row = (monitoring.rows || []).find((entry) => entry.allocationName === allocationName);
+        if (!row) return NextResponse.json({ error: 'Selected allocation could not be found for this period.' }, { status: 400 });
+        if (amount > Number(row.executionRemaining || 0) + 0.009) {
+          return NextResponse.json({ error: 'Execution amount exceeds the remaining allocation.' }, { status: 400 });
+        }
+        const policyId = monitoring.policy?.id || monitoring.activePolicy?.id;
+        if (!policyId) return NextResponse.json({ error: 'Allocation policy is required before recording execution.' }, { status: 400 });
+
+        const created = await prisma.profitAllocationExecution.create({
+          data: {
+            id: uuid(),
+            periodKey: period.periodKey,
+            periodLabel: period.periodLabel,
+            periodStart: period.periodStart,
+            periodEnd: period.periodEnd,
+            policyId,
+            allocationName,
+            amount,
+            executionDate,
+            note,
+            createdBy: authUser?.email || authUser?.name || '',
+          },
+        });
         return NextResponse.json(created);
       }
 
