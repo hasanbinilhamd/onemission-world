@@ -555,6 +555,7 @@ const NAV_GROUPS = [
         icon: DollarSign,
       },
       { id: "expensecategories", label: "Expense Categories", icon: FileText },
+      { id: "profitallocation", label: "Profit Allocation", icon: Target },
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "journalentries", label: "Journal Entries", icon: ClipboardList },
@@ -7898,6 +7899,466 @@ function ExpenseCategoryFormDialog({ open, onOpenChange, initial, onSave }) {
             Cancel
           </Button>
           <Button onClick={submit}>{initial?.id ? "Save Changes" : "Create Category"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+// =========== PROFIT ALLOCATION ===========
+const BASELINE_PROFIT_ALLOCATION_RULES_UI = [
+  { allocationName: "Owner Take", percentage: 30, isActive: true, displayOrder: 1 },
+  { allocationName: "Investor", percentage: 10, isActive: true, displayOrder: 2 },
+  { allocationName: "Company Asset Purchase", percentage: 5, isActive: true, displayOrder: 3 },
+  { allocationName: "Company Savings", percentage: 5, isActive: true, displayOrder: 4 },
+  { allocationName: "Salary Pool", percentage: 15, isActive: true, displayOrder: 5 },
+  { allocationName: "Marketing", percentage: 10, isActive: true, displayOrder: 6 },
+  { allocationName: "Product Development", percentage: 12, isActive: true, displayOrder: 7 },
+  { allocationName: "Operational Reserve", percentage: 8, isActive: true, displayOrder: 8 },
+  { allocationName: "Zakat / Social Impact", percentage: 5, isActive: true, displayOrder: 9 },
+];
+
+function calculateAllocationTotal(rules = []) {
+  return rules
+    .filter((rule) => rule.isActive !== false)
+    .reduce((sum, rule) => sum + Number(rule.percentage || 0), 0);
+}
+
+function formatPercentage(value) {
+  return `${Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%`;
+}
+
+function allocationStatusBadge(status) {
+  const normalized = status || "Draft";
+  const className = normalized === "Active"
+    ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/5"
+    : normalized === "Inactive"
+      ? "border-slate-300 text-slate-500 bg-slate-50"
+      : "border-amber-500/40 text-amber-600 bg-amber-500/5";
+  return <Badge variant="outline" className={className}>{normalized}</Badge>;
+}
+
+function ProfitAllocationModule({ activeModule }) {
+  const [policies, setPolicies] = useState([]);
+  const [selectedPolicyId, setSelectedPolicyId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingPolicy, setEditingPolicy] = useState(null);
+
+  const load = async () => {
+    setLoading(true);
+    const result = await api.get("profitallocation");
+    if (result?.error) {
+      toast.error(result.error);
+      setPolicies([]);
+      setLoading(false);
+      return;
+    }
+
+    const nextPolicies = Array.isArray(result?.policies) ? result.policies : [];
+    setPolicies(nextPolicies);
+    setSelectedPolicyId((current) => {
+      if (current && nextPolicies.some((policy) => policy.id === current)) return current;
+      return result?.activePolicy?.id || nextPolicies[0]?.id || "";
+    });
+    setLoading(false);
+  };
+
+  useLazyModuleEffect(activeModule, "profitallocation", () => {
+    load();
+  }, []);
+
+  const activePolicy = policies.find((policy) => policy.status === "Active") || null;
+  const selectedPolicy = policies.find((policy) => policy.id === selectedPolicyId) || activePolicy || policies[0] || null;
+  const rules = selectedPolicy?.rules || [];
+  const activeTotal = Number(selectedPolicy?.activeTotalPercentage ?? calculateAllocationTotal(rules));
+  const totalIsValid = Math.abs(activeTotal - 100) < 0.0001;
+
+  const openNewPolicy = () => {
+    setEditingPolicy(null);
+    setShowForm(true);
+  };
+
+  const openEditPolicy = (policy) => {
+    setEditingPolicy(policy);
+    setShowForm(true);
+  };
+
+  const savePolicy = async (payload) => {
+    const result = editingPolicy?.id
+      ? await api.put(`profitallocation/policies/${editingPolicy.id}`, payload)
+      : await api.post("profitallocation/policies", payload);
+
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(editingPolicy?.id ? "Allocation policy updated" : "Allocation policy created");
+    setShowForm(false);
+    setEditingPolicy(null);
+    await load();
+  };
+
+  const updatePolicyStatus = async (policy, status) => {
+    const result = await api.put(`profitallocation/policies/${policy.id}`, {
+      name: policy.name,
+      description: policy.description || "",
+      status,
+      rules: policy.rules || [],
+    });
+
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(status === "Active" ? "Allocation policy activated" : "Allocation policy updated");
+    await load();
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-56 bg-muted/60 rounded animate-pulse mb-1" />
+          <div className="h-4 w-96 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <StatsSkeleton stats={3} showChart={false} />
+        <TableSkeleton rows={8} cols={5} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Profit Allocation
+          </h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+            Manage target policy rules for profit allocation. This does not create journals, cash movement, or spending limits.
+          </p>
+        </div>
+        <Button onClick={openNewPolicy} className="gap-2">
+          <Plus className="h-4 w-4" /> New Policy
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Active Policy</p>
+            <p className="text-lg font-semibold mt-1 truncate">{activePolicy?.name || "—"}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Allocation</p>
+            <p className={`text-2xl font-semibold mt-1 ${totalIsValid ? "text-emerald-600" : "text-rose-500"}`}>
+              {formatPercentage(activeTotal)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Policies</p>
+            <p className="text-2xl font-semibold mt-1">{policies.length}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Allocation Policy</CardTitle>
+              <CardDescription>Select a policy to review its allocation rules.</CardDescription>
+            </div>
+            <Select value={selectedPolicy?.id || ""} onValueChange={setSelectedPolicyId}>
+              <SelectTrigger className="w-full sm:w-[320px]">
+                <SelectValue placeholder="Select policy" />
+              </SelectTrigger>
+              <SelectContent>
+                {policies.map((policy) => (
+                  <SelectItem key={policy.id} value={policy.id}>{policy.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {selectedPolicy ? (
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3 flex-wrap rounded-xl border bg-[#F7F8FA] p-4">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-[#111827]">{selectedPolicy.name}</h3>
+                    {allocationStatusBadge(selectedPolicy.status)}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedPolicy.description || "No description."}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Policy percentages are targets only. Existing Finance Cash Out and Journal workflows remain unchanged.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {selectedPolicy.status !== "Active" ? (
+                    <Button variant="outline" onClick={() => updatePolicyStatus(selectedPolicy, "Active")}>Activate</Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => updatePolicyStatus(selectedPolicy, "Inactive")}>Set Inactive</Button>
+                  )}
+                  <Button onClick={() => openEditPolicy(selectedPolicy)} className="gap-2">
+                    <Edit3 className="h-4 w-4" /> Edit Policy
+                  </Button>
+                </div>
+              </div>
+
+              <div className={`rounded-xl border p-4 ${totalIsValid ? "border-emerald-500/30 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/5"}`}>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <p className="font-semibold">Total Allocation: {formatPercentage(activeTotal)}</p>
+                  {totalIsValid ? (
+                    <Badge className="bg-emerald-500/10 text-emerald-600">Valid 100%</Badge>
+                  ) : (
+                    <Badge className="bg-rose-500/10 text-rose-600">Must equal 100%</Badge>
+                  )}
+                </div>
+                {!totalIsValid ? (
+                  <p className="text-sm text-rose-600 mt-2">This policy cannot be activated until active rules total exactly 100%.</p>
+                ) : null}
+              </div>
+
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-[#F7F8FA]">
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Order</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Allocation</th>
+                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">Percentage</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rules.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">No allocation rules found.</td>
+                        </tr>
+                      ) : rules.map((rule) => (
+                        <tr key={rule.id} className="border-b border-[rgba(17,24,39,0.04)]">
+                          <td className="px-4 py-3 text-muted-foreground">{rule.displayOrder}</td>
+                          <td className="px-4 py-3 font-medium text-[#111827]">{rule.allocationName}</td>
+                          <td className="px-4 py-3 text-right font-semibold">{formatPercentage(rule.percentage)}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant="outline" className={rule.isActive ? "border-emerald-500/40 text-emerald-600" : "border-slate-300 text-slate-500"}>
+                              {rule.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          ) : (
+            <div className="py-12 text-center text-muted-foreground">No allocation policy found.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <ProfitAllocationPolicyDialog
+        open={showForm}
+        onOpenChange={(value) => {
+          setShowForm(value);
+          if (!value) setEditingPolicy(null);
+        }}
+        initial={editingPolicy}
+        onSave={savePolicy}
+      />
+    </div>
+  );
+}
+
+function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
+  const buildEmpty = () => ({
+    name: "",
+    description: "",
+    status: "Draft",
+    rules: BASELINE_PROFIT_ALLOCATION_RULES_UI.map((rule) => ({ ...rule, id: "" })),
+  });
+  const [form, setForm] = useState(buildEmpty);
+
+  useEffect(() => {
+    if (initial?.id) {
+      setForm({
+        name: initial.name || "",
+        description: initial.description || "",
+        status: initial.status || "Draft",
+        rules: (initial.rules || []).map((rule) => ({
+          id: rule.id || "",
+          allocationName: rule.allocationName || "",
+          percentage: Number(rule.percentage || 0),
+          isActive: rule.isActive !== false,
+          displayOrder: Number(rule.displayOrder || 0),
+        })),
+      });
+    } else {
+      setForm(buildEmpty());
+    }
+  }, [initial, open]);
+
+  const total = calculateAllocationTotal(form.rules);
+  const totalIsValid = Math.abs(total - 100) < 0.0001;
+
+  const updateRule = (index, patch) => {
+    setForm((current) => ({
+      ...current,
+      rules: current.rules.map((rule, ruleIndex) => ruleIndex === index ? { ...rule, ...patch } : rule),
+    }));
+  };
+
+  const addRule = () => {
+    setForm((current) => ({
+      ...current,
+      rules: [
+        ...current.rules,
+        {
+          id: "",
+          allocationName: "",
+          percentage: 0,
+          isActive: true,
+          displayOrder: current.rules.length + 1,
+        },
+      ],
+    }));
+  };
+
+  const removeRule = (index) => {
+    setForm((current) => ({
+      ...current,
+      rules: current.rules.filter((_, ruleIndex) => ruleIndex !== index),
+    }));
+  };
+
+  const submit = async () => {
+    if (!form.name.trim()) {
+      toast.error("Policy name is required");
+      return;
+    }
+    if (form.rules.some((rule) => !String(rule.allocationName || "").trim())) {
+      toast.error("Allocation name is required");
+      return;
+    }
+    if (form.rules.some((rule) => Number(rule.percentage) < 0 || Number.isNaN(Number(rule.percentage)))) {
+      toast.error("Percentage must be a valid non-negative number");
+      return;
+    }
+    if (form.status === "Active" && !totalIsValid) {
+      toast.error("Active policy total allocation must equal 100%");
+      return;
+    }
+
+    await onSave({
+      ...form,
+      rules: form.rules.map((rule, index) => ({
+        ...rule,
+        allocationName: String(rule.allocationName || "").trim(),
+        percentage: Number(rule.percentage || 0),
+        displayOrder: Number(rule.displayOrder || index + 1),
+        isActive: rule.isActive !== false,
+      })),
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl max-h-[88vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{initial?.id ? "Edit Allocation Policy" : "New Allocation Policy"}</DialogTitle>
+          <DialogDescription>
+            Configure target profit allocation rules. This policy does not post journals or limit Cash Out transactions.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Policy Name <span className="text-rose-400">*</span></Label>
+              <Input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. 2026 Profit Allocation" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Draft">Draft</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 md:col-span-3">
+              <Label>Description</Label>
+              <Textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows={2} placeholder="Optional policy notes" />
+            </div>
+          </div>
+
+          <div className={`rounded-xl border p-4 ${totalIsValid ? "border-emerald-500/30 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/5"}`}>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="font-semibold">Total Allocation: {formatPercentage(total)}</p>
+              {totalIsValid ? <Badge className="bg-emerald-500/10 text-emerald-600">Valid 100%</Badge> : <Badge className="bg-rose-500/10 text-rose-600">Must equal 100%</Badge>}
+            </div>
+            {!totalIsValid ? <p className="text-sm text-rose-600 mt-2">Policy can be saved as Draft/Inactive, but cannot be activated until active rules total exactly 100%.</p> : null}
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <Label>Allocation Rules</Label>
+            <Button type="button" variant="outline" size="sm" onClick={addRule} className="gap-2">
+              <Plus className="h-4 w-4" /> Add Rule
+            </Button>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-[#F7F8FA]">
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-24">Order</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Allocation Name</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-36">Percentage</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-32">Active</th>
+                  <th className="px-3 py-2 w-12" />
+                </tr>
+              </thead>
+              <tbody>
+                {form.rules.map((rule, index) => (
+                  <tr key={`${rule.id || "new"}-${index}`} className="border-b last:border-b-0">
+                    <td className="px-3 py-2">
+                      <Input type="number" value={rule.displayOrder} onChange={(event) => updateRule(index, { displayOrder: Number(event.target.value || 0) })} />
+                    </td>
+                    <td className="px-3 py-2">
+                      <Input value={rule.allocationName} onChange={(event) => updateRule(index, { allocationName: event.target.value })} placeholder="Allocation name" />
+                    </td>
+                    <td className="px-3 py-2">
+                      <Input type="number" min="0" step="0.01" value={rule.percentage} onChange={(event) => updateRule(index, { percentage: Number(event.target.value || 0) })} />
+                    </td>
+                    <td className="px-3 py-2">
+                      <Switch checked={rule.isActive !== false} onCheckedChange={(value) => updateRule(index, { isActive: value })} />
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <Button type="button" variant="ghost" size="icon" className="text-rose-500" onClick={() => removeRule(index)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit}>{initial?.id ? "Save Changes" : "Create Policy"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -17266,6 +17727,7 @@ function App() {
     chartofaccounts: () => <ChartOfAccountsModule activeModule={active} />,
     financialaccounts: () => <FinancialAccountModule activeModule={active} />,
     expensecategories: () => <ExpenseCategoriesModule activeModule={active} />,
+    profitallocation: () => <ProfitAllocationModule activeModule={active} />,
     cashin: () => <CashTransactionModule type="IN" activeModule={active} />,
     cashout: () => <CashTransactionModule type="OUT" activeModule={active} />,
     journalentries: () => <JournalEntriesModule activeModule={active} />,

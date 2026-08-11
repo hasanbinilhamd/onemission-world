@@ -507,6 +507,35 @@ model ExpenseCategory {
   cashTransactions CashTransaction[]
 }
 
+model ProfitAllocationPolicy {
+  id          String                 @id
+  name        String
+  description String                 @default("")
+  status      String                 @default("Draft")
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  rules       ProfitAllocationRule[]
+
+  @@index([status])
+}
+
+model ProfitAllocationRule {
+  id             String                 @id
+  policyId       String
+  policy         ProfitAllocationPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  allocationName String
+  percentage     Float
+  isActive       Boolean                @default(true)
+  displayOrder   Int                    @default(0)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@unique([policyId, allocationName])
+  @@index([policyId])
+  @@index([isActive])
+  @@index([displayOrder])
+}
+
 model CashTransaction {
   id                  String           @id
   transactionDate     String

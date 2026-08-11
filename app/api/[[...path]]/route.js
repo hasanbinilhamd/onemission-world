@@ -203,6 +203,11 @@ function resolveCatchAllPermission(segs, method) {
   if (['trialbalance', 'profitloss', 'balancesheet', 'cashflow', 'inventoryvaluation', 'finance'].includes(segment)) {
     return { moduleKey: 'finance', actionKey: 'view' };
   }
+  if (segment === 'profitallocation') {
+    return method === 'GET'
+      ? { moduleKey: 'finance', actionKey: 'view' }
+      : { moduleKey: 'finance', actionKey: 'manage_accounts' };
+  }
   if (segment === 'journalentries') {
     return method === 'GET'
       ? { moduleKey: 'finance', actionKey: 'view' }
@@ -632,6 +637,104 @@ function getReportFilters(url) {
 
 function buildMasterDataCacheKey(name, suffix = '') {
   return `master:${name}:${suffix}`;
+}
+
+const PROFIT_ALLOCATION_POLICY_STATUSES = new Set(['Draft', 'Active', 'Inactive']);
+const PROFIT_ALLOCATION_TOTAL_TARGET = 100;
+const PROFIT_ALLOCATION_TOTAL_TOLERANCE = 0.0001;
+const BASELINE_PROFIT_ALLOCATION_RULES = [
+  { allocationName: 'Owner Take', percentage: 30, isActive: true, displayOrder: 1 },
+  { allocationName: 'Investor', percentage: 10, isActive: true, displayOrder: 2 },
+  { allocationName: 'Company Asset Purchase', percentage: 5, isActive: true, displayOrder: 3 },
+  { allocationName: 'Company Savings', percentage: 5, isActive: true, displayOrder: 4 },
+  { allocationName: 'Salary Pool', percentage: 15, isActive: true, displayOrder: 5 },
+  { allocationName: 'Marketing', percentage: 10, isActive: true, displayOrder: 6 },
+  { allocationName: 'Product Development', percentage: 12, isActive: true, displayOrder: 7 },
+  { allocationName: 'Operational Reserve', percentage: 8, isActive: true, displayOrder: 8 },
+  { allocationName: 'Zakat / Social Impact', percentage: 5, isActive: true, displayOrder: 9 },
+];
+
+function calculateProfitAllocationTotal(rules = []) {
+  return rules
+    .filter((rule) => rule.isActive !== false)
+    .reduce((sum, rule) => sum + Number(rule.percentage || 0), 0);
+}
+
+function isProfitAllocationTotalValid(total) {
+  return Math.abs(Number(total || 0) - PROFIT_ALLOCATION_TOTAL_TARGET) <= PROFIT_ALLOCATION_TOTAL_TOLERANCE;
+}
+
+function serializeProfitAllocationPolicy(policy) {
+  const rules = Array.isArray(policy?.rules)
+    ? [...policy.rules].sort((left, right) => (left.displayOrder || 0) - (right.displayOrder || 0) || left.allocationName.localeCompare(right.allocationName))
+    : [];
+  const activeTotalPercentage = calculateProfitAllocationTotal(rules);
+  return {
+    ...policy,
+    rules,
+    activeTotalPercentage,
+    isValidForActivation: isProfitAllocationTotalValid(activeTotalPercentage),
+  };
+}
+
+async function ensureDefaultProfitAllocationPolicy() {
+  const existingCount = await prisma.profitAllocationPolicy.count();
+  if (existingCount > 0) return;
+
+  await prisma.profitAllocationPolicy.create({
+    data: {
+      id: uuid(),
+      name: 'Default Profit Allocation Policy',
+      description: 'Baseline OneMission profit allocation target policy.',
+      status: 'Active',
+      rules: {
+        create: BASELINE_PROFIT_ALLOCATION_RULES.map((rule) => ({
+          id: uuid(),
+          ...rule,
+        })),
+      },
+    },
+  });
+}
+
+function sanitizeProfitAllocationPolicyPayload(body = {}) {
+  const status = PROFIT_ALLOCATION_POLICY_STATUSES.has(body.status) ? body.status : 'Draft';
+  const rules = Array.isArray(body.rules) ? body.rules.map((rule, index) => ({
+    id: String(rule.id || '').trim(),
+    allocationName: String(rule.allocationName || '').trim(),
+    percentage: Number(rule.percentage || 0),
+    isActive: rule.isActive !== false,
+    displayOrder: Number.isFinite(Number(rule.displayOrder)) ? Number(rule.displayOrder) : index + 1,
+  })) : [];
+
+  return {
+    name: String(body.name || '').trim(),
+    description: String(body.description || '').trim(),
+    status,
+    rules,
+  };
+}
+
+function validateProfitAllocationPolicyPayload(payload) {
+  if (!payload.name) return 'Policy name is required.';
+  if (!Array.isArray(payload.rules) || payload.rules.length === 0) return 'At least one allocation rule is required.';
+
+  const seenNames = new Set();
+  for (const rule of payload.rules) {
+    if (!rule.allocationName) return 'Allocation name is required.';
+    const normalizedName = rule.allocationName.toLowerCase();
+    if (seenNames.has(normalizedName)) return `Duplicate allocation rule: ${rule.allocationName}.`;
+    seenNames.add(normalizedName);
+    if (!Number.isFinite(rule.percentage)) return `Percentage is invalid for ${rule.allocationName}.`;
+    if (rule.percentage < 0) return `Percentage cannot be negative for ${rule.allocationName}.`;
+  }
+
+  const total = calculateProfitAllocationTotal(payload.rules);
+  if (payload.status === 'Active' && !isProfitAllocationTotalValid(total)) {
+    return `Active allocation rules must total 100%. Current total is ${Number(total.toFixed(2))}%.`;
+  }
+
+  return '';
 }
 
 function normalizeContentPlannerSummary(items = []) {
@@ -1472,6 +1575,122 @@ async function handle(request, { params }) {
         await prisma.rawMaterial.updateMany({ where: { supplierId: segs[1] }, data: { supplierId: null } });
         await prisma.supplier.delete({ where: { id: segs[1] } });
         return NextResponse.json({ ok: true });
+      }
+    }
+
+    // ---------- PROFIT ALLOCATION POLICY ----------
+    if (segs[0] === 'profitallocation') {
+      if (method === 'GET' && segs.length === 1) {
+        await ensureDefaultProfitAllocationPolicy();
+        const policies = await prisma.profitAllocationPolicy.findMany({
+          orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+          include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+        });
+        const serializedPolicies = policies.map(serializeProfitAllocationPolicy);
+        return NextResponse.json({
+          policies: serializedPolicies,
+          activePolicy: serializedPolicies.find((policy) => policy.status === 'Active') || null,
+        });
+      }
+
+      if (method === 'POST' && segs[1] === 'policies' && segs.length === 2) {
+        const payload = sanitizeProfitAllocationPolicyPayload(await readJson(request));
+        const validationError = validateProfitAllocationPolicyPayload(payload);
+        if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+
+        const created = await prisma.$transaction(async (tx) => {
+          if (payload.status === 'Active') {
+            await tx.profitAllocationPolicy.updateMany({ where: { status: 'Active' }, data: { status: 'Inactive' } });
+          }
+
+          return tx.profitAllocationPolicy.create({
+            data: {
+              id: uuid(),
+              name: payload.name,
+              description: payload.description,
+              status: payload.status,
+              rules: {
+                create: payload.rules.map((rule) => ({
+                  id: uuid(),
+                  allocationName: rule.allocationName,
+                  percentage: rule.percentage,
+                  isActive: rule.isActive,
+                  displayOrder: rule.displayOrder,
+                })),
+              },
+            },
+            include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+          });
+        });
+
+        return NextResponse.json(serializeProfitAllocationPolicy(created));
+      }
+
+      if (method === 'PUT' && segs[1] === 'policies' && segs.length === 3) {
+        const policyId = segs[2];
+        const existingPolicy = await prisma.profitAllocationPolicy.findUnique({
+          where: { id: policyId },
+          include: { rules: true },
+        });
+        if (!existingPolicy) return NextResponse.json({ error: 'Allocation policy not found.' }, { status: 404 });
+
+        const payload = sanitizeProfitAllocationPolicyPayload(await readJson(request));
+        const validationError = validateProfitAllocationPolicyPayload(payload);
+        if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+
+        const updated = await prisma.$transaction(async (tx) => {
+          if (payload.status === 'Active') {
+            await tx.profitAllocationPolicy.updateMany({
+              where: { status: 'Active', id: { not: policyId } },
+              data: { status: 'Inactive' },
+            });
+          }
+
+          const incomingRuleIds = payload.rules.map((rule) => rule.id).filter(Boolean);
+          await tx.profitAllocationRule.deleteMany({
+            where: {
+              policyId,
+              ...(incomingRuleIds.length > 0 ? { id: { notIn: incomingRuleIds } } : {}),
+            },
+          });
+
+          for (const rule of payload.rules) {
+            const ruleData = {
+              allocationName: rule.allocationName,
+              percentage: rule.percentage,
+              isActive: rule.isActive,
+              displayOrder: rule.displayOrder,
+            };
+
+            if (rule.id) {
+              const existingRule = existingPolicy.rules.find((entry) => entry.id === rule.id);
+              if (existingRule) {
+                await tx.profitAllocationRule.update({ where: { id: rule.id }, data: ruleData });
+                continue;
+              }
+            }
+
+            await tx.profitAllocationRule.create({
+              data: {
+                id: uuid(),
+                policyId,
+                ...ruleData,
+              },
+            });
+          }
+
+          return tx.profitAllocationPolicy.update({
+            where: { id: policyId },
+            data: {
+              name: payload.name,
+              description: payload.description,
+              status: payload.status,
+            },
+            include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+          });
+        });
+
+        return NextResponse.json(serializeProfitAllocationPolicy(updated));
       }
     }
 
