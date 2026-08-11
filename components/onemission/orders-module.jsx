@@ -1096,13 +1096,13 @@ function TrackingImportDialog({ open, onOpenChange, onCompleted }) {
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import Tracking Numbers</DialogTitle>
-          <DialogDescription>Upload the exported tracking template, review the preview, then confirm the import. Use DD-MM-YYYY for Shipping Date, for example 10-08-2026. Tracking Number is treated as text to preserve leading zeros.</DialogDescription>
+          <DialogDescription>Upload the exported tracking template, review the preview, then confirm the import.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Tracking Template File (.xlsx or .csv)</Label>
             <Input type="file" accept=".xlsx,.csv" onChange={(event) => setFile(event.target.files?.[0] || null)} />
-            <p className="text-xs text-muted-foreground">Shipping Date format: DD-MM-YYYY (example: 10-08-2026). Keep Tracking Number as text so values like 00088127637 stay intact.</p>
+            {/* <p className="text-xs text-muted-foreground">Shipping Date format: DD-MM-YYYY (example: 10-08-2026). Keep Tracking Number as text so values like 00088127637 stay intact.</p> */}
           </div>
           <div className="flex justify-end">
             <Button variant="outline" onClick={handlePreview} disabled={loadingPreview || !file}>{loadingPreview ? 'Previewing…' : 'Preview Import'}</Button>
