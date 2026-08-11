@@ -642,6 +642,11 @@ function buildMasterDataCacheKey(name, suffix = '') {
 const PROFIT_ALLOCATION_POLICY_STATUSES = new Set(['Draft', 'Active', 'Inactive']);
 const PROFIT_ALLOCATION_TOTAL_TARGET = 100;
 const PROFIT_ALLOCATION_TOTAL_TOLERANCE = 0.0001;
+const PROFIT_ALLOCATION_MAPPING_TYPES = new Set(['NONE', 'EXPENSE_CATEGORY', 'CHART_OF_ACCOUNT']);
+const PROFIT_ALLOCATION_RULE_INCLUDE = {
+  mappedExpenseCategory: { select: { id: true, name: true } },
+  mappedChartOfAccount: { select: { id: true, accountCode: true, accountName: true } },
+};
 const BASELINE_PROFIT_ALLOCATION_RULES = [
   { allocationName: 'Owner Take', percentage: 30, isActive: true, displayOrder: 1 },
   { allocationName: 'Investor', percentage: 10, isActive: true, displayOrder: 2 },
@@ -664,14 +669,30 @@ function isProfitAllocationTotalValid(total) {
   return Math.abs(Number(total || 0) - PROFIT_ALLOCATION_TOTAL_TARGET) <= PROFIT_ALLOCATION_TOTAL_TOLERANCE;
 }
 
+function resolveProfitAllocationRuleMappingLabel(rule = {}) {
+  if (rule.financeMappingType === 'EXPENSE_CATEGORY') {
+    return rule.mappedExpenseCategory?.name || rule.mappedFinanceLabel || '';
+  }
+  if (rule.financeMappingType === 'CHART_OF_ACCOUNT') {
+    const account = rule.mappedChartOfAccount;
+    return account ? `${account.accountCode || ''} ${account.accountName || ''}`.trim() : (rule.mappedFinanceLabel || '');
+  }
+  return '';
+}
+
 function serializeProfitAllocationPolicy(policy) {
   const rules = Array.isArray(policy?.rules)
     ? [...policy.rules].sort((left, right) => (left.displayOrder || 0) - (right.displayOrder || 0) || left.allocationName.localeCompare(right.allocationName))
     : [];
-  const activeTotalPercentage = calculateProfitAllocationTotal(rules);
+  const serializedRules = rules.map((rule) => ({
+    ...rule,
+    mappedFinanceLabel: resolveProfitAllocationRuleMappingLabel(rule),
+    mappingStatus: rule.financeMappingType && rule.financeMappingType !== 'NONE' ? 'Mapped' : 'Not Mapped',
+  }));
+  const activeTotalPercentage = calculateProfitAllocationTotal(serializedRules);
   return {
     ...policy,
-    rules,
+    rules: serializedRules,
     activeTotalPercentage,
     isValidForActivation: isProfitAllocationTotalValid(activeTotalPercentage),
   };
@@ -703,9 +724,24 @@ function sanitizeProfitAllocationPolicyPayload(body = {}) {
     id: String(rule.id || '').trim(),
     allocationName: String(rule.allocationName || '').trim(),
     percentage: Number(rule.percentage || 0),
+    financeMappingType: PROFIT_ALLOCATION_MAPPING_TYPES.has(rule.financeMappingType) ? rule.financeMappingType : 'NONE',
+    mappedExpenseCategoryId: String(rule.mappedExpenseCategoryId || '').trim(),
+    mappedChartOfAccountId: String(rule.mappedChartOfAccountId || '').trim(),
     isActive: rule.isActive !== false,
     displayOrder: Number.isFinite(Number(rule.displayOrder)) ? Number(rule.displayOrder) : index + 1,
   })) : [];
+
+  rules.forEach((rule) => {
+    if (rule.financeMappingType === 'EXPENSE_CATEGORY') {
+      rule.mappedChartOfAccountId = '';
+    } else if (rule.financeMappingType === 'CHART_OF_ACCOUNT') {
+      rule.mappedExpenseCategoryId = '';
+    } else {
+      rule.financeMappingType = 'NONE';
+      rule.mappedExpenseCategoryId = '';
+      rule.mappedChartOfAccountId = '';
+    }
+  });
 
   return {
     name: String(body.name || '').trim(),
@@ -727,6 +763,16 @@ function validateProfitAllocationPolicyPayload(payload) {
     seenNames.add(normalizedName);
     if (!Number.isFinite(rule.percentage)) return `Percentage is invalid for ${rule.allocationName}.`;
     if (rule.percentage < 0) return `Percentage cannot be negative for ${rule.allocationName}.`;
+    if (!PROFIT_ALLOCATION_MAPPING_TYPES.has(rule.financeMappingType)) return `Finance mapping type is invalid for ${rule.allocationName}.`;
+    if (rule.financeMappingType === 'EXPENSE_CATEGORY' && !rule.mappedExpenseCategoryId) return `Expense Category mapping is required for ${rule.allocationName}.`;
+    if (rule.financeMappingType === 'CHART_OF_ACCOUNT' && !rule.mappedChartOfAccountId) return `Chart of Account mapping is required for ${rule.allocationName}.`;
+  }
+
+  const activeMappingKeys = payload.rules
+    .filter((rule) => rule.isActive !== false && rule.financeMappingType !== 'NONE')
+    .map((rule) => `${rule.financeMappingType}:${rule.financeMappingType === 'EXPENSE_CATEGORY' ? rule.mappedExpenseCategoryId : rule.mappedChartOfAccountId}`);
+  if (new Set(activeMappingKeys).size !== activeMappingKeys.length) {
+    return 'Active allocation rules cannot share the same Finance mapping.';
   }
 
   const total = calculateProfitAllocationTotal(payload.rules);
@@ -735,10 +781,6 @@ function validateProfitAllocationPolicyPayload(payload) {
   }
 
   return '';
-}
-
-function normalizeAllocationLabel(value = '') {
-  return String(value || '').trim().toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
 function resolveMonthlyAllocationPeriod(periodKey = '') {
@@ -758,51 +800,29 @@ function resolveMonthlyAllocationPeriod(periodKey = '') {
   };
 }
 
-function buildAllocationActualAliases(allocationName = '') {
-  const normalized = normalizeAllocationLabel(allocationName);
-  const aliases = new Set([normalized]);
-  if (normalized.includes('marketing')) aliases.add('marketing');
-  if (normalized.includes('salary')) {
-    aliases.add('salary');
-    aliases.add('payroll');
+function getProfitAllocationRuleMappingKey(rule = {}) {
+  if (rule.financeMappingType === 'EXPENSE_CATEGORY' && rule.mappedExpenseCategoryId) {
+    return `EXPENSE_CATEGORY:${rule.mappedExpenseCategoryId}`;
   }
-  if (normalized.includes('product development')) {
-    aliases.add('product development');
-    aliases.add('research development');
-    aliases.add('development');
+  if (rule.financeMappingType === 'CHART_OF_ACCOUNT' && rule.mappedChartOfAccountId) {
+    return `CHART_OF_ACCOUNT:${rule.mappedChartOfAccountId}`;
   }
-  if (normalized.includes('operational')) {
-    aliases.add('operational');
-    aliases.add('operations');
-  }
-  if (normalized.includes('asset')) {
-    aliases.add('asset');
-    aliases.add('equipment');
-    aliases.add('purchase');
-  }
-  if (normalized.includes('saving')) {
-    aliases.add('company savings');
-    aliases.add('savings');
-  }
-  if (normalized.includes('owner')) {
-    aliases.add('owner');
-    aliases.add('owner take');
-  }
-  if (normalized.includes('investor')) aliases.add('investor');
-  if (normalized.includes('zakat') || normalized.includes('social')) {
-    aliases.add('zakat');
-    aliases.add('social impact');
-    aliases.add('donation');
-  }
-  return [...aliases].filter(Boolean);
+  return '';
 }
 
-function allocationMatchesFinanceLabels(rule, financeLabels = []) {
-  const labels = financeLabels.map(normalizeAllocationLabel).filter(Boolean);
-  if (labels.length === 0) return false;
-  return buildAllocationActualAliases(rule.allocationName).some((alias) => (
-    labels.some((label) => label === alias || label.includes(alias) || alias.includes(label))
-  ));
+async function validateProfitAllocationMappingReferences(payload) {
+  const expenseCategoryIds = [...new Set(payload.rules.filter((rule) => rule.financeMappingType === 'EXPENSE_CATEGORY').map((rule) => rule.mappedExpenseCategoryId).filter(Boolean))];
+  const chartOfAccountIds = [...new Set(payload.rules.filter((rule) => rule.financeMappingType === 'CHART_OF_ACCOUNT').map((rule) => rule.mappedChartOfAccountId).filter(Boolean))];
+
+  if (expenseCategoryIds.length > 0) {
+    const count = await prisma.expenseCategory.count({ where: { id: { in: expenseCategoryIds } } });
+    if (count !== expenseCategoryIds.length) return 'One or more mapped Expense Categories could not be found.';
+  }
+  if (chartOfAccountIds.length > 0) {
+    const count = await prisma.chartOfAccount.count({ where: { id: { in: chartOfAccountIds }, allowTransaction: true } });
+    if (count !== chartOfAccountIds.length) return 'One or more mapped Chart of Accounts could not be found or cannot be used in transactions.';
+  }
+  return '';
 }
 
 async function calculateProfitLossForAllocationPeriod({ periodStart, periodEnd }) {
@@ -861,8 +881,19 @@ async function calculateProfitLossForAllocationPeriod({ periodStart, periodEnd }
 async function calculateProfitAllocationActualMap({ periodStart, periodEnd, rules = [] }) {
   const activeRules = rules.filter((rule) => rule.isActive !== false);
   const actualMap = new Map(activeRules.map((rule) => [rule.allocationName, 0]));
+  const expenseCategoryRuleMap = new Map();
+  const chartOfAccountRuleMap = new Map();
 
-  if (activeRules.length === 0) return actualMap;
+  for (const rule of activeRules) {
+    if (rule.financeMappingType === 'EXPENSE_CATEGORY' && rule.mappedExpenseCategoryId && !expenseCategoryRuleMap.has(rule.mappedExpenseCategoryId)) {
+      expenseCategoryRuleMap.set(rule.mappedExpenseCategoryId, rule);
+    }
+    if (rule.financeMappingType === 'CHART_OF_ACCOUNT' && rule.mappedChartOfAccountId && !chartOfAccountRuleMap.has(rule.mappedChartOfAccountId)) {
+      chartOfAccountRuleMap.set(rule.mappedChartOfAccountId, rule);
+    }
+  }
+
+  if (expenseCategoryRuleMap.size === 0 && chartOfAccountRuleMap.size === 0) return actualMap;
 
   const transactions = await prisma.cashTransaction.findMany({
     where: {
@@ -871,19 +902,14 @@ async function calculateProfitAllocationActualMap({ periodStart, periodEnd, rule
     },
     select: {
       amount: true,
-      expenseCategoryName: true,
-      expenseCategory: { select: { name: true } },
-      chartOfAccount: { select: { accountName: true, accountCode: true } },
+      expenseCategoryId: true,
+      chartOfAccountId: true,
     },
   });
 
   for (const transaction of transactions) {
-    const labels = [
-      transaction.expenseCategoryName,
-      transaction.expenseCategory?.name,
-      transaction.chartOfAccount?.accountName,
-    ];
-    const matchedRule = activeRules.find((rule) => allocationMatchesFinanceLabels(rule, labels));
+    const matchedRule = (transaction.expenseCategoryId && expenseCategoryRuleMap.get(transaction.expenseCategoryId))
+      || (transaction.chartOfAccountId && chartOfAccountRuleMap.get(transaction.chartOfAccountId));
     if (!matchedRule) continue;
     actualMap.set(matchedRule.allocationName, Number(actualMap.get(matchedRule.allocationName) || 0) + Number(transaction.amount || 0));
   }
@@ -913,6 +939,11 @@ function buildProfitAllocationMonitoringRows({ rules = [], netProfit = 0, actual
         variance,
         status,
         displayOrder: rule.displayOrder || 0,
+        financeMappingType: rule.financeMappingType || 'NONE',
+        mappedExpenseCategoryId: rule.mappedExpenseCategoryId || '',
+        mappedChartOfAccountId: rule.mappedChartOfAccountId || '',
+        mappedFinanceLabel: resolveProfitAllocationRuleMappingLabel(rule),
+        mappingStatus: rule.financeMappingType && rule.financeMappingType !== 'NONE' ? 'Mapped' : 'Not Mapped',
       };
     });
 }
@@ -922,11 +953,11 @@ async function buildProfitAllocationMonitoring(periodKey = '') {
   const period = resolveMonthlyAllocationPeriod(periodKey);
   const snapshot = await prisma.profitAllocationSnapshot.findUnique({
     where: { periodKey: period.periodKey },
-    include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+    include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }], include: PROFIT_ALLOCATION_RULE_INCLUDE } },
   });
   const activePolicy = await prisma.profitAllocationPolicy.findFirst({
     where: { status: 'Active' },
-    include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+    include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }], include: PROFIT_ALLOCATION_RULE_INCLUDE } },
   });
   const profit = snapshot
     ? { netProfit: snapshot.netProfit }
@@ -1802,7 +1833,7 @@ async function handle(request, { params }) {
         await ensureDefaultProfitAllocationPolicy();
         const policies = await prisma.profitAllocationPolicy.findMany({
           orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-          include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+          include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }], include: PROFIT_ALLOCATION_RULE_INCLUDE } },
         });
         const serializedPolicies = policies.map(serializeProfitAllocationPolicy);
         return NextResponse.json({
@@ -1829,7 +1860,7 @@ async function handle(request, { params }) {
         await ensureDefaultProfitAllocationPolicy();
         const activePolicy = await prisma.profitAllocationPolicy.findFirst({
           where: { status: 'Active' },
-          include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+          include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }], include: PROFIT_ALLOCATION_RULE_INCLUDE } },
         });
         if (!activePolicy) return NextResponse.json({ error: 'Active allocation policy is required before creating a snapshot.' }, { status: 400 });
         const activeRules = activePolicy.rules.filter((rule) => rule.isActive !== false);
@@ -1858,12 +1889,16 @@ async function handle(request, { params }) {
                 allocationName: rule.allocationName,
                 percentage: Number(rule.percentage || 0),
                 targetAmount: netProfit * Number(rule.percentage || 0) / 100,
+                financeMappingType: rule.financeMappingType || 'NONE',
+                mappedExpenseCategoryId: rule.mappedExpenseCategoryId || null,
+                mappedChartOfAccountId: rule.mappedChartOfAccountId || null,
+                mappedFinanceLabel: resolveProfitAllocationRuleMappingLabel(rule),
                 isActive: rule.isActive !== false,
                 displayOrder: rule.displayOrder || 0,
               })),
             },
           },
-          include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+          include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }], include: PROFIT_ALLOCATION_RULE_INCLUDE } },
         });
 
         return NextResponse.json(created);
@@ -1873,6 +1908,8 @@ async function handle(request, { params }) {
         const payload = sanitizeProfitAllocationPolicyPayload(await readJson(request));
         const validationError = validateProfitAllocationPolicyPayload(payload);
         if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+        const mappingValidationError = await validateProfitAllocationMappingReferences(payload);
+        if (mappingValidationError) return NextResponse.json({ error: mappingValidationError }, { status: 400 });
 
         const created = await prisma.$transaction(async (tx) => {
           if (payload.status === 'Active') {
@@ -1890,12 +1927,15 @@ async function handle(request, { params }) {
                   id: uuid(),
                   allocationName: rule.allocationName,
                   percentage: rule.percentage,
+                  financeMappingType: rule.financeMappingType,
+                  mappedExpenseCategoryId: rule.mappedExpenseCategoryId || null,
+                  mappedChartOfAccountId: rule.mappedChartOfAccountId || null,
                   isActive: rule.isActive,
                   displayOrder: rule.displayOrder,
                 })),
               },
             },
-            include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+            include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }], include: PROFIT_ALLOCATION_RULE_INCLUDE } },
           });
         });
 
@@ -1929,6 +1969,8 @@ async function handle(request, { params }) {
         const payload = sanitizeProfitAllocationPolicyPayload(await readJson(request));
         const validationError = validateProfitAllocationPolicyPayload(payload);
         if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+        const mappingValidationError = await validateProfitAllocationMappingReferences(payload);
+        if (mappingValidationError) return NextResponse.json({ error: mappingValidationError }, { status: 400 });
 
         const updated = await prisma.$transaction(async (tx) => {
           if (payload.status === 'Active') {
@@ -1950,6 +1992,9 @@ async function handle(request, { params }) {
             const ruleData = {
               allocationName: rule.allocationName,
               percentage: rule.percentage,
+              financeMappingType: rule.financeMappingType,
+              mappedExpenseCategoryId: rule.mappedExpenseCategoryId || null,
+              mappedChartOfAccountId: rule.mappedChartOfAccountId || null,
               isActive: rule.isActive,
               displayOrder: rule.displayOrder,
             };
@@ -1978,7 +2023,7 @@ async function handle(request, { params }) {
               description: payload.description,
               status: payload.status,
             },
-            include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+            include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }], include: PROFIT_ALLOCATION_RULE_INCLUDE } },
           });
         });
 

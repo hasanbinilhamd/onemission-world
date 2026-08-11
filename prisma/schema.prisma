@@ -479,6 +479,8 @@ model ChartOfAccount {
   cashTransactions        CashTransaction[]
   journalLines            JournalEntryLine[]
   linkedFinancialAccounts FinancialAccount[] @relation("FALinkedCoa")
+  profitAllocationRules ProfitAllocationRule[] @relation("ProfitAllocationRuleChartOfAccount")
+  profitAllocationSnapshotRules ProfitAllocationSnapshotRule[] @relation("ProfitAllocationSnapshotRuleChartOfAccount")
 }
 
 model FinancialAccount {
@@ -505,6 +507,8 @@ model ExpenseCategory {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   cashTransactions CashTransaction[]
+  profitAllocationRules ProfitAllocationRule[] @relation("ProfitAllocationRuleExpenseCategory")
+  profitAllocationSnapshotRules ProfitAllocationSnapshotRule[] @relation("ProfitAllocationSnapshotRuleExpenseCategory")
 }
 
 model ProfitAllocationPolicy {
@@ -526,6 +530,11 @@ model ProfitAllocationRule {
   policy         ProfitAllocationPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
   allocationName String
   percentage     Float
+  financeMappingType String             @default("NONE")
+  mappedExpenseCategoryId String?
+  mappedExpenseCategory ExpenseCategory? @relation("ProfitAllocationRuleExpenseCategory", fields: [mappedExpenseCategoryId], references: [id], onDelete: SetNull)
+  mappedChartOfAccountId String?
+  mappedChartOfAccount ChartOfAccount? @relation("ProfitAllocationRuleChartOfAccount", fields: [mappedChartOfAccountId], references: [id], onDelete: SetNull)
   isActive       Boolean                @default(true)
   displayOrder   Int                    @default(0)
   createdAt      DateTime               @default(now())
@@ -535,6 +544,9 @@ model ProfitAllocationRule {
   @@index([policyId])
   @@index([isActive])
   @@index([displayOrder])
+  @@index([financeMappingType])
+  @@index([mappedExpenseCategoryId])
+  @@index([mappedChartOfAccountId])
 }
 
 model ProfitAllocationSnapshot {
@@ -564,6 +576,12 @@ model ProfitAllocationSnapshotRule {
   allocationName String
   percentage     Float
   targetAmount   Float
+  financeMappingType String               @default("NONE")
+  mappedExpenseCategoryId String?
+  mappedExpenseCategory ExpenseCategory?  @relation("ProfitAllocationSnapshotRuleExpenseCategory", fields: [mappedExpenseCategoryId], references: [id], onDelete: SetNull)
+  mappedChartOfAccountId String?
+  mappedChartOfAccount ChartOfAccount?    @relation("ProfitAllocationSnapshotRuleChartOfAccount", fields: [mappedChartOfAccountId], references: [id], onDelete: SetNull)
+  mappedFinanceLabel String               @default("")
   isActive       Boolean                  @default(true)
   displayOrder   Int                      @default(0)
   createdAt      DateTime                 @default(now())
@@ -571,6 +589,9 @@ model ProfitAllocationSnapshotRule {
 
   @@index([snapshotId])
   @@index([displayOrder])
+  @@index([financeMappingType])
+  @@index([mappedExpenseCategoryId])
+  @@index([mappedChartOfAccountId])
 }
 
 model CashTransaction {

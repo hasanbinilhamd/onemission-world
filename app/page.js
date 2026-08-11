@@ -9881,10 +9881,15 @@ function ProfitAllocationModule({ activeModule }) {
   const [monitoring, setMonitoring] = useState(null);
   const [monitoringLoading, setMonitoringLoading] = useState(false);
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
+  const [mappingOptions, setMappingOptions] = useState({ expenseCategories: [], chartOfAccounts: [] });
 
   const load = async () => {
     setLoading(true);
-    const result = await api.get("profitallocation");
+    const [result, expenseData, coaData] = await Promise.all([
+      api.get("profitallocation"),
+      api.get("expensecategories"),
+      api.get("chartofaccounts"),
+    ]);
     if (result?.error) {
       toast.error(result.error);
       setPolicies([]);
@@ -9894,6 +9899,10 @@ function ProfitAllocationModule({ activeModule }) {
 
     const nextPolicies = Array.isArray(result?.policies) ? result.policies : [];
     setPolicies(nextPolicies);
+    setMappingOptions({
+      expenseCategories: Array.isArray(expenseData) ? expenseData.filter((item) => (item.status || "Active") === "Active") : [],
+      chartOfAccounts: Array.isArray(coaData) ? coaData.filter((item) => item.allowTransaction && item.isActive) : [],
+    });
     setSelectedPolicyId((current) => {
       if (current && nextPolicies.some((policy) => policy.id === current))
         return current;
@@ -10190,6 +10199,7 @@ function ProfitAllocationModule({ activeModule }) {
                   <thead>
                     <tr className="border-b bg-[#F7F8FA]">
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">Allocation</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Mapping</th>
                       <th className="text-right px-4 py-3 font-medium text-muted-foreground">%</th>
                       <th className="text-right px-4 py-3 font-medium text-muted-foreground">Target</th>
                       <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actual</th>
@@ -10199,10 +10209,14 @@ function ProfitAllocationModule({ activeModule }) {
                   </thead>
                   <tbody>
                     {(monitoring.rows || []).length === 0 ? (
-                      <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">No allocation rows available.</td></tr>
+                      <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No allocation rows available.</td></tr>
                     ) : (monitoring.rows || []).map((row) => (
                       <tr key={row.allocationName} className="border-b last:border-b-0">
                         <td className="px-4 py-3 font-medium text-[#111827]">{row.allocationName}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className={row.mappingStatus === "Mapped" ? "border-emerald-500/40 text-emerald-600" : "border-slate-300 text-slate-500"}>{row.mappingStatus || "Not Mapped"}</Badge>
+                          {row.mappedFinanceLabel ? <p className="text-xs text-muted-foreground mt-1">{row.mappedFinanceLabel}</p> : null}
+                        </td>
                         <td className="px-4 py-3 text-right">{formatPercentage(row.percentage)}</td>
                         <td className="px-4 py-3 text-right font-medium">{fmt(row.targetAmount)}</td>
                         <td className="px-4 py-3 text-right font-medium">{fmt(row.actualAmount)}</td>
@@ -10348,6 +10362,9 @@ function ProfitAllocationModule({ activeModule }) {
                           Percentage
                         </th>
                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                          Finance Mapping
+                        </th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">
                           Status
                         </th>
                       </tr>
@@ -10356,7 +10373,7 @@ function ProfitAllocationModule({ activeModule }) {
                       {rules.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={4}
+                            colSpan={5}
                             className="px-4 py-10 text-center text-muted-foreground"
                           >
                             No allocation rules found.
@@ -10376,6 +10393,14 @@ function ProfitAllocationModule({ activeModule }) {
                             </td>
                             <td className="px-4 py-3 text-right font-semibold">
                               {formatPercentage(rule.percentage)}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="space-y-1">
+                                <Badge variant="outline" className={rule.mappingStatus === "Mapped" ? "border-emerald-500/40 text-emerald-600" : "border-slate-300 text-slate-500"}>
+                                  {rule.mappingStatus || "Not Mapped"}
+                                </Badge>
+                                {rule.mappedFinanceLabel ? <p className="text-xs text-muted-foreground">{rule.mappedFinanceLabel}</p> : null}
+                              </div>
                             </td>
                             <td className="px-4 py-3">
                               <Badge
@@ -10414,6 +10439,7 @@ function ProfitAllocationModule({ activeModule }) {
         initial={editingPolicy}
         onSave={savePolicy}
         saving={savingPolicy}
+        mappingOptions={mappingOptions}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(value) => !value && !deletingPolicyId && setDeleteTarget(null)}>
@@ -10443,7 +10469,7 @@ function ProfitAllocationModule({ activeModule }) {
   );
 }
 
-function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, saving = false }) {
+function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, saving = false, mappingOptions = { expenseCategories: [], chartOfAccounts: [] } }) {
   const buildEmpty = () => ({
     name: "",
     description: "",
@@ -10451,6 +10477,9 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
     rules: BASELINE_PROFIT_ALLOCATION_RULES_UI.map((rule) => ({
       ...rule,
       id: "",
+      financeMappingType: "NONE",
+      mappedExpenseCategoryId: "",
+      mappedChartOfAccountId: "",
     })),
   });
   const [form, setForm] = useState(buildEmpty);
@@ -10465,6 +10494,9 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
           id: rule.id || "",
           allocationName: rule.allocationName || "",
           percentage: Number(rule.percentage || 0),
+          financeMappingType: rule.financeMappingType || "NONE",
+          mappedExpenseCategoryId: rule.mappedExpenseCategoryId || "",
+          mappedChartOfAccountId: rule.mappedChartOfAccountId || "",
           isActive: rule.isActive !== false,
           displayOrder: Number(rule.displayOrder || 0),
         })),
@@ -10495,6 +10527,9 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
           id: "",
           allocationName: "",
           percentage: 0,
+          financeMappingType: "NONE",
+          mappedExpenseCategoryId: "",
+          mappedChartOfAccountId: "",
           isActive: true,
           displayOrder: current.rules.length + 1,
         },
@@ -10507,6 +10542,25 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
       ...current,
       rules: current.rules.filter((_, ruleIndex) => ruleIndex !== index),
     }));
+  };
+
+  const getMappingValue = (rule) => {
+    if (rule.financeMappingType === "EXPENSE_CATEGORY" && rule.mappedExpenseCategoryId) return `EXPENSE_CATEGORY:${rule.mappedExpenseCategoryId}`;
+    if (rule.financeMappingType === "CHART_OF_ACCOUNT" && rule.mappedChartOfAccountId) return `CHART_OF_ACCOUNT:${rule.mappedChartOfAccountId}`;
+    return "NONE";
+  };
+
+  const updateRuleMapping = (index, value) => {
+    if (value === "NONE") {
+      updateRule(index, { financeMappingType: "NONE", mappedExpenseCategoryId: "", mappedChartOfAccountId: "" });
+      return;
+    }
+    const [financeMappingType, id] = String(value || "").split(":");
+    updateRule(index, {
+      financeMappingType,
+      mappedExpenseCategoryId: financeMappingType === "EXPENSE_CATEGORY" ? id : "",
+      mappedChartOfAccountId: financeMappingType === "CHART_OF_ACCOUNT" ? id : "",
+    });
   };
 
   const submit = async () => {
@@ -10539,6 +10593,9 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
         ...rule,
         allocationName: String(rule.allocationName || "").trim(),
         percentage: Number(rule.percentage || 0),
+        financeMappingType: rule.financeMappingType || "NONE",
+        mappedExpenseCategoryId: rule.financeMappingType === "EXPENSE_CATEGORY" ? rule.mappedExpenseCategoryId : "",
+        mappedChartOfAccountId: rule.financeMappingType === "CHART_OF_ACCOUNT" ? rule.mappedChartOfAccountId : "",
         displayOrder: Number(rule.displayOrder || index + 1),
         isActive: rule.isActive !== false,
       })),
@@ -10660,6 +10717,9 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
                   <th className="text-left px-3 py-2 font-medium text-muted-foreground w-36">
                     Percentage
                   </th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground min-w-[260px]">
+                    Finance Mapping
+                  </th>
                   <th className="text-left px-3 py-2 font-medium text-muted-foreground w-32">
                     Active
                   </th>
@@ -10706,6 +10766,22 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
                           })
                         }
                       />
+                    </td>
+                    <td className="px-3 py-2">
+                      <Select value={getMappingValue(rule)} onValueChange={(value) => updateRuleMapping(index, value)} disabled={saving}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Finance mapping" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NONE">Not Mapped</SelectItem>
+                          {mappingOptions.expenseCategories.map((category) => (
+                            <SelectItem key={`expense-${category.id}`} value={`EXPENSE_CATEGORY:${category.id}`}>Expense Category · {category.name}</SelectItem>
+                          ))}
+                          {mappingOptions.chartOfAccounts.map((account) => (
+                            <SelectItem key={`coa-${account.id}`} value={`CHART_OF_ACCOUNT:${account.id}`}>COA · {account.accountCode} {account.accountName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </td>
                     <td className="px-3 py-2">
                       <Switch
