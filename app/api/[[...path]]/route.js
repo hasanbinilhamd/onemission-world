@@ -2523,6 +2523,9 @@ async function handle(request, { params }) {
 
             await createManualSalesJournals(tx, manualOrder, itemRows, actor);
             return manualOrder;
+          }, {
+            maxWait: 10000,
+            timeout: 20000,
           });
 
           return NextResponse.json(created);
