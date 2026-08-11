@@ -48,6 +48,11 @@ import {
 } from '@/lib/creator/service';
 import { v4 as uuid } from 'uuid';
 import {
+  buildProfitAllocationRecordScope,
+  getProfitAllocationRecordScopeKey,
+  validateAllocationReduction,
+} from '@/lib/profit-allocation/hardening';
+import {
   ensureInventoryRowsForProduct,
   repairAllProductInventoryRows,
 } from '@/lib/inventory/lifecycle';
@@ -1002,16 +1007,18 @@ async function buildProfitAllocationMonitoring(periodKey = '') {
     ? { netProfit: snapshot.netProfit }
     : await calculateProfitLossForAllocationPeriod(period);
   const rules = snapshot ? snapshot.rules : (activePolicy?.rules || []);
-  const [adjustments, executions] = await Promise.all([
+  const policyId = snapshot?.policyId || activePolicy?.id || '';
+  const recordScope = buildProfitAllocationRecordScope(period.periodKey, policyId);
+  const [adjustments, executions] = policyId ? await Promise.all([
     prisma.profitAllocationAdjustment.findMany({
-      where: { periodKey: period.periodKey },
+      where: recordScope,
       orderBy: [{ createdAt: 'desc' }],
     }),
     prisma.profitAllocationExecution.findMany({
-      where: { periodKey: period.periodKey },
+      where: recordScope,
       orderBy: [{ executionDate: 'desc' }, { createdAt: 'desc' }],
     }),
-  ]);
+  ]) : [[], []];
   const adjustmentMap = buildProfitAllocationAdjustmentMap(adjustments);
   const { executionMap, historyMap: executionHistoryMap } = buildProfitAllocationExecutionMaps(executions);
   const actualMap = await calculateProfitAllocationActualMap({ ...period, rules });
@@ -1924,17 +1931,24 @@ async function handle(request, { params }) {
           take: 24,
         });
         const periodKeys = snapshots.map((snapshot) => snapshot.periodKey);
-        const executions = periodKeys.length
-          ? await prisma.profitAllocationExecution.findMany({ where: { periodKey: { in: periodKeys } } })
+        const policyIds = [...new Set(snapshots.map((snapshot) => snapshot.policyId))];
+        const executions = periodKeys.length && policyIds.length
+          ? await prisma.profitAllocationExecution.findMany({
+              where: {
+                periodKey: { in: periodKeys },
+                policyId: { in: policyIds },
+              },
+            })
           : [];
-        const executionByPeriod = new Map();
+        const executionByPeriodPolicy = new Map();
         executions.forEach((execution) => {
-          executionByPeriod.set(execution.periodKey, Number(executionByPeriod.get(execution.periodKey) || 0) + Number(execution.amount || 0));
+          const scopeKey = getProfitAllocationRecordScopeKey(execution.periodKey, execution.policyId);
+          executionByPeriodPolicy.set(scopeKey, Number(executionByPeriodPolicy.get(scopeKey) || 0) + Number(execution.amount || 0));
         });
         return NextResponse.json({
           periods: snapshots.map((snapshot) => {
             const totalAllocated = snapshot.rules.reduce((sum, rule) => sum + Number(rule.targetAmount || 0), 0) || Number(snapshot.totalAllocated || 0);
-            const totalExecuted = Number(executionByPeriod.get(snapshot.periodKey) || 0);
+            const totalExecuted = Number(executionByPeriodPolicy.get(getProfitAllocationRecordScopeKey(snapshot.periodKey, snapshot.policyId)) || 0);
             const totalRemaining = Math.max(totalAllocated - totalExecuted, 0);
             return {
               periodKey: snapshot.periodKey,
@@ -2073,8 +2087,13 @@ async function handle(request, { params }) {
         if (!sourceRow || !destinationRow) {
           return NextResponse.json({ error: 'Selected allocation could not be found for this period.' }, { status: 400 });
         }
-        if (Number(sourceRow.adjustedTargetAmount || 0) - amount < -0.009) {
-          return NextResponse.json({ error: 'Source allocation adjusted target cannot become negative.' }, { status: 400 });
+        const reductionValidation = validateAllocationReduction({
+          adjustedTargetAmount: sourceRow.adjustedTargetAmount,
+          executedAmount: sourceRow.executedAmount,
+          reductionAmount: amount,
+        });
+        if (!reductionValidation.valid) {
+          return NextResponse.json({ error: reductionValidation.message }, { status: 400 });
         }
         const policyId = monitoring.policy?.id || monitoring.activePolicy?.id;
         if (!policyId) return NextResponse.json({ error: 'Active allocation policy is required before creating an adjustment.' }, { status: 400 });

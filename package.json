@@ -18,7 +18,8 @@
         "test:payment-attempt": "tsx --tsconfig jsconfig.json --test tests/payment-attempt.test.js",
         "test:order": "tsx --tsconfig jsconfig.json --test tests/order-service.test.js",
         "test:uat": "npm run test:checkout && npm run test:payment-attempt && npm run test:order",
-        "postinstall": "prisma generate"
+        "postinstall": "prisma generate",
+        "test:profit-allocation": "tsx --tsconfig jsconfig.json --test tests/profit-allocation-hardening.test.js"
     },
     "prisma": {
         "seed": "tsx prisma/seed.ts"
