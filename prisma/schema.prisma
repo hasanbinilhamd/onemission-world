@@ -515,6 +515,7 @@ model ProfitAllocationPolicy {
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
   rules       ProfitAllocationRule[]
+  snapshots   ProfitAllocationSnapshot[]
 
   @@index([status])
 }
@@ -533,6 +534,42 @@ model ProfitAllocationRule {
   @@unique([policyId, allocationName])
   @@index([policyId])
   @@index([isActive])
+  @@index([displayOrder])
+}
+
+model ProfitAllocationSnapshot {
+  id             String                         @id
+  periodKey      String                         @unique
+  periodLabel    String
+  periodStart    String
+  periodEnd      String
+  policyId       String
+  policy         ProfitAllocationPolicy         @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  policyName     String
+  netProfit      Float
+  totalAllocated Float                          @default(0)
+  createdBy      String                         @default("")
+  createdAt      DateTime                       @default(now())
+  updatedAt      DateTime                       @updatedAt
+  rules          ProfitAllocationSnapshotRule[]
+
+  @@index([policyId])
+  @@index([periodStart, periodEnd])
+}
+
+model ProfitAllocationSnapshotRule {
+  id             String                   @id
+  snapshotId     String
+  snapshot       ProfitAllocationSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  allocationName String
+  percentage     Float
+  targetAmount   Float
+  isActive       Boolean                  @default(true)
+  displayOrder   Int                      @default(0)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([snapshotId])
   @@index([displayOrder])
 }
 

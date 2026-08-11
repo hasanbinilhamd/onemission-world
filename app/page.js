@@ -9877,6 +9877,10 @@ function ProfitAllocationModule({ activeModule }) {
   const [updatingStatusPolicyId, setUpdatingStatusPolicyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingPolicyId, setDeletingPolicyId] = useState("");
+  const [periodKey, setPeriodKey] = useState(() => new Date().toISOString().slice(0, 7));
+  const [monitoring, setMonitoring] = useState(null);
+  const [monitoringLoading, setMonitoringLoading] = useState(false);
+  const [creatingSnapshot, setCreatingSnapshot] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -9898,6 +9902,21 @@ function ProfitAllocationModule({ activeModule }) {
     setLoading(false);
   };
 
+  const loadMonitoring = async () => {
+    setMonitoringLoading(true);
+    try {
+      const result = await api.get(`profitallocation/monitoring?period=${encodeURIComponent(periodKey)}`);
+      if (result?.error) {
+        toast.error(result.error);
+        setMonitoring(null);
+        return;
+      }
+      setMonitoring(result);
+    } finally {
+      setMonitoringLoading(false);
+    }
+  };
+
   useLazyModuleEffect(
     activeModule,
     "profitallocation",
@@ -9905,6 +9924,15 @@ function ProfitAllocationModule({ activeModule }) {
       load();
     },
     [],
+  );
+
+  useLazyModuleEffect(
+    activeModule,
+    "profitallocation",
+    () => {
+      loadMonitoring();
+    },
+    [periodKey],
   );
 
   const activePolicy =
@@ -9954,6 +9982,7 @@ function ProfitAllocationModule({ activeModule }) {
       setShowForm(false);
       setEditingPolicy(null);
       await load();
+      await loadMonitoring();
       return true;
     } catch (error) {
       toast.error("Allocation policy could not be saved.");
@@ -9985,6 +10014,7 @@ function ProfitAllocationModule({ activeModule }) {
           : "Allocation policy updated",
       );
       await load();
+      await loadMonitoring();
     } catch (error) {
       toast.error("Allocation policy status could not be updated.");
     } finally {
@@ -10011,10 +10041,29 @@ function ProfitAllocationModule({ activeModule }) {
       toast.success("Allocation policy deleted successfully.");
       setDeleteTarget(null);
       await load();
+      await loadMonitoring();
     } catch (error) {
       toast.error("Failed to delete allocation policy.");
     } finally {
       setDeletingPolicyId("");
+    }
+  };
+
+  const createSnapshot = async () => {
+    if (creatingSnapshot) return;
+    setCreatingSnapshot(true);
+    try {
+      const result = await api.post("profitallocation/snapshots", { periodKey });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Allocation snapshot created");
+      await loadMonitoring();
+    } catch (error) {
+      toast.error("Allocation snapshot could not be created.");
+    } finally {
+      setCreatingSnapshot(false);
     }
   };
 
@@ -10074,6 +10123,104 @@ function ProfitAllocationModule({ activeModule }) {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Allocation Monitoring</CardTitle>
+              <CardDescription>Monthly target vs actual monitoring from existing Finance data.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="space-y-1">
+                <Label className="text-xs">Period</Label>
+                <Input type="month" value={periodKey} onChange={(event) => setPeriodKey(event.target.value)} className="w-[180px]" />
+              </div>
+              {monitoring?.periodStatus === "Snapshot Created" ? (
+                <Badge className="bg-emerald-500/10 text-emerald-600">Snapshot Created</Badge>
+              ) : (
+                <Button variant="outline" onClick={createSnapshot} disabled={creatingSnapshot || monitoringLoading || !monitoring?.activePolicy}>
+                  {creatingSnapshot ? "Creating..." : "Create Snapshot"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {monitoringLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Loading allocation monitoring...</div>
+          ) : monitoring ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Net Profit</p>
+                    <p className="text-lg font-semibold mt-1">{fmt(monitoring.netProfit)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Allocated Target</p>
+                    <p className="text-lg font-semibold mt-1">{fmt(monitoring.totalTarget)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Actual Spending</p>
+                    <p className="text-lg font-semibold mt-1">{fmt(monitoring.totalActual)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Remaining / Variance</p>
+                    <p className={`text-lg font-semibold mt-1 ${Number(monitoring.totalVariance || 0) < 0 ? "text-rose-500" : "text-emerald-600"}`}>{fmt(monitoring.totalVariance)}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="rounded-xl border bg-[#F7F8FA] p-4 text-sm text-muted-foreground">
+                <p>
+                  Period: <span className="font-medium text-foreground">{monitoring.period?.periodLabel}</span> · Policy: <span className="font-medium text-foreground">{monitoring.policy?.name || "—"}</span>
+                </p>
+                <p className="mt-1">Actual spending is read dynamically from Finance Cash Out transactions for the selected month. Snapshot target values remain historical.</p>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-[#F7F8FA]">
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Allocation</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">%</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Target</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actual</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Variance</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(monitoring.rows || []).length === 0 ? (
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">No allocation rows available.</td></tr>
+                    ) : (monitoring.rows || []).map((row) => (
+                      <tr key={row.allocationName} className="border-b last:border-b-0">
+                        <td className="px-4 py-3 font-medium text-[#111827]">{row.allocationName}</td>
+                        <td className="px-4 py-3 text-right">{formatPercentage(row.percentage)}</td>
+                        <td className="px-4 py-3 text-right font-medium">{fmt(row.targetAmount)}</td>
+                        <td className="px-4 py-3 text-right font-medium">{fmt(row.actualAmount)}</td>
+                        <td className={`px-4 py-3 text-right font-semibold ${Number(row.variance || 0) < 0 ? "text-rose-500" : "text-emerald-600"}`}>{fmt(row.variance)}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className={row.status === "Over Allocation" ? "border-rose-500/40 text-rose-500" : row.status === "Fully Used" ? "border-slate-300 text-slate-600" : "border-emerald-500/40 text-emerald-600"}>{row.status}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-sm text-muted-foreground">Allocation monitoring is not available.</div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-3">

@@ -737,6 +737,224 @@ function validateProfitAllocationPolicyPayload(payload) {
   return '';
 }
 
+function normalizeAllocationLabel(value = '') {
+  return String(value || '').trim().toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function resolveMonthlyAllocationPeriod(periodKey = '') {
+  const normalized = String(periodKey || '').trim();
+  const match = normalized.match(/^(\d{4})-(\d{2})$/);
+  const now = new Date();
+  const year = match ? Number(match[1]) : now.getUTCFullYear();
+  const month = match ? Number(match[2]) : now.getUTCMonth() + 1;
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const end = new Date(Date.UTC(year, month, 0));
+  const label = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(start);
+  return {
+    periodKey: `${year}-${String(month).padStart(2, '0')}`,
+    periodLabel: label,
+    periodStart: start.toISOString().slice(0, 10),
+    periodEnd: end.toISOString().slice(0, 10),
+  };
+}
+
+function buildAllocationActualAliases(allocationName = '') {
+  const normalized = normalizeAllocationLabel(allocationName);
+  const aliases = new Set([normalized]);
+  if (normalized.includes('marketing')) aliases.add('marketing');
+  if (normalized.includes('salary')) {
+    aliases.add('salary');
+    aliases.add('payroll');
+  }
+  if (normalized.includes('product development')) {
+    aliases.add('product development');
+    aliases.add('research development');
+    aliases.add('development');
+  }
+  if (normalized.includes('operational')) {
+    aliases.add('operational');
+    aliases.add('operations');
+  }
+  if (normalized.includes('asset')) {
+    aliases.add('asset');
+    aliases.add('equipment');
+    aliases.add('purchase');
+  }
+  if (normalized.includes('saving')) {
+    aliases.add('company savings');
+    aliases.add('savings');
+  }
+  if (normalized.includes('owner')) {
+    aliases.add('owner');
+    aliases.add('owner take');
+  }
+  if (normalized.includes('investor')) aliases.add('investor');
+  if (normalized.includes('zakat') || normalized.includes('social')) {
+    aliases.add('zakat');
+    aliases.add('social impact');
+    aliases.add('donation');
+  }
+  return [...aliases].filter(Boolean);
+}
+
+function allocationMatchesFinanceLabels(rule, financeLabels = []) {
+  const labels = financeLabels.map(normalizeAllocationLabel).filter(Boolean);
+  if (labels.length === 0) return false;
+  return buildAllocationActualAliases(rule.allocationName).some((alias) => (
+    labels.some((label) => label === alias || label.includes(alias) || alias.includes(label))
+  ));
+}
+
+async function calculateProfitLossForAllocationPeriod({ periodStart, periodEnd }) {
+  const journalFilter = { AND: [{ status: 'Posted' }] };
+  if (periodStart) journalFilter.AND.push({ journalDate: { gte: periodStart } });
+  if (periodEnd) journalFilter.AND.push({ journalDate: { lte: periodEnd } });
+
+  const accounts = await prisma.chartOfAccount.findMany({
+    where: {
+      isActive: true,
+      allowTransaction: true,
+      accountType: { in: ['Revenue', 'Expense'] },
+    },
+    orderBy: { accountCode: 'asc' },
+  });
+
+  if (!accounts.length) {
+    return { totalRevenue: 0, totalCogs: 0, grossProfit: 0, totalOperatingExpenses: 0, totalExpenses: 0, netProfit: 0 };
+  }
+
+  const lines = await prisma.journalEntryLine.findMany({
+    where: {
+      journalEntry: journalFilter,
+      chartOfAccountId: { in: accounts.map((account) => account.id) },
+    },
+    select: { chartOfAccountId: true, debitAmount: true, creditAmount: true },
+  });
+
+  const aggMap = {};
+  for (const line of lines) {
+    if (!aggMap[line.chartOfAccountId]) aggMap[line.chartOfAccountId] = { totalDebit: 0, totalCredit: 0 };
+    aggMap[line.chartOfAccountId].totalDebit += Number(line.debitAmount || 0);
+    aggMap[line.chartOfAccountId].totalCredit += Number(line.creditAmount || 0);
+  }
+
+  let totalRevenue = 0;
+  let totalCogs = 0;
+  let totalOperatingExpenses = 0;
+  for (const account of accounts) {
+    const agg = aggMap[account.id];
+    if (!agg) continue;
+    const amount = account.accountType === 'Revenue'
+      ? agg.totalCredit - agg.totalDebit
+      : agg.totalDebit - agg.totalCredit;
+    if (account.accountType === 'Revenue') totalRevenue += amount;
+    else if (isCogsAccount(account)) totalCogs += amount;
+    else totalOperatingExpenses += amount;
+  }
+
+  const grossProfit = totalRevenue - totalCogs;
+  const totalExpenses = totalCogs + totalOperatingExpenses;
+  const netProfit = grossProfit - totalOperatingExpenses;
+  return { totalRevenue, totalCogs, grossProfit, totalOperatingExpenses, totalExpenses, netProfit };
+}
+
+async function calculateProfitAllocationActualMap({ periodStart, periodEnd, rules = [] }) {
+  const activeRules = rules.filter((rule) => rule.isActive !== false);
+  const actualMap = new Map(activeRules.map((rule) => [rule.allocationName, 0]));
+
+  if (activeRules.length === 0) return actualMap;
+
+  const transactions = await prisma.cashTransaction.findMany({
+    where: {
+      transactionType: 'OUT',
+      transactionDate: { gte: periodStart, lte: periodEnd },
+    },
+    select: {
+      amount: true,
+      expenseCategoryName: true,
+      expenseCategory: { select: { name: true } },
+      chartOfAccount: { select: { accountName: true, accountCode: true } },
+    },
+  });
+
+  for (const transaction of transactions) {
+    const labels = [
+      transaction.expenseCategoryName,
+      transaction.expenseCategory?.name,
+      transaction.chartOfAccount?.accountName,
+    ];
+    const matchedRule = activeRules.find((rule) => allocationMatchesFinanceLabels(rule, labels));
+    if (!matchedRule) continue;
+    actualMap.set(matchedRule.allocationName, Number(actualMap.get(matchedRule.allocationName) || 0) + Number(transaction.amount || 0));
+  }
+
+  return actualMap;
+}
+
+function buildProfitAllocationMonitoringRows({ rules = [], netProfit = 0, actualMap = new Map(), useSnapshotTargets = false }) {
+  return rules
+    .filter((rule) => rule.isActive !== false)
+    .sort((left, right) => (left.displayOrder || 0) - (right.displayOrder || 0) || left.allocationName.localeCompare(right.allocationName))
+    .map((rule) => {
+      const percentage = Number(rule.percentage || 0);
+      const targetAmount = useSnapshotTargets ? Number(rule.targetAmount || 0) : Number(netProfit || 0) * percentage / 100;
+      const actualAmount = Number(actualMap.get(rule.allocationName) || 0);
+      const variance = targetAmount - actualAmount;
+      const status = actualAmount > targetAmount + 0.009
+        ? 'Over Allocation'
+        : Math.abs(variance) <= 0.009
+          ? 'Fully Used'
+          : 'Remaining';
+      return {
+        allocationName: rule.allocationName,
+        percentage,
+        targetAmount,
+        actualAmount,
+        variance,
+        status,
+        displayOrder: rule.displayOrder || 0,
+      };
+    });
+}
+
+async function buildProfitAllocationMonitoring(periodKey = '') {
+  await ensureDefaultProfitAllocationPolicy();
+  const period = resolveMonthlyAllocationPeriod(periodKey);
+  const snapshot = await prisma.profitAllocationSnapshot.findUnique({
+    where: { periodKey: period.periodKey },
+    include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+  });
+  const activePolicy = await prisma.profitAllocationPolicy.findFirst({
+    where: { status: 'Active' },
+    include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+  });
+  const profit = snapshot
+    ? { netProfit: snapshot.netProfit }
+    : await calculateProfitLossForAllocationPeriod(period);
+  const rules = snapshot ? snapshot.rules : (activePolicy?.rules || []);
+  const actualMap = await calculateProfitAllocationActualMap({ ...period, rules });
+  const rows = buildProfitAllocationMonitoringRows({
+    rules,
+    netProfit: profit.netProfit,
+    actualMap,
+    useSnapshotTargets: Boolean(snapshot),
+  });
+  const totalTarget = rows.reduce((sum, row) => sum + row.targetAmount, 0);
+  const totalActual = rows.reduce((sum, row) => sum + row.actualAmount, 0);
+  return {
+    period,
+    periodStatus: snapshot ? 'Snapshot Created' : 'Open',
+    snapshot,
+    activePolicy: activePolicy ? serializeProfitAllocationPolicy(activePolicy) : null,
+    policy: snapshot ? { id: snapshot.policyId, name: snapshot.policyName } : (activePolicy ? serializeProfitAllocationPolicy(activePolicy) : null),
+    netProfit: Number(profit.netProfit || 0),
+    totalTarget,
+    totalActual,
+    totalVariance: totalTarget - totalActual,
+    rows,
+  };
+}
+
 function normalizeContentPlannerSummary(items = []) {
   return buildContentScriptSummary(items);
 }
@@ -1591,6 +1809,64 @@ async function handle(request, { params }) {
           policies: serializedPolicies,
           activePolicy: serializedPolicies.find((policy) => policy.status === 'Active') || null,
         });
+      }
+
+      if (method === 'GET' && segs[1] === 'monitoring' && segs.length === 2) {
+        const url = new URL(request.url);
+        const result = await buildProfitAllocationMonitoring(url.searchParams.get('period') || '');
+        return NextResponse.json(result);
+      }
+
+      if (method === 'POST' && segs[1] === 'snapshots' && segs.length === 2) {
+        const authUser = authContext?.user || null;
+        const body = await readJson(request);
+        const period = resolveMonthlyAllocationPeriod(body.periodKey || body.period || '');
+        const existingSnapshot = await prisma.profitAllocationSnapshot.findUnique({ where: { periodKey: period.periodKey } });
+        if (existingSnapshot) {
+          return NextResponse.json({ error: 'Allocation snapshot already exists for this period.' }, { status: 409 });
+        }
+
+        await ensureDefaultProfitAllocationPolicy();
+        const activePolicy = await prisma.profitAllocationPolicy.findFirst({
+          where: { status: 'Active' },
+          include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+        });
+        if (!activePolicy) return NextResponse.json({ error: 'Active allocation policy is required before creating a snapshot.' }, { status: 400 });
+        const activeRules = activePolicy.rules.filter((rule) => rule.isActive !== false);
+        const activeTotal = calculateProfitAllocationTotal(activeRules);
+        if (!isProfitAllocationTotalValid(activeTotal)) {
+          return NextResponse.json({ error: `Active allocation policy must total 100%. Current total is ${Number(activeTotal.toFixed(2))}%.` }, { status: 400 });
+        }
+
+        const profit = await calculateProfitLossForAllocationPeriod(period);
+        const netProfit = Number(profit.netProfit || 0);
+        const created = await prisma.profitAllocationSnapshot.create({
+          data: {
+            id: uuid(),
+            periodKey: period.periodKey,
+            periodLabel: period.periodLabel,
+            periodStart: period.periodStart,
+            periodEnd: period.periodEnd,
+            policyId: activePolicy.id,
+            policyName: activePolicy.name,
+            netProfit,
+            totalAllocated: netProfit,
+            createdBy: authUser?.email || authUser?.name || '',
+            rules: {
+              create: activeRules.map((rule) => ({
+                id: uuid(),
+                allocationName: rule.allocationName,
+                percentage: Number(rule.percentage || 0),
+                targetAmount: netProfit * Number(rule.percentage || 0) / 100,
+                isActive: rule.isActive !== false,
+                displayOrder: rule.displayOrder || 0,
+              })),
+            },
+          },
+          include: { rules: { orderBy: [{ displayOrder: 'asc' }, { allocationName: 'asc' }] } },
+        });
+
+        return NextResponse.json(created);
       }
 
       if (method === 'POST' && segs[1] === 'policies' && segs.length === 2) {
