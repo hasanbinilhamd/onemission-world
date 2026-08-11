@@ -83,61 +83,100 @@ import {
   InventorySkeleton,
 } from "@/components/onemission/skeletons";
 const OrdersModule = dynamic(
-  () => import("@/components/onemission/orders-module").then((module) => module.OrdersModule),
+  () =>
+    import("@/components/onemission/orders-module").then(
+      (module) => module.OrdersModule,
+    ),
   { loading: () => <TableSkeleton rows={8} cols={7} /> },
 );
 const CheckoutSessionsModule = dynamic(
-  () => import("@/components/onemission/checkout-sessions-module").then((module) => module.CheckoutSessionsModule),
+  () =>
+    import("@/components/onemission/checkout-sessions-module").then(
+      (module) => module.CheckoutSessionsModule,
+    ),
   { loading: () => <TableSkeleton rows={8} cols={8} /> },
 );
 const RefundRequestsModule = dynamic(
-  () => import("@/components/onemission/refund-requests-module").then((module) => module.RefundRequestsModule),
+  () =>
+    import("@/components/onemission/refund-requests-module").then(
+      (module) => module.RefundRequestsModule,
+    ),
   { loading: () => <TableSkeleton rows={8} cols={8} /> },
 );
 
 const UsersSettingsModule = dynamic(
-  () => import("@/components/onemission/settings-governance").then((module) => module.UsersSettingsModule),
+  () =>
+    import("@/components/onemission/settings-governance").then(
+      (module) => module.UsersSettingsModule,
+    ),
   { loading: () => <ListSkeleton count={6} /> },
 );
 
 const RolesPermissionsSettingsModule = dynamic(
-  () => import("@/components/onemission/settings-governance").then((module) => module.RolesPermissionsSettingsModule),
+  () =>
+    import("@/components/onemission/settings-governance").then(
+      (module) => module.RolesPermissionsSettingsModule,
+    ),
   { loading: () => <ListSkeleton count={6} /> },
 );
 
 const NotificationSettingsModule = dynamic(
-  () => import("@/components/onemission/settings-governance").then((module) => module.NotificationSettingsModule),
+  () =>
+    import("@/components/onemission/settings-governance").then(
+      (module) => module.NotificationSettingsModule,
+    ),
   { loading: () => <ListSkeleton count={6} /> },
 );
 
 const SystemConfigurationModule = dynamic(
-  () => import("@/components/onemission/settings-governance").then((module) => module.SystemConfigurationModule),
+  () =>
+    import("@/components/onemission/settings-governance").then(
+      (module) => module.SystemConfigurationModule,
+    ),
   { loading: () => <ListSkeleton count={6} /> },
 );
 
 const WebsiteSettingsModule = dynamic(
-  () => import("@/components/onemission/website-settings-module").then((module) => module.WebsiteSettingsModule),
+  () =>
+    import("@/components/onemission/website-settings-module").then(
+      (module) => module.WebsiteSettingsModule,
+    ),
   { loading: () => <ListSkeleton count={6} /> },
 );
 
 const ContentPlannerModule = dynamic(
-  () => import("@/components/onemission/content-planner-module").then((module) => module.ContentPlannerModule),
+  () =>
+    import("@/components/onemission/content-planner-module").then(
+      (module) => module.ContentPlannerModule,
+    ),
   { loading: () => <KanbanSkeleton columns={6} /> },
 );
 const NewsletterModule = dynamic(
-  () => import("@/components/onemission/newsletter-module").then((module) => module.NewsletterModule),
+  () =>
+    import("@/components/onemission/newsletter-module").then(
+      (module) => module.NewsletterModule,
+    ),
   { loading: () => <TableSkeleton rows={8} cols={6} /> },
 );
 const LaunchSubscribersModule = dynamic(
-  () => import("@/components/onemission/launch-subscribers-module").then((module) => module.LaunchSubscribersModule),
+  () =>
+    import("@/components/onemission/launch-subscribers-module").then(
+      (module) => module.LaunchSubscribersModule,
+    ),
   { loading: () => <TableSkeleton rows={8} cols={7} /> },
 );
 const ProductReviewsModule = dynamic(
-  () => import("@/components/onemission/product-reviews-module").then((module) => module.ProductReviewsModule),
+  () =>
+    import("@/components/onemission/product-reviews-module").then(
+      (module) => module.ProductReviewsModule,
+    ),
   { loading: () => <TableSkeleton rows={8} cols={8} /> },
 );
 const PromotionsModule = dynamic(
-  () => import("@/components/onemission/promotions-module").then((module) => module.PromotionsModule),
+  () =>
+    import("@/components/onemission/promotions-module").then(
+      (module) => module.PromotionsModule,
+    ),
   { loading: () => <TableSkeleton rows={8} cols={8} /> },
 );
 
@@ -793,10 +832,14 @@ function Dashboard({
 
     setDetailsLoading(true);
     setDetails(null);
-    const summaryResult = await api.get(`dashboard?${params.toString()}&scope=summary`);
+    const summaryResult = await api.get(
+      `dashboard?${params.toString()}&scope=summary`,
+    );
     setSummary(summaryResult?.error ? null : summaryResult);
 
-    const detailsResult = await api.get(`dashboard?${params.toString()}&scope=details`);
+    const detailsResult = await api.get(
+      `dashboard?${params.toString()}&scope=details`,
+    );
     setDetails(detailsResult?.error ? null : detailsResult);
     setDetailsLoading(false);
   };
@@ -845,7 +888,9 @@ function Dashboard({
     };
 
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[status] || "bg-muted text-foreground"}`}>
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[status] || "bg-muted text-foreground"}`}
+      >
         {status || "UNKNOWN"}
       </span>
     );
@@ -880,7 +925,11 @@ function Dashboard({
         <p className="text-[1.55rem] font-bold tracking-tight text-[#111827] mt-1 leading-tight">
           {value}
         </p>
-        {sub ? <p className="text-[11.5px] text-[#5F6B7A] mt-1.5 font-medium">{sub}</p> : null}
+        {sub ? (
+          <p className="text-[11.5px] text-[#5F6B7A] mt-1.5 font-medium">
+            {sub}
+          </p>
+        ) : null}
       </Wrapper>
     );
   };
@@ -893,7 +942,8 @@ function Dashboard({
             Executive Dashboard
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Real-time company health across sales, inventory, production, and finance
+            Real-time company health across sales, inventory, production, and
+            finance
             {detailsLoading ? " · Loading analytics details…" : ""}
           </p>
         </div>
@@ -915,11 +965,21 @@ function Dashboard({
             <>
               <div className="space-y-1.5">
                 <Label>From</Label>
-                <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="bg-white w-40" />
+                <Input
+                  type="date"
+                  value={customFrom}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  className="bg-white w-40"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>To</Label>
-                <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="bg-white w-40" />
+                <Input
+                  type="date"
+                  value={customTo}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  className="bg-white w-40"
+                />
               </div>
             </>
           ) : null}
@@ -982,20 +1042,42 @@ function Dashboard({
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Revenue by Month</CardTitle>
-            <CardDescription>Actual paid order revenue for the selected period</CardDescription>
+            <CardDescription>
+              Actual paid order revenue for the selected period
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={revenueByMonth}>
                 <defs>
                   <linearGradient id="revG" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.5} />
-                    <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                    <stop
+                      offset="0%"
+                      stopColor="hsl(var(--chart-1))"
+                      stopOpacity={0.5}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="hsl(var(--chart-1))"
+                      stopOpacity={0}
+                    />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                <CartesianGrid
+                  stroke="hsl(var(--border))"
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="month"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickFormatter={fmtShort}
+                />
                 <Tooltip
                   contentStyle={{
                     background: "hsl(var(--card))",
@@ -1004,7 +1086,13 @@ function Dashboard({
                   }}
                   formatter={(value) => fmt(value)}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#revG)" />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="hsl(var(--chart-1))"
+                  strokeWidth={2}
+                  fill="url(#revG)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -1027,7 +1115,10 @@ function Dashboard({
                   paddingAngle={2}
                 >
                   {expenseBreakdown.map((_, index) => (
-                    <Cell key={index} fill={chartColors[index % chartColors.length]} />
+                    <Cell
+                      key={index}
+                      fill={chartColors[index % chartColors.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip
@@ -1042,12 +1133,22 @@ function Dashboard({
             </ResponsiveContainer>
             <div className="space-y-1.5 text-xs mt-2">
               {expenseBreakdown.slice(0, 6).map((entry, index) => (
-                <div key={entry.name} className="flex items-center justify-between gap-2">
+                <div
+                  key={entry.name}
+                  className="flex items-center justify-between gap-2"
+                >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: chartColors[index % chartColors.length] }} />
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{
+                        background: chartColors[index % chartColors.length],
+                      }}
+                    />
                     <span className="truncate">{entry.name}</span>
                   </div>
-                  <span className="text-muted-foreground shrink-0">{fmtShort(entry.value)}</span>
+                  <span className="text-muted-foreground shrink-0">
+                    {fmtShort(entry.value)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -1066,26 +1167,48 @@ function Dashboard({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-[#F7F8FA]">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">SKU</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Qty Sold</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Revenue</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      Product
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      SKU
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                      Qty Sold
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                      Revenue
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {topSellingProducts.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      <td
+                        colSpan={4}
+                        className="px-4 py-10 text-center text-sm text-muted-foreground"
+                      >
                         No sales data in the selected period.
                       </td>
                     </tr>
                   ) : (
                     topSellingProducts.map((item) => (
-                      <tr key={`${item.productId}-${item.sku}`} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
-                        <td className="px-4 py-3 font-medium">{item.productName}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{item.sku}</td>
-                        <td className="px-4 py-3 text-right font-medium">{Number(item.qtySold || 0).toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-emerald-500">{fmt(item.revenue)}</td>
+                      <tr
+                        key={`${item.productId}-${item.sku}`}
+                        className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
+                      >
+                        <td className="px-4 py-3 font-medium">
+                          {item.productName}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                          {item.sku}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium">
+                          {Number(item.qtySold || 0).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-emerald-500">
+                          {fmt(item.revenue)}
+                        </td>
                       </tr>
                     ))
                   )}
@@ -1098,19 +1221,30 @@ function Dashboard({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Cash Position</CardTitle>
-            <CardDescription>Current balance by financial account</CardDescription>
+            <CardDescription>
+              Current balance by financial account
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {cashPositionSummary.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No financial accounts found.</p>
+              <p className="text-sm text-muted-foreground">
+                No financial accounts found.
+              </p>
             ) : (
               cashPositionSummary.map((account) => (
-                <div key={account.id} className="flex items-center justify-between text-sm border-b border-border/30 pb-2 last:border-0 last:pb-0">
+                <div
+                  key={account.id}
+                  className="flex items-center justify-between text-sm border-b border-border/30 pb-2 last:border-0 last:pb-0"
+                >
                   <div>
                     <p className="font-medium">{account.name}</p>
-                    <p className="text-xs text-muted-foreground">{account.type}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {account.type}
+                    </p>
                   </div>
-                  <span className="font-semibold text-blue-500">{fmt(account.closingBalance)}</span>
+                  <span className="font-semibold text-blue-500">
+                    {fmt(account.closingBalance)}
+                  </span>
                 </div>
               ))
             )}
@@ -1132,17 +1266,29 @@ function Dashboard({
                 <button
                   key={order.id}
                   type="button"
-                  onClick={() => onOpenOrderReference(order.publicOrderNumber || order.orderNumber)}
+                  onClick={() =>
+                    onOpenOrderReference(
+                      order.publicOrderNumber || order.orderNumber,
+                    )
+                  }
                   className="w-full text-left rounded-xl border border-border/60 px-3 py-3 hover:bg-[#F7F8FA] transition-colors"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-mono text-xs font-semibold text-blue-600 truncate">{order.publicOrderNumber || order.orderNumber}</p>
-                      <p className="text-sm font-medium truncate mt-1">{order.customerName}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{new Date(order.createdAt).toLocaleString("id-ID")}</p>
+                      <p className="font-mono text-xs font-semibold text-blue-600 truncate">
+                        {order.publicOrderNumber || order.orderNumber}
+                      </p>
+                      <p className="text-sm font-medium truncate mt-1">
+                        {order.customerName}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(order.createdAt).toLocaleString("id-ID")}
+                      </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-semibold text-emerald-500">{fmt(order.amount)}</p>
+                      <p className="font-semibold text-emerald-500">
+                        {fmt(order.amount)}
+                      </p>
                       <div className="flex items-center justify-end gap-1 mt-1">
                         {paymentStatusBadge(order.paymentStatus)}
                       </div>
@@ -1157,25 +1303,42 @@ function Dashboard({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Recent Cash Activities</CardTitle>
-            <CardDescription>Latest Cash In and Cash Out entries</CardDescription>
+            <CardDescription>
+              Latest Cash In and Cash Out entries
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {recentCashActivities.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recent cash activity.</p>
+              <p className="text-sm text-muted-foreground">
+                No recent cash activity.
+              </p>
             ) : (
               recentCashActivities.map((activity) => (
-                <div key={activity.id} className="rounded-xl border border-border/60 px-3 py-3">
+                <div
+                  key={activity.id}
+                  className="rounded-xl border border-border/60 px-3 py-3"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium">{activity.type}</p>
-                      <p className="text-xs text-muted-foreground truncate mt-1">{activity.financialAccountName}</p>
-                      <p className="text-xs text-muted-foreground truncate mt-1">{activity.referenceNumber || activity.description || "—"}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-1">
+                        {activity.financialAccountName}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate mt-1">
+                        {activity.referenceNumber ||
+                          activity.description ||
+                          "—"}
+                      </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className={`font-semibold ${activity.type === "Cash In" ? "text-emerald-500" : "text-rose-400"}`}>
+                      <p
+                        className={`font-semibold ${activity.type === "Cash In" ? "text-emerald-500" : "text-rose-400"}`}
+                      >
                         {fmt(activity.amount)}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">{activity.transactionDate}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {activity.transactionDate}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1187,36 +1350,71 @@ function Dashboard({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Content Script Calendar</CardTitle>
-            <CardDescription>This month PDF script and brief schedule</CardDescription>
+            <CardDescription>
+              This month PDF script and brief schedule
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Files</p>
-                <p className="text-lg font-semibold mt-1">{Number(contentPlannerSummary.totalFiles || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Files
+                </p>
+                <p className="text-lg font-semibold mt-1">
+                  {Number(
+                    contentPlannerSummary.totalFiles || 0,
+                  ).toLocaleString()}
+                </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">This Week</p>
-                <p className="text-lg font-semibold mt-1 text-emerald-500">{Number(contentPlannerSummary.scheduledThisWeek || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  This Week
+                </p>
+                <p className="text-lg font-semibold mt-1 text-emerald-500">
+                  {Number(
+                    contentPlannerSummary.scheduledThisWeek || 0,
+                  ).toLocaleString()}
+                </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Community</p>
-                <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(contentPlannerSummary.communityCount || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Community
+                </p>
+                <p className="text-lg font-semibold mt-1 text-cyan-600">
+                  {Number(
+                    contentPlannerSummary.communityCount || 0,
+                  ).toLocaleString()}
+                </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Education</p>
-                <p className="text-lg font-semibold mt-1 text-amber-500">{Number(contentPlannerSummary.educationCount || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Education
+                </p>
+                <p className="text-lg font-semibold mt-1 text-amber-500">
+                  {Number(
+                    contentPlannerSummary.educationCount || 0,
+                  ).toLocaleString()}
+                </p>
               </div>
             </div>
             <div className="space-y-2">
               {upcomingContent.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No content scripts scheduled this month.</p>
+                <p className="text-sm text-muted-foreground">
+                  No content scripts scheduled this month.
+                </p>
               ) : (
                 upcomingContent.map((item) => (
-                  <button key={item.id} type="button" onClick={onOpenContentPlanner} className="w-full text-left rounded-xl border border-border/60 px-3 py-3 hover:bg-[#F7F8FA] transition-colors">
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={onOpenContentPlanner}
+                    className="w-full text-left rounded-xl border border-border/60 px-3 py-3 hover:bg-[#F7F8FA] transition-colors"
+                  >
                     <p className="text-sm font-medium truncate">{item.title}</p>
                     <div className="flex items-center justify-between gap-2 mt-1 text-xs text-muted-foreground">
-                      <span className="truncate">{item.category || "Story"}</span>
+                      <span className="truncate">
+                        {item.category || "Story"}
+                      </span>
                       <span>{item.calendarDate || "Unscheduled"}</span>
                     </div>
                   </button>
@@ -1228,37 +1426,67 @@ function Dashboard({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Returns & Refunds</CardTitle>
-            <CardDescription>Current order return and refund workload</CardDescription>
+            <CardDescription>
+              Current order return and refund workload
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Requested</p>
-                <p className="text-lg font-semibold mt-1">{Number(returnSummary.refundRequested || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Refund Requested
+                </p>
+                <p className="text-lg font-semibold mt-1">
+                  {Number(returnSummary.refundRequested || 0).toLocaleString()}
+                </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Approved</p>
-                <p className="text-lg font-semibold mt-1 text-blue-600">{Number(returnSummary.refundApproved || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Refund Approved
+                </p>
+                <p className="text-lg font-semibold mt-1 text-blue-600">
+                  {Number(returnSummary.refundApproved || 0).toLocaleString()}
+                </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Processing</p>
-                <p className="text-lg font-semibold mt-1 text-cyan-600">{Number(returnSummary.refundProcessing || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Refund Processing
+                </p>
+                <p className="text-lg font-semibold mt-1 text-cyan-600">
+                  {Number(returnSummary.refundProcessing || 0).toLocaleString()}
+                </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Completed</p>
-                <p className="text-lg font-semibold mt-1 text-emerald-600">{Number(returnSummary.refundCompleted || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Refund Completed
+                </p>
+                <p className="text-lg font-semibold mt-1 text-emerald-600">
+                  {Number(returnSummary.refundCompleted || 0).toLocaleString()}
+                </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Rejected</p>
-                <p className="text-lg font-semibold mt-1 text-rose-500">{Number(returnSummary.refundRejected || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Refund Rejected
+                </p>
+                <p className="text-lg font-semibold mt-1 text-rose-500">
+                  {Number(returnSummary.refundRejected || 0).toLocaleString()}
+                </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Failed</p>
-                <p className="text-lg font-semibold mt-1 text-red-800">{Number(returnSummary.refundFailed || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Refund Failed
+                </p>
+                <p className="text-lg font-semibold mt-1 text-red-800">
+                  {Number(returnSummary.refundFailed || 0).toLocaleString()}
+                </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-3 py-2 col-span-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Cancelled Orders</p>
-                <p className="text-lg font-semibold mt-1 text-amber-500">{Number(returnSummary.cancelledOrders || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Cancelled Orders
+                </p>
+                <p className="text-lg font-semibold mt-1 text-amber-500">
+                  {Number(returnSummary.cancelledOrders || 0).toLocaleString()}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -1266,11 +1494,15 @@ function Dashboard({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Low Stock Alert</CardTitle>
-            <CardDescription>Inventory items at or below threshold</CardDescription>
+            <CardDescription>
+              Inventory items at or below threshold
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {lowStockItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground">All inventory is above threshold.</p>
+              <p className="text-sm text-muted-foreground">
+                All inventory is above threshold.
+              </p>
             ) : (
               lowStockItems.map((item) => (
                 <button
@@ -1281,13 +1513,24 @@ function Dashboard({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{item.productName}</p>
-                      <p className="text-xs text-muted-foreground truncate mt-1">{item.variant}</p>
-                      <p className="text-xs text-muted-foreground truncate mt-1">Threshold: {item.threshold}</p>
+                      <p className="text-sm font-medium truncate">
+                        {item.productName}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate mt-1">
+                        {item.variant}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate mt-1">
+                        Threshold: {item.threshold}
+                      </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-semibold text-rose-400">{item.quantity}</p>
-                      <Badge variant={item.quantity <= 0 ? "destructive" : "outline"} className="mt-1">
+                      <p className="font-semibold text-rose-400">
+                        {item.quantity}
+                      </p>
+                      <Badge
+                        variant={item.quantity <= 0 ? "destructive" : "outline"}
+                        className="mt-1"
+                      >
                         {item.status}
                       </Badge>
                     </div>
@@ -1302,32 +1545,56 @@ function Dashboard({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Production Summary</CardTitle>
-          <CardDescription>Current month manufacturing activity</CardDescription>
+          <CardDescription>
+            Current month manufacturing activity
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <Card className="bg-[#F7F8FA] border-border/60">
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Production Orders This Month</p>
-                <p className="text-2xl font-semibold mt-1">{Number(productionSummary.productionOrdersThisMonth || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Production Orders This Month
+                </p>
+                <p className="text-2xl font-semibold mt-1">
+                  {Number(
+                    productionSummary.productionOrdersThisMonth || 0,
+                  ).toLocaleString()}
+                </p>
               </CardContent>
             </Card>
             <Card className="bg-[#F7F8FA] border-border/60">
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Completed Production</p>
-                <p className="text-2xl font-semibold mt-1 text-indigo-600">{Number(productionSummary.completedProduction || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Completed Production
+                </p>
+                <p className="text-2xl font-semibold mt-1 text-indigo-600">
+                  {Number(
+                    productionSummary.completedProduction || 0,
+                  ).toLocaleString()}
+                </p>
               </CardContent>
             </Card>
             <Card className="bg-[#F7F8FA] border-border/60">
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Production Cost</p>
-                <p className="text-2xl font-semibold mt-1 text-amber-500">{fmtShort(productionSummary.totalProductionCost)}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Total Production Cost
+                </p>
+                <p className="text-2xl font-semibold mt-1 text-amber-500">
+                  {fmtShort(productionSummary.totalProductionCost)}
+                </p>
               </CardContent>
             </Card>
             <Card className="bg-[#F7F8FA] border-border/60">
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Finished Goods Produced</p>
-                <p className="text-2xl font-semibold mt-1 text-emerald-500">{Number(productionSummary.finishedGoodsProduced || 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Finished Goods Produced
+                </p>
+                <p className="text-2xl font-semibold mt-1 text-emerald-500">
+                  {Number(
+                    productionSummary.finishedGoodsProduced || 0,
+                  ).toLocaleString()}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -1342,7 +1609,10 @@ function DashboardSkeleton() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-28 rounded-xl bg-card border animate-pulse" />
+          <div
+            key={i}
+            className="h-28 rounded-xl bg-card border animate-pulse"
+          />
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1363,7 +1633,7 @@ function DashboardSkeleton() {
 const PRODUCT_CATEGORIES = [
   "Two-In-One Shorts",
   "Compression Pants",
-  "Jerseys",
+  "Compression Shirts",
   "Jackets",
   "Accessories",
 ];
@@ -1384,9 +1654,14 @@ function ProductsModule({ activeModule }) {
     setItems(await api.get("products"));
     setLoading(false);
   };
-  useLazyModuleEffect(activeModule, "products", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "products",
+    () => {
+      load();
+    },
+    [],
+  );
 
   const empty = {
     name: "",
@@ -1622,7 +1897,9 @@ function ProductsModule({ activeModule }) {
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
                           </DropdownMenuItem>
                           {p.status === "Archived" ? (
-                            <DropdownMenuItem onClick={() => setRestoreTarget(p)}>
+                            <DropdownMenuItem
+                              onClick={() => setRestoreTarget(p)}
+                            >
                               <RefreshCw className="h-4 w-4 mr-2" /> Restore
                             </DropdownMenuItem>
                           ) : (
@@ -1649,9 +1926,13 @@ function ProductsModule({ activeModule }) {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="font-medium text-amber-500">★ {Number(p.averageRating || 0).toFixed(1)}</span>
+                      <span className="font-medium text-amber-500">
+                        ★ {Number(p.averageRating || 0).toFixed(1)}
+                      </span>
                       <span>·</span>
-                      <span>{Number(p.reviewCount || 0).toLocaleString()} reviews</span>
+                      <span>
+                        {Number(p.reviewCount || 0).toLocaleString()} reviews
+                      </span>
                     </div>
                     {p.description && (
                       <p className="text-xs text-muted-foreground line-clamp-2">
@@ -1759,9 +2040,14 @@ function ProductsModule({ activeModule }) {
                               {p.brand}
                             </p>
                             <p className="text-[11px] text-muted-foreground mt-0.5">
-                              <span className="font-medium text-amber-500">★ {Number(p.averageRating || 0).toFixed(1)}</span>
+                              <span className="font-medium text-amber-500">
+                                ★ {Number(p.averageRating || 0).toFixed(1)}
+                              </span>
                               <span className="mx-1">·</span>
-                              <span>{Number(p.reviewCount || 0).toLocaleString()} reviews</span>
+                              <span>
+                                {Number(p.reviewCount || 0).toLocaleString()}{" "}
+                                reviews
+                              </span>
                             </p>
                           </div>
                         </div>
@@ -1825,7 +2111,9 @@ function ProductsModule({ activeModule }) {
                               <Copy className="h-4 w-4 mr-2" /> Duplicate
                             </DropdownMenuItem>
                             {p.status === "Archived" ? (
-                              <DropdownMenuItem onClick={() => setRestoreTarget(p)}>
+                              <DropdownMenuItem
+                                onClick={() => setRestoreTarget(p)}
+                              >
                                 <RefreshCw className="h-4 w-4 mr-2" /> Restore
                               </DropdownMenuItem>
                             ) : (
@@ -1870,17 +2158,26 @@ function ProductsModule({ activeModule }) {
         onSave={save}
       />
 
-      <AlertDialog open={!!restoreTarget} onOpenChange={(value) => { if (!value) setRestoreTarget(null); }}>
+      <AlertDialog
+        open={!!restoreTarget}
+        onOpenChange={(value) => {
+          if (!value) setRestoreTarget(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Restore Product</AlertDialogTitle>
             <AlertDialogDescription>
-              Restore {restoreTarget?.name ? `“${restoreTarget.name}”` : 'this product'} to Active so it becomes visible in Commerce again?
+              Restore{" "}
+              {restoreTarget?.name ? `“${restoreTarget.name}”` : "this product"}{" "}
+              to Active so it becomes visible in Commerce again?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => restoreTarget && restore(restoreTarget)}>
+            <AlertDialogAction
+              onClick={() => restoreTarget && restore(restoreTarget)}
+            >
               Restore Product
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1918,10 +2215,20 @@ function normalizeProductGalleryFormItems(items = []) {
     .map((item, index) => ({
       id: item?.id || createProductGalleryFormItem(index + 1).id,
       mediaUrl: String(item?.mediaUrl || "").trim(),
-      mediaType: String(item?.mediaType || "IMAGE").trim().toUpperCase() === "VIDEO" ? "VIDEO" : "IMAGE",
-      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : index + 1,
+      mediaType:
+        String(item?.mediaType || "IMAGE")
+          .trim()
+          .toUpperCase() === "VIDEO"
+          ? "VIDEO"
+          : "IMAGE",
+      sortOrder: Number.isFinite(Number(item?.sortOrder))
+        ? Number(item.sortOrder)
+        : index + 1,
     }))
-    .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
+    .sort(
+      (left, right) =>
+        left.sortOrder - right.sortOrder || left.id.localeCompare(right.id),
+    )
     .map((item, index) => ({
       ...item,
       sortOrder: index + 1,
@@ -1937,11 +2244,24 @@ function normalizeProductShowcaseFormItems(items = []) {
     .map((item, index) => ({
       id: item?.id || createProductShowcaseFormItem(index + 1).id,
       mediaUrl: String(item?.mediaUrl || "").trim(),
-      mediaType: String(item?.mediaType || "IMAGE").trim().toUpperCase() === "VIDEO" ? "VIDEO" : "IMAGE",
-      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : index + 1,
-      active: item?.active === undefined ? Boolean(item?.isActive ?? true) : Boolean(item.active),
+      mediaType:
+        String(item?.mediaType || "IMAGE")
+          .trim()
+          .toUpperCase() === "VIDEO"
+          ? "VIDEO"
+          : "IMAGE",
+      sortOrder: Number.isFinite(Number(item?.sortOrder))
+        ? Number(item.sortOrder)
+        : index + 1,
+      active:
+        item?.active === undefined
+          ? Boolean(item?.isActive ?? true)
+          : Boolean(item.active),
     }))
-    .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
+    .sort(
+      (left, right) =>
+        left.sortOrder - right.sortOrder || left.id.localeCompare(right.id),
+    )
     .map((item, index) => ({
       ...item,
       sortOrder: index + 1,
@@ -1969,8 +2289,12 @@ function normalizeProductFormState(initial = {}) {
     notes: String(initial?.notes || ""),
     imageUrl: String(initial?.imageUrl || ""),
     hoverImageUrl: String(initial?.hoverImageUrl || ""),
-    gallery: normalizeProductGalleryFormItems(initial?.gallery || initial?.galleryItems || []),
-    productShowcaseItems: normalizeProductShowcaseFormItems(initial?.productShowcaseItems || initial?.showcaseItems || []),
+    gallery: normalizeProductGalleryFormItems(
+      initial?.gallery || initial?.galleryItems || [],
+    ),
+    productShowcaseItems: normalizeProductShowcaseFormItems(
+      initial?.productShowcaseItems || initial?.showcaseItems || [],
+    ),
   };
 }
 
@@ -1981,11 +2305,14 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
     setForm(normalizeProductFormState(initial));
   }, [initial, open]);
 
-  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const update = (key, value) =>
+    setForm((current) => ({ ...current, [key]: value }));
 
   const updateGallery = (updater) => {
     setForm((current) => {
-      const nextGallery = normalizeProductGalleryFormItems(updater(current.gallery || []));
+      const nextGallery = normalizeProductGalleryFormItems(
+        updater(current.gallery || []),
+      );
       return {
         ...current,
         gallery: nextGallery,
@@ -1994,16 +2321,18 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
   };
 
   const updateGalleryItem = (itemId, key, value) => {
-    updateGallery((items) => items.map((item) => (
-      item.id === itemId ? { ...item, [key]: value } : item
-    )));
+    updateGallery((items) =>
+      items.map((item) =>
+        item.id === itemId ? { ...item, [key]: value } : item,
+      ),
+    );
   };
 
   const addGalleryItem = () => {
-    updateGallery((items) => ([
+    updateGallery((items) => [
       ...items,
       createProductGalleryFormItem(items.length + 1),
-    ]));
+    ]);
   };
 
   const removeGalleryItem = (itemId) => {
@@ -2017,7 +2346,8 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
         return items;
       }
 
-      const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      const targetIndex =
+        direction === "up" ? currentIndex - 1 : currentIndex + 1;
       if (targetIndex < 0 || targetIndex >= items.length) {
         return items;
       }
@@ -2031,7 +2361,9 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
 
   const updateShowcase = (updater) => {
     setForm((current) => {
-      const nextItems = normalizeProductShowcaseFormItems(updater(current.productShowcaseItems || []));
+      const nextItems = normalizeProductShowcaseFormItems(
+        updater(current.productShowcaseItems || []),
+      );
       return {
         ...current,
         productShowcaseItems: nextItems,
@@ -2040,16 +2372,18 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
   };
 
   const updateShowcaseItem = (itemId, key, value) => {
-    updateShowcase((items) => items.map((item) => (
-      item.id === itemId ? { ...item, [key]: value } : item
-    )));
+    updateShowcase((items) =>
+      items.map((item) =>
+        item.id === itemId ? { ...item, [key]: value } : item,
+      ),
+    );
   };
 
   const addShowcaseItem = () => {
-    updateShowcase((items) => ([
+    updateShowcase((items) => [
       ...items,
       createProductShowcaseFormItem(items.length + 1),
-    ]));
+    ]);
   };
 
   const removeShowcaseItem = (itemId) => {
@@ -2060,7 +2394,8 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
     updateShowcase((items) => {
       const currentIndex = items.findIndex((item) => item.id === itemId);
       if (currentIndex === -1) return items;
-      const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      const targetIndex =
+        direction === "up" ? currentIndex - 1 : currentIndex + 1;
       if (targetIndex < 0 || targetIndex >= items.length) return items;
       const nextItems = [...items];
       const [movedItem] = nextItems.splice(currentIndex, 1);
@@ -2238,7 +2573,8 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
               placeholder="https://..."
             />
             <p className="text-xs text-muted-foreground">
-              Used only on desktop hover in Ecommerce product cards. If empty, Thumbnail Image remains active.
+              Used only on desktop hover in Ecommerce product cards. If empty,
+              Thumbnail Image remains active.
             </p>
             {form.hoverImageUrl ? (
               <img
@@ -2255,17 +2591,25 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
             <div>
               <Label>Gallery</Label>
               <p className="text-xs text-muted-foreground mt-1">
-                Used only on Product Detail. Reorder items with Move Up and Move Down.
+                Used only on Product Detail. Reorder items with Move Up and Move
+                Down.
               </p>
             </div>
             {form.gallery?.length > 0 ? (
               <div className="space-y-3">
                 {form.gallery.map((item, index) => (
-                  <div key={item.id} className="rounded-xl border border-border/70 p-4 space-y-3 bg-muted/10">
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-border/70 p-4 space-y-3 bg-muted/10"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold">Gallery Media {index + 1}</p>
-                        <p className="text-xs text-muted-foreground">Sort Order: {item.sortOrder}</p>
+                        <p className="text-sm font-semibold">
+                          Gallery Media {index + 1}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Sort Order: {item.sortOrder}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -2282,7 +2626,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                           variant="ghost"
                           size="sm"
                           onClick={() => moveGalleryItem(item.id, "down")}
-                          disabled={index === (form.gallery.length - 1)}
+                          disabled={index === form.gallery.length - 1}
                         >
                           Move Down
                         </Button>
@@ -2302,7 +2646,13 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                         <Label>Media URL</Label>
                         <Input
                           value={item.mediaUrl}
-                          onChange={(e) => updateGalleryItem(item.id, "mediaUrl", e.target.value)}
+                          onChange={(e) =>
+                            updateGalleryItem(
+                              item.id,
+                              "mediaUrl",
+                              e.target.value,
+                            )
+                          }
                           placeholder="https://..."
                         />
                       </div>
@@ -2310,7 +2660,9 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                         <Label>Media Type</Label>
                         <Select
                           value={item.mediaType}
-                          onValueChange={(value) => updateGalleryItem(item.id, "mediaType", value)}
+                          onValueChange={(value) =>
+                            updateGalleryItem(item.id, "mediaType", value)
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -2338,7 +2690,8 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                             className="w-full max-h-64 object-contain"
                             onError={(event) => {
                               event.target.style.display = "none";
-                              event.target.parentElement.dataset.previewError = "true";
+                              event.target.parentElement.dataset.previewError =
+                                "true";
                             }}
                           />
                         )
@@ -2346,7 +2699,9 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                       {!item.mediaUrl ? (
                         <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
                           <ImageOff className="h-8 w-8 opacity-40" />
-                          <span className="text-xs opacity-60">No media URL</span>
+                          <span className="text-xs opacity-60">
+                            No media URL
+                          </span>
                         </div>
                       ) : null}
                     </div>
@@ -2355,11 +2710,16 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-border/80 p-6 text-center text-sm text-muted-foreground">
-                No gallery media yet. Add media to build the Product Detail gallery.
+                No gallery media yet. Add media to build the Product Detail
+                gallery.
               </div>
             )}
             <div className="flex justify-start">
-              <Button type="button" variant="secondary" onClick={addGalleryItem}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={addGalleryItem}
+              >
                 <Plus className="h-4 w-4 mr-2" /> Add Media
               </Button>
             </div>
@@ -2368,22 +2728,54 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
             <div>
               <Label>Product Showcase</Label>
               <p className="text-xs text-muted-foreground mt-1">
-                Visual storytelling media shown below product information on the Product Detail page. Active items render in Sort Order.
+                Visual storytelling media shown below product information on the
+                Product Detail page. Active items render in Sort Order.
               </p>
             </div>
             {form.productShowcaseItems?.length > 0 ? (
               <div className="space-y-3">
                 {form.productShowcaseItems.map((item, index) => (
-                  <div key={item.id} className="rounded-xl border border-border/70 p-4 space-y-3 bg-muted/10">
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-border/70 p-4 space-y-3 bg-muted/10"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold">Showcase Media {index + 1}</p>
-                        <p className="text-xs text-muted-foreground">Sort Order: {item.sortOrder}</p>
+                        <p className="text-sm font-semibold">
+                          Showcase Media {index + 1}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Sort Order: {item.sortOrder}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap justify-end">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => moveShowcaseItem(item.id, "up")} disabled={index === 0}>Move Up</Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => moveShowcaseItem(item.id, "down")} disabled={index === (form.productShowcaseItems.length - 1)}>Move Down</Button>
-                        <Button type="button" variant="ghost" size="sm" className="text-rose-500 hover:text-rose-500" onClick={() => removeShowcaseItem(item.id)}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveShowcaseItem(item.id, "up")}
+                          disabled={index === 0}
+                        >
+                          Move Up
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveShowcaseItem(item.id, "down")}
+                          disabled={
+                            index === form.productShowcaseItems.length - 1
+                          }
+                        >
+                          Move Down
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-rose-500 hover:text-rose-500"
+                          onClick={() => removeShowcaseItem(item.id)}
+                        >
                           <Trash2 className="h-4 w-4 mr-2" /> Remove
                         </Button>
                       </div>
@@ -2391,12 +2783,29 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <div className="sm:col-span-2 space-y-2">
                         <Label>Media URL</Label>
-                        <Input value={item.mediaUrl} onChange={(e) => updateShowcaseItem(item.id, "mediaUrl", e.target.value)} placeholder="https://..." />
+                        <Input
+                          value={item.mediaUrl}
+                          onChange={(e) =>
+                            updateShowcaseItem(
+                              item.id,
+                              "mediaUrl",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="https://..."
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>Media Type</Label>
-                        <Select value={item.mediaType} onValueChange={(value) => updateShowcaseItem(item.id, "mediaType", value)}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
+                        <Select
+                          value={item.mediaType}
+                          onValueChange={(value) =>
+                            updateShowcaseItem(item.id, "mediaType", value)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="IMAGE">Image</SelectItem>
                             <SelectItem value="VIDEO">Video</SelectItem>
@@ -2406,25 +2815,48 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                       <div className="space-y-2">
                         <Label>Active</Label>
                         <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
-                          <Switch checked={Boolean(item.active)} onCheckedChange={(value) => updateShowcaseItem(item.id, "active", value)} />
+                          <Switch
+                            checked={Boolean(item.active)}
+                            onCheckedChange={(value) =>
+                              updateShowcaseItem(item.id, "active", value)
+                            }
+                          />
                         </div>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label>Display Order</Label>
-                      <NumberInput value={item.sortOrder} onChange={(value) => updateShowcaseItem(item.id, "sortOrder", value)} />
+                      <NumberInput
+                        value={item.sortOrder}
+                        onChange={(value) =>
+                          updateShowcaseItem(item.id, "sortOrder", value)
+                        }
+                      />
                     </div>
                     <div className="rounded-lg border bg-background overflow-hidden min-h-[120px] flex items-center justify-center">
                       {item.mediaUrl ? (
                         item.mediaType === "VIDEO" ? (
-                          <video src={item.mediaUrl} controls className="w-full max-h-64 bg-black" />
+                          <video
+                            src={item.mediaUrl}
+                            controls
+                            className="w-full max-h-64 bg-black"
+                          />
                         ) : (
-                          <img src={item.mediaUrl} alt={`Showcase preview ${index + 1}`} className="w-full max-h-64 object-contain" onError={(event) => { event.target.style.display = "none"; }} />
+                          <img
+                            src={item.mediaUrl}
+                            alt={`Showcase preview ${index + 1}`}
+                            className="w-full max-h-64 object-contain"
+                            onError={(event) => {
+                              event.target.style.display = "none";
+                            }}
+                          />
                         )
                       ) : (
                         <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
                           <ImageOff className="h-8 w-8 opacity-40" />
-                          <span className="text-xs opacity-60">No media URL</span>
+                          <span className="text-xs opacity-60">
+                            No media URL
+                          </span>
                         </div>
                       )}
                     </div>
@@ -2433,11 +2865,16 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-border/80 p-6 text-center text-sm text-muted-foreground">
-                No showcase media yet. Add media to build visual storytelling for this product.
+                No showcase media yet. Add media to build visual storytelling
+                for this product.
               </div>
             )}
             <div className="flex justify-start">
-              <Button type="button" variant="secondary" onClick={addShowcaseItem}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={addShowcaseItem}
+              >
                 <Plus className="h-4 w-4 mr-2" /> Add Showcase Media
               </Button>
             </div>
@@ -2500,7 +2937,17 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={() => onSave({ ...form, gallery: normalizeProductGalleryFormItems(form.gallery || []), productShowcaseItems: normalizeProductShowcaseFormItems(form.productShowcaseItems || []) })}>
+          <Button
+            onClick={() =>
+              onSave({
+                ...form,
+                gallery: normalizeProductGalleryFormItems(form.gallery || []),
+                productShowcaseItems: normalizeProductShowcaseFormItems(
+                  form.productShowcaseItems || [],
+                ),
+              })
+            }
+          >
             {initial?.id ? "Save changes" : "Create product"}
           </Button>
         </DialogFooter>
@@ -2523,9 +2970,14 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "inventory", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "inventory",
+    () => {
+      load();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!initialFilterSelection?.token) return;
@@ -2536,14 +2988,16 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
   }, [initialFilterSelection]);
 
   const resolvePerformedBy = () => {
-    if (typeof window === 'undefined') return 'SYSTEM';
+    if (typeof window === "undefined") return "SYSTEM";
     try {
-      const rawUser = window.localStorage.getItem('om_user');
-      if (!rawUser) return 'SYSTEM';
+      const rawUser = window.localStorage.getItem("om_user");
+      if (!rawUser) return "SYSTEM";
       const parsedUser = JSON.parse(rawUser);
-      return parsedUser?.email || parsedUser?.name || parsedUser?.id || 'SYSTEM';
+      return (
+        parsedUser?.email || parsedUser?.name || parsedUser?.id || "SYSTEM"
+      );
     } catch {
-      return 'SYSTEM';
+      return "SYSTEM";
     }
   };
 
@@ -2552,10 +3006,14 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
       ...item,
       quantity: Math.max(0, item.quantity + delta),
       performedBy: resolvePerformedBy(),
-      reason: 'Manual inventory adjustment',
+      reason: "Manual inventory adjustment",
     };
     await api.put("inventory/" + item.id, updated);
-    setItems((arr) => arr.map((i) => (i.id === item.id ? { ...i, quantity: updated.quantity } : i)));
+    setItems((arr) =>
+      arr.map((i) =>
+        i.id === item.id ? { ...i, quantity: updated.quantity } : i,
+      ),
+    );
   };
 
   const [editQty, setEditQty] = useState({});
@@ -2567,16 +3025,23 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
       ...item,
       quantity: qty,
       performedBy: resolvePerformedBy(),
-      reason: 'Manual inventory adjustment',
+      reason: "Manual inventory adjustment",
     };
     await api.put("inventory/" + item.id, updated);
-    setItems((arr) => arr.map((i) => (i.id === item.id ? { ...i, quantity: updated.quantity } : i)));
+    setItems((arr) =>
+      arr.map((i) =>
+        i.id === item.id ? { ...i, quantity: updated.quantity } : i,
+      ),
+    );
     toast.success("Stock updated");
   };
 
   const filtered = items.filter((item) => {
-    const matchesProduct = selectedProduct === "all" || item.productId === selectedProduct;
-    const matchesLowStock = !lowStockOnly || Number(item.quantity || 0) <= Number(item.threshold || 0);
+    const matchesProduct =
+      selectedProduct === "all" || item.productId === selectedProduct;
+    const matchesLowStock =
+      !lowStockOnly ||
+      Number(item.quantity || 0) <= Number(item.threshold || 0);
     return matchesProduct && matchesLowStock;
   });
   const grouped = useMemo(() => {
@@ -2645,7 +3110,11 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
             </SelectContent>
           </Select>
           {lowStockOnly ? (
-            <Button variant="outline" size="sm" onClick={() => setLowStockOnly(false)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLowStockOnly(false)}
+            >
               Clear Low Stock Filter
             </Button>
           ) : null}
@@ -2961,45 +3430,92 @@ function movementTypeIcon(type) {
   if (type === "MANUAL_ADJUSTMENT") return Edit3;
   if (type === "PURCHASE_RECEIPT") return Package;
   if (type === "RETURN") return RefreshCw;
-  if (["PRODUCTION_IN", "PRODUCTION_OUT", "PRODUCTION_RESULT"].includes(type)) return Factory;
+  if (["PRODUCTION_IN", "PRODUCTION_OUT", "PRODUCTION_RESULT"].includes(type))
+    return Factory;
   if (type === "INITIAL_STOCK" || type === "OPENING") return PackageCheck;
   return SettingsIcon;
 }
 
 function movementSourceMeta(movement) {
-  const referenceType = String(movement?.referenceType || "").trim().toUpperCase();
-  const movementType = String(movement?.movementType || "").trim().toUpperCase();
-  const performedBy = String(movement?.performedBy || "").trim().toUpperCase();
+  const referenceType = String(movement?.referenceType || "")
+    .trim()
+    .toUpperCase();
+  const movementType = String(movement?.movementType || "")
+    .trim()
+    .toUpperCase();
+  const performedBy = String(movement?.performedBy || "")
+    .trim()
+    .toUpperCase();
 
   if (referenceType === "ORDER") {
-    return { key: "ORDER", label: "Order", bg: "bg-emerald-500/10 text-emerald-700" };
+    return {
+      key: "ORDER",
+      label: "Order",
+      bg: "bg-emerald-500/10 text-emerald-700",
+    };
   }
 
-  if (referenceType === "PRODUCTION_ORDER" || ["PRODUCTION_IN", "PRODUCTION_OUT", "PRODUCTION_RESULT"].includes(movementType)) {
-    return { key: "PRODUCTION", label: "Production", bg: "bg-amber-500/10 text-amber-700" };
+  if (
+    referenceType === "PRODUCTION_ORDER" ||
+    ["PRODUCTION_IN", "PRODUCTION_OUT", "PRODUCTION_RESULT"].includes(
+      movementType,
+    )
+  ) {
+    return {
+      key: "PRODUCTION",
+      label: "Production",
+      bg: "bg-amber-500/10 text-amber-700",
+    };
   }
 
-  if (referenceType === "INVENTORY" || movementType === "MANUAL_ADJUSTMENT" || movementType.startsWith("MANUAL_") || movementType.startsWith("ADJUSTMENT_")) {
-    return { key: "INVENTORY", label: "Inventory", bg: "bg-blue-500/10 text-blue-700" };
+  if (
+    referenceType === "INVENTORY" ||
+    movementType === "MANUAL_ADJUSTMENT" ||
+    movementType.startsWith("MANUAL_") ||
+    movementType.startsWith("ADJUSTMENT_")
+  ) {
+    return {
+      key: "INVENTORY",
+      label: "Inventory",
+      bg: "bg-blue-500/10 text-blue-700",
+    };
   }
 
   if (referenceType === "PURCHASE") {
-    return { key: "PURCHASE", label: "Purchase", bg: "bg-purple-500/10 text-purple-700" };
+    return {
+      key: "PURCHASE",
+      label: "Purchase",
+      bg: "bg-purple-500/10 text-purple-700",
+    };
   }
 
   if (referenceType === "RETURN") {
-    return { key: "RETURN", label: "Return", bg: "bg-cyan-500/10 text-cyan-700" };
+    return {
+      key: "RETURN",
+      label: "Return",
+      bg: "bg-cyan-500/10 text-cyan-700",
+    };
   }
 
   if (referenceType === "SEED" || performedBy === "SYSTEM") {
-    return { key: "SYSTEM", label: "System", bg: "bg-slate-500/10 text-slate-700" };
+    return {
+      key: "SYSTEM",
+      label: "System",
+      bg: "bg-slate-500/10 text-slate-700",
+    };
   }
 
-  return { key: "OTHER", label: "System", bg: "bg-slate-500/10 text-slate-700" };
+  return {
+    key: "OTHER",
+    label: "System",
+    bg: "bg-slate-500/10 text-slate-700",
+  };
 }
 
 function movementDelta(movement) {
-  return Number(movement?.newQuantity || 0) - Number(movement?.previousQuantity || 0);
+  return (
+    Number(movement?.newQuantity || 0) - Number(movement?.previousQuantity || 0)
+  );
 }
 
 function movementDeltaClassName(delta) {
@@ -3009,7 +3525,9 @@ function movementDeltaClassName(delta) {
 }
 
 function formatMovementDelta(delta) {
-  const value = Math.abs(Number(delta || 0)).toLocaleString("id-ID", { maximumFractionDigits: 4 });
+  const value = Math.abs(Number(delta || 0)).toLocaleString("id-ID", {
+    maximumFractionDigits: 4,
+  });
   if (delta > 0) return `+${value}`;
   if (delta < 0) return `-${value}`;
   return "0";
@@ -3098,7 +3616,8 @@ function StockMovementAdjustDialog({
         <DialogHeader>
           <DialogTitle>Manual Stock Adjustment</DialogTitle>
           <DialogDescription>
-            Record a manual inbound or outbound stock adjustment for a product inventory item.
+            Record a manual inbound or outbound stock adjustment for a product
+            inventory item.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -3250,7 +3769,10 @@ function StockMovementAdjustDialog({
   );
 }
 
-function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule }) {
+function StockMovementsModule({
+  onOpenOrderReference = () => {},
+  activeModule,
+}) {
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     .toISOString()
@@ -3291,16 +3813,23 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "stockmovements", () => {
-    load();
-  }, [search, typeFilter, dateFrom, dateTo]);
+  useLazyModuleEffect(
+    activeModule,
+    "stockmovements",
+    () => {
+      load();
+    },
+    [search, typeFilter, dateFrom, dateTo],
+  );
 
   const filteredItems = useMemo(() => {
     if (sourceFilter === "all") {
       return items;
     }
 
-    return items.filter((movement) => movementSourceMeta(movement).key === sourceFilter);
+    return items.filter(
+      (movement) => movementSourceMeta(movement).key === sourceFilter,
+    );
   }, [items, sourceFilter]);
 
   const stats = useMemo(() => {
@@ -3320,11 +3849,26 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
         summary.totalOut += Math.abs(delta);
       }
 
-      if (["MANUAL_ADJUSTMENT", "MANUAL_IN", "MANUAL_OUT", "ADJUSTMENT_IN", "ADJUSTMENT_OUT", "INITIAL_STOCK", "OPENING", "STOCK_OPNAME"].includes(movement.movementType)) {
+      if (
+        [
+          "MANUAL_ADJUSTMENT",
+          "MANUAL_IN",
+          "MANUAL_OUT",
+          "ADJUSTMENT_IN",
+          "ADJUSTMENT_OUT",
+          "INITIAL_STOCK",
+          "OPENING",
+          "STOCK_OPNAME",
+        ].includes(movement.movementType)
+      ) {
         summary.adjustmentMovements += 1;
       }
 
-      if (["PRODUCTION_IN", "PRODUCTION_OUT", "PRODUCTION_RESULT"].includes(movement.movementType)) {
+      if (
+        ["PRODUCTION_IN", "PRODUCTION_OUT", "PRODUCTION_RESULT"].includes(
+          movement.movementType,
+        )
+      ) {
         summary.productionMovements += 1;
       }
     }
@@ -3332,19 +3876,23 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
     return summary;
   }, [filteredItems]);
 
-  const sourceOptions = useMemo(() => ([
-    { value: "all", label: "All Sources" },
-    { value: "ORDER", label: "Order" },
-    { value: "INVENTORY", label: "Inventory" },
-    { value: "PRODUCTION", label: "Production" },
-    { value: "PURCHASE", label: "Purchase" },
-    { value: "RETURN", label: "Return" },
-    { value: "SYSTEM", label: "System" },
-  ]), []);
+  const sourceOptions = useMemo(
+    () => [
+      { value: "all", label: "All Sources" },
+      { value: "ORDER", label: "Order" },
+      { value: "INVENTORY", label: "Inventory" },
+      { value: "PRODUCTION", label: "Production" },
+      { value: "PURCHASE", label: "Purchase" },
+      { value: "RETURN", label: "Return" },
+      { value: "SYSTEM", label: "System" },
+    ],
+    [],
+  );
 
   const netChange = stats.totalIn - stats.totalOut;
 
-  const fmtQty = (value) => Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 4 });
+  const fmtQty = (value) =>
+    Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 4 });
 
   const handleReferenceClick = (movement) => {
     const referenceNumber = String(movement.referenceNumber || "").trim();
@@ -3358,7 +3906,9 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
     }
   };
 
-  const canOpenReference = (movement) => movementSourceMeta(movement).key === "ORDER" && Boolean(String(movement.referenceNumber || "").trim());
+  const canOpenReference = (movement) =>
+    movementSourceMeta(movement).key === "ORDER" &&
+    Boolean(String(movement.referenceNumber || "").trim());
 
   return (
     <div className="space-y-6">
@@ -3368,7 +3918,8 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
             Stock Movement Ledger
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Inventory movement history with cleaner source, delta, and reference visibility.
+            Inventory movement history with cleaner source, delta, and reference
+            visibility.
           </p>
         </div>
         <Button onClick={() => setShowAdjust(true)}>
@@ -3380,38 +3931,62 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Movements</p>
-            <p className="text-2xl font-semibold mt-1">{loading ? "—" : stats.totalMovements.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Total Movements
+            </p>
+            <p className="text-2xl font-semibold mt-1">
+              {loading ? "—" : stats.totalMovements.toLocaleString()}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Stock Adjustments</p>
-            <p className="text-2xl font-semibold mt-1 text-blue-500">{loading ? "—" : stats.adjustmentMovements.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Stock Adjustments
+            </p>
+            <p className="text-2xl font-semibold mt-1 text-blue-500">
+              {loading ? "—" : stats.adjustmentMovements.toLocaleString()}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Production Results</p>
-            <p className="text-2xl font-semibold mt-1 text-amber-500">{loading ? "—" : stats.productionMovements.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Production Results
+            </p>
+            <p className="text-2xl font-semibold mt-1 text-amber-500">
+              {loading ? "—" : stats.productionMovements.toLocaleString()}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">Inbound</p>
-            <p className="text-2xl font-semibold mt-1 text-emerald-500">{loading ? "—" : `+${fmtQty(stats.totalIn)}`}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">
+              Inbound
+            </p>
+            <p className="text-2xl font-semibold mt-1 text-emerald-500">
+              {loading ? "—" : `+${fmtQty(stats.totalIn)}`}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">Outbound</p>
-            <p className="text-2xl font-semibold mt-1 text-rose-400">{loading ? "—" : `-${fmtQty(stats.totalOut)}`}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-rose-400">
+              Outbound
+            </p>
+            <p className="text-2xl font-semibold mt-1 text-rose-400">
+              {loading ? "—" : `-${fmtQty(stats.totalOut)}`}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Change</p>
-            <p className={`text-2xl font-semibold mt-1 ${movementDeltaClassName(netChange)}`}>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Net Change
+            </p>
+            <p
+              className={`text-2xl font-semibold mt-1 ${movementDeltaClassName(netChange)}`}
+            >
               {loading ? "—" : formatMovementDelta(netChange)}
             </p>
           </CardContent>
@@ -3422,47 +3997,81 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
         <CardContent className="pt-4 pb-4">
           <div className="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
             <div className="lg:col-span-2">
-              <p className="text-xs text-muted-foreground mb-1">Search item / SKU / reference</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Search item / SKU / reference
+              </p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-9" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
+                <Input
+                  className="pl-9"
+                  placeholder="Search…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
               </div>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Movement Source</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Movement Source
+              </p>
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {sourceOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Movement Type</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Movement Type
+              </p>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   {MOVEMENT_TYPES.map((typeOption) => (
-                    <SelectItem key={typeOption.value} value={typeOption.value}>{typeOption.label}</SelectItem>
+                    <SelectItem key={typeOption.value} value={typeOption.value}>
+                      {typeOption.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Date From</p>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full" />
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full"
+              />
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Date To</p>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full" />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full"
+              />
             </div>
           </div>
 
           <div className="flex items-center justify-end mt-3">
-            <Button variant="outline" size="icon" onClick={load} title="Refresh">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={load}
+              title="Refresh"
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -3472,12 +4081,18 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">Loading movements…</div>
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              Loading movements…
+            </div>
           ) : filteredItems.length === 0 ? (
             <div className="p-12 text-center">
               <Activity className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">No stock movements found</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Movements are recorded automatically whenever inventory changes.</p>
+              <p className="text-muted-foreground text-sm">
+                No stock movements found
+              </p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Movements are recorded automatically whenever inventory changes.
+              </p>
             </div>
           ) : (
             <TooltipProvider>
@@ -3485,15 +4100,33 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[rgba(17,24,39,0.04)]">
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Date</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Reference</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Movement Source</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Item Name</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Variant</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Movement Type</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Delta</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Balance</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Notes</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                        Reference
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                        Movement Source
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                        Item Name
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                        Variant
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                        Movement Type
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                        Delta
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                        Balance
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                        Notes
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3505,14 +4138,18 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
                       const notes = String(movement.notes || "").trim();
                       const variantLabel = movement.inventory
                         ? `${movement.inventory.color} / ${movement.inventory.size}`
-                        : [movement.color, movement.size].filter(Boolean).join(" / ") || "—";
+                        : [movement.color, movement.size]
+                            .filter(Boolean)
+                            .join(" / ") || "—";
 
                       return (
                         <tr
                           key={movement.id}
                           className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors ${index % 2 === 0 ? "" : "bg-muted/10"}`}
                         >
-                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{movement.movementDate}</td>
+                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                            {movement.movementDate}
+                          </td>
                           <td className="px-4 py-3 font-mono text-xs">
                             {canOpenReference(movement) ? (
                               <button
@@ -3524,37 +4161,68 @@ function StockMovementsModule({ onOpenOrderReference = () => {}, activeModule })
                                 <ExternalLink className="h-3 w-3" />
                               </button>
                             ) : (
-                              <span className={`inline-flex items-center gap-1.5 ${movement.referenceNumber ? "text-slate-700" : "text-muted-foreground"}`}>
+                              <span
+                                className={`inline-flex items-center gap-1.5 ${movement.referenceNumber ? "text-slate-700" : "text-muted-foreground"}`}
+                              >
                                 <span>{movement.referenceNumber || "—"}</span>
-                                {movement.referenceNumber ? <ExternalLink className="h-3 w-3 opacity-40" /> : null}
+                                {movement.referenceNumber ? (
+                                  <ExternalLink className="h-3 w-3 opacity-40" />
+                                ) : null}
                               </span>
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${sourceMeta.bg}`}>{sourceMeta.label}</span>
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${sourceMeta.bg}`}
+                            >
+                              {sourceMeta.label}
+                            </span>
                           </td>
                           <td className="px-4 py-3">
-                            <p className="font-medium leading-none">{movement.product?.name || "—"}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{movement.product?.sku}</p>
+                            <p className="font-medium leading-none">
+                              {movement.product?.name || "—"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {movement.product?.sku}
+                            </p>
                           </td>
-                          <td className="px-4 py-3 text-muted-foreground">{variantLabel}</td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {variantLabel}
+                          </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${typeMeta.bg}`}>
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${typeMeta.bg}`}
+                            >
                               <TypeIcon className="h-3.5 w-3.5" />
                               {typeMeta.label}
                             </span>
                           </td>
-                          <td className={`px-4 py-3 text-right font-semibold tabular-nums ${movementDeltaClassName(delta)}`}>{formatMovementDelta(delta)}</td>
-                          <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-700">{formatBalanceTransition(movement.previousQuantity, movement.newQuantity)}</td>
+                          <td
+                            className={`px-4 py-3 text-right font-semibold tabular-nums ${movementDeltaClassName(delta)}`}
+                          >
+                            {formatMovementDelta(delta)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-700">
+                            {formatBalanceTransition(
+                              movement.previousQuantity,
+                              movement.newQuantity,
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground max-w-[240px]">
                             {notes ? (
                               <AppTooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="block truncate cursor-help">{notes}</span>
+                                  <span className="block truncate cursor-help">
+                                    {notes}
+                                  </span>
                                 </TooltipTrigger>
-                                <TooltipContent className="max-w-xs whitespace-normal break-words">{notes}</TooltipContent>
+                                <TooltipContent className="max-w-xs whitespace-normal break-words">
+                                  {notes}
+                                </TooltipContent>
                               </AppTooltip>
-                            ) : "—"}
+                            ) : (
+                              "—"
+                            )}
                           </td>
                         </tr>
                       );
@@ -3593,9 +4261,14 @@ function PlanningModule({ activeModule }) {
     setItems(await api.get("plans"));
     setLoading(false);
   };
-  useLazyModuleEffect(activeModule, "planning", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "planning",
+    () => {
+      load();
+    },
+    [],
+  );
 
   const empty = {
     level: "Quarterly",
@@ -3955,13 +4628,20 @@ function CreatorCRM({ activeModule }) {
     if (search.trim()) params.set("search", search.trim());
 
     const result = await api.get(`creators?${params.toString()}`);
-    const nextItems = Array.isArray(result) ? result : Array.isArray(result?.data) ? result.data : [];
+    const nextItems = Array.isArray(result)
+      ? result
+      : Array.isArray(result?.data)
+        ? result.data
+        : [];
     const nextMeta = Array.isArray(result)
       ? {
           page,
           limit: pageSize,
           total: nextItems.length,
-          totalPages: Math.max(1, Math.ceil(nextItems.length / Math.max(pageSize, 1))),
+          totalPages: Math.max(
+            1,
+            Math.ceil(nextItems.length / Math.max(pageSize, 1)),
+          ),
           usedFallbackSort: false,
         }
       : {
@@ -3977,9 +4657,14 @@ function CreatorCRM({ activeModule }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "creators", () => {
-    load();
-  }, [status, platform, search, sortBy, sortDirection, page, pageSize]);
+  useLazyModuleEffect(
+    activeModule,
+    "creators",
+    () => {
+      load();
+    },
+    [status, platform, search, sortBy, sortDirection, page, pageSize],
+  );
 
   const updateStatus = async (item, nextStatus) => {
     await api.put("creators/" + item.id, { status: nextStatus });
@@ -4026,7 +4711,8 @@ function CreatorCRM({ activeModule }) {
   };
 
   const showingFrom = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
-  const showingTo = meta.total === 0 ? 0 : Math.min(meta.total, meta.page * meta.limit);
+  const showingTo =
+    meta.total === 0 ? 0 : Math.min(meta.total, meta.page * meta.limit);
 
   if (loading)
     return (
@@ -4064,7 +4750,13 @@ function CreatorCRM({ activeModule }) {
         </Button>
       </div>
 
-      <Tabs value={status} onValueChange={(value) => { setStatus(value); setPage(1); }}>
+      <Tabs
+        value={status}
+        onValueChange={(value) => {
+          setStatus(value);
+          setPage(1);
+        }}
+      >
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
           {CREATOR_STATUS.map((entry) => (
@@ -4079,7 +4771,9 @@ function CreatorCRM({ activeModule }) {
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[220px]">
-              <p className="text-xs text-muted-foreground mb-1">Search name / username / niche / contact</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Search name / username / niche / contact
+              </p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -4095,7 +4789,13 @@ function CreatorCRM({ activeModule }) {
             </div>
             <div className="min-w-[160px]">
               <p className="text-xs text-muted-foreground mb-1">Platform</p>
-              <Select value={platform} onValueChange={(value) => { setPlatform(value); setPage(1); }}>
+              <Select
+                value={platform}
+                onValueChange={(value) => {
+                  setPlatform(value);
+                  setPage(1);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -4111,7 +4811,13 @@ function CreatorCRM({ activeModule }) {
             </div>
             <div className="min-w-[160px]">
               <p className="text-xs text-muted-foreground mb-1">Sort By</p>
-              <Select value={sortBy} onValueChange={(value) => { setSortBy(value); setPage(1); }}>
+              <Select
+                value={sortBy}
+                onValueChange={(value) => {
+                  setSortBy(value);
+                  setPage(1);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -4126,7 +4832,13 @@ function CreatorCRM({ activeModule }) {
             </div>
             <div className="min-w-[160px]">
               <p className="text-xs text-muted-foreground mb-1">Page Size</p>
-              <Select value={String(pageSize)} onValueChange={(value) => { setPageSize(Number(value)); setPage(1); }}>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  setPageSize(Number(value));
+                  setPage(1);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -4143,7 +4855,9 @@ function CreatorCRM({ activeModule }) {
               variant="outline"
               className="gap-2"
               onClick={() => {
-                setSortDirection((currentDirection) => currentDirection === "asc" ? "desc" : "asc");
+                setSortDirection((currentDirection) =>
+                  currentDirection === "asc" ? "desc" : "asc",
+                );
                 setPage(1);
               }}
             >
@@ -4187,15 +4901,24 @@ function CreatorCRM({ activeModule }) {
                       <p className="font-medium">{creator.name}</p>
                       {creator.username ? (
                         <a
-                          href={creatorProfileUrl(creator.username, creator.platform)}
+                          href={creatorProfileUrl(
+                            creator.username,
+                            creator.platform,
+                          )}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(event) => event.stopPropagation()}
                           className="text-xs text-muted-foreground hover:text-blue-400 hover:underline inline-flex items-center gap-1 max-w-[220px] truncate"
-                          title={creatorProfileUrl(creator.username, creator.platform)}
+                          title={creatorProfileUrl(
+                            creator.username,
+                            creator.platform,
+                          )}
                         >
                           <span className="truncate">
-                            {creatorHandleLabel(creator.username, creator.platform)}
+                            {creatorHandleLabel(
+                              creator.username,
+                              creator.platform,
+                            )}
                           </span>
                           <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
                         </a>
@@ -4212,7 +4935,10 @@ function CreatorCRM({ activeModule }) {
                   {Number(creator.followers || 0).toLocaleString("id-ID")}
                 </td>
                 <td className="px-4 py-3 text-right text-muted-foreground">
-                  {Number(creator.engagement || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%
+                  {Number(creator.engagement || 0).toLocaleString("id-ID", {
+                    maximumFractionDigits: 2,
+                  })}
+                  %
                 </td>
                 <td className="px-4 py-3 text-muted-foreground text-xs">
                   {creator.niche || "—"}
@@ -4291,7 +5017,9 @@ function CreatorCRM({ activeModule }) {
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="text-sm text-muted-foreground">
-          Showing {showingFrom.toLocaleString("id-ID")}–{showingTo.toLocaleString("id-ID")} of {meta.total.toLocaleString("id-ID")} creator records
+          Showing {showingFrom.toLocaleString("id-ID")}–
+          {showingTo.toLocaleString("id-ID")} of{" "}
+          {meta.total.toLocaleString("id-ID")} creator records
           {meta.usedFallbackSort ? " · Sort field fallback applied" : ""}
         </div>
         <div className="flex items-center gap-2">
@@ -4299,7 +5027,9 @@ function CreatorCRM({ activeModule }) {
             variant="outline"
             size="sm"
             disabled={meta.page <= 1}
-            onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
+            onClick={() =>
+              setPage((currentPage) => Math.max(1, currentPage - 1))
+            }
           >
             Previous
           </Button>
@@ -4310,7 +5040,11 @@ function CreatorCRM({ activeModule }) {
             variant="outline"
             size="sm"
             disabled={meta.page >= meta.totalPages}
-            onClick={() => setPage((currentPage) => Math.min(meta.totalPages, currentPage + 1))}
+            onClick={() =>
+              setPage((currentPage) =>
+                Math.min(meta.totalPages, currentPage + 1),
+              )
+            }
           >
             Next
           </Button>
@@ -4330,8 +5064,11 @@ function CreatorCRM({ activeModule }) {
 function CreatorModal({ open, onOpenChange, initial, onSave }) {
   const [form, setForm] = useState(initial);
   useEffect(() => setForm(initial), [initial, open]);
-  const update = (key, value) => setForm((currentForm) => ({ ...currentForm, [key]: value }));
-  const canSave = Boolean(String(form.name || "").trim() && String(form.platform || "").trim());
+  const update = (key, value) =>
+    setForm((currentForm) => ({ ...currentForm, [key]: value }));
+  const canSave = Boolean(
+    String(form.name || "").trim() && String(form.platform || "").trim(),
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -4492,9 +5229,14 @@ function SchoolCRM({ activeModule }) {
     setItems(await api.get("schools"));
     setLoading(false);
   };
-  useLazyModuleEffect(activeModule, "schools", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "schools",
+    () => {
+      load();
+    },
+    [],
+  );
   const updateStatus = async (item, status) => {
     await api.put("schools/" + item.id, { ...item, status });
     setItems((arr) =>
@@ -4842,9 +5584,14 @@ function TimelineModule({ activeModule }) {
     setItems(await api.get("timeline"));
     setLoading(false);
   };
-  useLazyModuleEffect(activeModule, "timeline", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "timeline",
+    () => {
+      load();
+    },
+    [],
+  );
 
   const years = [2026, 2027, 2028];
   const grouped = years.reduce((acc, y) => {
@@ -4985,9 +5732,14 @@ function FinanceModule({ activeModule }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "finance", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "finance",
+    () => {
+      load();
+    },
+    [],
+  );
 
   const scenarioMultiplier = {
     Optimistic: 1.25,
@@ -4998,13 +5750,24 @@ function FinanceModule({ activeModule }) {
   const adjustedFinance = finance.map((entry) => ({
     ...entry,
     revenue: Math.round(Number(entry.revenue || 0) * scenarioMultiplier),
-    profit: Math.round(Number(entry.revenue || 0) * scenarioMultiplier - Number(entry.expenses || 0)),
+    profit: Math.round(
+      Number(entry.revenue || 0) * scenarioMultiplier -
+        Number(entry.expenses || 0),
+    ),
   }));
 
-  const forecastRevenue = adjustedFinance.reduce((sum, entry) => sum + Number(entry.revenue || 0), 0);
-  const forecastExpenses = finance.reduce((sum, entry) => sum + Number(entry.expenses || 0), 0);
+  const forecastRevenue = adjustedFinance.reduce(
+    (sum, entry) => sum + Number(entry.revenue || 0),
+    0,
+  );
+  const forecastExpenses = finance.reduce(
+    (sum, entry) => sum + Number(entry.expenses || 0),
+    0,
+  );
   const forecastProfit = forecastRevenue - forecastExpenses;
-  const currentInventoryValue = Number(inventoryValuation?.totalInventoryValue || 0);
+  const currentInventoryValue = Number(
+    inventoryValuation?.totalInventoryValue || 0,
+  );
   const cogsThisMonth = Number(profitability?.totalCogs || 0);
   const grossProfit = Number(profitability?.grossProfit || 0);
   const netProfit = Number(profitability?.netProfit || 0);
@@ -5049,7 +5812,9 @@ function FinanceModule({ activeModule }) {
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Forecast Revenue
             </p>
-            <p className="text-2xl font-semibold mt-2">{fmtShort(forecastRevenue)}</p>
+            <p className="text-2xl font-semibold mt-2">
+              {fmtShort(forecastRevenue)}
+            </p>
             <p className="text-xs text-emerald-400 mt-1">
               {((scenarioMultiplier - 1) * 100).toFixed(0)}% vs base
             </p>
@@ -5060,7 +5825,9 @@ function FinanceModule({ activeModule }) {
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Forecast Expenses
             </p>
-            <p className="text-2xl font-semibold mt-2">{fmtShort(forecastExpenses)}</p>
+            <p className="text-2xl font-semibold mt-2">
+              {fmtShort(forecastExpenses)}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -5068,7 +5835,9 @@ function FinanceModule({ activeModule }) {
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Current Inventory Value
             </p>
-            <p className="text-2xl font-semibold mt-2 text-blue-500">{fmtShort(currentInventoryValue)}</p>
+            <p className="text-2xl font-semibold mt-2 text-blue-500">
+              {fmtShort(currentInventoryValue)}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -5076,7 +5845,9 @@ function FinanceModule({ activeModule }) {
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               COGS This Month
             </p>
-            <p className="text-2xl font-semibold mt-2 text-amber-500">{fmtShort(cogsThisMonth)}</p>
+            <p className="text-2xl font-semibold mt-2 text-amber-500">
+              {fmtShort(cogsThisMonth)}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -5084,7 +5855,9 @@ function FinanceModule({ activeModule }) {
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Gross Profit
             </p>
-            <p className={`text-2xl font-semibold mt-2 ${grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+            <p
+              className={`text-2xl font-semibold mt-2 ${grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+            >
               {fmtShort(grossProfit)}
             </p>
           </CardContent>
@@ -5094,7 +5867,9 @@ function FinanceModule({ activeModule }) {
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Net Profit
             </p>
-            <p className={`text-2xl font-semibold mt-2 ${netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+            <p
+              className={`text-2xl font-semibold mt-2 ${netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+            >
               {fmtShort(netProfit)}
             </p>
           </CardContent>
@@ -5199,31 +5974,47 @@ function FinanceModule({ activeModule }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Current Month Profitability</CardTitle>
+            <CardTitle className="text-base">
+              Current Month Profitability
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between border-b border-border pb-2">
                 <span className="text-muted-foreground">Revenue</span>
-                <span className="font-medium text-emerald-500">{fmt(profitability?.totalRevenue || 0)}</span>
+                <span className="font-medium text-emerald-500">
+                  {fmt(profitability?.totalRevenue || 0)}
+                </span>
               </div>
               <div className="flex items-center justify-between border-b border-border pb-2">
-                <span className="text-muted-foreground">Less: Cost of Goods Sold</span>
-                <span className="font-medium text-amber-500">{fmt(profitability?.totalCogs || 0)}</span>
+                <span className="text-muted-foreground">
+                  Less: Cost of Goods Sold
+                </span>
+                <span className="font-medium text-amber-500">
+                  {fmt(profitability?.totalCogs || 0)}
+                </span>
               </div>
               <div className="flex items-center justify-between border-b border-border pb-2">
                 <span className="font-semibold">Gross Profit</span>
-                <span className={`font-semibold ${grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                <span
+                  className={`font-semibold ${grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+                >
                   {fmt(grossProfit)}
                 </span>
               </div>
               <div className="flex items-center justify-between border-b border-border pb-2">
-                <span className="text-muted-foreground">Operating Expenses</span>
-                <span className="font-medium text-rose-400">{fmt(profitability?.totalOperatingExpenses || 0)}</span>
+                <span className="text-muted-foreground">
+                  Operating Expenses
+                </span>
+                <span className="font-medium text-rose-400">
+                  {fmt(profitability?.totalOperatingExpenses || 0)}
+                </span>
               </div>
               <div className="flex items-center justify-between pt-1">
                 <span className="font-semibold">Net Profit</span>
-                <span className={`text-lg font-bold ${netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                <span
+                  className={`text-lg font-bold ${netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+                >
                   {fmt(netProfit)}
                 </span>
               </div>
@@ -5241,7 +6032,10 @@ function FinanceModule({ activeModule }) {
                 Current stock valued using Product Cost Price
               </CardDescription>
             </div>
-            <Badge variant="outline" className="border-blue-500/30 text-blue-500">
+            <Badge
+              variant="outline"
+              className="border-blue-500/30 text-blue-500"
+            >
               Total {fmt(currentInventoryValue)}
             </Badge>
           </div>
@@ -5251,27 +6045,53 @@ function FinanceModule({ activeModule }) {
             <table className="w-full text-sm min-w-[720px]">
               <thead>
                 <tr className="border-b border-border bg-[#F7F8FA]">
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">SKU</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Current Stock</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Cost Price</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Inventory Value</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    Product
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    SKU
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                    Current Stock
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                    Cost Price
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                    Inventory Value
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {inventoryValuation?.rows?.length ? (
                   inventoryValuation.rows.map((row) => (
-                    <tr key={row.id} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
-                      <td className="px-4 py-3 font-medium">{row.productName}</td>
-                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{row.sku}</td>
-                      <td className="px-4 py-3 text-right">{row.currentStock}</td>
-                      <td className="px-4 py-3 text-right">{fmt(row.costPrice)}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-blue-500">{fmt(row.inventoryValue)}</td>
+                    <tr
+                      key={row.id}
+                      className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-medium">
+                        {row.productName}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
+                        {row.sku}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {row.currentStock}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {fmt(row.costPrice)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-blue-500">
+                        {fmt(row.inventoryValue)}
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    <td
+                      colSpan={5}
+                      className="px-4 py-10 text-center text-sm text-muted-foreground"
+                    >
                       No current inventory valuation data available.
                     </td>
                   </tr>
@@ -5279,8 +6099,12 @@ function FinanceModule({ activeModule }) {
               </tbody>
               <tfoot>
                 <tr className="bg-[#F7F8FA] font-semibold">
-                  <td className="px-4 py-3" colSpan={4}>Total Inventory Value</td>
-                  <td className="px-4 py-3 text-right text-blue-500">{fmt(currentInventoryValue)}</td>
+                  <td className="px-4 py-3" colSpan={4}>
+                    Total Inventory Value
+                  </td>
+                  <td className="px-4 py-3 text-right text-blue-500">
+                    {fmt(currentInventoryValue)}
+                  </td>
                 </tr>
               </tfoot>
             </table>
@@ -5300,9 +6124,14 @@ function EventsModule({ activeModule }) {
     setItems(await api.get("events"));
     setLoading(false);
   };
-  useLazyModuleEffect(activeModule, "events", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "events",
+    () => {
+      load();
+    },
+    [],
+  );
   const toggleCheck = async (event, idx) => {
     const newChecklist = event.checklist.map((c, i) =>
       i === idx ? { ...c, done: !c.done } : c,
@@ -5579,11 +6408,19 @@ function buildAnalyticsQuery(range, from, to) {
 
 function exportCsvRows(filename, columns, rows) {
   const header = columns.map((column) => column.label).join(",");
-  const body = rows.map((row) => columns.map((column) => {
-    const rawValue = typeof column.value === "function" ? column.value(row) : row[column.value];
-    const value = rawValue === undefined || rawValue === null ? "" : String(rawValue);
-    return `"${value.replace(/"/g, '""')}"`;
-  }).join(","));
+  const body = rows.map((row) =>
+    columns
+      .map((column) => {
+        const rawValue =
+          typeof column.value === "function"
+            ? column.value(row)
+            : row[column.value];
+        const value =
+          rawValue === undefined || rawValue === null ? "" : String(rawValue);
+        return `"${value.replace(/"/g, '""')}"`;
+      })
+      .join(","),
+  );
   const csv = [header, ...body].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -5595,11 +6432,24 @@ function exportCsvRows(filename, columns, rows) {
 }
 
 function exportExcelRows(filename, title, columns, rows) {
-  const tableRows = rows.map((row) => `<tr>${columns.map((column) => {
-    const rawValue = typeof column.value === "function" ? column.value(row) : row[column.value];
-    const value = rawValue === undefined || rawValue === null ? "" : String(rawValue);
-    return `<td>${value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`;
-  }).join("")}</tr>`).join("");
+  const tableRows = rows
+    .map(
+      (row) =>
+        `<tr>${columns
+          .map((column) => {
+            const rawValue =
+              typeof column.value === "function"
+                ? column.value(row)
+                : row[column.value];
+            const value =
+              rawValue === undefined || rawValue === null
+                ? ""
+                : String(rawValue);
+            return `<td>${value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`;
+          })
+          .join("")}</tr>`,
+    )
+    .join("");
 
   const html = `
     <html>
@@ -5618,7 +6468,9 @@ function exportExcelRows(filename, title, columns, rows) {
     </html>
   `;
 
-  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+  const blob = new Blob([html], {
+    type: "application/vnd.ms-excel;charset=utf-8;",
+  });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -5664,19 +6516,38 @@ function printReportDocument(title, html) {
   printWindow.print();
 }
 
-function AnalyticsMetricCard({ label, value, sub, colorClass = "text-[#111827]" }) {
+function AnalyticsMetricCard({
+  label,
+  value,
+  sub,
+  colorClass = "text-[#111827]",
+}) {
   return (
     <Card>
       <CardContent className="p-4">
-        <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className="text-xs text-muted-foreground uppercase tracking-wider">
+          {label}
+        </p>
         <p className={`text-2xl font-semibold mt-1 ${colorClass}`}>{value}</p>
-        {sub ? <p className="text-xs text-muted-foreground mt-1">{sub}</p> : null}
+        {sub ? (
+          <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+        ) : null}
       </CardContent>
     </Card>
   );
 }
 
-function AnalyticsFilterBar({ range, setRange, from, setFrom, to, setTo, onCsv, onExcel, onPrint }) {
+function AnalyticsFilterBar({
+  range,
+  setRange,
+  from,
+  setFrom,
+  to,
+  setTo,
+  onCsv,
+  onExcel,
+  onPrint,
+}) {
   return (
     <Card>
       <CardContent className="p-4">
@@ -5701,19 +6572,35 @@ function AnalyticsFilterBar({ range, setRange, from, setFrom, to, setTo, onCsv, 
               <>
                 <div className="space-y-1.5">
                   <Label>From</Label>
-                  <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
+                  <Input
+                    type="date"
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                    className="w-40"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>To</Label>
-                  <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
+                  <Input
+                    type="date"
+                    value={to}
+                    onChange={(e) => setTo(e.target.value)}
+                    className="w-40"
+                  />
                 </div>
               </>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onCsv}>Export CSV</Button>
-            <Button variant="outline" size="sm" onClick={onExcel}>Export Excel</Button>
-            <Button variant="outline" size="sm" onClick={onPrint}>Print Friendly</Button>
+            <Button variant="outline" size="sm" onClick={onCsv}>
+              Export CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={onExcel}>
+              Export Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={onPrint}>
+              Print Friendly
+            </Button>
           </div>
         </div>
       </CardContent>
@@ -5731,14 +6618,21 @@ function ProductAnalyticsModule({ activeModule }) {
   const load = async () => {
     if (range === "custom" && (!from || !to)) return;
     setLoading(true);
-    const result = await api.get("productanalytics?" + buildAnalyticsQuery(range, from, to));
+    const result = await api.get(
+      "productanalytics?" + buildAnalyticsQuery(range, from, to),
+    );
     setData(result?.error ? null : result);
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "productanalytics", () => {
-    load();
-  }, [range, from, to]);
+  useLazyModuleEffect(
+    activeModule,
+    "productanalytics",
+    () => {
+      load();
+    },
+    [range, from, to],
+  );
 
   const productRows = data?.tables?.products || [];
   const exportColumns = [
@@ -5775,8 +6669,12 @@ function ProductAnalyticsModule({ activeModule }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Product Analytics</h2>
-        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Understand which products drive volume, revenue, and stock pressure.</p>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+          Product Analytics
+        </h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+          Understand which products drive volume, revenue, and stock pressure.
+        </p>
       </div>
       <AnalyticsFilterBar
         range={range}
@@ -5785,8 +6683,17 @@ function ProductAnalyticsModule({ activeModule }) {
         setFrom={setFrom}
         to={to}
         setTo={setTo}
-        onCsv={() => exportCsvRows("product-analytics.csv", exportColumns, productRows)}
-        onExcel={() => exportExcelRows("product-analytics.xls", "Product Analytics", exportColumns, productRows)}
+        onCsv={() =>
+          exportCsvRows("product-analytics.csv", exportColumns, productRows)
+        }
+        onExcel={() =>
+          exportExcelRows(
+            "product-analytics.xls",
+            "Product Analytics",
+            exportColumns,
+            productRows,
+          )
+        }
         onPrint={handlePrint}
       />
       {loading ? (
@@ -5796,27 +6703,77 @@ function ProductAnalyticsModule({ activeModule }) {
       ) : data ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
-            <AnalyticsMetricCard label="Total Products" value={Number(data.metrics.totalProducts || 0).toLocaleString()} />
-            <AnalyticsMetricCard label="Active Products" value={Number(data.metrics.activeProducts || 0).toLocaleString()} colorClass="text-emerald-500" />
-            <AnalyticsMetricCard label="Archived Products" value={Number(data.metrics.archivedProducts || 0).toLocaleString()} colorClass="text-amber-500" />
-            <AnalyticsMetricCard label="Total Units Sold" value={Number(data.metrics.totalUnitsSold || 0).toLocaleString()} colorClass="text-blue-500" />
-            <AnalyticsMetricCard label="Current Inventory" value={Number(data.metrics.currentInventory || 0).toLocaleString()} colorClass="text-indigo-600" />
-            <AnalyticsMetricCard label="Low Stock Products" value={Number(data.metrics.lowStockProducts || 0).toLocaleString()} colorClass="text-rose-400" />
+            <AnalyticsMetricCard
+              label="Total Products"
+              value={Number(data.metrics.totalProducts || 0).toLocaleString()}
+            />
+            <AnalyticsMetricCard
+              label="Active Products"
+              value={Number(data.metrics.activeProducts || 0).toLocaleString()}
+              colorClass="text-emerald-500"
+            />
+            <AnalyticsMetricCard
+              label="Archived Products"
+              value={Number(
+                data.metrics.archivedProducts || 0,
+              ).toLocaleString()}
+              colorClass="text-amber-500"
+            />
+            <AnalyticsMetricCard
+              label="Total Units Sold"
+              value={Number(data.metrics.totalUnitsSold || 0).toLocaleString()}
+              colorClass="text-blue-500"
+            />
+            <AnalyticsMetricCard
+              label="Current Inventory"
+              value={Number(
+                data.metrics.currentInventory || 0,
+              ).toLocaleString()}
+              colorClass="text-indigo-600"
+            />
+            <AnalyticsMetricCard
+              label="Low Stock Products"
+              value={Number(
+                data.metrics.lowStockProducts || 0,
+              ).toLocaleString()}
+              colorClass="text-rose-400"
+            />
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <Card className="xl:col-span-2">
               <CardHeader>
-                <CardTitle className="text-base">Top Selling Products</CardTitle>
+                <CardTitle className="text-base">
+                  Top Selling Products
+                </CardTitle>
                 <CardDescription>Top 10 products by units sold</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={data.charts.topSellingProducts}>
-                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="sku" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip formatter={(value) => Number(value || 0).toLocaleString("id-ID")} />
-                    <Bar dataKey="unitsSold" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} />
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="sku"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        Number(value || 0).toLocaleString("id-ID")
+                      }
+                    />
+                    <Bar
+                      dataKey="unitsSold"
+                      fill="hsl(var(--chart-1))"
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -5824,14 +6781,34 @@ function ProductAnalyticsModule({ activeModule }) {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Sales by Category</CardTitle>
-                <CardDescription>Revenue mix by product category</CardDescription>
+                <CardDescription>
+                  Revenue mix by product category
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
-                    <Pie data={data.charts.salesByCategory} dataKey="revenue" nameKey="name" innerRadius={52} outerRadius={90}>
+                    <Pie
+                      data={data.charts.salesByCategory}
+                      dataKey="revenue"
+                      nameKey="name"
+                      innerRadius={52}
+                      outerRadius={90}
+                    >
                       {data.charts.salesByCategory.map((_, index) => (
-                        <Cell key={index} fill={["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b"][index % 6]} />
+                        <Cell
+                          key={index}
+                          fill={
+                            [
+                              "#2563eb",
+                              "#14b8a6",
+                              "#f59e0b",
+                              "#8b5cf6",
+                              "#ef4444",
+                              "#64748b",
+                            ][index % 6]
+                          }
+                        />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => fmt(value)} />
@@ -5844,32 +6821,66 @@ function ProductAnalyticsModule({ activeModule }) {
             <Card className="xl:col-span-2">
               <CardHeader>
                 <CardTitle className="text-base">Revenue by Product</CardTitle>
-                <CardDescription>Top product revenue contribution</CardDescription>
+                <CardDescription>
+                  Top product revenue contribution
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={data.charts.revenueByProduct} layout="vertical" margin={{ left: 24 }}>
-                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
-                    <YAxis dataKey="sku" type="category" stroke="hsl(var(--muted-foreground))" fontSize={11} width={80} />
+                  <BarChart
+                    data={data.charts.revenueByProduct}
+                    layout="vertical"
+                    margin={{ left: 24 }}
+                  >
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                      horizontal={false}
+                    />
+                    <XAxis
+                      type="number"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickFormatter={fmtShort}
+                    />
+                    <YAxis
+                      dataKey="sku"
+                      type="category"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                      width={80}
+                    />
                     <Tooltip formatter={(value) => fmt(value)} />
-                    <Bar dataKey="revenue" fill="hsl(var(--chart-2))" radius={[0, 6, 6, 0]} />
+                    <Bar
+                      dataKey="revenue"
+                      fill="hsl(var(--chart-2))"
+                      radius={[0, 6, 6, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Lowest Selling Products</CardTitle>
+                <CardTitle className="text-base">
+                  Lowest Selling Products
+                </CardTitle>
                 <CardDescription>Products needing review</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 {data.tables.lowestSellingProducts.slice(0, 8).map((item) => (
-                  <div key={item.id} className="rounded-xl border border-border/60 px-3 py-3">
-                    <p className="text-sm font-medium truncate">{item.productName}</p>
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-border/60 px-3 py-3"
+                  >
+                    <p className="text-sm font-medium truncate">
+                      {item.productName}
+                    </p>
                     <div className="flex items-center justify-between mt-1 text-xs text-muted-foreground">
                       <span>{item.sku}</span>
-                      <span>{Number(item.unitsSold || 0).toLocaleString()} sold</span>
+                      <span>
+                        {Number(item.unitsSold || 0).toLocaleString()} sold
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -5878,30 +6889,63 @@ function ProductAnalyticsModule({ activeModule }) {
           </div>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Product Performance Table</CardTitle>
-              <CardDescription>Revenue and stock visibility by product</CardDescription>
+              <CardTitle className="text-base">
+                Product Performance Table
+              </CardTitle>
+              <CardDescription>
+                Revenue and stock visibility by product
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[760px]">
                   <thead>
                     <tr className="border-b border-border bg-[#F7F8FA]">
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">SKU</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Units Sold</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Revenue</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Current Stock</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                        Product
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                        SKU
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        Units Sold
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        Revenue
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        Current Stock
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {productRows.map((row) => (
-                      <tr key={row.id} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
-                        <td className="px-4 py-3 font-medium">{row.productName}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{row.sku}</td>
-                        <td className="px-4 py-3 text-right">{Number(row.unitsSold || 0).toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right text-emerald-500 font-semibold">{fmt(row.revenue)}</td>
+                      <tr
+                        key={row.id}
+                        className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
+                      >
+                        <td className="px-4 py-3 font-medium">
+                          {row.productName}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                          {row.sku}
+                        </td>
                         <td className="px-4 py-3 text-right">
-                          <span className={row.isLowStock ? "text-rose-400 font-semibold" : "font-medium"}>{row.currentStock}</span>
+                          {Number(row.unitsSold || 0).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-right text-emerald-500 font-semibold">
+                          {fmt(row.revenue)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span
+                            className={
+                              row.isLowStock
+                                ? "text-rose-400 font-semibold"
+                                : "font-medium"
+                            }
+                          >
+                            {row.currentStock}
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -5926,14 +6970,21 @@ function InventoryAnalyticsModule({ activeModule }) {
   const load = async () => {
     if (range === "custom" && (!from || !to)) return;
     setLoading(true);
-    const result = await api.get("inventoryanalytics?" + buildAnalyticsQuery(range, from, to));
+    const result = await api.get(
+      "inventoryanalytics?" + buildAnalyticsQuery(range, from, to),
+    );
     setData(result?.error ? null : result);
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "inventoryanalytics", () => {
-    load();
-  }, [range, from, to]);
+  useLazyModuleEffect(
+    activeModule,
+    "inventoryanalytics",
+    () => {
+      load();
+    },
+    [range, from, to],
+  );
 
   const exportRows = data?.tables?.mostMovedProducts || [];
   const exportColumns = [
@@ -5969,8 +7020,12 @@ function InventoryAnalyticsModule({ activeModule }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Inventory Analytics</h2>
-        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Understand inventory health, movement intensity, and stock risk.</p>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+          Inventory Analytics
+        </h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+          Understand inventory health, movement intensity, and stock risk.
+        </p>
       </div>
       <AnalyticsFilterBar
         range={range}
@@ -5979,32 +7034,84 @@ function InventoryAnalyticsModule({ activeModule }) {
         setFrom={setFrom}
         to={to}
         setTo={setTo}
-        onCsv={() => exportCsvRows("inventory-analytics.csv", exportColumns, exportRows)}
-        onExcel={() => exportExcelRows("inventory-analytics.xls", "Inventory Analytics", exportColumns, exportRows)}
+        onCsv={() =>
+          exportCsvRows("inventory-analytics.csv", exportColumns, exportRows)
+        }
+        onExcel={() =>
+          exportExcelRows(
+            "inventory-analytics.xls",
+            "Inventory Analytics",
+            exportColumns,
+            exportRows,
+          )
+        }
         onPrint={handlePrint}
       />
-      {loading ? <StatsSkeleton stats={5} showChart /> : data ? (
+      {loading ? (
+        <StatsSkeleton stats={5} showChart />
+      ) : data ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-            <AnalyticsMetricCard label="Total Inventory Value" value={fmtShort(data.metrics.totalInventoryValue)} colorClass="text-blue-500" />
-            <AnalyticsMetricCard label="Inventory Quantity" value={Number(data.metrics.inventoryQuantity || 0).toLocaleString()} />
-            <AnalyticsMetricCard label="Low Stock Count" value={Number(data.metrics.lowStockCount || 0).toLocaleString()} colorClass="text-rose-400" />
-            <AnalyticsMetricCard label="Out of Stock" value={Number(data.metrics.outOfStockCount || 0).toLocaleString()} colorClass="text-amber-500" />
-            <AnalyticsMetricCard label="Average Stock" value={Number(data.metrics.averageStock || 0).toFixed(1)} colorClass="text-emerald-500" />
+            <AnalyticsMetricCard
+              label="Total Inventory Value"
+              value={fmtShort(data.metrics.totalInventoryValue)}
+              colorClass="text-blue-500"
+            />
+            <AnalyticsMetricCard
+              label="Inventory Quantity"
+              value={Number(
+                data.metrics.inventoryQuantity || 0,
+              ).toLocaleString()}
+            />
+            <AnalyticsMetricCard
+              label="Low Stock Count"
+              value={Number(data.metrics.lowStockCount || 0).toLocaleString()}
+              colorClass="text-rose-400"
+            />
+            <AnalyticsMetricCard
+              label="Out of Stock"
+              value={Number(data.metrics.outOfStockCount || 0).toLocaleString()}
+              colorClass="text-amber-500"
+            />
+            <AnalyticsMetricCard
+              label="Average Stock"
+              value={Number(data.metrics.averageStock || 0).toFixed(1)}
+              colorClass="text-emerald-500"
+            />
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <Card className="xl:col-span-2">
               <CardHeader>
-                <CardTitle className="text-base">Inventory Value by Product</CardTitle>
+                <CardTitle className="text-base">
+                  Inventory Value by Product
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={data.charts.inventoryValueByProduct.slice(0, 10)}>
-                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="sku" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                  <BarChart
+                    data={data.charts.inventoryValueByProduct.slice(0, 10)}
+                  >
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="sku"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickFormatter={fmtShort}
+                    />
                     <Tooltip formatter={(value) => fmt(value)} />
-                    <Bar dataKey="inventoryValue" fill="hsl(var(--chart-2))" radius={[6, 6, 0, 0]} />
+                    <Bar
+                      dataKey="inventoryValue"
+                      fill="hsl(var(--chart-2))"
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -6016,12 +7123,25 @@ function InventoryAnalyticsModule({ activeModule }) {
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie data={data.charts.stockDistribution} dataKey="value" nameKey="name" innerRadius={54} outerRadius={90}>
+                    <Pie
+                      data={data.charts.stockDistribution}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={54}
+                      outerRadius={90}
+                    >
                       {data.charts.stockDistribution.map((_, index) => (
-                        <Cell key={index} fill={["#10b981", "#f59e0b", "#ef4444"][index % 3]} />
+                        <Cell
+                          key={index}
+                          fill={["#10b981", "#f59e0b", "#ef4444"][index % 3]}
+                        />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => Number(value || 0).toLocaleString("id-ID")} />
+                    <Tooltip
+                      formatter={(value) =>
+                        Number(value || 0).toLocaleString("id-ID")
+                      }
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -6030,32 +7150,86 @@ function InventoryAnalyticsModule({ activeModule }) {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Movement Trend</CardTitle>
-              <CardDescription>Inbound vs outbound stock movement</CardDescription>
+              <CardDescription>
+                Inbound vs outbound stock movement
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={data.charts.movementTrend}>
-                  <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <CartesianGrid
+                    stroke="hsl(var(--border))"
+                    strokeDasharray="3 3"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="date"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={11}
+                  />
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <Tooltip formatter={(value) => Number(value || 0).toLocaleString("id-ID")} />
+                  <Tooltip
+                    formatter={(value) =>
+                      Number(value || 0).toLocaleString("id-ID")
+                    }
+                  />
                   <Legend />
-                  <Line type="monotone" dataKey="inbound" stroke="hsl(var(--chart-1))" strokeWidth={2} />
-                  <Line type="monotone" dataKey="outbound" stroke="hsl(var(--chart-5))" strokeWidth={2} />
+                  <Line
+                    type="monotone"
+                    dataKey="inbound"
+                    stroke="hsl(var(--chart-1))"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="outbound"
+                    stroke="hsl(var(--chart-5))"
+                    strokeWidth={2}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Most Moved Products</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Most Moved Products</CardTitle>
+              </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b border-border bg-[#F7F8FA]"><th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Movement Qty</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Count</th></tr></thead>
+                    <thead>
+                      <tr className="border-b border-border bg-[#F7F8FA]">
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                          Product
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                          Movement Qty
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                          Count
+                        </th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {data.tables.mostMovedProducts.map((row) => (
-                        <tr key={row.productId} className="border-b border-[rgba(17,24,39,0.04)]"><td className="px-4 py-3"><div className="font-medium">{row.productName}</div><div className="text-xs text-muted-foreground font-mono">{row.sku}</div></td><td className="px-4 py-3 text-right font-semibold text-blue-500">{Number(row.movementQuantity || 0).toLocaleString()}</td><td className="px-4 py-3 text-right">{row.movementCount}</td></tr>
+                        <tr
+                          key={row.productId}
+                          className="border-b border-[rgba(17,24,39,0.04)]"
+                        >
+                          <td className="px-4 py-3">
+                            <div className="font-medium">{row.productName}</div>
+                            <div className="text-xs text-muted-foreground font-mono">
+                              {row.sku}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-blue-500">
+                            {Number(row.movementQuantity || 0).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {row.movementCount}
+                          </td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
@@ -6063,14 +7237,46 @@ function InventoryAnalyticsModule({ activeModule }) {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Least Moved Products</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Least Moved Products
+                </CardTitle>
+              </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b border-border bg-[#F7F8FA]"><th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Movement Qty</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Count</th></tr></thead>
+                    <thead>
+                      <tr className="border-b border-border bg-[#F7F8FA]">
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                          Product
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                          Movement Qty
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                          Count
+                        </th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {data.tables.leastMovedProducts.map((row) => (
-                        <tr key={row.productId} className="border-b border-[rgba(17,24,39,0.04)]"><td className="px-4 py-3"><div className="font-medium">{row.productName}</div><div className="text-xs text-muted-foreground font-mono">{row.sku}</div></td><td className="px-4 py-3 text-right font-semibold">{Number(row.movementQuantity || 0).toLocaleString()}</td><td className="px-4 py-3 text-right">{row.movementCount}</td></tr>
+                        <tr
+                          key={row.productId}
+                          className="border-b border-[rgba(17,24,39,0.04)]"
+                        >
+                          <td className="px-4 py-3">
+                            <div className="font-medium">{row.productName}</div>
+                            <div className="text-xs text-muted-foreground font-mono">
+                              {row.sku}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold">
+                            {Number(row.movementQuantity || 0).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {row.movementCount}
+                          </td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
@@ -6080,18 +7286,33 @@ function InventoryAnalyticsModule({ activeModule }) {
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Recent Inventory Adjustments</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Recent Inventory Adjustments
+                </CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
                 {data.tables.recentInventoryAdjustments.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3">
+                  <div
+                    key={row.id}
+                    className="rounded-xl border border-border/60 px-3 py-3"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{row.productName}</p>
-                        <p className="text-xs text-muted-foreground truncate mt-1">{row.movementType} · {row.notes || "—"}</p>
+                        <p className="text-sm font-medium truncate">
+                          {row.productName}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate mt-1">
+                          {row.movementType} · {row.notes || "—"}
+                        </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold">{Number(row.quantityChanged || 0).toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{row.movementDate}</p>
+                        <p className="font-semibold">
+                          {Number(row.quantityChanged || 0).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {row.movementDate}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -6099,18 +7320,31 @@ function InventoryAnalyticsModule({ activeModule }) {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Low Stock List</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Low Stock List</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
                 {data.tables.lowStockList.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3">
+                  <div
+                    key={row.id}
+                    className="rounded-xl border border-border/60 px-3 py-3"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{row.productName}</p>
-                        <p className="text-xs text-muted-foreground truncate mt-1">{row.variant}</p>
+                        <p className="text-sm font-medium truncate">
+                          {row.productName}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate mt-1">
+                          {row.variant}
+                        </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-rose-400">{row.quantity}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Threshold {row.threshold}</p>
+                        <p className="font-semibold text-rose-400">
+                          {row.quantity}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Threshold {row.threshold}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -6134,14 +7368,21 @@ function FinancialAnalyticsModule({ activeModule }) {
   const load = async () => {
     if (range === "custom" && (!from || !to)) return;
     setLoading(true);
-    const result = await api.get("financialanalytics?" + buildAnalyticsQuery(range, from, to));
+    const result = await api.get(
+      "financialanalytics?" + buildAnalyticsQuery(range, from, to),
+    );
     setData(result?.error ? null : result);
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "financialanalytics", () => {
-    load();
-  }, [range, from, to]);
+  useLazyModuleEffect(
+    activeModule,
+    "financialanalytics",
+    () => {
+      load();
+    },
+    [range, from, to],
+  );
 
   const expenseCategoryRows = data?.tables?.topExpenseCategories || [];
   const exportColumns = [
@@ -6175,8 +7416,12 @@ function FinancialAnalyticsModule({ activeModule }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Financial Analytics</h2>
-        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Simple financial overview from orders, cash flow, COGS, and expenses.</p>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+          Financial Analytics
+        </h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+          Simple financial overview from orders, cash flow, COGS, and expenses.
+        </p>
       </div>
       <AnalyticsFilterBar
         range={range}
@@ -6185,47 +7430,135 @@ function FinancialAnalyticsModule({ activeModule }) {
         setFrom={setFrom}
         to={to}
         setTo={setTo}
-        onCsv={() => exportCsvRows("financial-analytics.csv", exportColumns, expenseCategoryRows)}
-        onExcel={() => exportExcelRows("financial-analytics.xls", "Financial Analytics", exportColumns, expenseCategoryRows)}
+        onCsv={() =>
+          exportCsvRows(
+            "financial-analytics.csv",
+            exportColumns,
+            expenseCategoryRows,
+          )
+        }
+        onExcel={() =>
+          exportExcelRows(
+            "financial-analytics.xls",
+            "Financial Analytics",
+            exportColumns,
+            expenseCategoryRows,
+          )
+        }
         onPrint={handlePrint}
       />
-      {loading ? <StatsSkeleton stats={6} showChart /> : data ? (
+      {loading ? (
+        <StatsSkeleton stats={6} showChart />
+      ) : data ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
-            <AnalyticsMetricCard label="Revenue" value={fmtShort(data.metrics.revenue)} colorClass="text-emerald-500" />
-            <AnalyticsMetricCard label="Expenses" value={fmtShort(data.metrics.expenses)} colorClass="text-rose-400" />
-            <AnalyticsMetricCard label="Net Profit" value={fmtShort(data.metrics.netProfit)} colorClass={data.metrics.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"} />
-            <AnalyticsMetricCard label="Cash Position" value={fmtShort(data.metrics.cashPosition)} colorClass="text-blue-500" />
-            <AnalyticsMetricCard label="COGS" value={fmtShort(data.metrics.cogs)} colorClass="text-amber-500" />
-            <AnalyticsMetricCard label="Gross Profit" value={fmtShort(data.metrics.grossProfit)} colorClass={data.metrics.grossProfit >= 0 ? "text-indigo-600" : "text-rose-400"} />
+            <AnalyticsMetricCard
+              label="Revenue"
+              value={fmtShort(data.metrics.revenue)}
+              colorClass="text-emerald-500"
+            />
+            <AnalyticsMetricCard
+              label="Expenses"
+              value={fmtShort(data.metrics.expenses)}
+              colorClass="text-rose-400"
+            />
+            <AnalyticsMetricCard
+              label="Net Profit"
+              value={fmtShort(data.metrics.netProfit)}
+              colorClass={
+                data.metrics.netProfit >= 0
+                  ? "text-emerald-500"
+                  : "text-rose-400"
+              }
+            />
+            <AnalyticsMetricCard
+              label="Cash Position"
+              value={fmtShort(data.metrics.cashPosition)}
+              colorClass="text-blue-500"
+            />
+            <AnalyticsMetricCard
+              label="COGS"
+              value={fmtShort(data.metrics.cogs)}
+              colorClass="text-amber-500"
+            />
+            <AnalyticsMetricCard
+              label="Gross Profit"
+              value={fmtShort(data.metrics.grossProfit)}
+              colorClass={
+                data.metrics.grossProfit >= 0
+                  ? "text-indigo-600"
+                  : "text-rose-400"
+              }
+            />
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Revenue vs Expense</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Revenue vs Expense</CardTitle>
+              </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={data.charts.revenueVsExpense}>
-                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="month"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickFormatter={fmtShort}
+                    />
                     <Tooltip formatter={(value) => fmt(value)} />
                     <Legend />
-                    <Bar dataKey="revenue" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="expenses" fill="hsl(var(--chart-5))" radius={[6, 6, 0, 0]} />
+                    <Bar
+                      dataKey="revenue"
+                      fill="hsl(var(--chart-1))"
+                      radius={[6, 6, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="expenses"
+                      fill="hsl(var(--chart-5))"
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Cash Flow Trend</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Cash Flow Trend</CardTitle>
+              </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={data.charts.cashFlowTrend}>
-                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="month"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickFormatter={fmtShort}
+                    />
                     <Tooltip formatter={(value) => fmt(value)} />
-                    <Line type="monotone" dataKey="cashFlow" stroke="hsl(var(--chart-2))" strokeWidth={2} />
+                    <Line
+                      type="monotone"
+                      dataKey="cashFlow"
+                      stroke="hsl(var(--chart-2))"
+                      strokeWidth={2}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -6233,27 +7566,67 @@ function FinancialAnalyticsModule({ activeModule }) {
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Monthly Profit</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Monthly Profit</CardTitle>
+              </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={data.charts.monthlyProfit}>
-                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="month"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickFormatter={fmtShort}
+                    />
                     <Tooltip formatter={(value) => fmt(value)} />
-                    <Bar dataKey="netProfit" fill="hsl(var(--chart-3))" radius={[6, 6, 0, 0]} />
+                    <Bar
+                      dataKey="netProfit"
+                      fill="hsl(var(--chart-3))"
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Expense Category Breakdown</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Expense Category Breakdown
+                </CardTitle>
+              </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
-                    <Pie data={data.charts.expenseCategoryBreakdown} dataKey="value" nameKey="name" innerRadius={54} outerRadius={90}>
+                    <Pie
+                      data={data.charts.expenseCategoryBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={54}
+                      outerRadius={90}
+                    >
                       {data.charts.expenseCategoryBreakdown.map((_, index) => (
-                        <Cell key={index} fill={["#ef4444", "#f59e0b", "#8b5cf6", "#14b8a6", "#2563eb", "#64748b"][index % 6]} />
+                        <Cell
+                          key={index}
+                          fill={
+                            [
+                              "#ef4444",
+                              "#f59e0b",
+                              "#8b5cf6",
+                              "#14b8a6",
+                              "#2563eb",
+                              "#64748b",
+                            ][index % 6]
+                          }
+                        />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => fmt(value)} />
@@ -6264,29 +7637,51 @@ function FinancialAnalyticsModule({ activeModule }) {
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Top Expense Categories</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Top Expense Categories
+                </CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
                 {data.tables.topExpenseCategories.map((row) => (
-                  <div key={row.name} className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-3 text-sm">
+                  <div
+                    key={row.name}
+                    className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-3 text-sm"
+                  >
                     <span className="font-medium">{row.name}</span>
-                    <span className="font-semibold text-rose-400">{fmt(row.value)}</span>
+                    <span className="font-semibold text-rose-400">
+                      {fmt(row.value)}
+                    </span>
                   </div>
                 ))}
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Recent Cash In</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Recent Cash In</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
                 {data.tables.recentCashIn.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                  <div
+                    key={row.id}
+                    className="rounded-xl border border-border/60 px-3 py-3 text-sm"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-medium truncate">{row.financialAccountName}</p>
-                        <p className="text-xs text-muted-foreground truncate mt-1">{row.referenceNumber || row.description || "—"}</p>
+                        <p className="font-medium truncate">
+                          {row.financialAccountName}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate mt-1">
+                          {row.referenceNumber || row.description || "—"}
+                        </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-emerald-500">{fmt(row.amount)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{row.date}</p>
+                        <p className="font-semibold text-emerald-500">
+                          {fmt(row.amount)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {row.date}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -6294,18 +7689,31 @@ function FinancialAnalyticsModule({ activeModule }) {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Recent Cash Out</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Recent Cash Out</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
                 {data.tables.recentCashOut.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                  <div
+                    key={row.id}
+                    className="rounded-xl border border-border/60 px-3 py-3 text-sm"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-medium truncate">{row.expenseCategoryName}</p>
-                        <p className="text-xs text-muted-foreground truncate mt-1">{row.referenceNumber || row.description || "—"}</p>
+                        <p className="font-medium truncate">
+                          {row.expenseCategoryName}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate mt-1">
+                          {row.referenceNumber || row.description || "—"}
+                        </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-rose-400">{fmt(row.amount)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{row.date}</p>
+                        <p className="font-semibold text-rose-400">
+                          {fmt(row.amount)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {row.date}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -6329,14 +7737,21 @@ function MarketingAnalyticsModule({ activeModule }) {
   const load = async () => {
     if (range === "custom" && (!from || !to)) return;
     setLoading(true);
-    const result = await api.get("marketinganalytics?" + buildAnalyticsQuery(range, from, to));
+    const result = await api.get(
+      "marketinganalytics?" + buildAnalyticsQuery(range, from, to),
+    );
     setData(result?.error ? null : result);
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "marketinganalytics", () => {
-    load();
-  }, [range, from, to]);
+  useLazyModuleEffect(
+    activeModule,
+    "marketinganalytics",
+    () => {
+      load();
+    },
+    [range, from, to],
+  );
 
   const topCustomerRows = data?.tables?.topCustomers || [];
   const exportColumns = [
@@ -6371,8 +7786,12 @@ function MarketingAnalyticsModule({ activeModule }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Marketing Analytics</h2>
-        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Simple channel and customer analytics from sales activity.</p>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+          Marketing Analytics
+        </h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+          Simple channel and customer analytics from sales activity.
+        </p>
       </div>
       <AnalyticsFilterBar
         range={range}
@@ -6381,58 +7800,152 @@ function MarketingAnalyticsModule({ activeModule }) {
         setFrom={setFrom}
         to={to}
         setTo={setTo}
-        onCsv={() => exportCsvRows("marketing-analytics.csv", exportColumns, topCustomerRows)}
-        onExcel={() => exportExcelRows("marketing-analytics.xls", "Marketing Analytics", exportColumns, topCustomerRows)}
+        onCsv={() =>
+          exportCsvRows(
+            "marketing-analytics.csv",
+            exportColumns,
+            topCustomerRows,
+          )
+        }
+        onExcel={() =>
+          exportExcelRows(
+            "marketing-analytics.xls",
+            "Marketing Analytics",
+            exportColumns,
+            topCustomerRows,
+          )
+        }
         onPrint={handlePrint}
       />
-      {loading ? <StatsSkeleton stats={5} showChart /> : data ? (
+      {loading ? (
+        <StatsSkeleton stats={5} showChart />
+      ) : data ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-            <AnalyticsMetricCard label="Orders" value={Number(data.metrics.orders || 0).toLocaleString()} />
-            <AnalyticsMetricCard label="Revenue" value={fmtShort(data.metrics.revenue)} colorClass="text-emerald-500" />
-            <AnalyticsMetricCard label="Average Order Value" value={fmtShort(data.metrics.averageOrderValue)} colorClass="text-blue-500" />
-            <AnalyticsMetricCard label="Customers" value={Number(data.metrics.customers || 0).toLocaleString()} />
-            <AnalyticsMetricCard label="Repeat Customers" value={Number(data.metrics.repeatCustomers || 0).toLocaleString()} colorClass="text-indigo-600" />
+            <AnalyticsMetricCard
+              label="Orders"
+              value={Number(data.metrics.orders || 0).toLocaleString()}
+            />
+            <AnalyticsMetricCard
+              label="Revenue"
+              value={fmtShort(data.metrics.revenue)}
+              colorClass="text-emerald-500"
+            />
+            <AnalyticsMetricCard
+              label="Average Order Value"
+              value={fmtShort(data.metrics.averageOrderValue)}
+              colorClass="text-blue-500"
+            />
+            <AnalyticsMetricCard
+              label="Customers"
+              value={Number(data.metrics.customers || 0).toLocaleString()}
+            />
+            <AnalyticsMetricCard
+              label="Repeat Customers"
+              value={Number(data.metrics.repeatCustomers || 0).toLocaleString()}
+              colorClass="text-indigo-600"
+            />
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Sales by Channel</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Sales by Channel</CardTitle>
+              </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={data.charts.salesByChannel}>
-                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="channelName" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip formatter={(value) => Number(value || 0).toLocaleString("id-ID")} />
-                    <Bar dataKey="orders" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} />
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="channelName"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        Number(value || 0).toLocaleString("id-ID")
+                      }
+                    />
+                    <Bar
+                      dataKey="orders"
+                      fill="hsl(var(--chart-1))"
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Revenue by Channel</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Revenue by Channel</CardTitle>
+              </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={data.charts.revenueByChannel}>
-                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="channelName" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={fmtShort} />
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="channelName"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickFormatter={fmtShort}
+                    />
                     <Tooltip formatter={(value) => fmt(value)} />
-                    <Bar dataKey="revenue" fill="hsl(var(--chart-2))" radius={[6, 6, 0, 0]} />
+                    <Bar
+                      dataKey="revenue"
+                      fill="hsl(var(--chart-2))"
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Orders by Day</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Orders by Day</CardTitle>
+              </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={data.charts.ordersByDay}>
-                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip formatter={(value) => Number(value || 0).toLocaleString("id-ID")} />
-                    <Line type="monotone" dataKey="total" stroke="hsl(var(--chart-3))" strokeWidth={2} />
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="date"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        Number(value || 0).toLocaleString("id-ID")
+                      }
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="total"
+                      stroke="hsl(var(--chart-3))"
+                      strokeWidth={2}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -6440,14 +7953,41 @@ function MarketingAnalyticsModule({ activeModule }) {
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Top Customers</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Top Customers</CardTitle>
+              </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b border-border bg-[#F7F8FA]"><th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Orders</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Revenue</th></tr></thead>
+                    <thead>
+                      <tr className="border-b border-border bg-[#F7F8FA]">
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                          Customer
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                          Orders
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                          Revenue
+                        </th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {data.tables.topCustomers.map((row) => (
-                        <tr key={row.customerId || row.customerName} className="border-b border-[rgba(17,24,39,0.04)]"><td className="px-4 py-3 font-medium">{row.customerName}</td><td className="px-4 py-3 text-right">{row.orderCount}</td><td className="px-4 py-3 text-right text-emerald-500 font-semibold">{fmt(row.revenue)}</td></tr>
+                        <tr
+                          key={row.customerId || row.customerName}
+                          className="border-b border-[rgba(17,24,39,0.04)]"
+                        >
+                          <td className="px-4 py-3 font-medium">
+                            {row.customerName}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {row.orderCount}
+                          </td>
+                          <td className="px-4 py-3 text-right text-emerald-500 font-semibold">
+                            {fmt(row.revenue)}
+                          </td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
@@ -6455,14 +7995,39 @@ function MarketingAnalyticsModule({ activeModule }) {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Top Sales Channels</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Top Sales Channels</CardTitle>
+              </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b border-border bg-[#F7F8FA]"><th className="text-left px-4 py-3 font-medium text-muted-foreground">Channel</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Orders</th><th className="text-right px-4 py-3 font-medium text-muted-foreground">Revenue</th></tr></thead>
+                    <thead>
+                      <tr className="border-b border-border bg-[#F7F8FA]">
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                          Channel
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                          Orders
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                          Revenue
+                        </th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {data.tables.topSalesChannels.map((row) => (
-                        <tr key={row.channelId || row.channelName} className="border-b border-[rgba(17,24,39,0.04)]"><td className="px-4 py-3 font-medium">{row.channelName}</td><td className="px-4 py-3 text-right">{row.orders}</td><td className="px-4 py-3 text-right text-blue-500 font-semibold">{fmt(row.revenue)}</td></tr>
+                        <tr
+                          key={row.channelId || row.channelName}
+                          className="border-b border-[rgba(17,24,39,0.04)]"
+                        >
+                          <td className="px-4 py-3 font-medium">
+                            {row.channelName}
+                          </td>
+                          <td className="px-4 py-3 text-right">{row.orders}</td>
+                          <td className="px-4 py-3 text-right text-blue-500 font-semibold">
+                            {fmt(row.revenue)}
+                          </td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
@@ -6470,13 +8035,22 @@ function MarketingAnalyticsModule({ activeModule }) {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Newest Customers</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Newest Customers</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
                 {data.tables.newestCustomers.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                  <div
+                    key={row.id}
+                    className="rounded-xl border border-border/60 px-3 py-3 text-sm"
+                  >
                     <p className="font-medium truncate">{row.customerName}</p>
-                    <p className="text-xs text-muted-foreground mt-1 truncate">{row.email || row.phone || row.customerCode}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{new Date(row.createdAt).toLocaleDateString("id-ID")}</p>
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {row.email || row.phone || row.customerCode}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(row.createdAt).toLocaleDateString("id-ID")}
+                    </p>
                   </div>
                 ))}
               </CardContent>
@@ -6488,7 +8062,10 @@ function MarketingAnalyticsModule({ activeModule }) {
   );
 }
 
-function ExecutiveReportsModule({ activeModule, onOpenOrderReference = () => {} }) {
+function ExecutiveReportsModule({
+  activeModule,
+  onOpenOrderReference = () => {},
+}) {
   const [range, setRange] = useState("thisMonth");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -6498,14 +8075,21 @@ function ExecutiveReportsModule({ activeModule, onOpenOrderReference = () => {} 
   const load = async () => {
     if (range === "custom" && (!from || !to)) return;
     setLoading(true);
-    const result = await api.get("executivereports?" + buildAnalyticsQuery(range, from, to));
+    const result = await api.get(
+      "executivereports?" + buildAnalyticsQuery(range, from, to),
+    );
     setData(result?.error ? null : result);
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "executivereports", () => {
-    load();
-  }, [range, from, to]);
+  useLazyModuleEffect(
+    activeModule,
+    "executivereports",
+    () => {
+      load();
+    },
+    [range, from, to],
+  );
 
   const activityRows = data?.recentActivities?.latestOrders || [];
   const exportColumns = [
@@ -6541,8 +8125,12 @@ function ExecutiveReportsModule({ activeModule, onOpenOrderReference = () => {} 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Executive Report</h2>
-        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">One-page business summary for leadership decisions.</p>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+          Executive Report
+        </h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+          One-page business summary for leadership decisions.
+        </p>
       </div>
       <AnalyticsFilterBar
         range={range}
@@ -6551,77 +8139,160 @@ function ExecutiveReportsModule({ activeModule, onOpenOrderReference = () => {} 
         setFrom={setFrom}
         to={to}
         setTo={setTo}
-        onCsv={() => exportCsvRows("executive-report.csv", exportColumns, activityRows)}
-        onExcel={() => exportExcelRows("executive-report.xls", "Executive Report", exportColumns, activityRows)}
+        onCsv={() =>
+          exportCsvRows("executive-report.csv", exportColumns, activityRows)
+        }
+        onExcel={() =>
+          exportExcelRows(
+            "executive-report.xls",
+            "Executive Report",
+            exportColumns,
+            activityRows,
+          )
+        }
         onPrint={handlePrint}
       />
-      {loading ? <StatsSkeleton stats={8} showChart={false} /> : data ? (
+      {loading ? (
+        <StatsSkeleton stats={8} showChart={false} />
+      ) : data ? (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
-            <AnalyticsMetricCard label="Revenue" value={fmtShort(data.cards.revenue)} colorClass="text-emerald-500" />
-            <AnalyticsMetricCard label="Profit" value={fmtShort(data.cards.profit)} colorClass={data.cards.profit >= 0 ? "text-emerald-500" : "text-rose-400"} />
-            <AnalyticsMetricCard label="Cash" value={fmtShort(data.cards.cash)} colorClass="text-blue-500" />
-            <AnalyticsMetricCard label="Orders" value={Number(data.cards.orders || 0).toLocaleString()} />
-            <AnalyticsMetricCard label="Customers" value={Number(data.cards.customers || 0).toLocaleString()} />
-            <AnalyticsMetricCard label="Inventory Value" value={fmtShort(data.cards.inventoryValue)} colorClass="text-indigo-600" />
-            <AnalyticsMetricCard label="Production Cost" value={fmtShort(data.cards.productionCost)} colorClass="text-amber-500" />
-            <AnalyticsMetricCard label="Low Stock" value={Number(data.cards.lowStock || 0).toLocaleString()} colorClass="text-rose-400" />
+            <AnalyticsMetricCard
+              label="Revenue"
+              value={fmtShort(data.cards.revenue)}
+              colorClass="text-emerald-500"
+            />
+            <AnalyticsMetricCard
+              label="Profit"
+              value={fmtShort(data.cards.profit)}
+              colorClass={
+                data.cards.profit >= 0 ? "text-emerald-500" : "text-rose-400"
+              }
+            />
+            <AnalyticsMetricCard
+              label="Cash"
+              value={fmtShort(data.cards.cash)}
+              colorClass="text-blue-500"
+            />
+            <AnalyticsMetricCard
+              label="Orders"
+              value={Number(data.cards.orders || 0).toLocaleString()}
+            />
+            <AnalyticsMetricCard
+              label="Customers"
+              value={Number(data.cards.customers || 0).toLocaleString()}
+            />
+            <AnalyticsMetricCard
+              label="Inventory Value"
+              value={fmtShort(data.cards.inventoryValue)}
+              colorClass="text-indigo-600"
+            />
+            <AnalyticsMetricCard
+              label="Production Cost"
+              value={fmtShort(data.cards.productionCost)}
+              colorClass="text-amber-500"
+            />
+            <AnalyticsMetricCard
+              label="Low Stock"
+              value={Number(data.cards.lowStock || 0).toLocaleString()}
+              colorClass="text-rose-400"
+            />
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Latest Orders</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Latest Orders</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
                 {data.recentActivities.latestOrders.map((row) => (
-                  <button key={row.id} type="button" className="w-full rounded-xl border border-border/60 px-3 py-3 text-left hover:bg-[#F7F8FA]" onClick={() => onOpenOrderReference(row.orderNumber)}>
-                    <p className="font-mono text-xs text-blue-600 truncate">{row.orderNumber}</p>
+                  <button
+                    key={row.id}
+                    type="button"
+                    className="w-full rounded-xl border border-border/60 px-3 py-3 text-left hover:bg-[#F7F8FA]"
+                    onClick={() => onOpenOrderReference(row.orderNumber)}
+                  >
+                    <p className="font-mono text-xs text-blue-600 truncate">
+                      {row.orderNumber}
+                    </p>
                     <div className="flex items-center justify-between gap-2 mt-1">
-                      <span className="text-sm font-medium truncate">{row.customerName}</span>
-                      <span className="text-sm font-semibold text-emerald-500">{fmt(row.amount)}</span>
+                      <span className="text-sm font-medium truncate">
+                        {row.customerName}
+                      </span>
+                      <span className="text-sm font-semibold text-emerald-500">
+                        {fmt(row.amount)}
+                      </span>
                     </div>
                   </button>
                 ))}
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Latest Expenses</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Latest Expenses</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
                 {data.recentActivities.latestExpenses.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                  <div
+                    key={row.id}
+                    className="rounded-xl border border-border/60 px-3 py-3 text-sm"
+                  >
                     <p className="font-medium truncate">{row.category}</p>
                     <div className="flex items-center justify-between gap-2 mt-1 text-xs text-muted-foreground">
                       <span className="truncate">{row.description || "—"}</span>
                       <span>{row.date}</span>
                     </div>
-                    <p className="font-semibold text-rose-400 mt-2">{fmt(row.amount)}</p>
+                    <p className="font-semibold text-rose-400 mt-2">
+                      {fmt(row.amount)}
+                    </p>
                   </div>
                 ))}
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Latest Cash In</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Latest Cash In</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
                 {data.recentActivities.latestCashIn.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
-                    <p className="font-medium truncate">{row.financialAccountName}</p>
+                  <div
+                    key={row.id}
+                    className="rounded-xl border border-border/60 px-3 py-3 text-sm"
+                  >
+                    <p className="font-medium truncate">
+                      {row.financialAccountName}
+                    </p>
                     <div className="flex items-center justify-between gap-2 mt-1 text-xs text-muted-foreground">
                       <span className="truncate">{row.description || "—"}</span>
                       <span>{row.date}</span>
                     </div>
-                    <p className="font-semibold text-emerald-500 mt-2">{fmt(row.amount)}</p>
+                    <p className="font-semibold text-emerald-500 mt-2">
+                      {fmt(row.amount)}
+                    </p>
                   </div>
                 ))}
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Latest Production</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Latest Production</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
                 {data.recentActivities.latestProduction.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
+                  <div
+                    key={row.id}
+                    className="rounded-xl border border-border/60 px-3 py-3 text-sm"
+                  >
                     <p className="font-medium truncate">{row.resultNumber}</p>
-                    <p className="text-xs text-muted-foreground truncate mt-1">{row.productName}</p>
+                    <p className="text-xs text-muted-foreground truncate mt-1">
+                      {row.productName}
+                    </p>
                     <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs text-muted-foreground">{Number(row.quantity || 0).toLocaleString()} pcs</span>
-                      <span className="font-semibold text-amber-500">{fmt(row.totalProductionCost)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {Number(row.quantity || 0).toLocaleString()} pcs
+                      </span>
+                      <span className="font-semibold text-amber-500">
+                        {fmt(row.totalProductionCost)}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -6630,35 +8301,86 @@ function ExecutiveReportsModule({ activeModule, onOpenOrderReference = () => {} 
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Low Stock Alerts</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Low Stock Alerts</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
-                {data.alerts.lowStock.length === 0 ? <p className="text-sm text-muted-foreground">No low stock alerts.</p> : data.alerts.lowStock.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
-                    <p className="font-medium truncate">{row.productName}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{row.variant}</p>
-                    <p className="text-xs text-rose-400 mt-2">Qty {row.quantity} / Threshold {row.threshold}</p>
-                  </div>
-                ))}
+                {data.alerts.lowStock.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No low stock alerts.
+                  </p>
+                ) : (
+                  data.alerts.lowStock.map((row) => (
+                    <div
+                      key={row.id}
+                      className="rounded-xl border border-border/60 px-3 py-3 text-sm"
+                    >
+                      <p className="font-medium truncate">{row.productName}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {row.variant}
+                      </p>
+                      <p className="text-xs text-rose-400 mt-2">
+                        Qty {row.quantity} / Threshold {row.threshold}
+                      </p>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Operational Alerts</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Operational Alerts</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <div className="flex items-center justify-between"><span>Negative Cash Accounts</span><span className="font-semibold">{data.alerts.negativeCash.length}</span></div>
-                <div className="flex items-center justify-between"><span>Unposted Journal</span><span className="font-semibold">{data.alerts.unpostedJournalCount}</span></div>
-                <div className="flex items-center justify-between"><span>Pending Orders</span><span className="font-semibold">{data.alerts.pendingOrders}</span></div>
+                <div className="flex items-center justify-between">
+                  <span>Negative Cash Accounts</span>
+                  <span className="font-semibold">
+                    {data.alerts.negativeCash.length}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Unposted Journal</span>
+                  <span className="font-semibold">
+                    {data.alerts.unpostedJournalCount}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Pending Orders</span>
+                  <span className="font-semibold">
+                    {data.alerts.pendingOrders}
+                  </span>
+                </div>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Recent Failed Production</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Recent Failed Production
+                </CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
-                {data.alerts.recentFailedProduction.length === 0 ? <p className="text-sm text-muted-foreground">No failed production in selected period.</p> : data.alerts.recentFailedProduction.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 px-3 py-3 text-sm">
-                    <p className="font-medium truncate">{row.productionOrderNumber}</p>
-                    <p className="text-xs text-muted-foreground truncate mt-1">{row.productName}</p>
-                    <p className="text-xs text-muted-foreground mt-2">{new Date(row.updatedAt).toLocaleString("id-ID")}</p>
-                  </div>
-                ))}
+                {data.alerts.recentFailedProduction.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No failed production in selected period.
+                  </p>
+                ) : (
+                  data.alerts.recentFailedProduction.map((row) => (
+                    <div
+                      key={row.id}
+                      className="rounded-xl border border-border/60 px-3 py-3 text-sm"
+                    >
+                      <p className="font-medium truncate">
+                        {row.productionOrderNumber}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate mt-1">
+                        {row.productName}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {new Date(row.updatedAt).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>
@@ -6669,11 +8391,22 @@ function ExecutiveReportsModule({ activeModule, onOpenOrderReference = () => {} 
 }
 
 // =========== NOTIFICATIONS ===========
-function NotificationsModule({ activeModule, onOpenNotificationAction = () => {}, onRefreshSummary = () => {} }) {
+function NotificationsModule({
+  activeModule,
+  onOpenNotificationAction = () => {},
+  onRefreshSummary = () => {},
+}) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, limit: 20, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    totalItems: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
@@ -6683,20 +8416,34 @@ function NotificationsModule({ activeModule, onOpenNotificationAction = () => {}
     setLoading(true);
     const params = new URLSearchParams({
       page: String(nextPage),
-      limit: '20',
+      limit: "20",
       status: statusFilter,
       severity: severityFilter,
     });
-    if (search.trim()) params.set('search', search.trim());
+    if (search.trim()) params.set("search", search.trim());
     const result = await api.get(`notifications?${params.toString()}`);
     setItems(Array.isArray(result?.data) ? result.data : []);
-    setPagination(result?.pagination || { page: 1, limit: 20, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false });
+    setPagination(
+      result?.pagination || {
+        page: 1,
+        limit: 20,
+        totalItems: 0,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    );
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, ["notifications", "notificationsettings"], () => {
-    load(1);
-  }, [search, statusFilter, severityFilter]);
+  useLazyModuleEffect(
+    activeModule,
+    ["notifications", "notificationsettings"],
+    () => {
+      load(1);
+    },
+    [search, statusFilter, severityFilter],
+  );
 
   useEffect(() => {
     setPage(1);
@@ -6707,7 +8454,7 @@ function NotificationsModule({ activeModule, onOpenNotificationAction = () => {}
     const result = await api.put(`notifications/${item.id}`, {});
     setSubmitting(false);
     if (result?.error) {
-      toast.error(result.error || 'Failed to mark notification as read.');
+      toast.error(result.error || "Failed to mark notification as read.");
       return;
     }
     onRefreshSummary();
@@ -6717,26 +8464,26 @@ function NotificationsModule({ activeModule, onOpenNotificationAction = () => {}
 
   const markAllRead = async () => {
     setSubmitting(true);
-    const result = await api.post('notifications/mark-all-read', {});
+    const result = await api.post("notifications/mark-all-read", {});
     setSubmitting(false);
     if (result?.error) {
-      toast.error(result.error || 'Failed to mark all notifications as read.');
+      toast.error(result.error || "Failed to mark all notifications as read.");
       return;
     }
-    toast.success('All notifications marked as read.');
+    toast.success("All notifications marked as read.");
     onRefreshSummary();
     load(1);
   };
 
   const deleteRead = async () => {
     setSubmitting(true);
-    const result = await api.del('notifications/read');
+    const result = await api.del("notifications/read");
     setSubmitting(false);
     if (result?.error) {
-      toast.error(result.error || 'Failed to delete read notifications.');
+      toast.error(result.error || "Failed to delete read notifications.");
       return;
     }
-    toast.success('Read notifications deleted.');
+    toast.success("Read notifications deleted.");
     onRefreshSummary();
     load(1);
   };
@@ -6771,8 +8518,22 @@ function NotificationsModule({ activeModule, onOpenNotificationAction = () => {}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={markAllRead} disabled={submitting}>Mark All Read</Button>
-          <Button variant="outline" size="sm" onClick={deleteRead} disabled={submitting}>Delete Read</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={markAllRead}
+            disabled={submitting}
+          >
+            Mark All Read
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={deleteRead}
+            disabled={submitting}
+          >
+            Delete Read
+          </Button>
         </div>
       </div>
 
@@ -6783,13 +8544,20 @@ function NotificationsModule({ activeModule, onOpenNotificationAction = () => {}
               <Label>Search</Label>
               <div className="relative mt-1.5">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, message, type, or reference…" />
+                <Input
+                  className="pl-9"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search title, message, type, or reference…"
+                />
               </div>
             </div>
             <div>
               <Label>Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="unread">Unread</SelectItem>
@@ -6800,7 +8568,9 @@ function NotificationsModule({ activeModule, onOpenNotificationAction = () => {}
             <div>
               <Label>Severity</Label>
               <Select value={severityFilter} onValueChange={setSeverityFilter}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="critical">Critical</SelectItem>
@@ -6817,49 +8587,87 @@ function NotificationsModule({ activeModule, onOpenNotificationAction = () => {}
       <div className="space-y-2">
         {items.length === 0 ? (
           <Card>
-            <CardContent className="p-10 text-center text-sm text-muted-foreground">No notifications found.</CardContent>
-          </Card>
-        ) : items.map((n) => (
-          <Card
-            key={n.id}
-            className={`${!n.read ? "bg-secondary/30" : ""} cursor-pointer`}
-            onClick={() => (!n.read ? markRead(n) : onOpenNotificationAction(n))}
-          >
-            <CardContent className="p-4 flex items-start gap-3">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${sevColor[n.severity] || ""}`}>
-                <Bell className="h-4 w-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <p className="font-medium">{n.title}</p>
-                  <Badge variant="outline" className="text-[10px]">{n.type}</Badge>
-                  {!n.read ? <span className="w-2 h-2 rounded-full bg-blue-500" /> : null}
-                </div>
-                <p className="text-sm text-muted-foreground">{n.message}</p>
-                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
-                  <span>{n.module || 'SYSTEM'}</span>
-                  <span>{n.referenceId || '—'}</span>
-                  <span>{n.relativeTime || new Date(n.createdAt).toLocaleString('id-ID')}</span>
-                </div>
-              </div>
-              <span className="text-xs text-muted-foreground shrink-0">
-                {new Date(n.createdAt).toLocaleDateString()}
-              </span>
+            <CardContent className="p-10 text-center text-sm text-muted-foreground">
+              No notifications found.
             </CardContent>
           </Card>
-        ))}
+        ) : (
+          items.map((n) => (
+            <Card
+              key={n.id}
+              className={`${!n.read ? "bg-secondary/30" : ""} cursor-pointer`}
+              onClick={() =>
+                !n.read ? markRead(n) : onOpenNotificationAction(n)
+              }
+            >
+              <CardContent className="p-4 flex items-start gap-3">
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center ${sevColor[n.severity] || ""}`}
+                >
+                  <Bell className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <p className="font-medium">{n.title}</p>
+                    <Badge variant="outline" className="text-[10px]">
+                      {n.type}
+                    </Badge>
+                    {!n.read ? (
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    ) : null}
+                  </div>
+                  <p className="text-sm text-muted-foreground">{n.message}</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                    <span>{n.module || "SYSTEM"}</span>
+                    <span>{n.referenceId || "—"}</span>
+                    <span>
+                      {n.relativeTime ||
+                        new Date(n.createdAt).toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {new Date(n.createdAt).toLocaleDateString()}
+                </span>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       {pagination.totalPages > 1 ? (
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
-            Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.totalItems)} of {pagination.totalItems}
+            Showing {(pagination.page - 1) * pagination.limit + 1}–
+            {Math.min(
+              pagination.page * pagination.limit,
+              pagination.totalItems,
+            )}{" "}
+            of {pagination.totalItems}
           </span>
           <div className="flex gap-1">
-            <Button variant="outline" size="sm" disabled={!pagination.hasPreviousPage} onClick={() => { const nextPage = Math.max(1, pagination.page - 1); setPage(nextPage); load(nextPage); }}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!pagination.hasPreviousPage}
+              onClick={() => {
+                const nextPage = Math.max(1, pagination.page - 1);
+                setPage(nextPage);
+                load(nextPage);
+              }}
+            >
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="outline" size="sm" disabled={!pagination.hasNextPage} onClick={() => { const nextPage = pagination.page + 1; setPage(nextPage); load(nextPage); }}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!pagination.hasNextPage}
+              onClick={() => {
+                const nextPage = pagination.page + 1;
+                setPage(nextPage);
+                load(nextPage);
+              }}
+            >
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -6903,9 +8711,14 @@ function FinancialAccountModule({ activeModule }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "financialaccounts", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "financialaccounts",
+    () => {
+      load();
+    },
+    [],
+  );
 
   const emptyForm = {
     name: "",
@@ -7562,9 +9375,14 @@ function ExpenseCategoriesModule({ activeModule }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "expensecategories", () => {
-    load();
-  }, [search, statusFilter]);
+  useLazyModuleEffect(
+    activeModule,
+    "expensecategories",
+    () => {
+      load();
+    },
+    [search, statusFilter],
+  );
 
   const save = async (form) => {
     const payload = {
@@ -7582,7 +9400,9 @@ function ExpenseCategoriesModule({ activeModule }) {
       return;
     }
 
-    toast.success(editing?.id ? "Expense category updated" : "Expense category created");
+    toast.success(
+      editing?.id ? "Expense category updated" : "Expense category created",
+    );
     setShowForm(false);
     setEditing(null);
     load();
@@ -7600,7 +9420,11 @@ function ExpenseCategoriesModule({ activeModule }) {
       return;
     }
 
-    toast.success(status === "Archived" ? "Expense category archived" : "Expense category restored");
+    toast.success(
+      status === "Archived"
+        ? "Expense category archived"
+        : "Expense category restored",
+    );
     load();
   };
 
@@ -7657,19 +9481,25 @@ function ExpenseCategoriesModule({ activeModule }) {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Categories</p>
-            <p className="text-2xl font-semibold mt-1">{stats?.total || items.length}</p>
+            <p className="text-2xl font-semibold mt-1">
+              {stats?.total || items.length}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Active</p>
-            <p className="text-2xl font-semibold mt-1 text-emerald-500">{stats?.active || 0}</p>
+            <p className="text-2xl font-semibold mt-1 text-emerald-500">
+              {stats?.active || 0}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Archived</p>
-            <p className="text-2xl font-semibold mt-1 text-amber-500">{stats?.archived || 0}</p>
+            <p className="text-2xl font-semibold mt-1 text-amber-500">
+              {stats?.archived || 0}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -7701,17 +9531,28 @@ function ExpenseCategoriesModule({ activeModule }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-[#F7F8FA]">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Category</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Used In Cash Out</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Category
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Description
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  Used In Cash Out
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Status
+                </th>
                 <th className="px-4 py-3 w-10" />
               </tr>
             </thead>
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                  <td
+                    colSpan={5}
+                    className="px-4 py-12 text-center text-muted-foreground"
+                  >
                     <FileText className="h-8 w-8 mx-auto mb-3 opacity-30" />
                     No expense categories found.
                   </td>
@@ -7726,14 +9567,23 @@ function ExpenseCategoriesModule({ activeModule }) {
                     >
                       <td className="px-4 py-3">
                         <div>
-                          <p className="font-medium text-[#111827]">{item.name}</p>
+                          <p className="font-medium text-[#111827]">
+                            {item.name}
+                          </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Created {item.createdAt ? new Date(item.createdAt).toLocaleDateString("id-ID") : "—"}
+                            Created{" "}
+                            {item.createdAt
+                              ? new Date(item.createdAt).toLocaleDateString(
+                                  "id-ID",
+                                )
+                              : "—"}
                           </p>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground max-w-[320px]">
-                        <p className="line-clamp-2">{item.description || "—"}</p>
+                        <p className="line-clamp-2">
+                          {item.description || "—"}
+                        </p>
                       </td>
                       <td className="px-4 py-3 text-right font-medium">
                         {item._count?.cashTransactions || 0}
@@ -7753,7 +9603,11 @@ function ExpenseCategoriesModule({ activeModule }) {
                       <td className="px-4 py-3">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -7767,7 +9621,12 @@ function ExpenseCategoriesModule({ activeModule }) {
                               <Edit3 className="h-4 w-4 mr-2" /> Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => updateStatus(item, isArchived ? "Active" : "Archived")}
+                              onClick={() =>
+                                updateStatus(
+                                  item,
+                                  isArchived ? "Active" : "Archived",
+                                )
+                              }
                             >
                               {isArchived ? (
                                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -7813,7 +9672,12 @@ function ExpenseCategoriesModule({ activeModule }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Expense Category</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete <span className="font-medium text-foreground">{deleteTarget?.name}</span>? This can only be done when the category is not used by any Cash Out transaction.
+              Delete{" "}
+              <span className="font-medium text-foreground">
+                {deleteTarget?.name}
+              </span>
+              ? This can only be done when the category is not used by any Cash
+              Out transaction.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -7855,8 +9719,12 @@ function ExpenseCategoryFormDialog({ open, onOpenChange, initial, onSave }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{initial?.id ? "Edit Expense Category" : "New Expense Category"}</DialogTitle>
-          <DialogDescription>Control the category master used by Cash Out.</DialogDescription>
+          <DialogTitle>
+            {initial?.id ? "Edit Expense Category" : "New Expense Category"}
+          </DialogTitle>
+          <DialogDescription>
+            Control the category master used by Cash Out.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -7865,7 +9733,9 @@ function ExpenseCategoryFormDialog({ open, onOpenChange, initial, onSave }) {
             </Label>
             <Input
               value={form.name || ""}
-              onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))}
+              onChange={(e) =>
+                setForm((current) => ({ ...current, name: e.target.value }))
+              }
               placeholder="e.g. Utilities"
             />
           </div>
@@ -7873,7 +9743,12 @@ function ExpenseCategoryFormDialog({ open, onOpenChange, initial, onSave }) {
             <Label>Description</Label>
             <Textarea
               value={form.description || ""}
-              onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))}
+              onChange={(e) =>
+                setForm((current) => ({
+                  ...current,
+                  description: e.target.value,
+                }))
+              }
               placeholder="Optional description for this category"
               rows={3}
             />
@@ -7882,7 +9757,9 @@ function ExpenseCategoryFormDialog({ open, onOpenChange, initial, onSave }) {
             <Label>Status</Label>
             <Select
               value={form.status || "Active"}
-              onValueChange={(value) => setForm((current) => ({ ...current, status: value }))}
+              onValueChange={(value) =>
+                setForm((current) => ({ ...current, status: value }))
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -7898,25 +9775,71 @@ function ExpenseCategoryFormDialog({ open, onOpenChange, initial, onSave }) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={submit}>{initial?.id ? "Save Changes" : "Create Category"}</Button>
+          <Button onClick={submit}>
+            {initial?.id ? "Save Changes" : "Create Category"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-
 // =========== PROFIT ALLOCATION ===========
 const BASELINE_PROFIT_ALLOCATION_RULES_UI = [
-  { allocationName: "Owner Take", percentage: 30, isActive: true, displayOrder: 1 },
-  { allocationName: "Investor", percentage: 10, isActive: true, displayOrder: 2 },
-  { allocationName: "Company Asset Purchase", percentage: 5, isActive: true, displayOrder: 3 },
-  { allocationName: "Company Savings", percentage: 5, isActive: true, displayOrder: 4 },
-  { allocationName: "Salary Pool", percentage: 15, isActive: true, displayOrder: 5 },
-  { allocationName: "Marketing", percentage: 10, isActive: true, displayOrder: 6 },
-  { allocationName: "Product Development", percentage: 12, isActive: true, displayOrder: 7 },
-  { allocationName: "Operational Reserve", percentage: 8, isActive: true, displayOrder: 8 },
-  { allocationName: "Zakat / Social Impact", percentage: 5, isActive: true, displayOrder: 9 },
+  {
+    allocationName: "Owner Take",
+    percentage: 30,
+    isActive: true,
+    displayOrder: 1,
+  },
+  {
+    allocationName: "Investor",
+    percentage: 10,
+    isActive: true,
+    displayOrder: 2,
+  },
+  {
+    allocationName: "Company Asset Purchase",
+    percentage: 5,
+    isActive: true,
+    displayOrder: 3,
+  },
+  {
+    allocationName: "Company Savings",
+    percentage: 5,
+    isActive: true,
+    displayOrder: 4,
+  },
+  {
+    allocationName: "Salary Pool",
+    percentage: 15,
+    isActive: true,
+    displayOrder: 5,
+  },
+  {
+    allocationName: "Marketing",
+    percentage: 10,
+    isActive: true,
+    displayOrder: 6,
+  },
+  {
+    allocationName: "Product Development",
+    percentage: 12,
+    isActive: true,
+    displayOrder: 7,
+  },
+  {
+    allocationName: "Operational Reserve",
+    percentage: 8,
+    isActive: true,
+    displayOrder: 8,
+  },
+  {
+    allocationName: "Zakat / Social Impact",
+    percentage: 5,
+    isActive: true,
+    displayOrder: 9,
+  },
 ];
 
 function calculateAllocationTotal(rules = []) {
@@ -7931,12 +9854,17 @@ function formatPercentage(value) {
 
 function allocationStatusBadge(status) {
   const normalized = status || "Draft";
-  const className = normalized === "Active"
-    ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/5"
-    : normalized === "Inactive"
-      ? "border-slate-300 text-slate-500 bg-slate-50"
-      : "border-amber-500/40 text-amber-600 bg-amber-500/5";
-  return <Badge variant="outline" className={className}>{normalized}</Badge>;
+  const className =
+    normalized === "Active"
+      ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/5"
+      : normalized === "Inactive"
+        ? "border-slate-300 text-slate-500 bg-slate-50"
+        : "border-amber-500/40 text-amber-600 bg-amber-500/5";
+  return (
+    <Badge variant="outline" className={className}>
+      {normalized}
+    </Badge>
+  );
 }
 
 function ProfitAllocationModule({ activeModule }) {
@@ -7959,20 +9887,33 @@ function ProfitAllocationModule({ activeModule }) {
     const nextPolicies = Array.isArray(result?.policies) ? result.policies : [];
     setPolicies(nextPolicies);
     setSelectedPolicyId((current) => {
-      if (current && nextPolicies.some((policy) => policy.id === current)) return current;
+      if (current && nextPolicies.some((policy) => policy.id === current))
+        return current;
       return result?.activePolicy?.id || nextPolicies[0]?.id || "";
     });
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "profitallocation", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "profitallocation",
+    () => {
+      load();
+    },
+    [],
+  );
 
-  const activePolicy = policies.find((policy) => policy.status === "Active") || null;
-  const selectedPolicy = policies.find((policy) => policy.id === selectedPolicyId) || activePolicy || policies[0] || null;
+  const activePolicy =
+    policies.find((policy) => policy.status === "Active") || null;
+  const selectedPolicy =
+    policies.find((policy) => policy.id === selectedPolicyId) ||
+    activePolicy ||
+    policies[0] ||
+    null;
   const rules = selectedPolicy?.rules || [];
-  const activeTotal = Number(selectedPolicy?.activeTotalPercentage ?? calculateAllocationTotal(rules));
+  const activeTotal = Number(
+    selectedPolicy?.activeTotalPercentage ?? calculateAllocationTotal(rules),
+  );
   const totalIsValid = Math.abs(activeTotal - 100) < 0.0001;
 
   const openNewPolicy = () => {
@@ -7995,7 +9936,11 @@ function ProfitAllocationModule({ activeModule }) {
       return;
     }
 
-    toast.success(editingPolicy?.id ? "Allocation policy updated" : "Allocation policy created");
+    toast.success(
+      editingPolicy?.id
+        ? "Allocation policy updated"
+        : "Allocation policy created",
+    );
     setShowForm(false);
     setEditingPolicy(null);
     await load();
@@ -8014,7 +9959,11 @@ function ProfitAllocationModule({ activeModule }) {
       return;
     }
 
-    toast.success(status === "Active" ? "Allocation policy activated" : "Allocation policy updated");
+    toast.success(
+      status === "Active"
+        ? "Allocation policy activated"
+        : "Allocation policy updated",
+    );
     await load();
   };
 
@@ -8039,7 +9988,8 @@ function ProfitAllocationModule({ activeModule }) {
             Profit Allocation
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Manage target policy rules for profit allocation. This does not create journals, cash movement, or spending limits.
+            Manage target policy rules for profit allocation. This does not
+            create journals, cash movement, or spending limits.
           </p>
         </div>
         <Button onClick={openNewPolicy} className="gap-2">
@@ -8051,13 +10001,17 @@ function ProfitAllocationModule({ activeModule }) {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Active Policy</p>
-            <p className="text-lg font-semibold mt-1 truncate">{activePolicy?.name || "—"}</p>
+            <p className="text-lg font-semibold mt-1 truncate">
+              {activePolicy?.name || "—"}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Allocation</p>
-            <p className={`text-2xl font-semibold mt-1 ${totalIsValid ? "text-emerald-600" : "text-rose-500"}`}>
+            <p
+              className={`text-2xl font-semibold mt-1 ${totalIsValid ? "text-emerald-600" : "text-rose-500"}`}
+            >
               {formatPercentage(activeTotal)}
             </p>
           </CardContent>
@@ -8075,15 +10029,22 @@ function ProfitAllocationModule({ activeModule }) {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <CardTitle className="text-base">Allocation Policy</CardTitle>
-              <CardDescription>Select a policy to review its allocation rules.</CardDescription>
+              <CardDescription>
+                Select a policy to review its allocation rules.
+              </CardDescription>
             </div>
-            <Select value={selectedPolicy?.id || ""} onValueChange={setSelectedPolicyId}>
+            <Select
+              value={selectedPolicy?.id || ""}
+              onValueChange={setSelectedPolicyId}
+            >
               <SelectTrigger className="w-full sm:w-[320px]">
                 <SelectValue placeholder="Select policy" />
               </SelectTrigger>
               <SelectContent>
                 {policies.map((policy) => (
-                  <SelectItem key={policy.id} value={policy.id}>{policy.name}</SelectItem>
+                  <SelectItem key={policy.id} value={policy.id}>
+                    {policy.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -8095,37 +10056,70 @@ function ProfitAllocationModule({ activeModule }) {
               <div className="flex items-start justify-between gap-3 flex-wrap rounded-xl border bg-[#F7F8FA] p-4">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-[#111827]">{selectedPolicy.name}</h3>
+                    <h3 className="font-semibold text-[#111827]">
+                      {selectedPolicy.name}
+                    </h3>
                     {allocationStatusBadge(selectedPolicy.status)}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedPolicy.description || "No description."}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedPolicy.description || "No description."}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Policy percentages are targets only. Existing Finance Cash Out and Journal workflows remain unchanged.
+                    Policy percentages are targets only. Existing Finance Cash
+                    Out and Journal workflows remain unchanged.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {selectedPolicy.status !== "Active" ? (
-                    <Button variant="outline" onClick={() => updatePolicyStatus(selectedPolicy, "Active")}>Activate</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        updatePolicyStatus(selectedPolicy, "Active")
+                      }
+                    >
+                      Activate
+                    </Button>
                   ) : (
-                    <Button variant="outline" onClick={() => updatePolicyStatus(selectedPolicy, "Inactive")}>Set Inactive</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        updatePolicyStatus(selectedPolicy, "Inactive")
+                      }
+                    >
+                      Set Inactive
+                    </Button>
                   )}
-                  <Button onClick={() => openEditPolicy(selectedPolicy)} className="gap-2">
+                  <Button
+                    onClick={() => openEditPolicy(selectedPolicy)}
+                    className="gap-2"
+                  >
                     <Edit3 className="h-4 w-4" /> Edit Policy
                   </Button>
                 </div>
               </div>
 
-              <div className={`rounded-xl border p-4 ${totalIsValid ? "border-emerald-500/30 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/5"}`}>
+              <div
+                className={`rounded-xl border p-4 ${totalIsValid ? "border-emerald-500/30 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/5"}`}
+              >
                 <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <p className="font-semibold">Total Allocation: {formatPercentage(activeTotal)}</p>
+                  <p className="font-semibold">
+                    Total Allocation: {formatPercentage(activeTotal)}
+                  </p>
                   {totalIsValid ? (
-                    <Badge className="bg-emerald-500/10 text-emerald-600">Valid 100%</Badge>
+                    <Badge className="bg-emerald-500/10 text-emerald-600">
+                      Valid 100%
+                    </Badge>
                   ) : (
-                    <Badge className="bg-rose-500/10 text-rose-600">Must equal 100%</Badge>
+                    <Badge className="bg-rose-500/10 text-rose-600">
+                      Must equal 100%
+                    </Badge>
                   )}
                 </div>
                 {!totalIsValid ? (
-                  <p className="text-sm text-rose-600 mt-2">This policy cannot be activated until active rules total exactly 100%.</p>
+                  <p className="text-sm text-rose-600 mt-2">
+                    This policy cannot be activated until active rules total
+                    exactly 100%.
+                  </p>
                 ) : null}
               </div>
 
@@ -8134,36 +10128,69 @@ function ProfitAllocationModule({ activeModule }) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-[#F7F8FA]">
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Order</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Allocation</th>
-                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">Percentage</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                          Order
+                        </th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                          Allocation
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                          Percentage
+                        </th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                          Status
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {rules.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">No allocation rules found.</td>
-                        </tr>
-                      ) : rules.map((rule) => (
-                        <tr key={rule.id} className="border-b border-[rgba(17,24,39,0.04)]">
-                          <td className="px-4 py-3 text-muted-foreground">{rule.displayOrder}</td>
-                          <td className="px-4 py-3 font-medium text-[#111827]">{rule.allocationName}</td>
-                          <td className="px-4 py-3 text-right font-semibold">{formatPercentage(rule.percentage)}</td>
-                          <td className="px-4 py-3">
-                            <Badge variant="outline" className={rule.isActive ? "border-emerald-500/40 text-emerald-600" : "border-slate-300 text-slate-500"}>
-                              {rule.isActive ? "Active" : "Inactive"}
-                            </Badge>
+                          <td
+                            colSpan={4}
+                            className="px-4 py-10 text-center text-muted-foreground"
+                          >
+                            No allocation rules found.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        rules.map((rule) => (
+                          <tr
+                            key={rule.id}
+                            className="border-b border-[rgba(17,24,39,0.04)]"
+                          >
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {rule.displayOrder}
+                            </td>
+                            <td className="px-4 py-3 font-medium text-[#111827]">
+                              {rule.allocationName}
+                            </td>
+                            <td className="px-4 py-3 text-right font-semibold">
+                              {formatPercentage(rule.percentage)}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  rule.isActive
+                                    ? "border-emerald-500/40 text-emerald-600"
+                                    : "border-slate-300 text-slate-500"
+                                }
+                              >
+                                {rule.isActive ? "Active" : "Inactive"}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
               </Card>
             </div>
           ) : (
-            <div className="py-12 text-center text-muted-foreground">No allocation policy found.</div>
+            <div className="py-12 text-center text-muted-foreground">
+              No allocation policy found.
+            </div>
           )}
         </CardContent>
       </Card>
@@ -8186,7 +10213,10 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
     name: "",
     description: "",
     status: "Draft",
-    rules: BASELINE_PROFIT_ALLOCATION_RULES_UI.map((rule) => ({ ...rule, id: "" })),
+    rules: BASELINE_PROFIT_ALLOCATION_RULES_UI.map((rule) => ({
+      ...rule,
+      id: "",
+    })),
   });
   const [form, setForm] = useState(buildEmpty);
 
@@ -8215,7 +10245,9 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
   const updateRule = (index, patch) => {
     setForm((current) => ({
       ...current,
-      rules: current.rules.map((rule, ruleIndex) => ruleIndex === index ? { ...rule, ...patch } : rule),
+      rules: current.rules.map((rule, ruleIndex) =>
+        ruleIndex === index ? { ...rule, ...patch } : rule,
+      ),
     }));
   };
 
@@ -8251,7 +10283,12 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
       toast.error("Allocation name is required");
       return;
     }
-    if (form.rules.some((rule) => Number(rule.percentage) < 0 || Number.isNaN(Number(rule.percentage)))) {
+    if (
+      form.rules.some(
+        (rule) =>
+          Number(rule.percentage) < 0 || Number.isNaN(Number(rule.percentage)),
+      )
+    ) {
       toast.error("Percentage must be a valid non-negative number");
       return;
     }
@@ -8276,21 +10313,42 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{initial?.id ? "Edit Allocation Policy" : "New Allocation Policy"}</DialogTitle>
+          <DialogTitle>
+            {initial?.id ? "Edit Allocation Policy" : "New Allocation Policy"}
+          </DialogTitle>
           <DialogDescription>
-            Configure target profit allocation rules. This policy does not post journals or limit Cash Out transactions.
+            Configure target profit allocation rules. This policy does not post
+            journals or limit Cash Out transactions.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5 md:col-span-2">
-              <Label>Policy Name <span className="text-rose-400">*</span></Label>
-              <Input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. 2026 Profit Allocation" />
+              <Label>
+                Policy Name <span className="text-rose-400">*</span>
+              </Label>
+              <Input
+                value={form.name}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                placeholder="e.g. 2026 Profit Allocation"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.status}
+                onValueChange={(value) =>
+                  setForm((current) => ({ ...current, status: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Draft">Draft</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
@@ -8300,21 +10358,54 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
             </div>
             <div className="space-y-1.5 md:col-span-3">
               <Label>Description</Label>
-              <Textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows={2} placeholder="Optional policy notes" />
+              <Textarea
+                value={form.description}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                rows={2}
+                placeholder="Optional policy notes"
+              />
             </div>
           </div>
 
-          <div className={`rounded-xl border p-4 ${totalIsValid ? "border-emerald-500/30 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/5"}`}>
+          <div
+            className={`rounded-xl border p-4 ${totalIsValid ? "border-emerald-500/30 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/5"}`}
+          >
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <p className="font-semibold">Total Allocation: {formatPercentage(total)}</p>
-              {totalIsValid ? <Badge className="bg-emerald-500/10 text-emerald-600">Valid 100%</Badge> : <Badge className="bg-rose-500/10 text-rose-600">Must equal 100%</Badge>}
+              <p className="font-semibold">
+                Total Allocation: {formatPercentage(total)}
+              </p>
+              {totalIsValid ? (
+                <Badge className="bg-emerald-500/10 text-emerald-600">
+                  Valid 100%
+                </Badge>
+              ) : (
+                <Badge className="bg-rose-500/10 text-rose-600">
+                  Must equal 100%
+                </Badge>
+              )}
             </div>
-            {!totalIsValid ? <p className="text-sm text-rose-600 mt-2">Policy can be saved as Draft/Inactive, but cannot be activated until active rules total exactly 100%.</p> : null}
+            {!totalIsValid ? (
+              <p className="text-sm text-rose-600 mt-2">
+                Policy can be saved as Draft/Inactive, but cannot be activated
+                until active rules total exactly 100%.
+              </p>
+            ) : null}
           </div>
 
           <div className="flex items-center justify-between gap-3">
             <Label>Allocation Rules</Label>
-            <Button type="button" variant="outline" size="sm" onClick={addRule} className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addRule}
+              className="gap-2"
+            >
               <Plus className="h-4 w-4" /> Add Rule
             </Button>
           </div>
@@ -8323,30 +10414,78 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-[#F7F8FA]">
-                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-24">Order</th>
-                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Allocation Name</th>
-                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-36">Percentage</th>
-                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-32">Active</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-24">
+                    Order
+                  </th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">
+                    Allocation Name
+                  </th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-36">
+                    Percentage
+                  </th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-32">
+                    Active
+                  </th>
                   <th className="px-3 py-2 w-12" />
                 </tr>
               </thead>
               <tbody>
                 {form.rules.map((rule, index) => (
-                  <tr key={`${rule.id || "new"}-${index}`} className="border-b last:border-b-0">
+                  <tr
+                    key={`${rule.id || "new"}-${index}`}
+                    className="border-b last:border-b-0"
+                  >
                     <td className="px-3 py-2">
-                      <Input type="number" value={rule.displayOrder} onChange={(event) => updateRule(index, { displayOrder: Number(event.target.value || 0) })} />
+                      <Input
+                        type="number"
+                        value={rule.displayOrder}
+                        onChange={(event) =>
+                          updateRule(index, {
+                            displayOrder: Number(event.target.value || 0),
+                          })
+                        }
+                      />
                     </td>
                     <td className="px-3 py-2">
-                      <Input value={rule.allocationName} onChange={(event) => updateRule(index, { allocationName: event.target.value })} placeholder="Allocation name" />
+                      <Input
+                        value={rule.allocationName}
+                        onChange={(event) =>
+                          updateRule(index, {
+                            allocationName: event.target.value,
+                          })
+                        }
+                        placeholder="Allocation name"
+                      />
                     </td>
                     <td className="px-3 py-2">
-                      <Input type="number" min="0" step="0.01" value={rule.percentage} onChange={(event) => updateRule(index, { percentage: Number(event.target.value || 0) })} />
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={rule.percentage}
+                        onChange={(event) =>
+                          updateRule(index, {
+                            percentage: Number(event.target.value || 0),
+                          })
+                        }
+                      />
                     </td>
                     <td className="px-3 py-2">
-                      <Switch checked={rule.isActive !== false} onCheckedChange={(value) => updateRule(index, { isActive: value })} />
+                      <Switch
+                        checked={rule.isActive !== false}
+                        onCheckedChange={(value) =>
+                          updateRule(index, { isActive: value })
+                        }
+                      />
                     </td>
                     <td className="px-3 py-2 text-right">
-                      <Button type="button" variant="ghost" size="icon" className="text-rose-500" onClick={() => removeRule(index)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-rose-500"
+                        onClick={() => removeRule(index)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
@@ -8357,8 +10496,12 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave }) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit}>{initial?.id ? "Save Changes" : "Create Policy"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={submit}>
+            {initial?.id ? "Save Changes" : "Create Policy"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -8413,7 +10556,9 @@ function CashTransactionModule({ type, activeModule }) {
       isExpenseMode ? api.get("expensecategories") : Promise.resolve([]),
     ]);
     setItems(Array.isArray(txns) ? txns : []);
-    setFinancialAccounts(Array.isArray(fas) ? fas.filter((account) => account.isActive) : []);
+    setFinancialAccounts(
+      Array.isArray(fas) ? fas.filter((account) => account.isActive) : [],
+    );
     setCoaAccounts(
       Array.isArray(coas)
         ? coas.filter((account) => account.allowTransaction && account.isActive)
@@ -8423,9 +10568,14 @@ function CashTransactionModule({ type, activeModule }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, type === "IN" ? "cashin" : "cashout", () => {
-    load();
-  }, [type]);
+  useLazyModuleEffect(
+    activeModule,
+    type === "IN" ? "cashin" : "cashout",
+    () => {
+      load();
+    },
+    [type],
+  );
 
   const handleSort = (field) => {
     if (sortBy === field) {
@@ -8441,19 +10591,21 @@ function CashTransactionModule({ type, activeModule }) {
     const query = search.trim().toLowerCase();
     const rows = items.filter((item) => {
       const attachment = parseAttachment(item.attachment);
-      const matchSearch = !query || [
-        item.referenceNumber,
-        item.description,
-        item.notes,
-        item.vendor,
-        item.paymentMethod,
-        item.expenseCategoryName,
-        item.financialAccount?.name,
-        item.chartOfAccount?.accountName,
-        attachment?.name,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
+      const matchSearch =
+        !query ||
+        [
+          item.referenceNumber,
+          item.description,
+          item.notes,
+          item.vendor,
+          item.paymentMethod,
+          item.expenseCategoryName,
+          item.financialAccount?.name,
+          item.chartOfAccount?.accountName,
+          attachment?.name,
+        ]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query));
       const matchFrom = !dateFrom || item.transactionDate >= dateFrom;
       const matchTo = !dateTo || item.transactionDate <= dateTo;
       return matchSearch && matchFrom && matchTo;
@@ -8463,14 +10615,17 @@ function CashTransactionModule({ type, activeModule }) {
       const direction = sortDirection === "asc" ? 1 : -1;
       const leftValue = (() => {
         if (sortBy === "amount") return Number(left.amount || 0);
-        if (sortBy === "financialAccount") return left.financialAccount?.name || "";
+        if (sortBy === "financialAccount")
+          return left.financialAccount?.name || "";
         if (sortBy === "expenseCategory") return left.expenseCategoryName || "";
         return left.transactionDate || "";
       })();
       const rightValue = (() => {
         if (sortBy === "amount") return Number(right.amount || 0);
-        if (sortBy === "financialAccount") return right.financialAccount?.name || "";
-        if (sortBy === "expenseCategory") return right.expenseCategoryName || "";
+        if (sortBy === "financialAccount")
+          return right.financialAccount?.name || "";
+        if (sortBy === "expenseCategory")
+          return right.expenseCategoryName || "";
         return right.transactionDate || "";
       })();
 
@@ -8486,9 +10641,15 @@ function CashTransactionModule({ type, activeModule }) {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE_CASH));
   const safePage = Math.min(page, totalPages);
-  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE_CASH, safePage * PAGE_SIZE_CASH);
+  const paginated = filtered.slice(
+    (safePage - 1) * PAGE_SIZE_CASH,
+    safePage * PAGE_SIZE_CASH,
+  );
 
-  const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalAmount = items.reduce(
+    (sum, item) => sum + Number(item.amount || 0),
+    0,
+  );
   const currentMonthPrefix = new Date().toISOString().slice(0, 7);
   const monthAmount = items
     .filter((item) => item.transactionDate?.startsWith(currentMonthPrefix))
@@ -8499,13 +10660,16 @@ function CashTransactionModule({ type, activeModule }) {
   const amountClass = isExpenseMode ? "text-rose-500" : "text-emerald-500";
 
   const save = async (data) => {
-    const selectedFinancialAccount = financialAccounts.find((account) => account.id === data.financialAccountId);
+    const selectedFinancialAccount = financialAccounts.find(
+      (account) => account.id === data.financialAccountId,
+    );
     const payload = {
       ...data,
       transactionType: type,
       createdBy: editing?.createdBy || resolveCashTransactionActor(),
       paymentMethod: isExpenseMode
-        ? data.paymentMethod || resolvePaymentMethodFromAccountType(selectedFinancialAccount?.type)
+        ? data.paymentMethod ||
+          resolvePaymentMethodFromAccountType(selectedFinancialAccount?.type)
         : "",
     };
 
@@ -8518,7 +10682,11 @@ function CashTransactionModule({ type, activeModule }) {
       return;
     }
 
-    toast.success(editing?.id ? `${label} transaction updated` : `${label} transaction created`);
+    toast.success(
+      editing?.id
+        ? `${label} transaction updated`
+        : `${label} transaction created`,
+    );
     setOpen(false);
     setEditing(null);
     load();
@@ -8543,14 +10711,20 @@ function CashTransactionModule({ type, activeModule }) {
       className={`inline-flex items-center gap-1 ${align === "right" ? "justify-end w-full" : ""}`}
     >
       <span>{buttonLabel}</span>
-      <ArrowUpDown className={`h-3.5 w-3.5 ${sortBy === field ? "text-foreground" : "text-muted-foreground/60"}`} />
+      <ArrowUpDown
+        className={`h-3.5 w-3.5 ${sortBy === field ? "text-foreground" : "text-muted-foreground/60"}`}
+      />
     </button>
   );
 
   const statusBadge = (status) => (
     <Badge
       variant="outline"
-      className={status === "Posted" ? "border-emerald-500/40 text-emerald-500" : "border-amber-500/40 text-amber-500"}
+      className={
+        status === "Posted"
+          ? "border-emerald-500/40 text-emerald-500"
+          : "border-amber-500/40 text-amber-500"
+      }
     >
       {status || "Recorded"}
     </Badge>
@@ -8583,7 +10757,12 @@ function CashTransactionModule({ type, activeModule }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={load}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={load}
+          >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </Button>
           <Button
@@ -8598,7 +10777,9 @@ function CashTransactionModule({ type, activeModule }) {
         </div>
       </div>
 
-      <div className={`grid grid-cols-1 ${isExpenseMode ? "sm:grid-cols-4" : "sm:grid-cols-3"} gap-3`}>
+      <div
+        className={`grid grid-cols-1 ${isExpenseMode ? "sm:grid-cols-4" : "sm:grid-cols-3"} gap-3`}
+      >
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Transactions</p>
@@ -8608,20 +10789,26 @@ function CashTransactionModule({ type, activeModule }) {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Amount</p>
-            <p className={`text-xl font-semibold mt-1 ${amountClass}`}>{fmtShort(totalAmount)}</p>
+            <p className={`text-xl font-semibold mt-1 ${amountClass}`}>
+              {fmtShort(totalAmount)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">This Month</p>
-            <p className={`text-xl font-semibold mt-1 ${amountClass}`}>{fmtShort(monthAmount)}</p>
+            <p className={`text-xl font-semibold mt-1 ${amountClass}`}>
+              {fmtShort(monthAmount)}
+            </p>
           </CardContent>
         </Card>
         {isExpenseMode && (
           <Card>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Categorized</p>
-              <p className="text-xl font-semibold mt-1 text-blue-500">{categorizedCount}</p>
+              <p className="text-xl font-semibold mt-1 text-blue-500">
+                {categorizedCount}
+              </p>
             </CardContent>
           </Card>
         )}
@@ -8632,7 +10819,11 @@ function CashTransactionModule({ type, activeModule }) {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-8"
-            placeholder={isExpenseMode ? "Search category, vendor, description, reference, or account..." : "Search by reference, description, or account..."}
+            placeholder={
+              isExpenseMode
+                ? "Search category, vendor, description, reference, or account..."
+                : "Search by reference, description, or account..."
+            }
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -8686,24 +10877,40 @@ function CashTransactionModule({ type, activeModule }) {
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
                     <SortButton field="expenseCategory" label="Category" />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Vendor</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
-                    <SortButton field="financialAccount" label="Financial Account" />
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    Description
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Payment Method</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    Vendor
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    <SortButton
+                      field="financialAccount"
+                      label="Financial Account"
+                    />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Payment Method
+                  </th>
                   <th className="text-right px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
                     <SortButton field="amount" label="Amount" align="right" />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Attachment</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Attachment
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    Status
+                  </th>
                   <th className="px-4 py-3 w-10" />
                 </tr>
               </thead>
               <tbody>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
+                    <td
+                      colSpan={10}
+                      className="px-4 py-12 text-center text-muted-foreground"
+                    >
                       <Wallet className="h-8 w-8 mx-auto mb-3 opacity-30" />
                       <p className="text-sm">No Cash Out transactions found.</p>
                     </td>
@@ -8720,19 +10927,28 @@ function CashTransactionModule({ type, activeModule }) {
                           setDetailOpen(true);
                         }}
                       >
-                        <td className="px-4 py-3 whitespace-nowrap">{item.transactionDate}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {item.transactionDate}
+                        </td>
                         <td className="px-4 py-3">
                           {item.expenseCategoryName ? (
-                            <Badge variant="outline" className="border-blue-500/30 text-blue-500">
+                            <Badge
+                              variant="outline"
+                              className="border-blue-500/30 text-blue-500"
+                            >
                               {item.expenseCategoryName}
                             </Badge>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-muted-foreground text-xs">
+                              —
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-3 max-w-[260px]">
                           <div className="space-y-1">
-                            <p className="font-medium text-[#111827] truncate">{item.description || "—"}</p>
+                            <p className="font-medium text-[#111827] truncate">
+                              {item.description || "—"}
+                            </p>
                             {item.referenceNumber ? (
                               <p className="text-xs text-muted-foreground font-mono truncate">
                                 {item.referenceNumber}
@@ -8740,15 +10956,25 @@ function CashTransactionModule({ type, activeModule }) {
                             ) : null}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">{item.vendor || "—"}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {item.vendor || "—"}
+                        </td>
                         <td className="px-4 py-3">
                           <div>
-                            <p className="font-medium">{item.financialAccount?.name || "—"}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{item.financialAccount?.type || "—"}</p>
+                            <p className="font-medium">
+                              {item.financialAccount?.name || "—"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {item.financialAccount?.type || "—"}
+                            </p>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{item.paymentMethod || "—"}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-rose-500 whitespace-nowrap">{fmt(item.amount)}</td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                          {item.paymentMethod || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-rose-500 whitespace-nowrap">
+                          {fmt(item.amount)}
+                        </td>
                         <td className="px-4 py-3">
                           {attachment ? (
                             <button
@@ -8764,12 +10990,19 @@ function CashTransactionModule({ type, activeModule }) {
                               View
                             </button>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-muted-foreground text-xs">
+                              —
+                            </span>
                           )}
                         </td>
-                        <td className="px-4 py-3">{statusBadge(item.systemJournal?.status || "Posted")}</td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1 justify-end" onClick={(event) => event.stopPropagation()}>
+                          {statusBadge(item.systemJournal?.status || "Posted")}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div
+                            className="flex items-center gap-1 justify-end"
+                            onClick={(event) => event.stopPropagation()}
+                          >
                             <Button
                               variant="ghost"
                               size="icon"
@@ -8815,46 +11048,80 @@ function CashTransactionModule({ type, activeModule }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-[#F7F8FA]">
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Reference</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Financial Account</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">COA Account</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Amount</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Description</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    Date
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    Reference
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    Financial Account
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    COA Account
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                    Amount
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+                    Description
+                  </th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                    <td
+                      colSpan={7}
+                      className="px-4 py-12 text-center text-muted-foreground"
+                    >
                       <DollarSign className="h-8 w-8 mx-auto mb-3 opacity-30" />
-                      <p className="text-sm">No {label.toLowerCase()} transactions yet</p>
+                      <p className="text-sm">
+                        No {label.toLowerCase()} transactions yet
+                      </p>
                     </td>
                   </tr>
                 ) : (
                   paginated.map((item) => (
-                    <tr key={item.id} className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors">
-                      <td className="px-4 py-3 whitespace-nowrap">{item.transactionDate}</td>
+                    <tr
+                      key={item.id}
+                      className="border-b border-[rgba(17,24,39,0.04)] hover:bg-[#F7F8FA]/80 transition-colors"
+                    >
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {item.transactionDate}
+                      </td>
                       <td className="px-4 py-3">
                         {item.referenceNumber ? (
-                          <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{item.referenceNumber}</span>
+                          <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                            {item.referenceNumber}
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
+                          <span className="text-muted-foreground text-xs">
+                            —
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {item.financialAccount?.name || "—"}
                         {item.financialAccount ? (
-                          <span className="text-xs text-muted-foreground ml-1">({item.financialAccount.type})</span>
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({item.financialAccount.type})
+                          </span>
                         ) : null}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-xs text-muted-foreground mr-1">{item.chartOfAccount?.accountCode}</span>
+                        <span className="text-xs text-muted-foreground mr-1">
+                          {item.chartOfAccount?.accountCode}
+                        </span>
                         {item.chartOfAccount?.accountName}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap text-emerald-500">{fmt(item.amount)}</td>
-                      <td className="px-4 py-3 text-muted-foreground max-w-[180px] truncate hidden md:table-cell">{item.description || "—"}</td>
+                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap text-emerald-500">
+                        {fmt(item.amount)}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground max-w-[180px] truncate hidden md:table-cell">
+                        {item.description || "—"}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1 justify-end">
                           <Button
@@ -8902,7 +11169,9 @@ function CashTransactionModule({ type, activeModule }) {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
             <span className="text-xs text-muted-foreground">
-              Showing {(safePage - 1) * PAGE_SIZE_CASH + 1}–{Math.min(safePage * PAGE_SIZE_CASH, filtered.length)} of {filtered.length}
+              Showing {(safePage - 1) * PAGE_SIZE_CASH + 1}–
+              {Math.min(safePage * PAGE_SIZE_CASH, filtered.length)} of{" "}
+              {filtered.length}
             </span>
             <div className="flex gap-1">
               <Button
@@ -8948,13 +11217,20 @@ function CashTransactionModule({ type, activeModule }) {
         item={viewItem}
       />
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(value) => !value && setDeleteTarget(null)}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(value) => !value && setDeleteTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this {label.toLowerCase()} transaction
-              {deleteTarget?.referenceNumber ? ` (${deleteTarget.referenceNumber})` : ""}? This action cannot be undone.
+              Are you sure you want to delete this {label.toLowerCase()}{" "}
+              transaction
+              {deleteTarget?.referenceNumber
+                ? ` (${deleteTarget.referenceNumber})`
+                : ""}
+              ? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -9003,21 +11279,28 @@ function CashTransactionModal({
   const validate = () => {
     const nextErrors = {};
     if (!form.transactionDate) nextErrors.transactionDate = "Date is required";
-    if (!form.financialAccountId) nextErrors.financialAccountId = "Financial account is required";
-    if (!form.chartOfAccountId) nextErrors.chartOfAccountId = "COA account is required";
-    if (!form.amount || Number(form.amount) <= 0) nextErrors.amount = "Amount must be greater than 0";
-    if (isExpenseMode && !form.expenseCategoryId) nextErrors.expenseCategoryId = "Expense category is required";
+    if (!form.financialAccountId)
+      nextErrors.financialAccountId = "Financial account is required";
+    if (!form.chartOfAccountId)
+      nextErrors.chartOfAccountId = "COA account is required";
+    if (!form.amount || Number(form.amount) <= 0)
+      nextErrors.amount = "Amount must be greater than 0";
+    if (isExpenseMode && !form.expenseCategoryId)
+      nextErrors.expenseCategoryId = "Expense category is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
 
   const handleFinancialAccountChange = (value) => {
-    const selectedFinancialAccount = financialAccounts.find((account) => account.id === value);
+    const selectedFinancialAccount = financialAccounts.find(
+      (account) => account.id === value,
+    );
     update("financialAccountId", value);
     if (isExpenseMode) {
       update(
         "paymentMethod",
-        form.paymentMethod || resolvePaymentMethodFromAccountType(selectedFinancialAccount?.type),
+        form.paymentMethod ||
+          resolvePaymentMethodFromAccountType(selectedFinancialAccount?.type),
       );
     }
   };
@@ -9073,7 +11356,8 @@ function CashTransactionModal({
 
   const attachment = parseAttachment(form.attachment);
   const activeCategories = expenseCategories.filter(
-    (category) => category.status === "Active" || category.id === form.expenseCategoryId,
+    (category) =>
+      category.status === "Active" || category.id === form.expenseCategoryId,
   );
   const isEdit = !!initial?.id;
   const typeLabel = isExpenseMode ? "Cash Out" : "Cash In";
@@ -9082,7 +11366,9 @@ function CashTransactionModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit ${typeLabel}` : `New ${typeLabel}`}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? `Edit ${typeLabel}` : `New ${typeLabel}`}
+          </DialogTitle>
           <DialogDescription>
             {isExpenseMode
               ? "Record operational expenses while keeping journals and reports automatic."
@@ -9098,10 +11384,14 @@ function CashTransactionModal({
             <Input
               type="date"
               value={form.transactionDate || ""}
-              onChange={(event) => update("transactionDate", event.target.value)}
+              onChange={(event) =>
+                update("transactionDate", event.target.value)
+              }
               className={errors.transactionDate ? "border-rose-500" : ""}
             />
-            {errors.transactionDate ? <p className="text-xs text-rose-400">{errors.transactionDate}</p> : null}
+            {errors.transactionDate ? (
+              <p className="text-xs text-rose-400">{errors.transactionDate}</p>
+            ) : null}
           </div>
 
           {isExpenseMode ? (
@@ -9109,8 +11399,13 @@ function CashTransactionModal({
               <Label>
                 Expense Category <span className="text-rose-400">*</span>
               </Label>
-              <Select value={form.expenseCategoryId || ""} onValueChange={(value) => update("expenseCategoryId", value)}>
-                <SelectTrigger className={errors.expenseCategoryId ? "border-rose-500" : ""}>
+              <Select
+                value={form.expenseCategoryId || ""}
+                onValueChange={(value) => update("expenseCategoryId", value)}
+              >
+                <SelectTrigger
+                  className={errors.expenseCategoryId ? "border-rose-500" : ""}
+                >
                   <SelectValue placeholder="Select expense category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -9122,7 +11417,11 @@ function CashTransactionModal({
                   ))}
                 </SelectContent>
               </Select>
-              {errors.expenseCategoryId ? <p className="text-xs text-rose-400">{errors.expenseCategoryId}</p> : null}
+              {errors.expenseCategoryId ? (
+                <p className="text-xs text-rose-400">
+                  {errors.expenseCategoryId}
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -9130,8 +11429,13 @@ function CashTransactionModal({
             <Label>
               Financial Account <span className="text-rose-400">*</span>
             </Label>
-            <Select value={form.financialAccountId || ""} onValueChange={handleFinancialAccountChange}>
-              <SelectTrigger className={errors.financialAccountId ? "border-rose-500" : ""}>
+            <Select
+              value={form.financialAccountId || ""}
+              onValueChange={handleFinancialAccountChange}
+            >
+              <SelectTrigger
+                className={errors.financialAccountId ? "border-rose-500" : ""}
+              >
                 <SelectValue placeholder="Select financial account" />
               </SelectTrigger>
               <SelectContent>
@@ -9142,15 +11446,24 @@ function CashTransactionModal({
                 ))}
               </SelectContent>
             </Select>
-            {errors.financialAccountId ? <p className="text-xs text-rose-400">{errors.financialAccountId}</p> : null}
+            {errors.financialAccountId ? (
+              <p className="text-xs text-rose-400">
+                {errors.financialAccountId}
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">
             <Label>
               COA Account <span className="text-rose-400">*</span>
             </Label>
-            <Select value={form.chartOfAccountId || ""} onValueChange={(value) => update("chartOfAccountId", value)}>
-              <SelectTrigger className={errors.chartOfAccountId ? "border-rose-500" : ""}>
+            <Select
+              value={form.chartOfAccountId || ""}
+              onValueChange={(value) => update("chartOfAccountId", value)}
+            >
+              <SelectTrigger
+                className={errors.chartOfAccountId ? "border-rose-500" : ""}
+              >
                 <SelectValue placeholder="Select COA account" />
               </SelectTrigger>
               <SelectContent>
@@ -9161,7 +11474,9 @@ function CashTransactionModal({
                 ))}
               </SelectContent>
             </Select>
-            {errors.chartOfAccountId ? <p className="text-xs text-rose-400">{errors.chartOfAccountId}</p> : null}
+            {errors.chartOfAccountId ? (
+              <p className="text-xs text-rose-400">{errors.chartOfAccountId}</p>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">
@@ -9175,7 +11490,9 @@ function CashTransactionModal({
               placeholder="0"
               className={errors.amount ? "border-rose-500" : ""}
             />
-            {errors.amount ? <p className="text-xs text-rose-400">{errors.amount}</p> : null}
+            {errors.amount ? (
+              <p className="text-xs text-rose-400">{errors.amount}</p>
+            ) : null}
           </div>
 
           {isExpenseMode ? (
@@ -9190,7 +11507,10 @@ function CashTransactionModal({
               </div>
               <div className="space-y-1.5">
                 <Label>Payment Method</Label>
-                <Select value={form.paymentMethod || "Other"} onValueChange={(value) => update("paymentMethod", value)}>
+                <Select
+                  value={form.paymentMethod || "Other"}
+                  onValueChange={(value) => update("paymentMethod", value)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -9202,7 +11522,10 @@ function CashTransactionModal({
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">Informational only. Financial Account remains the accounting source.</p>
+                <p className="text-xs text-muted-foreground">
+                  Informational only. Financial Account remains the accounting
+                  source.
+                </p>
               </div>
             </>
           ) : null}
@@ -9212,7 +11535,11 @@ function CashTransactionModal({
             <Textarea
               value={form.description || ""}
               onChange={(event) => update("description", event.target.value)}
-              placeholder={isExpenseMode ? "Describe the expense or payment purpose" : "Add receipt details or notes"}
+              placeholder={
+                isExpenseMode
+                  ? "Describe the expense or payment purpose"
+                  : "Add receipt details or notes"
+              }
               rows={3}
             />
           </div>
@@ -9221,27 +11548,47 @@ function CashTransactionModal({
             <Label>Reference Number</Label>
             <Input
               value={form.referenceNumber || ""}
-              onChange={(event) => update("referenceNumber", event.target.value)}
+              onChange={(event) =>
+                update("referenceNumber", event.target.value)
+              }
               placeholder="Optional invoice or receipt number"
             />
           </div>
 
           <div className="space-y-1.5">
             <Label>Attachment</Label>
-            <Input type="file" accept={CASH_ATTACHMENT_ACCEPT} onChange={handleAttachmentChange} disabled={attachmentBusy} />
-            <p className="text-xs text-muted-foreground">PDF, JPG, or PNG · up to 4 MB</p>
+            <Input
+              type="file"
+              accept={CASH_ATTACHMENT_ACCEPT}
+              onChange={handleAttachmentChange}
+              disabled={attachmentBusy}
+            />
+            <p className="text-xs text-muted-foreground">
+              PDF, JPG, or PNG · up to 4 MB
+            </p>
             {attachmentBusy ? (
               <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading attachment...
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading
+                attachment...
               </p>
             ) : null}
             {attachment ? (
               <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{attachment.name}</p>
-                  <p className="text-xs text-muted-foreground">{attachment.type || "Attachment uploaded"}</p>
+                  <p className="text-sm font-medium truncate">
+                    {attachment.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {attachment.type || "Attachment uploaded"}
+                  </p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => update("attachment", "")}>Remove</Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => update("attachment", "")}
+                >
+                  Remove
+                </Button>
               </div>
             ) : null}
           </div>
@@ -9279,18 +11626,28 @@ function CashTransactionDetailSheet({ open, onOpenChange, item }) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-2xl overflow-y-auto"
+      >
         {item ? (
           <>
             <SheetHeader className="text-left">
               <SheetTitle className="flex items-center justify-between gap-3">
-                <span>{item.transactionType === "OUT" ? "Cash Out Detail" : "Cash In Detail"}</span>
-                <span className={`text-lg font-bold ${item.transactionType === "OUT" ? "text-rose-500" : "text-emerald-500"}`}>
+                <span>
+                  {item.transactionType === "OUT"
+                    ? "Cash Out Detail"
+                    : "Cash In Detail"}
+                </span>
+                <span
+                  className={`text-lg font-bold ${item.transactionType === "OUT" ? "text-rose-500" : "text-emerald-500"}`}
+                >
                   {fmt(item.amount)}
                 </span>
               </SheetTitle>
               <SheetDescription>
-                {item.transactionDate} · {item.referenceNumber || "No reference number"}
+                {item.transactionDate} ·{" "}
+                {item.referenceNumber || "No reference number"}
               </SheetDescription>
             </SheetHeader>
 
@@ -9299,24 +11656,45 @@ function CashTransactionDetailSheet({ open, onOpenChange, item }) {
                 <Card>
                   <CardContent className="p-4 space-y-3">
                     <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Category</p>
-                      <p className="text-sm font-medium mt-1">{item.expenseCategoryName || "—"}</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Category
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {item.expenseCategoryName || "—"}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Vendor</p>
-                      <p className="text-sm font-medium mt-1">{item.vendor || "—"}</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Vendor
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {item.vendor || "—"}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Payment Method</p>
-                      <p className="text-sm font-medium mt-1">{item.paymentMethod || "—"}</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Payment Method
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {item.paymentMethod || "—"}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Status</p>
-                      <div className="mt-1">{status === "Posted" ? (
-                        <Badge variant="outline" className="border-emerald-500/40 text-emerald-500">Posted</Badge>
-                      ) : (
-                        <Badge variant="outline">{status}</Badge>
-                      )}</div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Status
+                      </p>
+                      <div className="mt-1">
+                        {status === "Posted" ? (
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-500/40 text-emerald-500"
+                          >
+                            Posted
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">{status}</Badge>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -9324,27 +11702,47 @@ function CashTransactionDetailSheet({ open, onOpenChange, item }) {
                 <Card>
                   <CardContent className="p-4 space-y-3">
                     <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Financial Account</p>
-                      <p className="text-sm font-medium mt-1">{item.financialAccount?.name || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">COA Account</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Financial Account
+                      </p>
                       <p className="text-sm font-medium mt-1">
-                        {item.chartOfAccount ? `${item.chartOfAccount.accountCode} — ${item.chartOfAccount.accountName}` : "—"}
+                        {item.financialAccount?.name || "—"}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Journal Reference</p>
-                      <p className="text-sm font-medium mt-1">{journalReference}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Created By</p>
-                      <p className="text-sm font-medium mt-1">{item.createdBy || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Created At</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        COA Account
+                      </p>
                       <p className="text-sm font-medium mt-1">
-                        {item.createdAt ? new Date(item.createdAt).toLocaleString("id-ID") : "—"}
+                        {item.chartOfAccount
+                          ? `${item.chartOfAccount.accountCode} — ${item.chartOfAccount.accountName}`
+                          : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Journal Reference
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {journalReference}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Created By
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {item.createdBy || "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Created At
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {item.createdAt
+                          ? new Date(item.createdAt).toLocaleString("id-ID")
+                          : "—"}
                       </p>
                     </div>
                   </CardContent>
@@ -9361,12 +11759,20 @@ function CashTransactionDetailSheet({ open, onOpenChange, item }) {
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Reference Number</p>
-                      <p className="text-sm font-medium mt-1">{item.referenceNumber || "—"}</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Reference Number
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {item.referenceNumber || "—"}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Notes</p>
-                      <p className="text-sm font-medium mt-1 whitespace-pre-wrap">{item.notes || "—"}</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Notes
+                      </p>
+                      <p className="text-sm font-medium mt-1 whitespace-pre-wrap">
+                        {item.notes || "—"}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -9374,15 +11780,21 @@ function CashTransactionDetailSheet({ open, onOpenChange, item }) {
 
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Attachment Preview</CardTitle>
+                  <CardTitle className="text-base">
+                    Attachment Preview
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <AttachmentPreview attachment={attachment} />
                   {attachment?.url ? (
                     <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/10 px-3 py-2">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{attachment.name}</p>
-                        <p className="text-xs text-muted-foreground">{attachment.type || "Attachment"}</p>
+                        <p className="text-sm font-medium truncate">
+                          {attachment.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {attachment.type || "Attachment"}
+                        </p>
                       </div>
                       <a
                         href={attachment.url}
@@ -9441,9 +11853,14 @@ function ChartOfAccountsModule({ activeModule }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "chartofaccounts", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "chartofaccounts",
+    () => {
+      load();
+    },
+    [],
+  );
 
   const emptyForm = {
     accountCode: "",
@@ -10083,9 +12500,14 @@ function RawMaterialModule({ activeModule }) {
     setSuppliers(Array.isArray(sups) ? sups : []);
     setLoading(false);
   };
-  useLazyModuleEffect(activeModule, "rawmaterials", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "rawmaterials",
+    () => {
+      load();
+    },
+    [],
+  );
 
   const empty = {
     name: "",
@@ -10752,9 +13174,14 @@ function JournalEntriesModule({ activeModule }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "journalentries", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "journalentries",
+    () => {
+      load();
+    },
+    [],
+  );
 
   const save = async (data) => {
     let result;
@@ -11763,7 +14190,11 @@ function JournalEntryViewModal({ open, onOpenChange, item }) {
 }
 
 // =========== GENERAL LEDGER ===========
-function GeneralLedgerModule({ initialAccountId, onAccountConsumed, activeModule }) {
+function GeneralLedgerModule({
+  initialAccountId,
+  onAccountConsumed,
+  activeModule,
+}) {
   const [coaAccounts, setCoaAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState(
     initialAccountId || "",
@@ -11776,15 +14207,20 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed, activeModule
   const [viewJournal, setViewJournal] = useState(null);
   const [viewOpen, setViewOpen] = useState(false);
 
-  useLazyModuleEffect(activeModule, "generalledger", () => {
-    api.get("chartofaccounts").then((data) => {
-      setCoaAccounts(
-        Array.isArray(data)
-          ? data.filter((c) => c.allowTransaction && c.isActive)
-          : [],
-      );
-    });
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "generalledger",
+    () => {
+      api.get("chartofaccounts").then((data) => {
+        setCoaAccounts(
+          Array.isArray(data)
+            ? data.filter((c) => c.allowTransaction && c.isActive)
+            : [],
+        );
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     if (initialAccountId) {
@@ -11805,13 +14241,18 @@ function GeneralLedgerModule({ initialAccountId, onAccountConsumed, activeModule
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "generalledger", () => {
-    if (selectedAccountId) {
-      loadLedger();
-    } else {
-      setLedgerData(null);
-    }
-  }, [selectedAccountId, dateFrom, dateTo, search]);
+  useLazyModuleEffect(
+    activeModule,
+    "generalledger",
+    () => {
+      if (selectedAccountId) {
+        loadLedger();
+      } else {
+        setLedgerData(null);
+      }
+    },
+    [selectedAccountId, dateFrom, dateTo, search],
+  );
 
   const viewJournalEntry = async (journalEntryId) => {
     const data = await api.get("journalentries/" + journalEntryId);
@@ -12166,9 +14607,14 @@ function TrialBalanceModule({ onNavigateToLedger, activeModule }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "trialbalance", () => {
-    load();
-  }, [dateFrom, dateTo]);
+  useLazyModuleEffect(
+    activeModule,
+    "trialbalance",
+    () => {
+      load();
+    },
+    [dateFrom, dateTo],
+  );
 
   return (
     <div className="space-y-6">
@@ -12422,9 +14868,14 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "profitloss", () => {
-    load();
-  }, [dateFrom, dateTo]);
+  useLazyModuleEffect(
+    activeModule,
+    "profitloss",
+    () => {
+      load();
+    },
+    [dateFrom, dateTo],
+  );
 
   const AccountTable = ({ rows, emptyLabel, amountColor = "" }) => (
     <div className="overflow-x-auto">
@@ -12475,13 +14926,17 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
                           title={`${detail.label}: ${fmt(Math.abs(detail.amount))}`}
                         >
                           <span>{detail.label}</span>
-                          <span className="text-rose-500/80">{fmt(Math.abs(detail.amount))}</span>
+                          <span className="text-rose-500/80">
+                            {fmt(Math.abs(detail.amount))}
+                          </span>
                         </span>
                       ))}
                     </div>
                   ) : null}
                 </td>
-                <td className={`px-4 py-3 text-right font-medium ${amountColor}`}>
+                <td
+                  className={`px-4 py-3 text-right font-medium ${amountColor}`}
+                >
                   {fmt(Math.max(row.amount, 0))}
                 </td>
                 <td className="px-4 py-3">
@@ -12517,11 +14972,21 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled title="Export PDF (coming soon)">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Export PDF (coming soon)"
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export PDF
           </Button>
-          <Button variant="outline" size="sm" disabled title="Export Excel (coming soon)">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Export Excel (coming soon)"
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export Excel
           </Button>
@@ -12591,7 +15056,9 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Gross Profit
               </p>
-              <p className={`text-xl font-semibold mt-1 ${data.grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+              <p
+                className={`text-xl font-semibold mt-1 ${data.grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+              >
                 {fmt(Math.abs(data.grossProfit))}
               </p>
             </CardContent>
@@ -12601,7 +15068,9 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
               <p className="text-xs text-muted-foreground uppercase tracking-wider">
                 Net Profit
               </p>
-              <p className={`text-xl font-semibold mt-1 ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+              <p
+                className={`text-xl font-semibold mt-1 ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+              >
                 {data.netProfit < 0 ? "-" : ""}
                 {fmt(Math.abs(data.netProfit))}
               </p>
@@ -12613,7 +15082,9 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Generating report...</span>
+          <span className="text-sm text-muted-foreground">
+            Generating report...
+          </span>
         </div>
       ) : data ? (
         <div className="space-y-4">
@@ -12624,7 +15095,9 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
                   <TrendingUp className="h-4 w-4 text-emerald-500" />
                   Revenue
                 </CardTitle>
-                <span className="text-sm font-semibold text-emerald-500">{fmt(data.totalRevenue)}</span>
+                <span className="text-sm font-semibold text-emerald-500">
+                  {fmt(data.totalRevenue)}
+                </span>
               </div>
             </CardHeader>
             <AccountTable
@@ -12645,7 +15118,9 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
                   <Package className="h-4 w-4 text-amber-500" />
                   Cost of Goods Sold
                 </CardTitle>
-                <span className="text-sm font-semibold text-amber-500">{fmt(data.totalCogs)}</span>
+                <span className="text-sm font-semibold text-amber-500">
+                  {fmt(data.totalCogs)}
+                </span>
               </div>
             </CardHeader>
             <AccountTable
@@ -12659,7 +15134,9 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
             </div>
           </Card>
 
-          <Card className={`border-2 ${data.grossProfit >= 0 ? "border-blue-500/40 bg-blue-500/5" : "border-rose-500/40 bg-rose-500/5"}`}>
+          <Card
+            className={`border-2 ${data.grossProfit >= 0 ? "border-blue-500/40 bg-blue-500/5" : "border-rose-500/40 bg-rose-500/5"}`}
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -12670,7 +15147,9 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
                     Revenue − Cost of Goods Sold
                   </p>
                 </div>
-                <p className={`text-2xl font-bold ${data.grossProfit >= 0 ? "text-blue-500" : "text-rose-400"}`}>
+                <p
+                  className={`text-2xl font-bold ${data.grossProfit >= 0 ? "text-blue-500" : "text-rose-400"}`}
+                >
                   {data.grossProfit < 0 ? "-" : ""}
                   {fmt(Math.abs(data.grossProfit))}
                 </p>
@@ -12685,7 +15164,9 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
                   <TrendingDown className="h-4 w-4 text-rose-400" />
                   Operating Expenses
                 </CardTitle>
-                <span className="text-sm font-semibold text-rose-400">{fmt(data.totalOperatingExpenses)}</span>
+                <span className="text-sm font-semibold text-rose-400">
+                  {fmt(data.totalOperatingExpenses)}
+                </span>
               </div>
             </CardHeader>
             <AccountTable
@@ -12694,12 +15175,18 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
               amountColor="text-rose-400"
             />
             <div className="border-t border-border bg-[#F7F8FA] px-4 py-2.5 flex justify-between text-sm font-semibold">
-              <span className="text-muted-foreground">Total Operating Expenses</span>
-              <span className="text-rose-400">{fmt(data.totalOperatingExpenses)}</span>
+              <span className="text-muted-foreground">
+                Total Operating Expenses
+              </span>
+              <span className="text-rose-400">
+                {fmt(data.totalOperatingExpenses)}
+              </span>
             </div>
           </Card>
 
-          <Card className={`border-2 ${data.netProfit >= 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}>
+          <Card
+            className={`border-2 ${data.netProfit >= 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5"}`}
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -12710,7 +15197,9 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
                     Gross Profit − Operating Expenses
                   </p>
                 </div>
-                <p className={`text-2xl font-bold ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                <p
+                  className={`text-2xl font-bold ${data.netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
+                >
                   {data.netProfit < 0 ? "-" : ""}
                   {fmt(Math.abs(data.netProfit))}
                 </p>
@@ -12725,7 +15214,11 @@ function ProfitLossModule({ onNavigateToLedger, activeModule }) {
 
 // =========== BALANCE SHEET ===========
 // =========== BALANCE SHEET ===========
-function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL, activeModule }) {
+function BalanceSheetModule({
+  onNavigateToLedger,
+  onNavigateToPL,
+  activeModule,
+}) {
   const today = new Date().toISOString().split("T")[0];
   const [asOf, setAsOf] = useState(today);
   const [data, setData] = useState(null);
@@ -12739,9 +15232,14 @@ function BalanceSheetModule({ onNavigateToLedger, onNavigateToPL, activeModule }
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "balancesheet", () => {
-    load();
-  }, [asOf]);
+  useLazyModuleEffect(
+    activeModule,
+    "balancesheet",
+    () => {
+      load();
+    },
+    [asOf],
+  );
 
   const SectionTable = ({ rows, emptyLabel, balanceColor }) => (
     <div className="overflow-x-auto">
@@ -14092,7 +16590,11 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
       setErr("Actual quantity must be greater than zero.");
       return;
     }
-    if (Number(form.laborCost || 0) < 0 || Number(form.factoryOverheadCost || 0) < 0 || Number(form.otherCost || 0) < 0) {
+    if (
+      Number(form.laborCost || 0) < 0 ||
+      Number(form.factoryOverheadCost || 0) < 0 ||
+      Number(form.otherCost || 0) < 0
+    ) {
       setErr("Optional production costs cannot be negative.");
       return;
     }
@@ -14137,7 +16639,9 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
               <li>
                 Auto-create PRODUCTION_OUT + PRODUCTION_RESULT stock movements
               </li>
-              <li>Calculate material cost and update weighted average product cost</li>
+              <li>
+                Calculate material cost and update weighted average product cost
+              </li>
               <li>Post production journal automatically</li>
               <li>Lock this order as Completed</li>
             </ul>
@@ -14182,7 +16686,10 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
               <NumberInput
                 value={form.factoryOverheadCost || 0}
                 onChange={(value) =>
-                  setForm((current) => ({ ...current, factoryOverheadCost: value }))
+                  setForm((current) => ({
+                    ...current,
+                    factoryOverheadCost: value,
+                  }))
                 }
                 min={0}
                 placeholder="0"
@@ -14557,9 +17064,14 @@ function ProductionResultsModule({ activeModule }) {
     }
   };
 
-  useLazyModuleEffect(activeModule, "productionresults", () => {
-    load();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "productionresults",
+    () => {
+      load();
+    },
+    [],
+  );
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -14593,8 +17105,8 @@ function ProductionResultsModule({ activeModule }) {
       (m) => m.movementType === "PRODUCTION_OUT",
     ) || [];
   const productionIns =
-    detailResult?.stockMovements?.filter(
-      (m) => ["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType),
+    detailResult?.stockMovements?.filter((m) =>
+      ["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType),
     ) || [];
 
   return (
@@ -14985,15 +17497,23 @@ function ProductionResultsModule({ activeModule }) {
                         <div className="flex items-center gap-2.5">
                           <span
                             className={`font-bold px-1.5 py-0.5 rounded text-[10px] uppercase ${
-                              ["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType)
+                              ["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(
+                                m.movementType,
+                              )
                                 ? "bg-emerald-100 text-emerald-700"
                                 : "bg-amber-100 text-amber-700"
                             }`}
                           >
-                            {["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType) ? "IN" : "OUT"}
+                            {["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(
+                              m.movementType,
+                            )
+                              ? "IN"
+                              : "OUT"}
                           </span>
                           <span className="font-medium">
-                            {["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType)
+                            {["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(
+                              m.movementType,
+                            )
                               ? (m.product?.name ?? "Product")
                               : (m.rawMaterial?.name ?? "Material")}
                           </span>
@@ -15002,7 +17522,11 @@ function ProductionResultsModule({ activeModule }) {
                           </span>
                         </div>
                         <span className="font-semibold">
-                          {["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(m.movementType) ? "+" : "-"}
+                          {["PRODUCTION_IN", "PRODUCTION_RESULT"].includes(
+                            m.movementType,
+                          )
+                            ? "+"
+                            : "-"}
                           {m.quantity?.toLocaleString()}
                         </span>
                       </div>
@@ -15070,9 +17594,14 @@ function ProductionOrdersModule({ activeModule }) {
     }
   };
 
-  useLazyModuleEffect(activeModule, "productionorders", () => {
-    load();
-  }, [statusFilter]);
+  useLazyModuleEffect(
+    activeModule,
+    "productionorders",
+    () => {
+      load();
+    },
+    [statusFilter],
+  );
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -15463,9 +17992,14 @@ function BOMModule({ activeModule }) {
     }
   };
 
-  useLazyModuleEffect(activeModule, "bom", () => {
-    load();
-  }, [statusFilter]);
+  useLazyModuleEffect(
+    activeModule,
+    "bom",
+    () => {
+      load();
+    },
+    [statusFilter],
+  );
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -15736,9 +18270,14 @@ function SuppliersModule({ activeModule }) {
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "suppliers", () => {
-    load();
-  }, [search, statusFilter]);
+  useLazyModuleEffect(
+    activeModule,
+    "suppliers",
+    () => {
+      load();
+    },
+    [search, statusFilter],
+  );
 
   const openCreate = () => {
     setEditing(null);
@@ -16033,17 +18572,23 @@ function SuppliersModule({ activeModule }) {
   );
 }
 
-
 // =========== SALES CHANNELS ===========
 
-const CHANNEL_TYPES = ['Ecommerce', 'Marketplace', 'Offline Store', 'Reseller', 'Partnership', 'Other'];
+const CHANNEL_TYPES = [
+  "Ecommerce",
+  "Marketplace",
+  "Offline Store",
+  "Reseller",
+  "Partnership",
+  "Other",
+];
 
 function SalesChannelFormDialog({ open, onOpenChange, initial, onSave }) {
   const empty = {
-    channelName: '',
-    channelType: '',
-    description: '',
-    status: 'Active',
+    channelName: "",
+    channelType: "",
+    description: "",
+    status: "Active",
     isDefault: false,
   };
   const [form, setForm] = useState(empty);
@@ -16054,8 +18599,14 @@ function SalesChannelFormDialog({ open, onOpenChange, initial, onSave }) {
   const up = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async () => {
-    if (!form.channelName?.trim()) { toast.error('Channel name is required'); return; }
-    if (!form.channelType?.trim()) { toast.error('Channel type is required'); return; }
+    if (!form.channelName?.trim()) {
+      toast.error("Channel name is required");
+      return;
+    }
+    if (!form.channelType?.trim()) {
+      toast.error("Channel type is required");
+      return;
+    }
     setLoading(true);
     try {
       await onSave(form);
@@ -16068,34 +18619,50 @@ function SalesChannelFormDialog({ open, onOpenChange, initial, onSave }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{initial?.id ? 'Edit Sales Channel' : 'Add Sales Channel'}</DialogTitle>
-          <DialogDescription>Manage sales channel master data</DialogDescription>
+          <DialogTitle>
+            {initial?.id ? "Edit Sales Channel" : "Add Sales Channel"}
+          </DialogTitle>
+          <DialogDescription>
+            Manage sales channel master data
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Channel Name <span className="text-rose-500">*</span></Label>
+            <Label>
+              Channel Name <span className="text-rose-500">*</span>
+            </Label>
             <Input
-              value={form.channelName || ''}
-              onChange={(e) => up('channelName', e.target.value)}
+              value={form.channelName || ""}
+              onChange={(e) => up("channelName", e.target.value)}
               placeholder="e.g. Website, Shopee, TikTok Shop"
             />
           </div>
           <div className="space-y-2">
-            <Label>Channel Type <span className="text-rose-500">*</span></Label>
-            <Select value={form.channelType || ''} onValueChange={(v) => up('channelType', v)}>
+            <Label>
+              Channel Type <span className="text-rose-500">*</span>
+            </Label>
+            <Select
+              value={form.channelType || ""}
+              onValueChange={(v) => up("channelType", v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select type…" />
               </SelectTrigger>
               <SelectContent>
                 {CHANNEL_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Label>Status</Label>
-            <Select value={form.status || 'Active'} onValueChange={(v) => up('status', v)}>
+            <Select
+              value={form.status || "Active"}
+              onValueChange={(v) => up("status", v)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -16108,8 +18675,8 @@ function SalesChannelFormDialog({ open, onOpenChange, initial, onSave }) {
           <div className="space-y-2">
             <Label>Description</Label>
             <Textarea
-              value={form.description || ''}
-              onChange={(e) => up('description', e.target.value)}
+              value={form.description || ""}
+              onChange={(e) => up("description", e.target.value)}
               placeholder="Optional description…"
               rows={3}
             />
@@ -16117,7 +18684,7 @@ function SalesChannelFormDialog({ open, onOpenChange, initial, onSave }) {
           <div className="flex items-center gap-3 pt-1">
             <Switch
               checked={!!form.isDefault}
-              onCheckedChange={(v) => up('isDefault', v)}
+              onCheckedChange={(v) => up("isDefault", v)}
               id="isDefault"
             />
             <Label htmlFor="isDefault" className="cursor-pointer">
@@ -16129,9 +18696,16 @@ function SalesChannelFormDialog({ open, onOpenChange, initial, onSave }) {
           </div>
         </div>
         <DialogFooter className="mt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={loading || !form.channelName?.trim() || !form.channelType?.trim()}>
-            {loading ? 'Saving…' : initial?.id ? 'Save Changes' : 'Add Channel'}
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={submit}
+            disabled={
+              loading || !form.channelName?.trim() || !form.channelType?.trim()
+            }
+          >
+            {loading ? "Saving…" : initial?.id ? "Save Changes" : "Add Channel"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -16141,12 +18715,16 @@ function SalesChannelFormDialog({ open, onOpenChange, initial, onSave }) {
 
 function SalesChannelDetailDialog({ open, onOpenChange, channel, onEdit }) {
   if (!channel) return null;
-  const isActive = (channel.status || 'Active') === 'Active';
+  const isActive = (channel.status || "Active") === "Active";
 
   const Row = ({ label, value }) => (
     <div className="flex items-start gap-4 py-2.5 border-b border-border/30 last:border-0">
-      <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium w-36 shrink-0 pt-0.5">{label}</span>
-      <span className="text-sm text-foreground font-medium flex-1">{value || '—'}</span>
+      <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium w-36 shrink-0 pt-0.5">
+        {label}
+      </span>
+      <span className="text-sm text-foreground font-medium flex-1">
+        {value || "—"}
+      </span>
     </div>
   );
 
@@ -16156,8 +18734,12 @@ function SalesChannelDetailDialog({ open, onOpenChange, channel, onEdit }) {
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div>
-              <DialogTitle className="text-lg">{channel.channelName}</DialogTitle>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">{channel.channelCode}</p>
+              <DialogTitle className="text-lg">
+                {channel.channelName}
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                {channel.channelCode}
+              </p>
             </div>
           </div>
         </DialogHeader>
@@ -16169,20 +18751,39 @@ function SalesChannelDetailDialog({ open, onOpenChange, channel, onEdit }) {
           <Row label="Channel Name" value={channel.channelName} />
           <Row label="Channel Type" value={channel.channelType} />
           <Row label="Description" value={channel.description} />
-          <Row label="Status" value={
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'}`}>
-              {channel.status || 'Active'}
-            </span>
-          } />
-          <Row label="Default Channel" value={
-            channel.isDefault
-              ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-600">Yes</span>
-              : <span className="text-muted-foreground text-sm">No</span>
-          } />
+          <Row
+            label="Status"
+            value={
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? "bg-emerald-500/10 text-emerald-600" : "bg-gray-400/10 text-gray-500"}`}
+              >
+                {channel.status || "Active"}
+              </span>
+            }
+          />
+          <Row
+            label="Default Channel"
+            value={
+              channel.isDefault ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-600">
+                  Yes
+                </span>
+              ) : (
+                <span className="text-muted-foreground text-sm">No</span>
+              )
+            }
+          />
         </div>
         <DialogFooter className="mt-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button onClick={() => { onOpenChange(false); onEdit(channel); }}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button
+            onClick={() => {
+              onOpenChange(false);
+              onEdit(channel);
+            }}
+          >
             <Edit3 className="h-3.5 w-3.5 mr-1.5" />
             Edit
           </Button>
@@ -16195,9 +18796,9 @@ function SalesChannelDetailDialog({ open, onOpenChange, channel, onEdit }) {
 function SalesChannelsModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [stats, setStats] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -16208,12 +18809,12 @@ function SalesChannelsModule({ activeModule }) {
   const load = async () => {
     setLoading(true);
     const qs = new URLSearchParams();
-    if (statusFilter !== 'all') qs.append('status', statusFilter);
-    if (typeFilter !== 'all') qs.append('channelType', typeFilter);
-    if (search) qs.append('search', search);
+    if (statusFilter !== "all") qs.append("status", statusFilter);
+    if (typeFilter !== "all") qs.append("channelType", typeFilter);
+    if (search) qs.append("search", search);
     const [data, statsData] = await Promise.all([
-      api.get('saleschannels' + (qs.toString() ? '?' + qs.toString() : '')),
-      api.get('saleschannels/stats'),
+      api.get("saleschannels" + (qs.toString() ? "?" + qs.toString() : "")),
+      api.get("saleschannels/stats"),
     ]);
     setItems(Array.isArray(data) ? data : []);
     setStats(statsData && !statsData.error ? statsData : null);
@@ -16224,28 +18825,58 @@ function SalesChannelsModule({ activeModule }) {
     if (seeding) return;
     setSeeding(true);
     try {
-      const res = await api.post('saleschannels/seed', {});
-      if (res.seeded) { toast.success(`Seeded ${res.count} default channels`); load(); }
-    } catch (e) { /* ignore */ } finally { setSeeding(false); }
+      const res = await api.post("saleschannels/seed", {});
+      if (res.seeded) {
+        toast.success(`Seeded ${res.count} default channels`);
+        load();
+      }
+    } catch (e) {
+      /* ignore */
+    } finally {
+      setSeeding(false);
+    }
   };
 
-  useLazyModuleEffect(activeModule, "saleschannels", () => { load(); }, [search, statusFilter, typeFilter]);
-  useLazyModuleEffect(activeModule, "saleschannels", () => {
-    // Auto-seed if no channels exist after initial load
-    if (!loading && items.length === 0 && !stats?.total) { seedIfEmpty(); }
-  }, [loading, items.length, stats?.total]);
+  useLazyModuleEffect(
+    activeModule,
+    "saleschannels",
+    () => {
+      load();
+    },
+    [search, statusFilter, typeFilter],
+  );
+  useLazyModuleEffect(
+    activeModule,
+    "saleschannels",
+    () => {
+      // Auto-seed if no channels exist after initial load
+      if (!loading && items.length === 0 && !stats?.total) {
+        seedIfEmpty();
+      }
+    },
+    [loading, items.length, stats?.total],
+  );
 
-  const openCreate = () => { setEditing(null); setShowForm(true); };
-  const openEdit = (c) => { setEditing(c); setShowForm(true); };
-  const openDetail = (c) => { setDetailChannel(c); setShowDetail(true); };
+  const openCreate = () => {
+    setEditing(null);
+    setShowForm(true);
+  };
+  const openEdit = (c) => {
+    setEditing(c);
+    setShowForm(true);
+  };
+  const openDetail = (c) => {
+    setDetailChannel(c);
+    setShowDetail(true);
+  };
 
   const save = async (form) => {
     if (editing?.id) {
-      await api.put('saleschannels/' + editing.id, form);
-      toast.success('Sales channel updated');
+      await api.put("saleschannels/" + editing.id, form);
+      toast.success("Sales channel updated");
     } else {
-      await api.post('saleschannels', form);
-      toast.success('Sales channel created');
+      await api.post("saleschannels", form);
+      toast.success("Sales channel created");
     }
     setShowForm(false);
     setEditing(null);
@@ -16253,16 +18884,18 @@ function SalesChannelsModule({ activeModule }) {
   };
 
   const setInactive = async (id) => {
-    await api.del('saleschannels/' + id);
-    toast.success('Channel set to Inactive');
+    await api.del("saleschannels/" + id);
+    toast.success("Channel set to Inactive");
     load();
   };
 
   const statusBadge = (status) => {
-    const isActive = (status || 'Active') === 'Active';
+    const isActive = (status || "Active") === "Active";
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'}`}>
-        {status || 'Active'}
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? "bg-emerald-500/10 text-emerald-600" : "bg-gray-400/10 text-gray-500"}`}
+      >
+        {status || "Active"}
       </span>
     );
   };
@@ -16275,12 +18908,20 @@ function SalesChannelsModule({ activeModule }) {
             Sales Channels
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Manage sales channels — online stores, marketplaces, and direct sales
+            Manage sales channels — online stores, marketplaces, and direct
+            sales
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={seedIfEmpty} disabled={seeding}>
-            {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={seedIfEmpty}
+            disabled={seeding}
+          >
+            {seeding ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : null}
             Seed Defaults
           </Button>
           <Button onClick={openCreate}>
@@ -16294,20 +18935,32 @@ function SalesChannelsModule({ activeModule }) {
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Channels</p>
-            <p className="text-3xl font-semibold mt-1">{loading ? '—' : (stats?.total ?? 0)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Total Channels
+            </p>
+            <p className="text-3xl font-semibold mt-1">
+              {loading ? "—" : (stats?.total ?? 0)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">Active</p>
-            <p className="text-3xl font-semibold mt-1 text-emerald-500">{loading ? '—' : (stats?.active ?? 0)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">
+              Active
+            </p>
+            <p className="text-3xl font-semibold mt-1 text-emerald-500">
+              {loading ? "—" : (stats?.active ?? 0)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-gray-400">Inactive</p>
-            <p className="text-3xl font-semibold mt-1 text-gray-400">{loading ? '—' : (stats?.inactive ?? 0)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-gray-400">
+              Inactive
+            </p>
+            <p className="text-3xl font-semibold mt-1 text-gray-400">
+              {loading ? "—" : (stats?.inactive ?? 0)}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -16317,7 +18970,9 @@ function SalesChannelsModule({ activeModule }) {
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[200px]">
-              <p className="text-xs text-muted-foreground mb-1">Search code / name / type</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Search code / name / type
+              </p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -16337,7 +18992,9 @@ function SalesChannelsModule({ activeModule }) {
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   {CHANNEL_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -16355,7 +19012,12 @@ function SalesChannelsModule({ activeModule }) {
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="outline" size="icon" onClick={load} title="Refresh">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={load}
+              title="Refresh"
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -16366,13 +19028,18 @@ function SalesChannelsModule({ activeModule }) {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">Loading channels…</div>
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              Loading channels…
+            </div>
           ) : items.length === 0 ? (
             <div className="p-12 text-center">
               <Globe className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">No sales channels found</p>
+              <p className="text-muted-foreground text-sm">
+                No sales channels found
+              </p>
               <p className="text-xs text-muted-foreground/60 mt-1">
-                Add your first channel or click "Seed Defaults" to load default channels.
+                Add your first channel or click "Seed Defaults" to load default
+                channels.
               </p>
             </div>
           ) : (
@@ -16380,11 +19047,21 @@ function SalesChannelsModule({ activeModule }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[rgba(17,24,39,0.04)]">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Code</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Channel Name</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Channel Type</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Updated At</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Code
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Channel Name
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Channel Type
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Updated At
+                    </th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
@@ -16392,10 +19069,12 @@ function SalesChannelsModule({ activeModule }) {
                   {items.map((c, idx) => (
                     <tr
                       key={c.id}
-                      className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors cursor-pointer ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}
+                      className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors cursor-pointer ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
                       onClick={() => openDetail(c)}
                     >
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{c.channelCode}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                        {c.channelCode}
+                      </td>
                       <td className="px-4 py-3 font-medium">
                         <div className="flex items-center gap-2">
                           {c.channelName}
@@ -16406,17 +19085,29 @@ function SalesChannelsModule({ activeModule }) {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{c.channelType}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {c.channelType}
+                      </td>
                       <td className="px-4 py-3">{statusBadge(c.status)}</td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('id-ID') : '—'}
+                        {c.updatedAt
+                          ? new Date(c.updatedAt).toLocaleDateString("id-ID")
+                          : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="px-4 py-3 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => openEdit(c)}
+                          >
                             <Edit3 className="h-3.5 w-3.5" />
                           </Button>
-                          {c.status !== 'Inactive' && (
+                          {c.status !== "Inactive" && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -16448,22 +19139,44 @@ function SalesChannelsModule({ activeModule }) {
         open={showDetail}
         onOpenChange={setShowDetail}
         channel={detailChannel}
-        onEdit={(c) => { setEditing(c); setShowForm(true); }}
+        onEdit={(c) => {
+          setEditing(c);
+          setShowForm(true);
+        }}
       />
     </div>
   );
 }
 
-
 // =========== CUSTOMERS ===========
 
-const CUSTOMER_TYPES = ['Individual', 'Reseller', 'School', 'Corporate', 'Community', 'Other'];
+const CUSTOMER_TYPES = [
+  "Individual",
+  "Reseller",
+  "School",
+  "Corporate",
+  "Community",
+  "Other",
+];
 
-function CustomerFormDialog({ open, onOpenChange, initial, salesChannels, onSave }) {
+function CustomerFormDialog({
+  open,
+  onOpenChange,
+  initial,
+  salesChannels,
+  onSave,
+}) {
   const empty = {
-    customerName: '', email: '', phone: '', customerType: 'Individual',
-    preferredSalesChannelId: '', city: '', province: '', country: 'Indonesia',
-    notes: '', status: 'Active',
+    customerName: "",
+    email: "",
+    phone: "",
+    customerType: "Individual",
+    preferredSalesChannelId: "",
+    city: "",
+    province: "",
+    country: "Indonesia",
+    notes: "",
+    status: "Active",
   };
   const [form, setForm] = useState(empty);
   const [loading, setLoading] = useState(false);
@@ -16471,23 +19184,31 @@ function CustomerFormDialog({ open, onOpenChange, initial, salesChannels, onSave
 
   useEffect(() => {
     setErrors({});
-    setForm(initial ? {
-      ...empty,
-      ...initial,
-      email: initial.email || '',
-      phone: initial.phone || '',
-      preferredSalesChannelId: initial.preferredSalesChannelId || '',
-    } : empty);
+    setForm(
+      initial
+        ? {
+            ...empty,
+            ...initial,
+            email: initial.email || "",
+            phone: initial.phone || "",
+            preferredSalesChannelId: initial.preferredSalesChannelId || "",
+          }
+        : empty,
+    );
   }, [initial, open]);
 
-  const up = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: undefined })); };
+  const up = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((e) => ({ ...e, [k]: undefined }));
+  };
 
   const validate = () => {
     const e = {};
-    if (!form.customerName?.trim()) e.customerName = 'Customer name is required';
+    if (!form.customerName?.trim())
+      e.customerName = "Customer name is required";
     if (!form.email?.trim() && !form.phone?.trim()) {
-      e.email = 'At least one of Email or Phone is required';
-      e.phone = 'At least one of Email or Phone is required';
+      e.email = "At least one of Email or Phone is required";
+      e.phone = "At least one of Email or Phone is required";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -16513,32 +19234,61 @@ function CustomerFormDialog({ open, onOpenChange, initial, salesChannels, onSave
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{initial?.id ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
-          <DialogDescription>Manage customer identity and contact information</DialogDescription>
+          <DialogTitle>
+            {initial?.id ? "Edit Customer" : "Add Customer"}
+          </DialogTitle>
+          <DialogDescription>
+            Manage customer identity and contact information
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-5 py-2">
           {/* Customer Info */}
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Customer Information</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+              Customer Information
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 space-y-1.5">
-                <Label>Customer Name <span className="text-rose-500">*</span></Label>
-                <Input value={form.customerName} onChange={e => up('customerName', e.target.value)} placeholder="Full name or company name" className={errors.customerName ? 'border-rose-500' : ''} />
-                {errors.customerName && <p className="text-xs text-rose-500">{errors.customerName}</p>}
+                <Label>
+                  Customer Name <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  value={form.customerName}
+                  onChange={(e) => up("customerName", e.target.value)}
+                  placeholder="Full name or company name"
+                  className={errors.customerName ? "border-rose-500" : ""}
+                />
+                {errors.customerName && (
+                  <p className="text-xs text-rose-500">{errors.customerName}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Customer Type</Label>
-                <Select value={form.customerType} onValueChange={v => up('customerType', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={form.customerType}
+                  onValueChange={(v) => up("customerType", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {CUSTOMER_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    {CUSTOMER_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Status</Label>
-                <Select value={form.status} onValueChange={v => up('status', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => up("status", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Active">Active</SelectItem>
                     <SelectItem value="Inactive">Inactive</SelectItem>
@@ -16551,67 +19301,123 @@ function CustomerFormDialog({ open, onOpenChange, initial, salesChannels, onSave
           {/* Contact Info */}
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
-              Contact Information <span className="text-rose-500 normal-case font-normal">* at least one required</span>
+              Contact Information{" "}
+              <span className="text-rose-500 normal-case font-normal">
+                * at least one required
+              </span>
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Email</Label>
-                <Input value={form.email} onChange={e => up('email', e.target.value)} placeholder="email@example.com" type="email" className={errors.email ? 'border-rose-500' : ''} />
-                {errors.email && <p className="text-xs text-rose-500">{errors.email}</p>}
+                <Input
+                  value={form.email}
+                  onChange={(e) => up("email", e.target.value)}
+                  placeholder="email@example.com"
+                  type="email"
+                  className={errors.email ? "border-rose-500" : ""}
+                />
+                {errors.email && (
+                  <p className="text-xs text-rose-500">{errors.email}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Phone</Label>
-                <Input value={form.phone} onChange={e => up('phone', e.target.value)} placeholder="+62 812 3456 7890" className={errors.phone && !errors.email ? 'border-rose-500' : ''} />
+                <Input
+                  value={form.phone}
+                  onChange={(e) => up("phone", e.target.value)}
+                  placeholder="+62 812 3456 7890"
+                  className={
+                    errors.phone && !errors.email ? "border-rose-500" : ""
+                  }
+                />
               </div>
             </div>
           </div>
 
           {/* Location */}
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Location</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+              Location
+            </p>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>City</Label>
-                <Input value={form.city} onChange={e => up('city', e.target.value)} placeholder="Jakarta" />
+                <Input
+                  value={form.city}
+                  onChange={(e) => up("city", e.target.value)}
+                  placeholder="Jakarta"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Province</Label>
-                <Input value={form.province} onChange={e => up('province', e.target.value)} placeholder="DKI Jakarta" />
+                <Input
+                  value={form.province}
+                  onChange={(e) => up("province", e.target.value)}
+                  placeholder="DKI Jakarta"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Country</Label>
-                <Input value={form.country} onChange={e => up('country', e.target.value)} placeholder="Indonesia" />
+                <Input
+                  value={form.country}
+                  onChange={(e) => up("country", e.target.value)}
+                  placeholder="Indonesia"
+                />
               </div>
             </div>
           </div>
 
           {/* Business Info */}
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">Business Information</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-3">
+              Business Information
+            </p>
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label>Preferred Sales Channel</Label>
-                <Select value={form.preferredSalesChannelId || '__none__'} onValueChange={v => up('preferredSalesChannelId', v === '__none__' ? '' : v)}>
-                  <SelectTrigger><SelectValue placeholder="Select channel…" /></SelectTrigger>
+                <Select
+                  value={form.preferredSalesChannelId || "__none__"}
+                  onValueChange={(v) =>
+                    up("preferredSalesChannelId", v === "__none__" ? "" : v)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select channel…" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">— None —</SelectItem>
-                    {(salesChannels || []).filter(s => s.status === 'Active').map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.channelName}</SelectItem>
-                    ))}
+                    {(salesChannels || [])
+                      .filter((s) => s.status === "Active")
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.channelName}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Notes</Label>
-                <Textarea value={form.notes} onChange={e => up('notes', e.target.value)} placeholder="Any additional notes…" rows={3} />
+                <Textarea
+                  value={form.notes}
+                  onChange={(e) => up("notes", e.target.value)}
+                  placeholder="Any additional notes…"
+                  rows={3}
+                />
               </div>
             </div>
           </div>
         </div>
         <DialogFooter className="mt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={submit} disabled={loading}>
-            {loading ? 'Saving…' : initial?.id ? 'Save Changes' : 'Add Customer'}
+            {loading
+              ? "Saving…"
+              : initial?.id
+                ? "Save Changes"
+                : "Add Customer"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -16621,18 +19427,24 @@ function CustomerFormDialog({ open, onOpenChange, initial, salesChannels, onSave
 
 function CustomerDetailDialog({ open, onOpenChange, customer, onEdit }) {
   if (!customer) return null;
-  const isActive = customer.status === 'Active';
+  const isActive = customer.status === "Active";
 
   const Row = ({ label, value }) => (
     <div className="flex items-start gap-4 py-2.5 border-b border-border/30 last:border-0">
-      <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium w-44 shrink-0 pt-0.5">{label}</span>
-      <span className="text-sm text-foreground font-medium flex-1">{value ?? '—'}</span>
+      <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium w-44 shrink-0 pt-0.5">
+        {label}
+      </span>
+      <span className="text-sm text-foreground font-medium flex-1">
+        {value ?? "—"}
+      </span>
     </div>
   );
 
   const Section = ({ title, children }) => (
     <div className="mt-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-1">{title}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b pb-1.5 mb-1">
+        {title}
+      </p>
       {children}
     </div>
   );
@@ -16642,8 +19454,12 @@ function CustomerDetailDialog({ open, onOpenChange, customer, onEdit }) {
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div>
-            <DialogTitle className="text-lg">{customer.customerName}</DialogTitle>
-            <p className="text-xs text-muted-foreground font-mono mt-0.5">{customer.customerCode}</p>
+            <DialogTitle className="text-lg">
+              {customer.customerName}
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground font-mono mt-0.5">
+              {customer.customerCode}
+            </p>
           </div>
         </DialogHeader>
         <div className="py-1">
@@ -16651,27 +19467,53 @@ function CustomerDetailDialog({ open, onOpenChange, customer, onEdit }) {
             <Row label="Customer Code" value={customer.customerCode} />
             <Row label="Customer Name" value={customer.customerName} />
             <Row label="Customer Type" value={customer.customerType} />
-            <Row label="Status" value={
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'}`}>
-                {customer.status}
-              </span>
-            } />
+            <Row
+              label="Status"
+              value={
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? "bg-emerald-500/10 text-emerald-600" : "bg-gray-400/10 text-gray-500"}`}
+                >
+                  {customer.status}
+                </span>
+              }
+            />
           </Section>
 
           <Section title="Contact Information">
-            <Row label="Email" value={customer.email || <span className="text-muted-foreground/50 italic text-xs">Not provided</span>} />
-            <Row label="Phone" value={customer.phone || <span className="text-muted-foreground/50 italic text-xs">Not provided</span>} />
+            <Row
+              label="Email"
+              value={
+                customer.email || (
+                  <span className="text-muted-foreground/50 italic text-xs">
+                    Not provided
+                  </span>
+                )
+              }
+            />
+            <Row
+              label="Phone"
+              value={
+                customer.phone || (
+                  <span className="text-muted-foreground/50 italic text-xs">
+                    Not provided
+                  </span>
+                )
+              }
+            />
           </Section>
 
           <Section title="Location">
-            <Row label="City" value={customer.city || '—'} />
-            <Row label="Province" value={customer.province || '—'} />
-            <Row label="Country" value={customer.country || '—'} />
+            <Row label="City" value={customer.city || "—"} />
+            <Row label="Province" value={customer.province || "—"} />
+            <Row label="Country" value={customer.country || "—"} />
           </Section>
 
           <Section title="Business Information">
-            <Row label="Preferred Channel" value={customer.preferredSalesChannel?.channelName || '—'} />
-            <Row label="Notes" value={customer.notes || '—'} />
+            <Row
+              label="Preferred Channel"
+              value={customer.preferredSalesChannel?.channelName || "—"}
+            />
+            <Row label="Notes" value={customer.notes || "—"} />
           </Section>
 
           <Section title="Future Metrics">
@@ -16681,9 +19523,17 @@ function CustomerDetailDialog({ open, onOpenChange, customer, onEdit }) {
           </Section>
         </div>
         <DialogFooter className="mt-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button onClick={() => { onOpenChange(false); onEdit(customer); }}>
-            <Edit3 className="h-3.5 w-3.5 mr-1.5" />Edit
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button
+            onClick={() => {
+              onOpenChange(false);
+              onEdit(customer);
+            }}
+          >
+            <Edit3 className="h-3.5 w-3.5 mr-1.5" />
+            Edit
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -16694,9 +19544,9 @@ function CustomerDetailDialog({ open, onOpenChange, customer, onEdit }) {
 function CustomersModule({ activeModule }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [stats, setStats] = useState(null);
   const [salesChannels, setSalesChannels] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -16707,55 +19557,80 @@ function CustomersModule({ activeModule }) {
   const load = async () => {
     setLoading(true);
     const qs = new URLSearchParams();
-    if (statusFilter !== 'all') qs.append('status', statusFilter);
-    if (typeFilter !== 'all') qs.append('customerType', typeFilter);
-    if (search) qs.append('search', search);
+    if (statusFilter !== "all") qs.append("status", statusFilter);
+    if (typeFilter !== "all") qs.append("customerType", typeFilter);
+    if (search) qs.append("search", search);
     const [data, statsData] = await Promise.all([
-      api.get('customers' + (qs.toString() ? '?' + qs.toString() : '')),
-      api.get('customers/stats'),
+      api.get("customers" + (qs.toString() ? "?" + qs.toString() : "")),
+      api.get("customers/stats"),
     ]);
     setItems(Array.isArray(data) ? data : []);
     setStats(statsData && !statsData.error ? statsData : null);
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "customers", () => { load(); }, [search, statusFilter, typeFilter]);
-  useLazyModuleEffect(activeModule, "customers", () => {
-    api.get('saleschannels?status=Active').then(d => setSalesChannels(Array.isArray(d) ? d : []));
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "customers",
+    () => {
+      load();
+    },
+    [search, statusFilter, typeFilter],
+  );
+  useLazyModuleEffect(
+    activeModule,
+    "customers",
+    () => {
+      api
+        .get("saleschannels?status=Active")
+        .then((d) => setSalesChannels(Array.isArray(d) ? d : []));
+    },
+    [],
+  );
 
-  const openCreate = () => { setEditing(null); setShowForm(true); };
-  const openEdit = (c) => { setEditing(c); setShowForm(true); };
-  const openDetail = (c) => { setDetail(c); setShowDetail(true); };
+  const openCreate = () => {
+    setEditing(null);
+    setShowForm(true);
+  };
+  const openEdit = (c) => {
+    setEditing(c);
+    setShowForm(true);
+  };
+  const openDetail = (c) => {
+    setDetail(c);
+    setShowDetail(true);
+  };
 
   const save = async (form) => {
     try {
       if (editing?.id) {
-        await api.put('customers/' + editing.id, form);
-        toast.success('Customer updated successfully');
+        await api.put("customers/" + editing.id, form);
+        toast.success("Customer updated successfully");
       } else {
-        await api.post('customers', form);
-        toast.success('Customer created successfully');
+        await api.post("customers", form);
+        toast.success("Customer created successfully");
       }
       setShowForm(false);
       setEditing(null);
       load();
     } catch (err) {
-      toast.error(err?.message || 'An error occurred');
+      toast.error(err?.message || "An error occurred");
       throw err;
     }
   };
 
   const setInactive = async (id) => {
-    await api.del('customers/' + id);
-    toast.success('Customer set to Inactive');
+    await api.del("customers/" + id);
+    toast.success("Customer set to Inactive");
     load();
   };
 
   const statusBadge = (status) => {
-    const isActive = status === 'Active';
+    const isActive = status === "Active";
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'}`}>
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? "bg-emerald-500/10 text-emerald-600" : "bg-gray-400/10 text-gray-500"}`}
+      >
         {status}
       </span>
     );
@@ -16765,13 +19640,16 @@ function CustomersModule({ activeModule }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Customers</h2>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Customers
+          </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
             Central customer identity repository across all sales channels
           </p>
         </div>
         <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" />Add Customer
+          <Plus className="h-4 w-4 mr-2" />
+          Add Customer
         </Button>
       </div>
 
@@ -16779,20 +19657,32 @@ function CustomersModule({ activeModule }) {
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Customers</p>
-            <p className="text-3xl font-semibold mt-1">{loading ? '—' : (stats?.total ?? 0)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Total Customers
+            </p>
+            <p className="text-3xl font-semibold mt-1">
+              {loading ? "—" : (stats?.total ?? 0)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">Active</p>
-            <p className="text-3xl font-semibold mt-1 text-emerald-500">{loading ? '—' : (stats?.active ?? 0)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-emerald-500">
+              Active
+            </p>
+            <p className="text-3xl font-semibold mt-1 text-emerald-500">
+              {loading ? "—" : (stats?.active ?? 0)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider text-gray-400">Inactive</p>
-            <p className="text-3xl font-semibold mt-1 text-gray-400">{loading ? '—' : (stats?.inactive ?? 0)}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider text-gray-400">
+              Inactive
+            </p>
+            <p className="text-3xl font-semibold mt-1 text-gray-400">
+              {loading ? "—" : (stats?.inactive ?? 0)}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -16802,26 +19692,43 @@ function CustomersModule({ activeModule }) {
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[220px]">
-              <p className="text-xs text-muted-foreground mb-1">Search code / name / email / phone</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Search code / name / email / phone
+              </p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-9" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
+                <Input
+                  className="pl-9"
+                  placeholder="Search…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
               </div>
             </div>
             <div className="min-w-[160px]">
-              <p className="text-xs text-muted-foreground mb-1">Customer Type</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Customer Type
+              </p>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  {CUSTOMER_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  {CUSTOMER_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="min-w-[140px]">
               <p className="text-xs text-muted-foreground mb-1">Status</p>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
@@ -16829,7 +19736,12 @@ function CustomersModule({ activeModule }) {
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="outline" size="icon" onClick={load} title="Refresh">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={load}
+              title="Refresh"
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -16840,24 +19752,42 @@ function CustomersModule({ activeModule }) {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">Loading customers…</div>
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              Loading customers…
+            </div>
           ) : items.length === 0 ? (
             <div className="p-12 text-center">
               <Users className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">No customers found</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Add your first customer to get started.</p>
+              <p className="text-muted-foreground text-sm">
+                No customers found
+              </p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Add your first customer to get started.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[rgba(17,24,39,0.04)]">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Code</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Customer Name</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Email</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Phone</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Code
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Customer Name
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Phone
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                      Status
+                    </th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
@@ -16865,22 +19795,50 @@ function CustomersModule({ activeModule }) {
                   {items.map((c, idx) => (
                     <tr
                       key={c.id}
-                      className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors cursor-pointer ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}
+                      className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors cursor-pointer ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
                       onClick={() => openDetail(c)}
                     >
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{c.customerCode}</td>
-                      <td className="px-4 py-3 font-medium">{c.customerName}</td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">{c.email || <span className="italic opacity-40">—</span>}</td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">{c.phone || <span className="italic opacity-40">—</span>}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{c.customerType}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                        {c.customerCode}
+                      </td>
+                      <td className="px-4 py-3 font-medium">
+                        {c.customerName}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {c.email || (
+                          <span className="italic opacity-40">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {c.phone || (
+                          <span className="italic opacity-40">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {c.customerType}
+                      </td>
                       <td className="px-4 py-3">{statusBadge(c.status)}</td>
-                      <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                      <td
+                        className="px-4 py-3 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => openEdit(c)}
+                          >
                             <Edit3 className="h-3.5 w-3.5" />
                           </Button>
-                          {c.status !== 'Inactive' && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600" onClick={() => setInactive(c.id)} title="Set Inactive">
+                          {c.status !== "Inactive" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-rose-500 hover:text-rose-600"
+                              onClick={() => setInactive(c.id)}
+                              title="Set Inactive"
+                            >
                               <Archive className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -16895,8 +19853,22 @@ function CustomersModule({ activeModule }) {
         </CardContent>
       </Card>
 
-      <CustomerFormDialog open={showForm} onOpenChange={setShowForm} initial={editing} salesChannels={salesChannels} onSave={save} />
-      <CustomerDetailDialog open={showDetail} onOpenChange={setShowDetail} customer={detail} onEdit={c => { setEditing(c); setShowForm(true); }} />
+      <CustomerFormDialog
+        open={showForm}
+        onOpenChange={setShowForm}
+        initial={editing}
+        salesChannels={salesChannels}
+        onSave={save}
+      />
+      <CustomerDetailDialog
+        open={showDetail}
+        onOpenChange={setShowDetail}
+        customer={detail}
+        onEdit={(c) => {
+          setEditing(c);
+          setShowForm(true);
+        }}
+      />
     </div>
   );
 }
@@ -17029,19 +20001,30 @@ function CashFlowStatementModule({
     const params = new URLSearchParams();
     if (dateFrom) params.append("from", dateFrom);
     if (dateTo) params.append("to", dateTo);
-    if (financialAccountId !== "all") params.append("financialAccountId", financialAccountId);
+    if (financialAccountId !== "all")
+      params.append("financialAccountId", financialAccountId);
     const result = await api.get("cashflow?" + params.toString());
     setData(result?.error ? null : result);
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "cashflowstatement", () => {
-    loadFinancialAccounts();
-  }, []);
+  useLazyModuleEffect(
+    activeModule,
+    "cashflowstatement",
+    () => {
+      loadFinancialAccounts();
+    },
+    [],
+  );
 
-  useLazyModuleEffect(activeModule, "cashflowstatement", () => {
-    load();
-  }, [dateFrom, dateTo, financialAccountId]);
+  useLazyModuleEffect(
+    activeModule,
+    "cashflowstatement",
+    () => {
+      load();
+    },
+    [dateFrom, dateTo, financialAccountId],
+  );
 
   const CashTable = ({ rows, emptyLabel, colorClass, onDrillDown }) => (
     <div className="overflow-x-auto">
@@ -17096,10 +20079,14 @@ function CashFlowStatementModule({
                 <td className="px-4 py-3 font-medium">
                   {row.financialAccountName || row.accountName}
                   {row.accountCode ? (
-                    <span className="ml-2 font-mono text-[11px] text-muted-foreground">{row.accountCode}</span>
+                    <span className="ml-2 font-mono text-[11px] text-muted-foreground">
+                      {row.accountCode}
+                    </span>
                   ) : null}
                 </td>
-                <td className={`px-4 py-3 text-right font-medium ${colorClass}`}>
+                <td
+                  className={`px-4 py-3 text-right font-medium ${colorClass}`}
+                >
                   {fmt(row.amount)}
                 </td>
                 <td className="px-4 py-3">
@@ -17132,7 +20119,8 @@ function CashFlowStatementModule({
             Cash Flow Statement
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Direct method — generated automatically from posted journal entries affecting cash and bank accounts
+            Direct method — generated automatically from posted journal entries
+            affecting cash and bank accounts
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -17527,9 +20515,14 @@ function App() {
   });
   const [glInitialAccount, setGlInitialAccount] = useState(null);
   const [orderReferenceSelection, setOrderReferenceSelection] = useState(null);
-  const [inventoryFilterSelection, setInventoryFilterSelection] = useState(null);
-  const [notificationSummary, setNotificationSummary] = useState({ unreadCount: 0, recent: [] });
-  const [notificationSummaryLoading, setNotificationSummaryLoading] = useState(false);
+  const [inventoryFilterSelection, setInventoryFilterSelection] =
+    useState(null);
+  const [notificationSummary, setNotificationSummary] = useState({
+    unreadCount: 0,
+    recent: [],
+  });
+  const [notificationSummaryLoading, setNotificationSummaryLoading] =
+    useState(false);
 
   const toggleGroup = (id) => {
     setOpenGroups((prev) => {
@@ -17587,8 +20580,8 @@ function App() {
       await refreshNotificationSummary();
     }
 
-    const actionUrl = String(notification?.actionUrl || '').trim();
-    const referenceId = String(notification?.referenceId || '').trim();
+    const actionUrl = String(notification?.actionUrl || "").trim();
+    const referenceId = String(notification?.referenceId || "").trim();
 
     if (actionUrl === "orders" && referenceId) {
       openOrderReference(referenceId);
@@ -17641,7 +20634,10 @@ function App() {
 
     let mounted = true;
     const run = async () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "hidden"
+      ) {
         return;
       }
 
@@ -17658,7 +20654,7 @@ function App() {
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === "visible") {
         void run();
       }
     };
@@ -17668,12 +20664,12 @@ function App() {
     const intervalId = window.setInterval(() => {
       void run();
     }, 30_000);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       mounted = false;
       window.clearInterval(intervalId);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [user]);
 
@@ -17811,9 +20807,15 @@ function App() {
     saleschannels: () => <SalesChannelsModule activeModule={active} />,
     promotions: () => <PromotionsModule />,
     productanalytics: () => <ProductAnalyticsModule activeModule={active} />,
-    inventoryanalytics: () => <InventoryAnalyticsModule activeModule={active} />,
-    financialanalytics: () => <FinancialAnalyticsModule activeModule={active} />,
-    marketinganalytics: () => <MarketingAnalyticsModule activeModule={active} />,
+    inventoryanalytics: () => (
+      <InventoryAnalyticsModule activeModule={active} />
+    ),
+    financialanalytics: () => (
+      <FinancialAnalyticsModule activeModule={active} />
+    ),
+    marketinganalytics: () => (
+      <MarketingAnalyticsModule activeModule={active} />
+    ),
     executivereports: () => (
       <ExecutiveReportsModule
         activeModule={active}
@@ -18063,53 +21065,96 @@ function App() {
                   <Bell className="h-4 w-4" />
                   {notificationSummary.unreadCount > 0 ? (
                     <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
-                      {notificationSummary.unreadCount > 99 ? "99+" : notificationSummary.unreadCount}
+                      {notificationSummary.unreadCount > 99
+                        ? "99+"
+                        : notificationSummary.unreadCount}
                     </span>
                   ) : null}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[360px] p-0 overflow-hidden">
+              <DropdownMenuContent
+                align="end"
+                className="w-[360px] p-0 overflow-hidden"
+              >
                 <div className="px-4 py-3 border-b border-border bg-[#F7F8FA]">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold text-sm">Notifications</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {notificationSummary.unreadCount} unread notification{notificationSummary.unreadCount === 1 ? "" : "s"}
+                        {notificationSummary.unreadCount} unread notification
+                        {notificationSummary.unreadCount === 1 ? "" : "s"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={async () => { await api.post('notifications/mark-all-read', {}); await refreshNotificationSummary(); }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={async () => {
+                          await api.post("notifications/mark-all-read", {});
+                          await refreshNotificationSummary();
+                        }}
+                      >
                         Mark All Read
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleNavClick("notifications")}>View All</Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => handleNavClick("notifications")}
+                      >
+                        View All
+                      </Button>
                     </div>
                   </div>
                 </div>
                 <div className="max-h-[360px] overflow-y-auto">
                   {notificationSummaryLoading ? (
-                    <div className="px-4 py-10 text-center text-sm text-muted-foreground">Loading notifications…</div>
+                    <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      Loading notifications…
+                    </div>
                   ) : notificationSummary.recent.length === 0 ? (
-                    <div className="px-4 py-10 text-center text-sm text-muted-foreground">No recent notifications.</div>
-                  ) : notificationSummary.recent.map((notification) => (
-                    <button
-                      key={notification.id}
-                      type="button"
-                      onClick={() => openNotificationAction(notification)}
-                      className={`w-full text-left px-4 py-3 border-b border-border/40 hover:bg-[#F7F8FA] transition-colors ${!notification.read ? 'bg-secondary/20' : ''}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-sm truncate">{notification.title}</p>
-                            {!notification.read ? <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" /> : null}
+                    <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      No recent notifications.
+                    </div>
+                  ) : (
+                    notificationSummary.recent.map((notification) => (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        onClick={() => openNotificationAction(notification)}
+                        className={`w-full text-left px-4 py-3 border-b border-border/40 hover:bg-[#F7F8FA] transition-colors ${!notification.read ? "bg-secondary/20" : ""}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-medium text-sm truncate">
+                                {notification.title}
+                              </p>
+                              {!notification.read ? (
+                                <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                              ) : null}
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {notification.message}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                              {notification.relativeTime ||
+                                new Date(notification.createdAt).toLocaleString(
+                                  "id-ID",
+                                )}
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
-                          <p className="text-[11px] text-muted-foreground mt-1">{notification.relativeTime || new Date(notification.createdAt).toLocaleString('id-ID')}</p>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] shrink-0"
+                          >
+                            {notification.type}
+                          </Badge>
                         </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0">{notification.type}</Badge>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    ))
+                  )}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
