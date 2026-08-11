@@ -48,3 +48,37 @@ test('manual order validation allows exact aggregate stock consumption', () => {
 
   assert.equal(result.valid, true);
 });
+
+import {
+  buildInventoryStockState,
+  validateInventoryStockState,
+} from '../lib/inventory/stock-levels.js';
+
+test('inventory stock state allows real stock with zero website stock', () => {
+  const result = validateInventoryStockState({ realStock: 10, websiteStock: 0 });
+  assert.equal(result.valid, true);
+});
+
+test('inventory stock state allows website stock equal to real stock', () => {
+  const result = validateInventoryStockState({ realStock: 10, websiteStock: 10 });
+  assert.equal(result.valid, true);
+});
+
+test('inventory stock state rejects website stock above real stock', () => {
+  const result = validateInventoryStockState({ realStock: 10, websiteStock: 11 });
+  assert.equal(result.valid, false);
+  assert.equal(result.message, 'Website Stock cannot exceed Real Stock.');
+});
+
+test('inventory stock state rejects negative real or website stock', () => {
+  assert.equal(validateInventoryStockState({ realStock: -1, websiteStock: 0 }).valid, false);
+  assert.equal(validateInventoryStockState({ realStock: 10, websiteStock: -1 }).valid, false);
+});
+
+test('existing inventory quantity can be backfilled as both real and website stock', () => {
+  assert.deepEqual(buildInventoryStockState({ quantity: 8 }), {
+    quantity: 8,
+    realStock: 8,
+    websiteStock: 8,
+  });
+});

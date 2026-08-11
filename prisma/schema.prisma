@@ -184,6 +184,8 @@ model Inventory {
   color          String
   size           String
   quantity       Int
+  realStock      Int             @default(0)
+  websiteStock   Int             @default(0)
   averageCost    Float           @default(0)
   threshold      Int
   incoming       Int

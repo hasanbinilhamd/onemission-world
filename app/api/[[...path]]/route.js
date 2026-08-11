@@ -57,6 +57,10 @@ import {
   validateManualOrderInventoryAvailability,
 } from '@/lib/manual-order/inventory';
 import {
+  buildStockUpdateForQuantityChange,
+  validateInventoryStockState,
+} from '@/lib/inventory/stock-levels';
+import {
   ensureInventoryRowsForProduct,
   repairAllProductInventoryRows,
 } from '@/lib/inventory/lifecycle';
@@ -2516,9 +2520,13 @@ async function handle(request, { params }) {
             for (const [inventoryId, requestedQuantity] of requestedByInventory.entries()) {
               const [deductionResult] = await tx.$queryRaw`
                 UPDATE "Inventory"
-                SET "quantity" = "quantity" - ${Math.trunc(Number(requestedQuantity || 0))}
+                SET
+                  "quantity" = "quantity" - ${Math.trunc(Number(requestedQuantity || 0))},
+                  "realStock" = "realStock" - ${Math.trunc(Number(requestedQuantity || 0))},
+                  "websiteStock" = LEAST("websiteStock", "quantity" - ${Math.trunc(Number(requestedQuantity || 0))})
                 WHERE "id" = ${inventoryId}
                   AND "quantity" >= ${Math.trunc(Number(requestedQuantity || 0))}
+                  AND "realStock" >= ${Math.trunc(Number(requestedQuantity || 0))}
                 RETURNING "id", "quantity" + ${Math.trunc(Number(requestedQuantity || 0))} AS "previousQuantity", "quantity" AS "newQuantity"
               `;
 
@@ -4276,7 +4284,14 @@ async function handle(request, { params }) {
               performedBy: String(body.createdBy || INVENTORY_PERFORMED_BY.SYSTEM),
             },
           }),
-          prisma.inventory.update({ where: { id: body.inventoryId }, data: { quantity: newQty } }),
+          prisma.inventory.update({
+            where: { id: body.inventoryId },
+            data: {
+              quantity: newQty,
+              realStock: Math.max(Math.trunc(newQty), 0),
+              websiteStock: Math.min(Number(inv.websiteStock ?? inv.quantity ?? 0), Math.max(Math.trunc(newQty), 0)),
+            },
+          }),
         ]);
         await writeAuditLog({
           prismaClient: prisma,
@@ -5057,7 +5072,7 @@ async function handle(request, { params }) {
           await tx.inventory.update({
             where: { id: targetInventory.id },
             data: {
-              quantity: Number(targetInventory.quantity || 0) + actualQty,
+              ...buildStockUpdateForQuantityChange(Number(targetInventory.quantity || 0) + actualQty, targetInventory),
               averageCost: newAverageCost,
             },
           });
