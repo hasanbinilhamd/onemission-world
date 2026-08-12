@@ -39,6 +39,7 @@ export async function POST(request, { params }) {
       attachments: Array.isArray(payload.attachments) ? payload.attachments : [],
       resolution: payload.resolution || 'REFUND',
       items: Array.isArray(payload.items) ? payload.items : [],
+      replacementItems: Array.isArray(payload.replacementItems) ? payload.replacementItems : [],
     });
 
     await writeAuditLog({
