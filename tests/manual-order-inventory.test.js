@@ -82,3 +82,39 @@ test('existing inventory quantity can be backfilled as both real and website sto
     websiteStock: 8,
   });
 });
+
+test('manual order availability uses real stock and preserves website allocation when real remains above website', () => {
+  const requestedByInventory = aggregateManualOrderInventoryQuantities([
+    { inventoryId: 'inventory-a', quantity: 3 },
+  ]);
+
+  const result = validateManualOrderInventoryAvailability({
+    requestedByInventory,
+    inventoryRows: [
+      { id: 'inventory-a', quantity: 8, realStock: 20, websiteStock: 8, product: { name: 'BASIC 3/4 LEGGING' } },
+    ],
+  });
+
+  assert.equal(result.valid, true);
+  assert.equal(Math.min(8, 20 - 3), 8);
+});
+
+test('manual order website stock is clamped only when real stock falls below website stock', () => {
+  assert.equal(Math.min(8, 10 - 2), 8);
+  assert.equal(Math.min(8, 10 - 5), 5);
+});
+
+test('manual order availability rejects when requested quantity exceeds real stock even if legacy quantity is higher', () => {
+  const requestedByInventory = aggregateManualOrderInventoryQuantities([
+    { inventoryId: 'inventory-a', quantity: 6 },
+  ]);
+
+  const result = validateManualOrderInventoryAvailability({
+    requestedByInventory,
+    inventoryRows: [
+      { id: 'inventory-a', quantity: 8, realStock: 5, websiteStock: 5, product: { name: 'BASIC 3/4 LEGGING' } },
+    ],
+  });
+
+  assert.equal(result.valid, false);
+});

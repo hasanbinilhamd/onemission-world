@@ -2455,7 +2455,7 @@ async function handle(request, { params }) {
             for (const item of payload.items) {
               const inventory = await tx.inventory.findUnique({ where: { id: item.inventoryId }, include: { product: true } });
               if (!inventory || inventory.productId !== item.productId) throw new Error('Selected inventory variant is invalid.');
-              if (Number(inventory.quantity || 0) < item.quantity) throw new Error(`Insufficient inventory for ${inventory.product.name} ${inventory.color} ${inventory.size}.`);
+              if (Number(inventory.realStock ?? inventory.quantity ?? 0) < item.quantity) throw new Error(`Insufficient inventory for ${inventory.product.name} ${inventory.color} ${inventory.size}.`);
               const lineGross = item.unitPrice * item.quantity;
               if (item.discountType === 'FIXED' && item.discountValue > lineGross) throw new Error('Item discount cannot exceed item subtotal.');
               const itemDiscount = calculateManualDiscountAmount(lineGross, item.discountType, item.discountValue);
@@ -2473,7 +2473,7 @@ async function handle(request, { params }) {
                 costPrice: Number(inventory.averageCost || inventory.product.costPrice || 0),
                 productName: inventory.product.name,
                 sku: inventory.product.sku,
-                previousQuantity: Number(inventory.quantity || 0),
+                previousQuantity: Number(inventory.realStock ?? inventory.quantity ?? 0),
               });
             }
 
@@ -2482,6 +2482,7 @@ async function handle(request, { params }) {
               requestedByInventory,
               inventoryRows: itemRows.map((row) => ({
                 id: row.inventoryId,
+                realStock: row.previousQuantity,
                 quantity: row.previousQuantity,
                 color: row.color,
                 size: row.size,
@@ -2521,13 +2522,12 @@ async function handle(request, { params }) {
               const [deductionResult] = await tx.$queryRaw`
                 UPDATE "Inventory"
                 SET
-                  "quantity" = "quantity" - ${Math.trunc(Number(requestedQuantity || 0))},
                   "realStock" = "realStock" - ${Math.trunc(Number(requestedQuantity || 0))},
-                  "websiteStock" = LEAST("websiteStock", "quantity" - ${Math.trunc(Number(requestedQuantity || 0))})
+                  "websiteStock" = LEAST("websiteStock", "realStock" - ${Math.trunc(Number(requestedQuantity || 0))}),
+                  "quantity" = LEAST("quantity", "realStock" - ${Math.trunc(Number(requestedQuantity || 0))})
                 WHERE "id" = ${inventoryId}
-                  AND "quantity" >= ${Math.trunc(Number(requestedQuantity || 0))}
                   AND "realStock" >= ${Math.trunc(Number(requestedQuantity || 0))}
-                RETURNING "id", "quantity" + ${Math.trunc(Number(requestedQuantity || 0))} AS "previousQuantity", "quantity" AS "newQuantity"
+                RETURNING "id", "realStock" + ${Math.trunc(Number(requestedQuantity || 0))} AS "previousQuantity", "realStock" AS "newQuantity"
               `;
 
               if (!deductionResult) {
