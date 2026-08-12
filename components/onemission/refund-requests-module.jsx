@@ -394,6 +394,37 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
             </CardContent>
           </Card>
 
+          {item.resolution === 'REPLACEMENT' && Array.isArray(item.replacementItems) && item.replacementItems.length > 0 ? (
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Replacement</p>
+                <div className="space-y-3 text-sm">
+                  {item.replacementItems.map((replacement, index) => (
+                    <div key={`${replacement.originalOrderItemId || index}-${replacement.replacementVariantId || index}`} className="rounded-lg border border-border/40 p-3">
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Original</p>
+                          <p className="font-medium">{replacement.originalProductName || '—'}</p>
+                          <p className="text-muted-foreground">{replacement.originalVariantName || '—'} · Qty {replacement.replacementQuantity || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Replacement</p>
+                          <p className="font-medium">{replacement.replacementProductName || '—'}</p>
+                          <p className="text-muted-foreground">{replacement.replacementVariantName || '—'} · Qty {replacement.replacementQuantity || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid gap-2 md:grid-cols-3 text-xs text-muted-foreground">
+                        <div>Original Unit: {fmtCurrency(replacement.originalUnitPrice)}</div>
+                        <div>Replacement Unit: {fmtCurrency(replacement.replacementUnitPrice)}</div>
+                        <div>Difference: {fmtCurrency(replacement.difference)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
           <div className="grid gap-4 md:grid-cols-2">
             {canInspect ? (
               <div className="space-y-1.5">
