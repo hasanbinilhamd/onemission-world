@@ -230,7 +230,7 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
   const handleReplacementSent = () => runAction(() => refundRequestsApi.replacementSent(item.id, { note: replacementNote, replacementItems: [] }), 'Replacement marked as sent.');
 
   const canApprove = item.status === "REQUESTED";
-  const canRetry = item.refundStatus === "FAILED";
+  const canRetry = false;
   const canReject = item.status === "REQUESTED";
   const canReceive = item.status === "AWAITING_RETURN" || item.status === "APPROVED";
   const canInspect = item.status === "RECEIVED" || item.status === "INSPECTING";
