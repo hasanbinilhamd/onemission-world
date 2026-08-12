@@ -136,6 +136,14 @@ const refundRequestsApi = {
     });
     return response.json();
   },
+  async replacementComplete(id, payload) {
+    const response = await fetch(`/api/admin/returns/${id}/replacement-complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
 };
 
 function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
@@ -228,6 +236,7 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
   const handleInspectFailed = () => runAction(() => refundRequestsApi.inspect(item.id, { inspectionResult: 'FAILED', inspectionNote }), 'Inspection failed.');
   const handleRefundPaid = () => runAction(() => refundRequestsApi.markRefundPaid(item.id, { refundAmount: item.refundAmount, refundMethod: refundPayment.refundMethod, refundReference: refundPayment.refundReference, note: refundPayment.note }), 'Manual refund paid and posted to Finance.');
   const handleReplacementSent = () => runAction(() => refundRequestsApi.replacementSent(item.id, { note: replacementNote, replacementItems: [] }), 'Replacement marked as sent.');
+  const handleReplacementComplete = () => runAction(() => refundRequestsApi.replacementComplete(item.id, { note: replacementNote }), 'Replacement return completed.');
 
   const canApprove = item.status === "REQUESTED";
   const canRetry = false;
@@ -236,6 +245,7 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
   const canInspect = item.status === "RECEIVED" || item.status === "INSPECTING";
   const canRefundPaid = item.resolution === "REFUND" && item.status === "REFUND_PENDING" && item.inspectionResult === "PASSED";
   const canReplacementSent = item.resolution === "REPLACEMENT" && item.status === "REPLACEMENT_PENDING" && item.inspectionResult === "PASSED";
+  const canReplacementComplete = item.resolution === "REPLACEMENT" && item.status === "REPLACEMENT_SENT" && Boolean(item.replacementSentAt);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -442,6 +452,9 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
           ) : null}
           {canReplacementSent ? (
             <Button onClick={handleReplacementSent} disabled={saving}>Mark Replacement Sent</Button>
+          ) : null}
+          {canReplacementComplete ? (
+            <Button onClick={handleReplacementComplete} disabled={saving}>Complete Replacement</Button>
           ) : null}
           {canRetry ? (
             <Button variant="outline" onClick={handleRetry} disabled={saving}>
