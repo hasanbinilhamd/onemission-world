@@ -1248,6 +1248,7 @@ model OrderItem {
   subtotal      Float
   currency      String         @default("IDR")
   productReview ProductReview?
+  returnRequestItems ReturnRequestItem[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -1327,13 +1328,48 @@ model ReturnRequest {
   rejectedAt                DateTime?
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
+  resolution                String          @default("REFUND")
+  receivedAt                DateTime?
+  receivedBy                String          @default("")
+  inspectedAt               DateTime?
+  inspectedBy               String          @default("")
+  inspectionResult          String          @default("")
+  inspectionNote            String          @default("")
+  manualRefundMethod        String          @default("")
+  manualRefundDate          DateTime?
+  manualRefundReference     String          @default("")
+  manualRefundNote          String          @default("")
+  manualRefundPaidBy        String          @default("")
+  financeTransactionId      String          @default("")
+  replacementStatus         String          @default("")
+  replacementSentAt         DateTime?
+  replacementNote           String          @default("")
+  replacementItems          Json?
   refundAttempts            RefundAttempt[]
+  items                     ReturnRequestItem[]
 
   @@index([customerId])
   @@index([requestType])
   @@index([status])
   @@index([refundStatus])
+  @@index([resolution])
+  @@index([inspectionResult])
+  @@index([financeTransactionId])
   @@index([requestedAt])
+}
+
+model ReturnRequestItem {
+  id              String        @id
+  returnRequestId String
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItemId     String
+  orderItem       OrderItem     @relation(fields: [orderItemId], references: [id])
+  quantity        Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([returnRequestId])
+  @@index([orderItemId])
 }
 
 model RefundAttempt {

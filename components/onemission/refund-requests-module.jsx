@@ -28,6 +28,8 @@ const REFUND_STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
   { value: "REQUESTED", label: "REQUESTED" },
   { value: "APPROVED", label: "APPROVED" },
+  { value: "PENDING", label: "PENDING" },
+  { value: "PAID", label: "PAID" },
   { value: "PROCESSING", label: "PROCESSING" },
   { value: "COMPLETED", label: "COMPLETED" },
   { value: "REJECTED", label: "REJECTED" },
@@ -55,6 +57,8 @@ function refundStatusBadge(status) {
   const styles = {
     REQUESTED: "bg-amber-500/10 text-amber-600",
     APPROVED: "bg-cyan-500/10 text-cyan-700",
+    PENDING: "bg-amber-500/10 text-amber-600",
+    PAID: "bg-emerald-500/10 text-emerald-700",
     PROCESSING: "bg-indigo-500/10 text-indigo-700",
     COMPLETED: "bg-emerald-500/10 text-emerald-700",
     REJECTED: "bg-rose-500/10 text-rose-600",
@@ -104,14 +108,48 @@ const refundRequestsApi = {
     });
     return response.json();
   },
+  async received(id) {
+    const response = await fetch(`/api/admin/returns/${id}/received`, { method: "POST" });
+    return response.json();
+  },
+  async inspect(id, payload) {
+    const response = await fetch(`/api/admin/returns/${id}/inspection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+  async markRefundPaid(id, payload) {
+    const response = await fetch(`/api/admin/returns/${id}/refund-paid`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+  async replacementSent(id, payload) {
+    const response = await fetch(`/api/admin/returns/${id}/replacement-sent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
 };
 
 function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
   const [saving, setSaving] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [inspectionNote, setInspectionNote] = useState("");
+  const [refundPayment, setRefundPayment] = useState({ refundMethod: "BANK_TRANSFER", refundReference: "", note: "" });
+  const [replacementNote, setReplacementNote] = useState("");
 
   useEffect(() => {
     setRejectReason("");
+    setInspectionNote("");
+    setRefundPayment({ refundMethod: "BANK_TRANSFER", refundReference: "", note: "" });
+    setReplacementNote("");
   }, [item?.id, open]);
 
   if (!item) return null;
@@ -124,11 +162,7 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
         toast.error(result.error);
         return;
       }
-      if (result?.returnRequest?.refundStatus === 'FAILED') {
-        toast.error(result.returnRequest.failureDisplayMessage || 'Refund failed to send to Midtrans.');
-      } else {
-        toast.success('Refund approved and sent to Midtrans.');
-      }
+      toast.success('Return approved. Awaiting returned item.');
       onUpdated?.(result);
     } finally {
       setSaving(false);
@@ -174,9 +208,34 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
     }
   };
 
-  const canApprove = item.refundStatus === "REQUESTED";
-  const canRetry = item.refundStatus === "APPROVED" || item.refundStatus === "FAILED";
-  const canReject = item.refundStatus === "REQUESTED" || item.refundStatus === "APPROVED" || item.refundStatus === "FAILED";
+  const runAction = async (action, successMessage) => {
+    setSaving(true);
+    try {
+      const result = await action();
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(successMessage);
+      onUpdated?.(result);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReceived = () => runAction(() => refundRequestsApi.received(item.id), 'Return item received.');
+  const handleInspectPassed = () => runAction(() => refundRequestsApi.inspect(item.id, { inspectionResult: 'PASSED', inspectionNote }), 'Inspection passed.');
+  const handleInspectFailed = () => runAction(() => refundRequestsApi.inspect(item.id, { inspectionResult: 'FAILED', inspectionNote }), 'Inspection failed.');
+  const handleRefundPaid = () => runAction(() => refundRequestsApi.markRefundPaid(item.id, { refundAmount: item.refundAmount, refundMethod: refundPayment.refundMethod, refundReference: refundPayment.refundReference, note: refundPayment.note }), 'Manual refund paid and posted to Finance.');
+  const handleReplacementSent = () => runAction(() => refundRequestsApi.replacementSent(item.id, { note: replacementNote, replacementItems: [] }), 'Replacement marked as sent.');
+
+  const canApprove = item.status === "REQUESTED";
+  const canRetry = item.refundStatus === "FAILED";
+  const canReject = item.status === "REQUESTED";
+  const canReceive = item.status === "AWAITING_RETURN" || item.status === "APPROVED";
+  const canInspect = item.status === "RECEIVED" || item.status === "INSPECTING";
+  const canRefundPaid = item.resolution === "REFUND" && item.status === "REFUND_PENDING" && item.inspectionResult === "PASSED";
+  const canReplacementSent = item.resolution === "REPLACEMENT" && item.status === "REPLACEMENT_PENDING" && item.inspectionResult === "PASSED";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -193,6 +252,8 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
             <Card>
               <CardContent className="pt-5 pb-4 space-y-2 text-sm">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Request</p>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Return Status</span><span className="font-medium text-right">{item.status || "—"}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Resolution</span><span className="font-medium text-right">{item.resolution || "REFUND"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Status</span><span>{refundStatusBadge(item.refundStatus)}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Request Type</span><span className="font-medium">{item.requestType || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Amount</span><span className="font-medium">{fmtCurrency(item.refundAmount)}</span></div>
@@ -309,11 +370,11 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {(item.order?.items || []).map((product) => (
+                    {((item.items?.length ? item.items.map((entry) => ({ ...entry.orderItem, returnQuantity: entry.quantity })) : item.order?.items) || []).map((product) => (
                       <tr key={product.id} className="border-b border-border/20 last:border-0">
                         <td className="px-4 py-3 font-medium">{product.productName}</td>
                         <td className="px-4 py-3 text-muted-foreground">{product.variantName}</td>
-                        <td className="px-4 py-3 text-right">{product.quantity}</td>
+                        <td className="px-4 py-3 text-right">{product.returnQuantity || product.quantity}</td>
                         <td className="px-4 py-3 text-right font-medium">{fmtCurrency(product.subtotal)}</td>
                       </tr>
                     ))}
@@ -324,9 +385,38 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
           </Card>
 
           <div className="grid gap-4 md:grid-cols-2">
+            {canInspect ? (
+              <div className="space-y-1.5">
+                <Label>Inspection Note</Label>
+                <Textarea value={inspectionNote} onChange={(event) => setInspectionNote(event.target.value)} placeholder="Inspection result notes..." rows={3} />
+              </div>
+            ) : null}
+            {canRefundPaid ? (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>Refund Method</Label>
+                  <Select value={refundPayment.refundMethod} onValueChange={(value) => setRefundPayment((current) => ({ ...current, refundMethod: value }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                      <SelectItem value="CASH">Cash</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Input value={refundPayment.refundReference} onChange={(event) => setRefundPayment((current) => ({ ...current, refundReference: event.target.value }))} placeholder="Refund reference" />
+                <Textarea value={refundPayment.note} onChange={(event) => setRefundPayment((current) => ({ ...current, note: event.target.value }))} placeholder="Refund payment note" rows={2} />
+              </div>
+            ) : null}
+            {canReplacementSent ? (
+              <div className="space-y-1.5">
+                <Label>Replacement Note</Label>
+                <Textarea value={replacementNote} onChange={(event) => setReplacementNote(event.target.value)} placeholder="Replacement item / shipment note..." rows={3} />
+              </div>
+            ) : null}
             <div className="space-y-1.5">
               <Label>Reject Reason</Label>
-              <Textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Required only when rejecting a refund request..." rows={3} />
+              <Textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Required only when rejecting a return request..." rows={3} />
             </div>
           </div>
         </div>
@@ -335,17 +425,32 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           {canReject ? (
             <Button variant="destructive" onClick={handleReject} disabled={saving}>
-              Reject Refund
+              Reject Return
             </Button>
+          ) : null}
+          {canReceive ? (
+            <Button variant="outline" onClick={handleReceived} disabled={saving}>Record Return Received</Button>
+          ) : null}
+          {canInspect ? (
+            <>
+              <Button variant="outline" onClick={handleInspectFailed} disabled={saving}>Inspection Failed</Button>
+              <Button onClick={handleInspectPassed} disabled={saving}>Inspection Passed</Button>
+            </>
+          ) : null}
+          {canRefundPaid ? (
+            <Button onClick={handleRefundPaid} disabled={saving}>Mark Refund as Paid</Button>
+          ) : null}
+          {canReplacementSent ? (
+            <Button onClick={handleReplacementSent} disabled={saving}>Mark Replacement Sent</Button>
           ) : null}
           {canRetry ? (
             <Button variant="outline" onClick={handleRetry} disabled={saving}>
-              Retry Refund
+              Retry Gateway Refund
             </Button>
           ) : null}
           {canApprove ? (
             <Button onClick={handleApprove} disabled={saving}>
-              Approve Refund
+              Approve Return
             </Button>
           ) : null}
         </DialogFooter>

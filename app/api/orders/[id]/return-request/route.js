@@ -37,6 +37,8 @@ export async function POST(request, { params }) {
       reason: payload.reason,
       description: payload.description,
       attachments: Array.isArray(payload.attachments) ? payload.attachments : [],
+      resolution: payload.resolution || 'REFUND',
+      items: Array.isArray(payload.items) ? payload.items : [],
     });
 
     await writeAuditLog({
@@ -46,7 +48,7 @@ export async function POST(request, { params }) {
       } : payload.email ? { email: payload.email } : null,
       module: 'SALES',
       action: 'CUSTOMER_RETURN_REQUESTED',
-      description: `Customer submitted a return refund request for order ${order.publicOrderNumber || order.orderNumber || params.id}.`,
+      description: `Customer submitted a return request for order ${order.publicOrderNumber || order.orderNumber || params.id}.`,
       metadata: {
         orderId: order.id,
         publicOrderNumber: order.publicOrderNumber,
