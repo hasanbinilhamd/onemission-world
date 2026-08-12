@@ -118,3 +118,30 @@ test('manual order availability rejects when requested quantity exceeds real sto
 
   assert.equal(result.valid, false);
 });
+
+import { buildWebsiteSaleStockState } from '../lib/inventory/stock-levels.js';
+
+test('website sale deducts both real and website stock', () => {
+  assert.deepEqual(buildWebsiteSaleStockState({ realStock: 20, websiteStock: 8, quantity: 8, deduction: 3 }), {
+    valid: true,
+    realStock: 17,
+    websiteStock: 5,
+    quantity: 5,
+    message: '',
+  });
+});
+
+test('website sale rejects when website stock is insufficient even if real stock exists', () => {
+  const result = buildWebsiteSaleStockState({ realStock: 20, websiteStock: 0, quantity: 0, deduction: 1 });
+  assert.equal(result.valid, false);
+});
+
+test('website exact stock consumption leaves website stock at zero and real stock reduced', () => {
+  assert.deepEqual(buildWebsiteSaleStockState({ realStock: 20, websiteStock: 3, quantity: 3, deduction: 3 }), {
+    valid: true,
+    realStock: 17,
+    websiteStock: 0,
+    quantity: 0,
+    message: '',
+  });
+});
