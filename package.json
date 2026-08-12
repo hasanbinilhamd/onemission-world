@@ -21,7 +21,8 @@
         "postinstall": "prisma generate",
         "test:profit-allocation": "tsx --tsconfig jsconfig.json --test tests/profit-allocation-hardening.test.js",
         "test:manual-order": "tsx --tsconfig jsconfig.json --test tests/manual-order-inventory.test.js",
-        "test:return-replacement": "tsx --tsconfig jsconfig.json --test tests/return-replacement.test.js"
+        "test:return-replacement": "tsx --tsconfig jsconfig.json --test tests/return-replacement.test.js",
+        "test:return-stock-allocation": "tsx --tsconfig jsconfig.json --test tests/return-stock-allocation-final.test.js"
     },
     "prisma": {
         "seed": "tsx prisma/seed.ts"
