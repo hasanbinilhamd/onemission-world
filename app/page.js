@@ -3005,19 +3005,39 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
   const adjust = async (item, delta) => {
     const updated = {
       ...item,
-      quantity: Math.max(0, item.quantity + delta),
+      quantity: Math.max(0, Number(item.realStock ?? item.quantity ?? 0) + delta),
       performedBy: resolvePerformedBy(),
       reason: "Manual inventory adjustment",
     };
-    await api.put("inventory/" + item.id, updated);
-    setItems((arr) =>
-      arr.map((i) =>
-        i.id === item.id ? { ...i, quantity: updated.quantity } : i,
-      ),
-    );
+    const result = await api.put("inventory/" + item.id, updated);
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    setItems((arr) => arr.map((i) => (i.id === item.id ? { ...i, ...result } : i)));
   };
 
   const [editQty, setEditQty] = useState({});
+  const [editWebsiteStock, setEditWebsiteStock] = useState({});
+  const [savingWebsiteStock, setSavingWebsiteStock] = useState({});
+
+  const setWebsiteStock = async (item, nextWebsiteStock) => {
+    if (savingWebsiteStock[item.id]) return;
+    const websiteStock = Math.max(0, Math.floor(Number(nextWebsiteStock)));
+    if (isNaN(websiteStock)) return;
+    setSavingWebsiteStock((current) => ({ ...current, [item.id]: true }));
+    try {
+      const result = await api.put(`inventory/${item.id}/website-stock`, { websiteStock });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      setItems((arr) => arr.map((i) => (i.id === item.id ? { ...i, ...result } : i)));
+      toast.success("Website Stock updated");
+    } finally {
+      setSavingWebsiteStock((current) => ({ ...current, [item.id]: false }));
+    }
+  };
 
   const setStock = async (item, newQty) => {
     const qty = Math.max(0, Math.floor(Number(newQty)));
@@ -3028,12 +3048,12 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
       performedBy: resolvePerformedBy(),
       reason: "Manual inventory adjustment",
     };
-    await api.put("inventory/" + item.id, updated);
-    setItems((arr) =>
-      arr.map((i) =>
-        i.id === item.id ? { ...i, quantity: updated.quantity } : i,
-      ),
-    );
+    const result = await api.put("inventory/" + item.id, updated);
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    setItems((arr) => arr.map((i) => (i.id === item.id ? { ...i, ...result } : i)));
     toast.success("Stock updated");
   };
 
@@ -3042,7 +3062,7 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
       selectedProduct === "all" || item.productId === selectedProduct;
     const matchesLowStock =
       !lowStockOnly ||
-      Number(item.quantity || 0) <= Number(item.threshold || 0);
+      Number(item.realStock ?? item.quantity ?? 0) <= Number(item.threshold || 0);
     return matchesProduct && matchesLowStock;
   });
   const grouped = useMemo(() => {
@@ -3055,9 +3075,9 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
     return map;
   }, [filtered]);
 
-  const totalStock = filtered.reduce((s, i) => s + i.quantity, 0);
+  const totalStock = filtered.reduce((s, i) => s + Number(i.realStock ?? i.quantity ?? 0), 0);
   const critical = filtered.filter(
-    (i) => Number(i.quantity || 0) <= Number(i.threshold || 0),
+    (i) => Number(i.realStock ?? i.quantity ?? 0) <= Number(i.threshold || 0),
   );
 
   const colorSwatch = {
@@ -3181,7 +3201,7 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                     {Object.values(colors).reduce(
                       (s, sz) =>
                         s +
-                        Object.values(sz).reduce((a, b) => a + b.quantity, 0),
+                        Object.values(sz).reduce((a, b) => a + Number(b.realStock ?? b.quantity ?? 0), 0),
                       0,
                     )}{" "}
                     units
@@ -3230,8 +3250,10 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                 </div>
                               );
                             }
+                            const realStock = Number(item.realStock ?? item.quantity ?? 0);
+                            const websiteStock = Number(item.websiteStock ?? item.quantity ?? 0);
                             const crit =
-                              Number(item.quantity || 0) <=
+                              realStock <=
                               Number(item.threshold || 0);
                             return (
                               <div
@@ -3249,8 +3271,13 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                 <p
                                   className={`text-xl font-semibold ${crit ? "text-rose-400" : ""}`}
                                 >
-                                  {item.quantity}
+                                  {realStock}
                                 </p>
+                                <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5">
+                                  <p>Real Stock: {realStock}</p>
+                                  <p>Website Stock: {websiteStock}</p>
+                                  <p>Website Allocation: {websiteStock} / {realStock}</p>
+                                </div>
                                 <div className="flex gap-1 mt-2">
                                   <Button
                                     size="sm"
@@ -3280,7 +3307,7 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                 <Input
                                   type="number"
                                   min="0"
-                                  placeholder="Set qty…"
+                                  placeholder="Set real…"
                                   value={editQty[item.id] ?? ""}
                                   onChange={(e) =>
                                     setEditQty((prev) => ({
@@ -3330,6 +3357,54 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                   }}
                                   className="mt-1.5 h-7 text-xs text-center px-2"
                                 />
+                                <div className="mt-2 border-t border-border/40 pt-2">
+                                  <p className="text-[10px] text-muted-foreground mb-1">Website Allocation</p>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={realStock}
+                                    disabled={Boolean(savingWebsiteStock[item.id])}
+                                    placeholder="Set website…"
+                                    value={editWebsiteStock[item.id] ?? ""}
+                                    onChange={(e) =>
+                                      setEditWebsiteStock((prev) => ({
+                                        ...prev,
+                                        [item.id]: e.target.value,
+                                      }))
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        const val = parseInt(editWebsiteStock[item.id], 10);
+                                        if (!isNaN(val) && val >= 0) setWebsiteStock(item, val);
+                                        setEditWebsiteStock((prev) => {
+                                          const n = { ...prev };
+                                          delete n[item.id];
+                                          return n;
+                                        });
+                                      }
+                                      if (e.key === "Escape") {
+                                        setEditWebsiteStock((prev) => {
+                                          const n = { ...prev };
+                                          delete n[item.id];
+                                          return n;
+                                        });
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      if (editWebsiteStock[item.id] !== undefined && editWebsiteStock[item.id] !== "") {
+                                        const val = parseInt(editWebsiteStock[item.id], 10);
+                                        if (!isNaN(val) && val >= 0) setWebsiteStock(item, val);
+                                      }
+                                      setEditWebsiteStock((prev) => {
+                                        const n = { ...prev };
+                                        delete n[item.id];
+                                        return n;
+                                      });
+                                    }}
+                                    className="h-7 text-xs text-center px-2"
+                                  />
+                                  {savingWebsiteStock[item.id] ? <p className="text-[10px] text-muted-foreground mt-1">Saving...</p> : null}
+                                </div>
                               </div>
                             );
                           })}

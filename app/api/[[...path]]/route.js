@@ -59,6 +59,7 @@ import {
 import {
   buildStockUpdateForQuantityChange,
   validateInventoryStockState,
+  validateWebsiteStockAllocation,
 } from '@/lib/inventory/stock-levels';
 import {
   ensureInventoryRowsForProduct,
@@ -4000,6 +4001,66 @@ async function handle(request, { params }) {
       });
       await invalidateCommerceProductCache();
       return NextResponse.json(result);
+    }
+
+    // ---------- INVENTORY WEBSITE STOCK ALLOCATION ----------
+    if (segs[0] === 'inventory' && segs[2] === 'website-stock' && method === 'PUT' && segs.length === 3) {
+      const inventoryId = segs[1];
+      const body = await readJson(request);
+      const nextWebsiteStock = Math.trunc(Number(body.websiteStock));
+      if (!Number.isFinite(nextWebsiteStock)) {
+        return NextResponse.json({ error: 'Website Stock is invalid.' }, { status: 400 });
+      }
+      if (nextWebsiteStock < 0) {
+        return NextResponse.json({ error: 'Website Stock cannot be negative.' }, { status: 400 });
+      }
+
+      const current = await prisma.inventory.findUnique({
+        where: { id: inventoryId },
+        include: { product: { select: { id: true, name: true, sku: true } } },
+      });
+      if (!current) return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 });
+
+      const validation = validateWebsiteStockAllocation({
+        realStock: Number(current.realStock ?? current.quantity ?? 0),
+        websiteStock: nextWebsiteStock,
+      });
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.message }, { status: 400 });
+      }
+
+      const [updated] = await prisma.$queryRaw`
+        UPDATE "Inventory"
+        SET "websiteStock" = ${nextWebsiteStock}
+        WHERE "id" = ${inventoryId}
+          AND ${nextWebsiteStock} >= 0
+          AND ${nextWebsiteStock} <= "realStock"
+        RETURNING *
+      `;
+
+      if (!updated) {
+        return NextResponse.json({ error: 'Website Stock cannot exceed Real Stock.' }, { status: 409 });
+      }
+
+      await writeAuditLog({
+        prismaClient: prisma,
+        user: authContext?.user,
+        module: 'INVENTORY',
+        action: 'WEBSITE_STOCK_ALLOCATION_UPDATED',
+        description: `Website Stock allocation updated for inventory ${inventoryId}.`,
+        metadata: {
+          inventoryId,
+          productId: current.productId,
+          productName: current.product?.name || '',
+          color: current.color,
+          size: current.size,
+          previousWebsiteStock: Number(current.websiteStock || 0),
+          nextWebsiteStock,
+        },
+      });
+
+      await invalidateCommerceProductCache();
+      return NextResponse.json(updated);
     }
 
     // ---------- INVENTORY POST — blocked to keep inventory generation inside the product lifecycle ----------

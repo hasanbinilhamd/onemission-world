@@ -51,7 +51,9 @@ test('manual order validation allows exact aggregate stock consumption', () => {
 
 import {
   buildInventoryStockState,
+  buildStockUpdateForQuantityChange,
   validateInventoryStockState,
+  validateWebsiteStockAllocation,
 } from '../lib/inventory/stock-levels.js';
 
 test('inventory stock state allows real stock with zero website stock', () => {
@@ -143,5 +145,23 @@ test('website exact stock consumption leaves website stock at zero and real stoc
     websiteStock: 0,
     quantity: 0,
     message: '',
+  });
+});
+
+test('website allocation can increase or decrease within real stock', () => {
+  assert.equal(validateWebsiteStockAllocation({ realStock: 20, websiteStock: 12 }).valid, true);
+  assert.equal(validateWebsiteStockAllocation({ realStock: 20, websiteStock: 5 }).valid, true);
+});
+
+test('website allocation rejects values above real stock and allows zero', () => {
+  assert.equal(validateWebsiteStockAllocation({ realStock: 10, websiteStock: 11 }).valid, false);
+  assert.equal(validateWebsiteStockAllocation({ realStock: 10, websiteStock: 0 }).valid, true);
+});
+
+test('physical restock keeps website allocation unchanged', () => {
+  assert.deepEqual(buildStockUpdateForQuantityChange(20, { quantity: 10, realStock: 10, websiteStock: 5 }), {
+    quantity: 20,
+    realStock: 20,
+    websiteStock: 5,
   });
 });
