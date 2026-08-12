@@ -425,6 +425,28 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
             </Card>
           ) : null}
 
+          {Array.isArray(item.stockAllocations) && item.stockAllocations.length > 0 ? (
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Inventory Allocation</p>
+                <div className="space-y-2 text-sm">
+                  {item.stockAllocations.map((allocation) => (
+                    <div key={allocation.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/40 p-3">
+                      <div>
+                        <p className="font-medium">{allocation.allocationType}</p>
+                        <p className="text-xs text-muted-foreground">Variant {allocation.variantId}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">Qty {allocation.quantity}</p>
+                        <p className="text-xs text-muted-foreground">{allocation.status}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
           <div className="grid gap-4 md:grid-cols-2">
             {canInspect ? (
               <div className="space-y-1.5">

@@ -52,3 +52,35 @@ test('rejects replacement with different quantity', () => {
   assert.equal(result.valid, false);
   assert.equal(result.code, 'RETURN_REPLACEMENT_QUANTITY_MISMATCH');
 });
+
+import {
+  buildReplacementOutStockState,
+  buildReturnInStockState,
+} from '../lib/returns/stock-allocation.js';
+
+test('return stock allocation adds returned quantity to real stock only', () => {
+  assert.deepEqual(buildReturnInStockState({ realStock: 10, websiteStock: 4, quantity: 1 }), {
+    realStock: 11,
+    websiteStock: 4,
+  });
+});
+
+test('replacement stock allocation deducts physical stock and keeps website invariant', () => {
+  assert.deepEqual(buildReplacementOutStockState({ realStock: 10, websiteStock: 4, quantity: 3 }), {
+    valid: true,
+    realStock: 7,
+    websiteStock: 4,
+    message: '',
+  });
+  assert.deepEqual(buildReplacementOutStockState({ realStock: 5, websiteStock: 4, quantity: 3 }), {
+    valid: true,
+    realStock: 2,
+    websiteStock: 2,
+    message: '',
+  });
+});
+
+test('replacement stock allocation rejects insufficient physical stock', () => {
+  const result = buildReplacementOutStockState({ realStock: 0, websiteStock: 0, quantity: 1 });
+  assert.equal(result.valid, false);
+});

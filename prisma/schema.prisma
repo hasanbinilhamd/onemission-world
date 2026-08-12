@@ -1372,6 +1372,28 @@ model ReturnRequestItem {
   @@index([orderItemId])
 }
 
+model ReturnStockAllocation {
+  id                  String   @id
+  returnRequestId     String
+  returnRequestItemId String   @default("")
+  productId           String
+  variantId           String
+  quantity            Int
+  allocationType      String
+  status              String   @default("ALLOCATED")
+  stockMovementId     String   @default("")
+  createdBy           String   @default("")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([returnRequestId, returnRequestItemId, allocationType])
+  @@index([returnRequestId])
+  @@index([returnRequestItemId])
+  @@index([variantId])
+  @@index([allocationType])
+  @@index([stockMovementId])
+}
+
 model RefundAttempt {
   id               String        @id
   returnRequestId  String
