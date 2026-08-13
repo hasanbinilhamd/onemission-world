@@ -36,6 +36,12 @@ const REFUND_STATUS_OPTIONS = [
   { value: "FAILED", label: "FAILED" },
 ];
 
+const RESOLUTION_OPTIONS = [
+  { value: "all", label: "All Resolutions" },
+  { value: "REFUND", label: "Refund" },
+  { value: "REPLACEMENT", label: "Replacement" },
+];
+
 function fmtCurrency(value) {
   return `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
 }
@@ -71,6 +77,56 @@ function refundStatusBadge(status) {
       {status || "UNKNOWN"}
     </span>
   );
+}
+
+function normalizeResolution(item) {
+  return String(item?.resolution || "REFUND").trim().toUpperCase() === "REPLACEMENT" ? "REPLACEMENT" : "REFUND";
+}
+
+function isReplacementRequest(item) {
+  return normalizeResolution(item) === "REPLACEMENT";
+}
+
+function getReplacementStatus(item) {
+  const explicitStatus = String(item?.replacementStatus || "").trim().toUpperCase();
+  if (explicitStatus) return explicitStatus;
+
+  const returnStatus = String(item?.status || "").trim().toUpperCase();
+  if (returnStatus.startsWith("REPLACEMENT_")) {
+    return returnStatus.replace("REPLACEMENT_", "");
+  }
+  if (returnStatus === "COMPLETED") return "COMPLETED";
+  if (returnStatus === "REQUESTED") return "REQUESTED";
+  return returnStatus || "PENDING";
+}
+
+function workflowStatusBadge(item) {
+  const replacement = isReplacementRequest(item);
+  const status = replacement ? getReplacementStatus(item) : String(item?.refundStatus || item?.status || "UNKNOWN").trim().toUpperCase();
+  const styles = {
+    REQUESTED: "bg-amber-500/10 text-amber-700",
+    APPROVED: "bg-cyan-500/10 text-cyan-700",
+    PENDING: "bg-amber-500/10 text-amber-700",
+    PAID: "bg-emerald-500/10 text-emerald-700",
+    SENT: "bg-blue-500/10 text-blue-700",
+    PROCESSING: "bg-indigo-500/10 text-indigo-700",
+    COMPLETED: "bg-emerald-500/10 text-emerald-700",
+    REJECTED: "bg-rose-500/10 text-rose-600",
+    FAILED: "bg-red-900/10 text-red-800",
+    NONE: "bg-slate-500/10 text-slate-600",
+  };
+
+  return (
+    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${styles[status] || "bg-muted text-foreground"}`}>
+      {replacement ? `REPLACEMENT ${status}` : `REFUND ${status}`}
+    </span>
+  );
+}
+
+function resolutionBadge(resolution) {
+  const normalized = String(resolution || "REFUND").trim().toUpperCase() === "REPLACEMENT" ? "REPLACEMENT" : "REFUND";
+  const className = normalized === "REPLACEMENT" ? "bg-blue-500/10 text-blue-700" : "bg-emerald-500/10 text-emerald-700";
+  return <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${className}`}>{normalized}</span>;
 }
 
 const refundRequestsApi = {
@@ -162,6 +218,9 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
 
   if (!item) return null;
 
+  const replacementRequest = isReplacementRequest(item);
+  const refundRequest = !replacementRequest;
+
   const handleApprove = async () => {
     setSaving(true);
     try {
@@ -190,7 +249,7 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
         toast.error(result.error);
         return;
       }
-      toast.success("Refund rejected successfully.");
+      toast.success("Return rejected successfully.");
       onUpdated?.(result);
     } finally {
       setSaving(false);
@@ -251,9 +310,9 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{item.order?.publicOrderNumber || item.order?.orderNumber || "Refund Request"}</DialogTitle>
+          <DialogTitle>{item.order?.publicOrderNumber || item.order?.orderNumber || "Return Request"}</DialogTitle>
           <DialogDescription>
-            Refund workflow detail, payment information, and approval actions.
+            Return workflow detail, resolution tracking, and operational actions.
           </DialogDescription>
         </DialogHeader>
 
@@ -261,34 +320,56 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardContent className="pt-5 pb-4 space-y-2 text-sm">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Request</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Return Request</p>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Return Status</span><span className="font-medium text-right">{item.status || "—"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Resolution</span><span className="font-medium text-right">{item.resolution || "REFUND"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Status</span><span>{refundStatusBadge(item.refundStatus)}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Resolution</span><span>{resolutionBadge(item.resolution)}</span></div>
+                {refundRequest ? (
+                  <>
+                    <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Status</span><span>{refundStatusBadge(item.refundStatus)}</span></div>
+                    <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Amount</span><span className="font-medium">{fmtCurrency(item.refundAmount)}</span></div>
+                    <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Retry Count</span><span className="font-medium">{Number(item.retryCount || 0)}</span></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Replacement Status</span><span>{workflowStatusBadge(item)}</span></div>
+                    <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Replacement Sent At</span><span className="font-medium text-right">{fmtDateTime(item.replacementSentAt)}</span></div>
+                    <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Replacement Note</span><span className="font-medium text-right">{item.replacementNote || "—"}</span></div>
+                  </>
+                )}
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Request Type</span><span className="font-medium">{item.requestType || "—"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Amount</span><span className="font-medium">{fmtCurrency(item.refundAmount)}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Retry Count</span><span className="font-medium">{Number(item.retryCount || 0)}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Reason</span><span className="font-medium text-right">{item.reason || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Description</span><span className="font-medium text-right">{item.description || "—"}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Reject Reason</span><span className="font-medium text-right">{item.rejectReason || "—"}</span></div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pt-5 pb-4 space-y-2 text-sm">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Payment Information</p>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Gateway</span><span className="font-medium text-right">{item.gatewayName || item.refundProvider || 'MIDTRANS'}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Payment Method</span><span className="font-medium text-right">{item.order?.payment?.paymentMethod || "—"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Payment Status</span><span className="font-medium text-right">{item.order?.payment?.status || "—"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Reference</span><span className="font-mono text-xs text-right">{item.refundReference || "—"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Key</span><span className="font-mono text-xs text-right">{item.refundKey || "—"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Midtrans Refund ID</span><span className="font-mono text-xs text-right">{item.refundProviderId || "—"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Current Gateway Status</span><span className="font-medium text-right">{item.currentGatewayStatus || item.refundStatus || "—"}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Request Time</span><span className="font-medium text-right">{fmtDateTime(item.requestTime)}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Response Time</span><span className="font-medium text-right">{fmtDateTime(item.responseTime)}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Failure Reason</span><span className="font-medium text-right">{item.failureDisplayMessage || '—'}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Retry Available</span><span className="font-medium text-right">{item.retryAvailable ? 'Yes' : 'No'}</span></div>
-              </CardContent>
-            </Card>
+            {refundRequest ? (
+              <Card>
+                <CardContent className="pt-5 pb-4 space-y-2 text-sm">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Refund Payment Information</p>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Gateway</span><span className="font-medium text-right">{item.gatewayName || item.refundProvider || 'MIDTRANS'}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Payment Method</span><span className="font-medium text-right">{item.order?.payment?.paymentMethod || "—"}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Payment Status</span><span className="font-medium text-right">{item.order?.payment?.status || "—"}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Reference</span><span className="font-mono text-xs text-right">{item.refundReference || "—"}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Refund Key</span><span className="font-mono text-xs text-right">{item.refundKey || "—"}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Midtrans Refund ID</span><span className="font-mono text-xs text-right">{item.refundProviderId || "—"}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Current Gateway Status</span><span className="font-medium text-right">{item.currentGatewayStatus || item.refundStatus || "—"}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Request Time</span><span className="font-medium text-right">{fmtDateTime(item.requestTime)}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Response Time</span><span className="font-medium text-right">{fmtDateTime(item.responseTime)}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Failure Reason</span><span className="font-medium text-right">{item.failureDisplayMessage || '—'}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Retry Available</span><span className="font-medium text-right">{item.retryAvailable ? 'Yes' : 'No'}</span></div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="pt-5 pb-4 space-y-2 text-sm">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Replacement Tracking</p>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Replacement Status</span><span>{workflowStatusBadge(item)}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Replacement Sent At</span><span className="font-medium text-right">{fmtDateTime(item.replacementSentAt)}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Replacement Note</span><span className="font-medium text-right">{item.replacementNote || "—"}</span></div>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">Replacement does not use refund payment fields. Track the return status and replacement status independently.</div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <Card>
@@ -307,7 +388,7 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
 
           <Card>
             <CardContent className="pt-5 pb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Refund Status Timeline</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Return Timeline</p>
               {Array.isArray(item.timeline) && item.timeline.length > 0 ? (
                 <div className="space-y-3">
                   {item.timeline.map((entry) => (
@@ -327,14 +408,15 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No refund timeline is available yet.</p>
+                <p className="text-sm text-muted-foreground">No return timeline is available yet.</p>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-5 pb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Refund Attempt History</p>
+          {refundRequest ? (
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Refund Attempt History</p>
               {Array.isArray(item.attempts) && item.attempts.length > 0 ? (
                 <div className="space-y-3">
                   {item.attempts.map((attempt) => (
@@ -363,8 +445,9 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
               ) : (
                 <p className="text-sm text-muted-foreground">No refund attempts recorded yet.</p>
               )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardContent className="pt-5 pb-4">
@@ -397,7 +480,10 @@ function RefundRequestDetailDialog({ open, onOpenChange, item, onUpdated }) {
           {item.resolution === 'REPLACEMENT' && Array.isArray(item.replacementItems) && item.replacementItems.length > 0 ? (
             <Card>
               <CardContent className="pt-5 pb-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Replacement</p>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Replacement Items</p>
+                  {workflowStatusBadge(item)}
+                </div>
                 <div className="space-y-3 text-sm">
                   {item.replacementItems.map((replacement, index) => (
                     <div key={`${replacement.originalOrderItemId || index}-${replacement.replacementVariantId || index}`} className="rounded-lg border border-border/40 p-3">
@@ -531,6 +617,7 @@ export function RefundRequestsModule() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [refundStatus, setRefundStatus] = useState("all");
+  const [resolutionFilter, setResolutionFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [detailItem, setDetailItem] = useState(null);
@@ -558,7 +645,7 @@ export function RefundRequestsModule() {
 
   useEffect(() => {
     setPage(1);
-  }, [refundStatus, search]);
+  }, [refundStatus, resolutionFilter, search]);
 
   const openDetail = async (returnRequestId) => {
     const result = await refundRequestsApi.getById(returnRequestId);
@@ -577,14 +664,18 @@ export function RefundRequestsModule() {
     void load();
   };
 
+  const visibleItems = resolutionFilter === "all"
+    ? items
+    : items.filter((item) => normalizeResolution(item) === resolutionFilter);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Refund Requests</h2>
-          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Review, approve, or reject refund requests initiated from cancelled paid orders and return workflows.</p>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Return Requests</h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Review return requests and track refund or replacement resolution workflows.</p>
         </div>
-        <Button variant="outline" size="icon" onClick={() => void load()} title="Refresh Refund Requests">
+        <Button variant="outline" size="icon" onClick={() => void load()} title="Refresh Return Requests">
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
@@ -596,8 +687,19 @@ export function RefundRequestsModule() {
               <p className="text-xs text-muted-foreground mb-1">Search order number / customer / email</p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-9" placeholder="Search refund request…" value={search} onChange={(event) => setSearch(event.target.value)} />
+                <Input className="pl-9" placeholder="Search return request…" value={search} onChange={(event) => setSearch(event.target.value)} />
               </div>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Resolution</p>
+              <Select value={resolutionFilter} onValueChange={setResolutionFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {RESOLUTION_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Refund Status</p>
@@ -617,10 +719,10 @@ export function RefundRequestsModule() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">Loading refund requests…</div>
-          ) : items.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">Loading return requests…</div>
+          ) : visibleItems.length === 0 ? (
             <div className="p-12 text-center">
-              <p className="text-muted-foreground text-sm">No refund requests found</p>
+              <p className="text-muted-foreground text-sm">No return requests found</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -631,14 +733,15 @@ export function RefundRequestsModule() {
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Customer</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Order Total</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Payment Method</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Cancelled Date</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Refund Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Request Date</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Resolution</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Workflow Status</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Reason</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item, index) => (
+                  {visibleItems.map((item, index) => (
                     <tr key={item.id} className={`border-b border-border/30 hover:bg-[#F7F8FA]/80 transition-colors ${index % 2 === 0 ? "" : "bg-muted/10"}`}>
                       <td className="px-4 py-3">
                         <div>
@@ -655,7 +758,8 @@ export function RefundRequestsModule() {
                       <td className="px-4 py-3 text-right font-medium">{fmtCurrency(item.orderTotal)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{item.paymentMethod || "—"}</td>
                       <td className="px-4 py-3 text-muted-foreground">{fmtDateTime(item.cancelledDate)}</td>
-                      <td className="px-4 py-3">{refundStatusBadge(item.refundStatus)}</td>
+                      <td className="px-4 py-3">{resolutionBadge(item.resolution)}</td>
+                      <td className="px-4 py-3">{workflowStatusBadge(item)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{item.reason || "—"}</td>
                       <td className="px-4 py-3 text-right">
                         <Button variant="outline" size="sm" className="gap-1" onClick={() => openDetail(item.id)}>
@@ -672,7 +776,7 @@ export function RefundRequestsModule() {
       </Card>
 
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">Showing page {pagination.page} of {pagination.totalPages} — {pagination.totalItems} total refund requests</p>
+        <p className="text-sm text-muted-foreground">Showing page {pagination.page} of {pagination.totalPages} — {pagination.totalItems} total return requests</p>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" disabled={!pagination.hasPreviousPage} onClick={() => setPage((current) => Math.max(1, current - 1))}>
             <ChevronLeft className="h-4 w-4" />

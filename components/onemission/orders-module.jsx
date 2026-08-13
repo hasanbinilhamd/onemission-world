@@ -260,6 +260,44 @@ function orderStatusBadge(status) {
   );
 }
 
+function normalizeReturnResolution(returnRequest) {
+  return String(returnRequest?.resolution || "REFUND").trim().toUpperCase() === "REPLACEMENT" ? "REPLACEMENT" : "REFUND";
+}
+
+function getReplacementStatus(returnRequest) {
+  const explicitStatus = String(returnRequest?.replacementStatus || "").trim().toUpperCase();
+  if (explicitStatus) return explicitStatus;
+  const returnStatus = String(returnRequest?.status || "").trim().toUpperCase();
+  if (returnStatus.startsWith("REPLACEMENT_")) return returnStatus.replace("REPLACEMENT_", "");
+  if (returnStatus === "COMPLETED") return "COMPLETED";
+  if (returnStatus === "REQUESTED") return "REQUESTED";
+  return returnStatus || "PENDING";
+}
+
+function returnWorkflowBadge(returnRequest) {
+  if (!returnRequest) return null;
+  const resolution = normalizeReturnResolution(returnRequest);
+  const status = resolution === "REPLACEMENT"
+    ? getReplacementStatus(returnRequest)
+    : String(returnRequest.refundStatus || returnRequest.status || "REQUESTED").trim().toUpperCase();
+  const styles = {
+    REQUESTED: "bg-orange-500/10 text-orange-700",
+    APPROVED: "bg-blue-500/10 text-blue-700",
+    PENDING: "bg-amber-500/10 text-amber-700",
+    PAID: "bg-emerald-500/10 text-emerald-700",
+    SENT: "bg-blue-500/10 text-blue-700",
+    PROCESSING: "bg-indigo-500/10 text-indigo-700",
+    COMPLETED: "bg-emerald-500/10 text-emerald-700",
+    REJECTED: "bg-rose-500/10 text-rose-600",
+    FAILED: "bg-red-900/10 text-red-800",
+  };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[status] || "bg-muted text-foreground"}`}>
+      {resolution === "REPLACEMENT" ? `REPLACEMENT ${status}` : `REFUND ${status}`}
+    </span>
+  );
+}
+
 function DetailRow({ label, value }) {
   return (
     <div className="flex items-start gap-4 py-2.5 border-b border-border/30 last:border-0">
@@ -350,8 +388,24 @@ function getTimelinePresentation(entry) {
       description: "Refund has been successfully processed.",
     },
     RETURN_REQUESTED: {
-      title: "Refund Requested",
-      description: "Customer submitted a refund request.",
+      title: "Return Requested",
+      description: "Customer submitted a return request.",
+    },
+    REPLACEMENT_REQUESTED: {
+      title: "Replacement Requested",
+      description: "Customer requested a replacement resolution.",
+    },
+    REPLACEMENT_PENDING: {
+      title: "Replacement Pending",
+      description: "Replacement is pending after return inspection passed.",
+    },
+    REPLACEMENT_SENT: {
+      title: "Replacement Sent",
+      description: "Replacement item has been sent to the customer.",
+    },
+    RETURN_COMPLETED: {
+      title: "Return Completed",
+      description: "Return or replacement workflow has been completed.",
     },
     RETURN_PENDING_REVIEW: {
       title: "Pending Review",
@@ -682,20 +736,54 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
           </DetailSection>
 
           {order.returnRequest ? (
-            <DetailSection title="Refund Overview">
+            <DetailSection title="Return Overview">
+              <DetailRow label="Resolution" value={order.returnRequest.resolution || "REFUND"} />
+              <DetailRow label="Return Status" value={order.returnRequest.status || "—"} />
+              {normalizeReturnResolution(order.returnRequest) === "REFUND" ? (
+                <>
+                  <DetailRow label="Refund Status" value={order.returnRequest.refundStatus || "—"} />
+                  <DetailRow label="Refund Amount" value={fmtCurrency(order.returnRequest.refundAmount || order.grandTotal || 0)} />
+                  <DetailRow label="Refund Reference" value={order.returnRequest.refundReference || "—"} />
+                  <DetailRow label="Refund Provider ID" value={order.returnRequest.refundProviderId || "—"} />
+                </>
+              ) : (
+                <>
+                  <DetailRow label="Replacement Status" value={getReplacementStatus(order.returnRequest)} />
+                  <DetailRow label="Replacement Sent At" value={fmtDateTime(order.returnRequest.replacementSentAt)} />
+                  <DetailRow label="Replacement Note" value={order.returnRequest.replacementNote || "—"} />
+                </>
+              )}
               <DetailRow label="Request Type" value={order.returnRequest.requestType || "PRODUCT_RETURN"} />
+              <DetailRow label="Request Date" value={fmtDateTime(order.returnRequest.requestedAt)} />
               <DetailRow label="Reason" value={order.returnRequest.reason} />
               <DetailRow label="Description" value={order.returnRequest.description || "—"} />
-              <DetailRow label="Request Date" value={fmtDateTime(order.returnRequest.requestedAt)} />
-              <DetailRow label="Refund Status" value={order.returnRequest.refundStatus} />
-              <DetailRow label="Refund Amount" value={fmtCurrency(order.returnRequest.refundAmount || order.grandTotal || 0)} />
-              <DetailRow label="Refund Reference" value={order.returnRequest.refundReference || "—"} />
-              <DetailRow label="Refund Provider ID" value={order.returnRequest.refundProviderId || "—"} />
               {order.returnRequest.rejectReason ? (
                 <DetailRow label="Reject Reason" value={order.returnRequest.rejectReason} />
               ) : null}
+              {normalizeReturnResolution(order.returnRequest) === "REPLACEMENT" && Array.isArray(order.returnRequest.replacementItems) && order.returnRequest.replacementItems.length > 0 ? (
+                <div className="space-y-3 py-3">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Replacement Items</p>
+                  {order.returnRequest.replacementItems.map((replacement, index) => (
+                    <div key={`${replacement.originalOrderItemId || index}-${replacement.replacementVariantId || index}`} className="rounded-lg border border-border/30 p-3 text-sm">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Original</p>
+                          <p className="font-medium">{replacement.originalProductName || "—"}</p>
+                          <p className="text-muted-foreground">{replacement.originalVariantName || "—"} · Qty {replacement.replacementQuantity || "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Replacement</p>
+                          <p className="font-medium">{replacement.replacementProductName || "—"}</p>
+                          <p className="text-muted-foreground">{replacement.replacementVariantName || "—"} · Qty {replacement.replacementQuantity || "—"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {Array.isArray(order.returnRequest.timeline) && order.returnRequest.timeline.length > 0 ? (
                 <div className="space-y-3 py-3">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Return Timeline</p>
                   {order.returnRequest.timeline.map((entry) => (
                     <div key={`${entry.status}-${entry.timestamp}`} className="rounded-lg border border-border/30 p-3">
                       <div className="flex items-center justify-between gap-3">
@@ -723,7 +811,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
                 </div>
               ) : null}
               <div className="rounded-lg border border-border/30 bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
-                Use the Refund Requests module to approve or reject refund requests. Refund completion is synchronized automatically from Midtrans webhook events.
+                Use the Return Requests module to approve, inspect, refund, or complete replacement workflows.
               </div>
             </DetailSection>
           ) : null}
@@ -1669,7 +1757,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1.5">
                           {orderStatusBadge(order.status)}
-                          {order.returnRequest?.refundStatus && order.returnRequest.refundStatus !== 'NONE' ? orderStatusBadge(`REFUND_${order.returnRequest.refundStatus}`) : null}
+                          {order.returnRequest ? returnWorkflowBadge(order.returnRequest) : null}
                         </div>
                       </td>
                       <td className="px-4 py-3">{fulfillmentStatusBadge(getVisibleFulfillmentStatus(order.fulfillmentStatusLabel || order.fulfillmentStatus))}</td>
