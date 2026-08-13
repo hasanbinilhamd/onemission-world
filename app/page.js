@@ -584,7 +584,7 @@ const NAV_GROUPS = [
       { id: "customers", label: "Customers", icon: Users },
       { id: "manualorders", label: "Manual Orders", icon: ClipboardList },
       { id: "orders", label: "Orders", icon: ShoppingCart },
-      { id: "refundrequests", label: "Refund Requests", icon: Wallet },
+      { id: "refundrequests", label: "Return Requests", icon: Wallet },
       { id: "checkoutsessions", label: "Checkout Sessions", icon: CreditCard },
       { id: "saleschannels", label: "Sales Channels", icon: Globe },
       { id: "schools", label: "School Partners", icon: School },
@@ -3013,7 +3013,10 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
   const adjust = async (item, delta) => {
     const updated = {
       ...item,
-      quantity: Math.max(0, Number(item.realStock ?? item.quantity ?? 0) + delta),
+      quantity: Math.max(
+        0,
+        Number(item.realStock ?? item.quantity ?? 0) + delta,
+      ),
       performedBy: resolvePerformedBy(),
       reason: "Manual inventory adjustment",
     };
@@ -3022,7 +3025,9 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
       toast.error(result.error);
       return;
     }
-    setItems((arr) => arr.map((i) => (i.id === item.id ? { ...i, ...result } : i)));
+    setItems((arr) =>
+      arr.map((i) => (i.id === item.id ? { ...i, ...result } : i)),
+    );
   };
 
   const [editQty, setEditQty] = useState({});
@@ -3035,12 +3040,16 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
     if (isNaN(websiteStock)) return;
     setSavingWebsiteStock((current) => ({ ...current, [item.id]: true }));
     try {
-      const result = await api.put(`inventory/${item.id}/website-stock`, { websiteStock });
+      const result = await api.put(`inventory/${item.id}/website-stock`, {
+        websiteStock,
+      });
       if (result?.error) {
         toast.error(result.error);
         return;
       }
-      setItems((arr) => arr.map((i) => (i.id === item.id ? { ...i, ...result } : i)));
+      setItems((arr) =>
+        arr.map((i) => (i.id === item.id ? { ...i, ...result } : i)),
+      );
       toast.success("Website Stock updated");
     } finally {
       setSavingWebsiteStock((current) => ({ ...current, [item.id]: false }));
@@ -3061,7 +3070,9 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
       toast.error(result.error);
       return;
     }
-    setItems((arr) => arr.map((i) => (i.id === item.id ? { ...i, ...result } : i)));
+    setItems((arr) =>
+      arr.map((i) => (i.id === item.id ? { ...i, ...result } : i)),
+    );
     toast.success("Stock updated");
   };
 
@@ -3070,7 +3081,8 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
       selectedProduct === "all" || item.productId === selectedProduct;
     const matchesLowStock =
       !lowStockOnly ||
-      Number(item.realStock ?? item.quantity ?? 0) <= Number(item.threshold || 0);
+      Number(item.realStock ?? item.quantity ?? 0) <=
+        Number(item.threshold || 0);
     return matchesProduct && matchesLowStock;
   });
   const grouped = useMemo(() => {
@@ -3083,7 +3095,10 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
     return map;
   }, [filtered]);
 
-  const totalStock = filtered.reduce((s, i) => s + Number(i.realStock ?? i.quantity ?? 0), 0);
+  const totalStock = filtered.reduce(
+    (s, i) => s + Number(i.realStock ?? i.quantity ?? 0),
+    0,
+  );
   const critical = filtered.filter(
     (i) => Number(i.realStock ?? i.quantity ?? 0) <= Number(i.threshold || 0),
   );
@@ -3209,7 +3224,10 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                     {Object.values(colors).reduce(
                       (s, sz) =>
                         s +
-                        Object.values(sz).reduce((a, b) => a + Number(b.realStock ?? b.quantity ?? 0), 0),
+                        Object.values(sz).reduce(
+                          (a, b) => a + Number(b.realStock ?? b.quantity ?? 0),
+                          0,
+                        ),
                       0,
                     )}{" "}
                     units
@@ -3258,11 +3276,14 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                 </div>
                               );
                             }
-                            const realStock = Number(item.realStock ?? item.quantity ?? 0);
-                            const websiteStock = Number(item.websiteStock ?? item.quantity ?? 0);
+                            const realStock = Number(
+                              item.realStock ?? item.quantity ?? 0,
+                            );
+                            const websiteStock = Number(
+                              item.websiteStock ?? item.quantity ?? 0,
+                            );
                             const crit =
-                              realStock <=
-                              Number(item.threshold || 0);
+                              realStock <= Number(item.threshold || 0);
                             return (
                               <div
                                 key={size}
@@ -3284,7 +3305,10 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                 <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5">
                                   <p>Real Stock: {realStock}</p>
                                   <p>Website Stock: {websiteStock}</p>
-                                  <p>Website Allocation: {websiteStock} / {realStock}</p>
+                                  <p>
+                                    Website Allocation: {websiteStock} /{" "}
+                                    {realStock}
+                                  </p>
                                 </div>
                                 <div className="flex gap-1 mt-2">
                                   <Button
@@ -3366,12 +3390,16 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                   className="mt-1.5 h-7 text-xs text-center px-2"
                                 />
                                 <div className="mt-2 border-t border-border/40 pt-2">
-                                  <p className="text-[10px] text-muted-foreground mb-1">Website Allocation</p>
+                                  <p className="text-[10px] text-muted-foreground mb-1">
+                                    Website Allocation
+                                  </p>
                                   <Input
                                     type="number"
                                     min="0"
                                     max={realStock}
-                                    disabled={Boolean(savingWebsiteStock[item.id])}
+                                    disabled={Boolean(
+                                      savingWebsiteStock[item.id],
+                                    )}
                                     placeholder="Set website…"
                                     value={editWebsiteStock[item.id] ?? ""}
                                     onChange={(e) =>
@@ -3382,8 +3410,12 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                     }
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter") {
-                                        const val = parseInt(editWebsiteStock[item.id], 10);
-                                        if (!isNaN(val) && val >= 0) setWebsiteStock(item, val);
+                                        const val = parseInt(
+                                          editWebsiteStock[item.id],
+                                          10,
+                                        );
+                                        if (!isNaN(val) && val >= 0)
+                                          setWebsiteStock(item, val);
                                         setEditWebsiteStock((prev) => {
                                           const n = { ...prev };
                                           delete n[item.id];
@@ -3399,9 +3431,17 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                       }
                                     }}
                                     onBlur={() => {
-                                      if (editWebsiteStock[item.id] !== undefined && editWebsiteStock[item.id] !== "") {
-                                        const val = parseInt(editWebsiteStock[item.id], 10);
-                                        if (!isNaN(val) && val >= 0) setWebsiteStock(item, val);
+                                      if (
+                                        editWebsiteStock[item.id] !==
+                                          undefined &&
+                                        editWebsiteStock[item.id] !== ""
+                                      ) {
+                                        const val = parseInt(
+                                          editWebsiteStock[item.id],
+                                          10,
+                                        );
+                                        if (!isNaN(val) && val >= 0)
+                                          setWebsiteStock(item, val);
                                       }
                                       setEditWebsiteStock((prev) => {
                                         const n = { ...prev };
@@ -3411,7 +3451,11 @@ function InventoryModule({ activeModule, initialFilterSelection = null }) {
                                     }}
                                     className="h-7 text-xs text-center px-2"
                                   />
-                                  {savingWebsiteStock[item.id] ? <p className="text-[10px] text-muted-foreground mt-1">Saving...</p> : null}
+                                  {savingWebsiteStock[item.id] ? (
+                                    <p className="text-[10px] text-muted-foreground mt-1">
+                                      Saving...
+                                    </p>
+                                  ) : null}
                                 </div>
                               </div>
                             );
@@ -9961,7 +10005,9 @@ function ProfitAllocationModule({ activeModule }) {
   const [updatingStatusPolicyId, setUpdatingStatusPolicyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingPolicyId, setDeletingPolicyId] = useState("");
-  const [periodKey, setPeriodKey] = useState(() => new Date().toISOString().slice(0, 7));
+  const [periodKey, setPeriodKey] = useState(() =>
+    new Date().toISOString().slice(0, 7),
+  );
   const [monitoring, setMonitoring] = useState(null);
   const [monitoringLoading, setMonitoringLoading] = useState(false);
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
@@ -9983,7 +10029,10 @@ function ProfitAllocationModule({ activeModule }) {
   });
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [mappingOptions, setMappingOptions] = useState({ expenseCategories: [], chartOfAccounts: [] });
+  const [mappingOptions, setMappingOptions] = useState({
+    expenseCategories: [],
+    chartOfAccounts: [],
+  });
 
   const load = async () => {
     setLoading(true);
@@ -10002,8 +10051,12 @@ function ProfitAllocationModule({ activeModule }) {
     const nextPolicies = Array.isArray(result?.policies) ? result.policies : [];
     setPolicies(nextPolicies);
     setMappingOptions({
-      expenseCategories: Array.isArray(expenseData) ? expenseData.filter((item) => (item.status || "Active") === "Active") : [],
-      chartOfAccounts: Array.isArray(coaData) ? coaData.filter((item) => item.allowTransaction && item.isActive) : [],
+      expenseCategories: Array.isArray(expenseData)
+        ? expenseData.filter((item) => (item.status || "Active") === "Active")
+        : [],
+      chartOfAccounts: Array.isArray(coaData)
+        ? coaData.filter((item) => item.allowTransaction && item.isActive)
+        : [],
     });
     setSelectedPolicyId((current) => {
       if (current && nextPolicies.some((policy) => policy.id === current))
@@ -10016,7 +10069,9 @@ function ProfitAllocationModule({ activeModule }) {
   const loadMonitoring = async () => {
     setMonitoringLoading(true);
     try {
-      const result = await api.get(`profitallocation/monitoring?period=${encodeURIComponent(periodKey)}`);
+      const result = await api.get(
+        `profitallocation/monitoring?period=${encodeURIComponent(periodKey)}`,
+      );
       if (result?.error) {
         toast.error(result.error);
         setMonitoring(null);
@@ -10082,7 +10137,10 @@ function ProfitAllocationModule({ activeModule }) {
     selectedPolicy?.activeTotalPercentage ?? calculateAllocationTotal(rules),
   );
   const totalIsValid = Math.abs(activeTotal - 100) < 0.0001;
-  const actionBusy = savingPolicy || Boolean(updatingStatusPolicyId) || Boolean(deletingPolicyId);
+  const actionBusy =
+    savingPolicy ||
+    Boolean(updatingStatusPolicyId) ||
+    Boolean(deletingPolicyId);
 
   const openNewPolicy = () => {
     if (actionBusy) return;
@@ -10101,7 +10159,10 @@ function ProfitAllocationModule({ activeModule }) {
     setSavingPolicy(true);
     try {
       const result = editingPolicy?.id
-        ? await api.put(`profitallocation/policies/${editingPolicy.id}`, payload)
+        ? await api.put(
+            `profitallocation/policies/${editingPolicy.id}`,
+            payload,
+          )
         : await api.post("profitallocation/policies", payload);
 
       if (result?.error) {
@@ -10160,14 +10221,18 @@ function ProfitAllocationModule({ activeModule }) {
   const confirmDeletePolicy = async () => {
     if (!deleteTarget || deletingPolicyId || actionBusy) return;
     if (deleteTarget.status === "Active") {
-      toast.error("Active allocation policy cannot be deleted. Activate another policy first.");
+      toast.error(
+        "Active allocation policy cannot be deleted. Activate another policy first.",
+      );
       setDeleteTarget(null);
       return;
     }
 
     setDeletingPolicyId(deleteTarget.id);
     try {
-      const result = await api.del(`profitallocation/policies/${deleteTarget.id}`);
+      const result = await api.del(
+        `profitallocation/policies/${deleteTarget.id}`,
+      );
       if (result?.error) {
         toast.error(result.error || "Failed to delete allocation policy.");
         return;
@@ -10188,7 +10253,9 @@ function ProfitAllocationModule({ activeModule }) {
     if (creatingSnapshot) return;
     setCreatingSnapshot(true);
     try {
-      const result = await api.post("profitallocation/snapshots", { periodKey });
+      const result = await api.post("profitallocation/snapshots", {
+        periodKey,
+      });
       if (result?.error) {
         toast.error(result.error);
         return;
@@ -10207,7 +10274,9 @@ function ProfitAllocationModule({ activeModule }) {
     const rows = monitoring?.rows || [];
     setAdjustmentForm({
       sourceAllocationName: rows[0]?.allocationName || "",
-      destinationAllocationName: rows.find((row) => row.allocationName !== rows[0]?.allocationName)?.allocationName || "",
+      destinationAllocationName:
+        rows.find((row) => row.allocationName !== rows[0]?.allocationName)
+          ?.allocationName || "",
       amount: "",
       reason: "",
     });
@@ -10216,11 +10285,17 @@ function ProfitAllocationModule({ activeModule }) {
 
   const saveAdjustment = async () => {
     if (savingAdjustment) return;
-    if (!adjustmentForm.sourceAllocationName || !adjustmentForm.destinationAllocationName) {
+    if (
+      !adjustmentForm.sourceAllocationName ||
+      !adjustmentForm.destinationAllocationName
+    ) {
       toast.error("Source and destination allocation are required");
       return;
     }
-    if (adjustmentForm.sourceAllocationName === adjustmentForm.destinationAllocationName) {
+    if (
+      adjustmentForm.sourceAllocationName ===
+      adjustmentForm.destinationAllocationName
+    ) {
       toast.error("Source and destination allocation must be different");
       return;
     }
@@ -10371,21 +10446,46 @@ function ProfitAllocationModule({ activeModule }) {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
             <div>
               <CardTitle className="text-base">Allocation Monitoring</CardTitle>
-              <CardDescription>Monthly target vs actual monitoring from existing Finance data.</CardDescription>
+              <CardDescription>
+                Monthly target vs actual monitoring from existing Finance data.
+              </CardDescription>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="space-y-1">
                 <Label className="text-xs">Period</Label>
-                <Input type="month" value={periodKey} onChange={(event) => setPeriodKey(event.target.value)} className="w-[180px]" />
+                <Input
+                  type="month"
+                  value={periodKey}
+                  onChange={(event) => setPeriodKey(event.target.value)}
+                  className="w-[180px]"
+                />
               </div>
               {monitoring?.periodStatus === "Snapshot Created" ? (
-                <Badge className="bg-emerald-500/10 text-emerald-600">Snapshot Created</Badge>
+                <Badge className="bg-emerald-500/10 text-emerald-600">
+                  Snapshot Created
+                </Badge>
               ) : (
                 <>
-                  <Button variant="outline" onClick={openAdjustmentForm} disabled={monitoringLoading || !monitoring?.canAdjust || (monitoring?.rows || []).length < 2}>
+                  <Button
+                    variant="outline"
+                    onClick={openAdjustmentForm}
+                    disabled={
+                      monitoringLoading ||
+                      !monitoring?.canAdjust ||
+                      (monitoring?.rows || []).length < 2
+                    }
+                  >
                     Adjust
                   </Button>
-                  <Button variant="outline" onClick={createSnapshot} disabled={creatingSnapshot || monitoringLoading || !monitoring?.activePolicy}>
+                  <Button
+                    variant="outline"
+                    onClick={createSnapshot}
+                    disabled={
+                      creatingSnapshot ||
+                      monitoringLoading ||
+                      !monitoring?.activePolicy
+                    }
+                  >
                     {creatingSnapshot ? "Creating..." : "Create Snapshot"}
                   </Button>
                 </>
@@ -10395,105 +10495,238 @@ function ProfitAllocationModule({ activeModule }) {
         </CardHeader>
         <CardContent>
           {monitoringLoading ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Loading allocation monitoring...</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              Loading allocation monitoring...
+            </div>
           ) : monitoring ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
                 <Card>
                   <CardContent className="p-4">
                     <p className="text-xs text-muted-foreground">Net Profit</p>
-                    <p className="text-lg font-semibold mt-1">{fmt(monitoring.netProfit)}</p>
+                    <p className="text-lg font-semibold mt-1">
+                      {fmt(monitoring.netProfit)}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground">Allocated Target</p>
-                    <p className="text-lg font-semibold mt-1">{fmt(monitoring.totalTarget)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Allocated Target
+                    </p>
+                    <p className="text-lg font-semibold mt-1">
+                      {fmt(monitoring.totalTarget)}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground">Actual Spending</p>
-                    <p className="text-lg font-semibold mt-1">{fmt(monitoring.totalActual)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Actual Spending
+                    </p>
+                    <p className="text-lg font-semibold mt-1">
+                      {fmt(monitoring.totalActual)}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4">
                     <p className="text-xs text-muted-foreground">Executed</p>
-                    <p className="text-lg font-semibold mt-1">{fmt(monitoring.totalExecuted)}</p>
+                    <p className="text-lg font-semibold mt-1">
+                      {fmt(monitoring.totalExecuted)}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground">Execution Remaining</p>
-                    <p className="text-lg font-semibold mt-1">{fmt(monitoring.totalExecutionRemaining)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Execution Remaining
+                    </p>
+                    <p className="text-lg font-semibold mt-1">
+                      {fmt(monitoring.totalExecutionRemaining)}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground">Execution Progress</p>
-                    <p className="text-lg font-semibold mt-1">{Number(monitoring.executionProgress || 0).toFixed(1)}%</p>
+                    <p className="text-xs text-muted-foreground">
+                      Execution Progress
+                    </p>
+                    <p className="text-lg font-semibold mt-1">
+                      {Number(monitoring.executionProgress || 0).toFixed(1)}%
+                    </p>
                   </CardContent>
                 </Card>
               </div>
 
               <div className="rounded-xl border bg-[#F7F8FA] p-4 text-sm text-muted-foreground">
                 <p>
-                  Period: <span className="font-medium text-foreground">{monitoring.period?.periodLabel}</span> · Policy: <span className="font-medium text-foreground">{monitoring.policy?.name || "—"}</span>
+                  Period:{" "}
+                  <span className="font-medium text-foreground">
+                    {monitoring.period?.periodLabel}
+                  </span>{" "}
+                  · Policy:{" "}
+                  <span className="font-medium text-foreground">
+                    {monitoring.policy?.name || "—"}
+                  </span>
                 </p>
-                <p className="mt-1">Actual spending is read dynamically from Finance Cash Out transactions for the selected month. Snapshot target values remain historical.</p>
+                <p className="mt-1">
+                  Actual spending is read dynamically from Finance Cash Out
+                  transactions for the selected month. Snapshot target values
+                  remain historical.
+                </p>
               </div>
 
               <div className="overflow-x-auto rounded-xl border">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-[#F7F8FA]">
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Allocation</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Mapping</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">%</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Original Target</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Adjustment</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Adjusted Target</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actual</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Executed</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Exec. Remaining</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Variance</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Execution</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                        Allocation
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                        Mapping
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        %
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        Original Target
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        Adjustment
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        Adjusted Target
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        Actual
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        Executed
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        Exec. Remaining
+                      </th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                        Variance
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                        Status
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                        Execution
+                      </th>
                       <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody>
                     {(monitoring.rows || []).length === 0 ? (
-                      <tr><td colSpan={13} className="px-4 py-10 text-center text-muted-foreground">No allocation rows available.</td></tr>
-                    ) : (monitoring.rows || []).map((row) => (
-                      <tr key={row.allocationName} className="border-b last:border-b-0">
-                        <td className="px-4 py-3 font-medium text-[#111827]">{row.allocationName}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant="outline" className={row.mappingStatus === "Mapped" ? "border-emerald-500/40 text-emerald-600" : "border-slate-300 text-slate-500"}>{row.mappingStatus || "Not Mapped"}</Badge>
-                          {row.mappedFinanceLabel ? <p className="text-xs text-muted-foreground mt-1">{row.mappedFinanceLabel}</p> : null}
-                        </td>
-                        <td className="px-4 py-3 text-right">{formatPercentage(row.percentage)}</td>
-                        <td className="px-4 py-3 text-right font-medium">{fmt(row.originalTargetAmount)}</td>
-                        <td className={`px-4 py-3 text-right font-medium ${Number(row.adjustmentAmount || 0) < 0 ? "text-rose-500" : Number(row.adjustmentAmount || 0) > 0 ? "text-emerald-600" : ""}`}>{fmt(row.adjustmentAmount)}</td>
-                        <td className="px-4 py-3 text-right font-medium">{fmt(row.adjustedTargetAmount)}</td>
-                        <td className="px-4 py-3 text-right font-medium">{fmt(row.actualAmount)}</td>
-                        <td className="px-4 py-3 text-right font-medium">{fmt(row.executedAmount)}</td>
-                        <td className="px-4 py-3 text-right font-medium">{fmt(row.executionRemaining)}</td>
-                        <td className={`px-4 py-3 text-right font-semibold ${Number(row.variance || 0) < 0 ? "text-rose-500" : "text-emerald-600"}`}>{fmt(row.variance)}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant="outline" className={row.status === "Over Allocation" ? "border-rose-500/40 text-rose-500" : row.status === "Fully Used" ? "border-slate-300 text-slate-600" : "border-emerald-500/40 text-emerald-600"}>{row.status}</Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge variant="outline" className={row.executionStatus === "Fully Executed" ? "border-emerald-500/40 text-emerald-600" : row.executionStatus === "Partially Executed" ? "border-amber-500/40 text-amber-600" : "border-slate-300 text-slate-500"}>{row.executionStatus}</Badge>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button variant="outline" size="sm" onClick={() => openExecutionForm(row)} disabled={Number(row.executionRemaining || 0) <= 0}>
-                            Execute
-                          </Button>
+                      <tr>
+                        <td
+                          colSpan={13}
+                          className="px-4 py-10 text-center text-muted-foreground"
+                        >
+                          No allocation rows available.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      (monitoring.rows || []).map((row) => (
+                        <tr
+                          key={row.allocationName}
+                          className="border-b last:border-b-0"
+                        >
+                          <td className="px-4 py-3 font-medium text-[#111827]">
+                            {row.allocationName}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant="outline"
+                              className={
+                                row.mappingStatus === "Mapped"
+                                  ? "border-emerald-500/40 text-emerald-600"
+                                  : "border-slate-300 text-slate-500"
+                              }
+                            >
+                              {row.mappingStatus || "Not Mapped"}
+                            </Badge>
+                            {row.mappedFinanceLabel ? (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {row.mappedFinanceLabel}
+                              </p>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {formatPercentage(row.percentage)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium">
+                            {fmt(row.originalTargetAmount)}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right font-medium ${Number(row.adjustmentAmount || 0) < 0 ? "text-rose-500" : Number(row.adjustmentAmount || 0) > 0 ? "text-emerald-600" : ""}`}
+                          >
+                            {fmt(row.adjustmentAmount)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium">
+                            {fmt(row.adjustedTargetAmount)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium">
+                            {fmt(row.actualAmount)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium">
+                            {fmt(row.executedAmount)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium">
+                            {fmt(row.executionRemaining)}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right font-semibold ${Number(row.variance || 0) < 0 ? "text-rose-500" : "text-emerald-600"}`}
+                          >
+                            {fmt(row.variance)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant="outline"
+                              className={
+                                row.status === "Over Allocation"
+                                  ? "border-rose-500/40 text-rose-500"
+                                  : row.status === "Fully Used"
+                                    ? "border-slate-300 text-slate-600"
+                                    : "border-emerald-500/40 text-emerald-600"
+                              }
+                            >
+                              {row.status}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant="outline"
+                              className={
+                                row.executionStatus === "Fully Executed"
+                                  ? "border-emerald-500/40 text-emerald-600"
+                                  : row.executionStatus === "Partially Executed"
+                                    ? "border-amber-500/40 text-amber-600"
+                                    : "border-slate-300 text-slate-500"
+                              }
+                            >
+                              {row.executionStatus}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openExecutionForm(row)}
+                              disabled={
+                                Number(row.executionRemaining || 0) <= 0
+                              }
+                            >
+                              Execute
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -10501,18 +10734,33 @@ function ProfitAllocationModule({ activeModule }) {
               {(monitoring.executions || []).length > 0 ? (
                 <div className="rounded-xl border">
                   <div className="border-b bg-[#F7F8FA] px-4 py-3">
-                    <p className="text-sm font-semibold text-[#111827]">Execution History</p>
+                    <p className="text-sm font-semibold text-[#111827]">
+                      Execution History
+                    </p>
                   </div>
                   <div className="divide-y">
                     {monitoring.executions.map((execution) => (
                       <div key={execution.id} className="px-4 py-3 text-sm">
                         <div className="flex items-center justify-between gap-3 flex-wrap">
-                          <p className="font-medium text-[#111827]">{execution.allocationName}</p>
-                          <p className="font-semibold">{fmt(execution.amount)}</p>
+                          <p className="font-medium text-[#111827]">
+                            {execution.allocationName}
+                          </p>
+                          <p className="font-semibold">
+                            {fmt(execution.amount)}
+                          </p>
                         </div>
-                        <p className="text-muted-foreground mt-1">{execution.note}</p>
+                        <p className="text-muted-foreground mt-1">
+                          {execution.note}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {execution.executionDate ? new Date(execution.executionDate).toLocaleDateString("id-ID") : "—"} {execution.createdBy ? `· ${execution.createdBy}` : ""}
+                          {execution.executionDate
+                            ? new Date(
+                                execution.executionDate,
+                              ).toLocaleDateString("id-ID")
+                            : "—"}{" "}
+                          {execution.createdBy
+                            ? `· ${execution.createdBy}`
+                            : ""}
                         </p>
                       </div>
                     ))}
@@ -10523,20 +10771,34 @@ function ProfitAllocationModule({ activeModule }) {
               {(monitoring.adjustments || []).length > 0 ? (
                 <div className="rounded-xl border">
                   <div className="border-b bg-[#F7F8FA] px-4 py-3">
-                    <p className="text-sm font-semibold text-[#111827]">Adjustment History</p>
+                    <p className="text-sm font-semibold text-[#111827]">
+                      Adjustment History
+                    </p>
                   </div>
                   <div className="divide-y">
                     {monitoring.adjustments.map((adjustment) => (
                       <div key={adjustment.id} className="px-4 py-3 text-sm">
                         <div className="flex items-center justify-between gap-3 flex-wrap">
                           <p className="font-medium text-[#111827]">
-                            {adjustment.sourceAllocationName} → {adjustment.destinationAllocationName}
+                            {adjustment.sourceAllocationName} →{" "}
+                            {adjustment.destinationAllocationName}
                           </p>
-                          <p className="font-semibold">{fmt(adjustment.amount)}</p>
+                          <p className="font-semibold">
+                            {fmt(adjustment.amount)}
+                          </p>
                         </div>
-                        <p className="text-muted-foreground mt-1">{adjustment.reason}</p>
+                        <p className="text-muted-foreground mt-1">
+                          {adjustment.reason}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {adjustment.createdAt ? new Date(adjustment.createdAt).toLocaleString("id-ID") : "—"} {adjustment.createdBy ? `· ${adjustment.createdBy}` : ""}
+                          {adjustment.createdAt
+                            ? new Date(adjustment.createdAt).toLocaleString(
+                                "id-ID",
+                              )
+                            : "—"}{" "}
+                          {adjustment.createdBy
+                            ? `· ${adjustment.createdBy}`
+                            : ""}
                         </p>
                       </div>
                     ))}
@@ -10545,44 +10807,90 @@ function ProfitAllocationModule({ activeModule }) {
               ) : null}
             </div>
           ) : (
-            <div className="py-8 text-center text-sm text-muted-foreground">Allocation monitoring is not available.</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              Allocation monitoring is not available.
+            </div>
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Historical Allocation Reporting</CardTitle>
-          <CardDescription>Snapshot-based execution summary by period.</CardDescription>
+          <CardTitle className="text-base">
+            Historical Allocation Reporting
+          </CardTitle>
+          <CardDescription>
+            Snapshot-based execution summary by period.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {historyLoading ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Loading historical allocation report...</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              Loading historical allocation report...
+            </div>
           ) : history.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">No historical snapshots found.</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              No historical snapshots found.
+            </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-[#F7F8FA]">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Period</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Net Profit</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Allocated</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Executed</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Remaining</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      Period
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                      Net Profit
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                      Allocated
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                      Executed
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                      Remaining
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {history.map((period) => (
-                    <tr key={period.periodKey} className="border-b last:border-b-0">
-                      <td className="px-4 py-3 font-medium text-[#111827]">{period.periodLabel}</td>
-                      <td className="px-4 py-3 text-right">{fmt(period.netProfit)}</td>
-                      <td className="px-4 py-3 text-right">{fmt(period.totalAllocated)}</td>
-                      <td className="px-4 py-3 text-right">{fmt(period.totalExecuted)}</td>
-                      <td className="px-4 py-3 text-right">{fmt(period.totalRemaining)}</td>
+                    <tr
+                      key={period.periodKey}
+                      className="border-b last:border-b-0"
+                    >
+                      <td className="px-4 py-3 font-medium text-[#111827]">
+                        {period.periodLabel}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {fmt(period.netProfit)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {fmt(period.totalAllocated)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {fmt(period.totalExecuted)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {fmt(period.totalRemaining)}
+                      </td>
                       <td className="px-4 py-3">
-                        <Badge variant="outline" className={period.executionStatus === "Fully Executed" ? "border-emerald-500/40 text-emerald-600" : period.executionStatus === "Partially Executed" ? "border-amber-500/40 text-amber-600" : "border-slate-300 text-slate-500"}>{period.executionStatus}</Badge>
+                        <Badge
+                          variant="outline"
+                          className={
+                            period.executionStatus === "Fully Executed"
+                              ? "border-emerald-500/40 text-emerald-600"
+                              : period.executionStatus === "Partially Executed"
+                                ? "border-amber-500/40 text-amber-600"
+                                : "border-slate-300 text-slate-500"
+                          }
+                        >
+                          {period.executionStatus}
+                        </Badge>
                       </td>
                     </tr>
                   ))}
@@ -10647,7 +10955,9 @@ function ProfitAllocationModule({ activeModule }) {
                         updatePolicyStatus(selectedPolicy, "Active")
                       }
                     >
-                      {updatingStatusPolicyId === selectedPolicy.id ? "Activating..." : "Activate"}
+                      {updatingStatusPolicyId === selectedPolicy.id
+                        ? "Activating..."
+                        : "Activate"}
                     </Button>
                   ) : (
                     <Button
@@ -10657,7 +10967,9 @@ function ProfitAllocationModule({ activeModule }) {
                         updatePolicyStatus(selectedPolicy, "Inactive")
                       }
                     >
-                      {updatingStatusPolicyId === selectedPolicy.id ? "Updating..." : "Set Inactive"}
+                      {updatingStatusPolicyId === selectedPolicy.id
+                        ? "Updating..."
+                        : "Set Inactive"}
                     </Button>
                   )}
                   <Button
@@ -10665,9 +10977,16 @@ function ProfitAllocationModule({ activeModule }) {
                     disabled={actionBusy || selectedPolicy.status === "Active"}
                     onClick={() => setDeleteTarget(selectedPolicy)}
                     className="gap-2 text-rose-500 hover:text-rose-600"
-                    title={selectedPolicy.status === "Active" ? "Activate another policy before deleting this one." : "Delete allocation policy"}
+                    title={
+                      selectedPolicy.status === "Active"
+                        ? "Activate another policy before deleting this one."
+                        : "Delete allocation policy"
+                    }
                   >
-                    <Trash2 className="h-4 w-4" /> {deletingPolicyId === selectedPolicy.id ? "Deleting..." : "Delete"}
+                    <Trash2 className="h-4 w-4" />{" "}
+                    {deletingPolicyId === selectedPolicy.id
+                      ? "Deleting..."
+                      : "Delete"}
                   </Button>
                   <Button
                     disabled={actionBusy}
@@ -10753,10 +11072,21 @@ function ProfitAllocationModule({ activeModule }) {
                             </td>
                             <td className="px-4 py-3">
                               <div className="space-y-1">
-                                <Badge variant="outline" className={rule.mappingStatus === "Mapped" ? "border-emerald-500/40 text-emerald-600" : "border-slate-300 text-slate-500"}>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    rule.mappingStatus === "Mapped"
+                                      ? "border-emerald-500/40 text-emerald-600"
+                                      : "border-slate-300 text-slate-500"
+                                  }
+                                >
                                   {rule.mappingStatus || "Not Mapped"}
                                 </Badge>
-                                {rule.mappedFinanceLabel ? <p className="text-xs text-muted-foreground">{rule.mappedFinanceLabel}</p> : null}
+                                {rule.mappedFinanceLabel ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    {rule.mappedFinanceLabel}
+                                  </p>
+                                ) : null}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -10799,12 +11129,18 @@ function ProfitAllocationModule({ activeModule }) {
         mappingOptions={mappingOptions}
       />
 
-      <Dialog open={showExecutionForm} onOpenChange={(value) => !savingExecution && setShowExecutionForm(value)}>
+      <Dialog
+        open={showExecutionForm}
+        onOpenChange={(value) =>
+          !savingExecution && setShowExecutionForm(value)
+        }
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Execute Allocation</DialogTitle>
             <DialogDescription>
-              Record management execution for this allocation. This does not create Cash Out, Journal Entry, or General Ledger records.
+              Record management execution for this allocation. This does not
+              create Cash Out, Journal Entry, or General Ledger records.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -10815,53 +11151,133 @@ function ProfitAllocationModule({ activeModule }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Executed Amount</Label>
-                <Input type="number" min="0" value={executionForm.amount} onChange={(event) => setExecutionForm((current) => ({ ...current, amount: event.target.value }))} disabled={savingExecution} placeholder="Amount executed" />
+                <Input
+                  type="number"
+                  min="0"
+                  value={executionForm.amount}
+                  onChange={(event) =>
+                    setExecutionForm((current) => ({
+                      ...current,
+                      amount: event.target.value,
+                    }))
+                  }
+                  disabled={savingExecution}
+                  placeholder="Amount executed"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Execution Date</Label>
-                <Input type="date" value={executionForm.executionDate} onChange={(event) => setExecutionForm((current) => ({ ...current, executionDate: event.target.value }))} disabled={savingExecution} />
+                <Input
+                  type="date"
+                  value={executionForm.executionDate}
+                  onChange={(event) =>
+                    setExecutionForm((current) => ({
+                      ...current,
+                      executionDate: event.target.value,
+                    }))
+                  }
+                  disabled={savingExecution}
+                />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label>Note / Reason</Label>
-              <Textarea value={executionForm.note} onChange={(event) => setExecutionForm((current) => ({ ...current, note: event.target.value }))} disabled={savingExecution} rows={4} placeholder="Describe this allocation execution" />
+              <Textarea
+                value={executionForm.note}
+                onChange={(event) =>
+                  setExecutionForm((current) => ({
+                    ...current,
+                    note: event.target.value,
+                  }))
+                }
+                disabled={savingExecution}
+                rows={4}
+                placeholder="Describe this allocation execution"
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExecutionForm(false)} disabled={savingExecution}>Cancel</Button>
-            <Button onClick={saveExecution} disabled={savingExecution}>{savingExecution ? "Executing..." : "Save Execution"}</Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowExecutionForm(false)}
+              disabled={savingExecution}
+            >
+              Cancel
+            </Button>
+            <Button onClick={saveExecution} disabled={savingExecution}>
+              {savingExecution ? "Executing..." : "Save Execution"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAdjustmentForm} onOpenChange={(value) => !savingAdjustment && setShowAdjustmentForm(value)}>
+      <Dialog
+        open={showAdjustmentForm}
+        onOpenChange={(value) =>
+          !savingAdjustment && setShowAdjustmentForm(value)
+        }
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Adjust Allocation</DialogTitle>
             <DialogDescription>
-              Record a balanced period-specific reallocation. This does not modify Cash Out, Journal Entries, General Ledger, or policy percentages.
+              Record a balanced period-specific reallocation. This does not
+              modify Cash Out, Journal Entries, General Ledger, or policy
+              percentages.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Source Allocation</Label>
-                <Select value={adjustmentForm.sourceAllocationName} onValueChange={(value) => setAdjustmentForm((current) => ({ ...current, sourceAllocationName: value }))} disabled={savingAdjustment}>
-                  <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+                <Select
+                  value={adjustmentForm.sourceAllocationName}
+                  onValueChange={(value) =>
+                    setAdjustmentForm((current) => ({
+                      ...current,
+                      sourceAllocationName: value,
+                    }))
+                  }
+                  disabled={savingAdjustment}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select source" />
+                  </SelectTrigger>
                   <SelectContent>
                     {(monitoring?.rows || []).map((row) => (
-                      <SelectItem key={row.allocationName} value={row.allocationName}>{row.allocationName} · {fmt(row.adjustedTargetAmount)}</SelectItem>
+                      <SelectItem
+                        key={row.allocationName}
+                        value={row.allocationName}
+                      >
+                        {row.allocationName} · {fmt(row.adjustedTargetAmount)}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Destination Allocation</Label>
-                <Select value={adjustmentForm.destinationAllocationName} onValueChange={(value) => setAdjustmentForm((current) => ({ ...current, destinationAllocationName: value }))} disabled={savingAdjustment}>
-                  <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
+                <Select
+                  value={adjustmentForm.destinationAllocationName}
+                  onValueChange={(value) =>
+                    setAdjustmentForm((current) => ({
+                      ...current,
+                      destinationAllocationName: value,
+                    }))
+                  }
+                  disabled={savingAdjustment}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select destination" />
+                  </SelectTrigger>
                   <SelectContent>
                     {(monitoring?.rows || []).map((row) => (
-                      <SelectItem key={row.allocationName} value={row.allocationName}>{row.allocationName}</SelectItem>
+                      <SelectItem
+                        key={row.allocationName}
+                        value={row.allocationName}
+                      >
+                        {row.allocationName}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -10869,38 +11285,87 @@ function ProfitAllocationModule({ activeModule }) {
             </div>
             <div className="space-y-1.5">
               <Label>Adjustment Amount</Label>
-              <Input type="number" min="0" value={adjustmentForm.amount} onChange={(event) => setAdjustmentForm((current) => ({ ...current, amount: event.target.value }))} disabled={savingAdjustment} placeholder="Amount to move" />
+              <Input
+                type="number"
+                min="0"
+                value={adjustmentForm.amount}
+                onChange={(event) =>
+                  setAdjustmentForm((current) => ({
+                    ...current,
+                    amount: event.target.value,
+                  }))
+                }
+                disabled={savingAdjustment}
+                placeholder="Amount to move"
+              />
             </div>
             <div className="rounded-xl border bg-[#F7F8FA] p-4 text-sm text-muted-foreground">
               <p>
-                {adjustmentForm.sourceAllocationName || "Source"} <span className="text-rose-500 font-semibold">- {fmt(Number(adjustmentForm.amount || 0))}</span>
+                {adjustmentForm.sourceAllocationName || "Source"}{" "}
+                <span className="text-rose-500 font-semibold">
+                  - {fmt(Number(adjustmentForm.amount || 0))}
+                </span>
               </p>
               <p className="mt-1">
-                {adjustmentForm.destinationAllocationName || "Destination"} <span className="text-emerald-600 font-semibold">+ {fmt(Number(adjustmentForm.amount || 0))}</span>
+                {adjustmentForm.destinationAllocationName || "Destination"}{" "}
+                <span className="text-emerald-600 font-semibold">
+                  + {fmt(Number(adjustmentForm.amount || 0))}
+                </span>
               </p>
             </div>
             <div className="space-y-1.5">
               <Label>Reason / Note</Label>
-              <Textarea value={adjustmentForm.reason} onChange={(event) => setAdjustmentForm((current) => ({ ...current, reason: event.target.value }))} disabled={savingAdjustment} rows={4} placeholder="Explain why this reallocation is needed" />
+              <Textarea
+                value={adjustmentForm.reason}
+                onChange={(event) =>
+                  setAdjustmentForm((current) => ({
+                    ...current,
+                    reason: event.target.value,
+                  }))
+                }
+                disabled={savingAdjustment}
+                rows={4}
+                placeholder="Explain why this reallocation is needed"
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdjustmentForm(false)} disabled={savingAdjustment}>Cancel</Button>
-            <Button onClick={saveAdjustment} disabled={savingAdjustment}>{savingAdjustment ? "Saving..." : "Save Adjustment"}</Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowAdjustmentForm(false)}
+              disabled={savingAdjustment}
+            >
+              Cancel
+            </Button>
+            <Button onClick={saveAdjustment} disabled={savingAdjustment}>
+              {savingAdjustment ? "Saving..." : "Save Adjustment"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(value) => !value && !deletingPolicyId && setDeleteTarget(null)}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(value) =>
+          !value && !deletingPolicyId && setDeleteTarget(null)
+        }
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Allocation Policy</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <span className="font-medium text-foreground">{deleteTarget?.name}</span>? This action only deletes the policy rules master and will not affect Finance transactions.
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-foreground">
+                {deleteTarget?.name}
+              </span>
+              ? This action only deletes the policy rules master and will not
+              affect Finance transactions.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={Boolean(deletingPolicyId)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={Boolean(deletingPolicyId)}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-rose-500 hover:bg-rose-600 text-white"
               disabled={Boolean(deletingPolicyId)}
@@ -10918,7 +11383,14 @@ function ProfitAllocationModule({ activeModule }) {
   );
 }
 
-function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, saving = false, mappingOptions = { expenseCategories: [], chartOfAccounts: [] } }) {
+function ProfitAllocationPolicyDialog({
+  open,
+  onOpenChange,
+  initial,
+  onSave,
+  saving = false,
+  mappingOptions = { expenseCategories: [], chartOfAccounts: [] },
+}) {
   const buildEmpty = () => ({
     name: "",
     description: "",
@@ -10994,21 +11466,35 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
   };
 
   const getMappingValue = (rule) => {
-    if (rule.financeMappingType === "EXPENSE_CATEGORY" && rule.mappedExpenseCategoryId) return `EXPENSE_CATEGORY:${rule.mappedExpenseCategoryId}`;
-    if (rule.financeMappingType === "CHART_OF_ACCOUNT" && rule.mappedChartOfAccountId) return `CHART_OF_ACCOUNT:${rule.mappedChartOfAccountId}`;
+    if (
+      rule.financeMappingType === "EXPENSE_CATEGORY" &&
+      rule.mappedExpenseCategoryId
+    )
+      return `EXPENSE_CATEGORY:${rule.mappedExpenseCategoryId}`;
+    if (
+      rule.financeMappingType === "CHART_OF_ACCOUNT" &&
+      rule.mappedChartOfAccountId
+    )
+      return `CHART_OF_ACCOUNT:${rule.mappedChartOfAccountId}`;
     return "NONE";
   };
 
   const updateRuleMapping = (index, value) => {
     if (value === "NONE") {
-      updateRule(index, { financeMappingType: "NONE", mappedExpenseCategoryId: "", mappedChartOfAccountId: "" });
+      updateRule(index, {
+        financeMappingType: "NONE",
+        mappedExpenseCategoryId: "",
+        mappedChartOfAccountId: "",
+      });
       return;
     }
     const [financeMappingType, id] = String(value || "").split(":");
     updateRule(index, {
       financeMappingType,
-      mappedExpenseCategoryId: financeMappingType === "EXPENSE_CATEGORY" ? id : "",
-      mappedChartOfAccountId: financeMappingType === "CHART_OF_ACCOUNT" ? id : "",
+      mappedExpenseCategoryId:
+        financeMappingType === "EXPENSE_CATEGORY" ? id : "",
+      mappedChartOfAccountId:
+        financeMappingType === "CHART_OF_ACCOUNT" ? id : "",
     });
   };
 
@@ -11043,8 +11529,14 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
         allocationName: String(rule.allocationName || "").trim(),
         percentage: Number(rule.percentage || 0),
         financeMappingType: rule.financeMappingType || "NONE",
-        mappedExpenseCategoryId: rule.financeMappingType === "EXPENSE_CATEGORY" ? rule.mappedExpenseCategoryId : "",
-        mappedChartOfAccountId: rule.financeMappingType === "CHART_OF_ACCOUNT" ? rule.mappedChartOfAccountId : "",
+        mappedExpenseCategoryId:
+          rule.financeMappingType === "EXPENSE_CATEGORY"
+            ? rule.mappedExpenseCategoryId
+            : "",
+        mappedChartOfAccountId:
+          rule.financeMappingType === "CHART_OF_ACCOUNT"
+            ? rule.mappedChartOfAccountId
+            : "",
         displayOrder: Number(rule.displayOrder || index + 1),
         isActive: rule.isActive !== false,
       })),
@@ -11052,7 +11544,10 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
   };
 
   return (
-    <Dialog open={open} onOpenChange={(value) => !saving && onOpenChange(value)}>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => !saving && onOpenChange(value)}
+    >
       <DialogContent className="max-w-5xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -11217,17 +11712,33 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
                       />
                     </td>
                     <td className="px-3 py-2">
-                      <Select value={getMappingValue(rule)} onValueChange={(value) => updateRuleMapping(index, value)} disabled={saving}>
+                      <Select
+                        value={getMappingValue(rule)}
+                        onValueChange={(value) =>
+                          updateRuleMapping(index, value)
+                        }
+                        disabled={saving}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select Finance mapping" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="NONE">Not Mapped</SelectItem>
                           {mappingOptions.expenseCategories.map((category) => (
-                            <SelectItem key={`expense-${category.id}`} value={`EXPENSE_CATEGORY:${category.id}`}>Expense Category · {category.name}</SelectItem>
+                            <SelectItem
+                              key={`expense-${category.id}`}
+                              value={`EXPENSE_CATEGORY:${category.id}`}
+                            >
+                              Expense Category · {category.name}
+                            </SelectItem>
                           ))}
                           {mappingOptions.chartOfAccounts.map((account) => (
-                            <SelectItem key={`coa-${account.id}`} value={`CHART_OF_ACCOUNT:${account.id}`}>COA · {account.accountCode} {account.accountName}</SelectItem>
+                            <SelectItem
+                              key={`coa-${account.id}`}
+                              value={`CHART_OF_ACCOUNT:${account.id}`}
+                            >
+                              COA · {account.accountCode} {account.accountName}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -11260,11 +11771,21 @@ function ProfitAllocationPolicyDialog({ open, onOpenChange, initial, onSave, sav
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
             Cancel
           </Button>
           <Button onClick={submit} disabled={saving}>
-            {saving ? (initial?.id ? "Saving..." : "Creating...") : (initial?.id ? "Save Changes" : "Create Policy")}
+            {saving
+              ? initial?.id
+                ? "Saving..."
+                : "Creating..."
+              : initial?.id
+                ? "Save Changes"
+                : "Create Policy"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -19912,7 +20433,6 @@ function SalesChannelsModule({ activeModule }) {
   );
 }
 
-
 // =========== MANUAL ORDERS ===========
 function ManualOrdersModule({ activeModule }) {
   const [items, setItems] = useState([]);
@@ -19936,22 +20456,37 @@ function ManualOrdersModule({ activeModule }) {
     items: [],
   });
 
-  const productMap = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
-  const inventoryOptions = useMemo(() => inventory
-    .filter((row) => row.status !== "Inactive")
-    .map((row) => {
-      const product = productMap.get(row.productId) || {};
-      return {
-        ...row,
-        product,
-        label: `${product.name || row.productId} · ${row.color || "-"} / ${row.size || "-"} · Stock ${row.quantity}`,
-      };
-    }), [inventory, productMap]);
+  const productMap = useMemo(
+    () => new Map(products.map((product) => [product.id, product])),
+    [products],
+  );
+  const inventoryOptions = useMemo(
+    () =>
+      inventory
+        .filter((row) => row.status !== "Inactive")
+        .map((row) => {
+          const product = productMap.get(row.productId) || {};
+          return {
+            ...row,
+            product,
+            label: `${product.name || row.productId} · ${row.color || "-"} / ${row.size || "-"} · Stock ${row.quantity}`,
+          };
+        }),
+    [inventory, productMap],
+  );
 
   const load = async () => {
     setLoading(true);
-    const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
-    const [ordersData, channelsData, customersData, inventoryData, productsData] = await Promise.all([
+    const query = search.trim()
+      ? `?search=${encodeURIComponent(search.trim())}`
+      : "";
+    const [
+      ordersData,
+      channelsData,
+      customersData,
+      inventoryData,
+      productsData,
+    ] = await Promise.all([
       api.get("manualorders" + query),
       api.get("saleschannels"),
       api.get("customers"),
@@ -19959,19 +20494,36 @@ function ManualOrdersModule({ activeModule }) {
       api.get("products?summary=basic"),
     ]);
     setItems(Array.isArray(ordersData) ? ordersData : []);
-    setSalesChannels(Array.isArray(channelsData) ? channelsData.filter((channel) => channel.status !== "Inactive") : []);
-    setCustomers(Array.isArray(customersData) ? customersData.filter((customer) => customer.status !== "Inactive") : []);
+    setSalesChannels(
+      Array.isArray(channelsData)
+        ? channelsData.filter((channel) => channel.status !== "Inactive")
+        : [],
+    );
+    setCustomers(
+      Array.isArray(customersData)
+        ? customersData.filter((customer) => customer.status !== "Inactive")
+        : [],
+    );
     setInventory(Array.isArray(inventoryData) ? inventoryData : []);
     setProducts(Array.isArray(productsData) ? productsData : []);
     setLoading(false);
   };
 
-  useLazyModuleEffect(activeModule, "manualorders", () => {
-    load();
-  }, [search]);
+  useLazyModuleEffect(
+    activeModule,
+    "manualorders",
+    () => {
+      load();
+    },
+    [search],
+  );
 
   const resetForm = () => {
-    const offline = salesChannels.find((channel) => String(channel.channelName || "").toLowerCase().includes("offline"));
+    const offline = salesChannels.find((channel) =>
+      String(channel.channelName || "")
+        .toLowerCase()
+        .includes("offline"),
+    );
     setForm({
       salesChannelId: offline?.id || salesChannels[0]?.id || "",
       customerId: "walk-in",
@@ -19984,18 +20536,36 @@ function ManualOrdersModule({ activeModule }) {
   };
 
   const addItem = () => {
-    setForm((current) => ({ ...current, items: [...current.items, { inventoryId: "", productId: "", quantity: 1, unitPrice: 0, discountType: "FIXED", discountValue: 0 }] }));
+    setForm((current) => ({
+      ...current,
+      items: [
+        ...current.items,
+        {
+          inventoryId: "",
+          productId: "",
+          quantity: 1,
+          unitPrice: 0,
+          discountType: "FIXED",
+          discountValue: 0,
+        },
+      ],
+    }));
   };
 
   const updateItem = (index, patch) => {
     setForm((current) => ({
       ...current,
-      items: current.items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item),
+      items: current.items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item,
+      ),
     }));
   };
 
   const removeItem = (index) => {
-    setForm((current) => ({ ...current, items: current.items.filter((_, itemIndex) => itemIndex !== index) }));
+    setForm((current) => ({
+      ...current,
+      items: current.items.filter((_, itemIndex) => itemIndex !== index),
+    }));
   };
 
   const handleInventorySelect = (index, inventoryId) => {
@@ -20011,22 +20581,45 @@ function ManualOrdersModule({ activeModule }) {
   const calculateDiscountAmount = (baseAmount, discountType, discountValue) => {
     const base = Math.max(Number(baseAmount || 0), 0);
     const value = Math.max(Number(discountValue || 0), 0);
-    const amount = discountType === "PERCENTAGE" ? base * Math.min(value, 100) / 100 : value;
+    const amount =
+      discountType === "PERCENTAGE"
+        ? (base * Math.min(value, 100)) / 100
+        : value;
     return Math.min(amount, base);
   };
 
   const getItemCalculation = (item) => {
-    const gross = Math.max(Number(item.unitPrice || 0) * Number(item.quantity || 0), 0);
-    const discount = calculateDiscountAmount(gross, item.discountType, item.discountValue);
+    const gross = Math.max(
+      Number(item.unitPrice || 0) * Number(item.quantity || 0),
+      0,
+    );
+    const discount = calculateDiscountAmount(
+      gross,
+      item.discountType,
+      item.discountValue,
+    );
     return { gross, discount, net: Math.max(gross - discount, 0) };
   };
 
   const totals = useMemo(() => {
     const itemCalculations = form.items.map(getItemCalculation);
-    const grossSubtotal = itemCalculations.reduce((sum, item) => sum + item.gross, 0);
-    const itemDiscount = itemCalculations.reduce((sum, item) => sum + item.discount, 0);
-    const netSubtotal = itemCalculations.reduce((sum, item) => sum + item.net, 0);
-    const orderDiscount = calculateDiscountAmount(netSubtotal, form.discountType, form.discountValue);
+    const grossSubtotal = itemCalculations.reduce(
+      (sum, item) => sum + item.gross,
+      0,
+    );
+    const itemDiscount = itemCalculations.reduce(
+      (sum, item) => sum + item.discount,
+      0,
+    );
+    const netSubtotal = itemCalculations.reduce(
+      (sum, item) => sum + item.net,
+      0,
+    );
+    const orderDiscount = calculateDiscountAmount(
+      netSubtotal,
+      form.discountType,
+      form.discountValue,
+    );
     return {
       grossSubtotal,
       itemDiscount,
@@ -20047,34 +20640,53 @@ function ManualOrdersModule({ activeModule }) {
       return;
     }
     for (const item of form.items) {
-      const selectedInventory = inventoryOptions.find((row) => row.id === item.inventoryId);
+      const selectedInventory = inventoryOptions.find(
+        (row) => row.id === item.inventoryId,
+      );
       if (!selectedInventory) {
         toast.error("Select product variant for every item");
         return;
       }
-      if (!Number.isInteger(Number(item.quantity)) || Number(item.quantity) <= 0) {
+      if (
+        !Number.isInteger(Number(item.quantity)) ||
+        Number(item.quantity) <= 0
+      ) {
         toast.error("Quantity must be a positive whole number");
         return;
       }
       if (Number(item.quantity) > Number(selectedInventory.quantity || 0)) {
-        toast.error(`Quantity exceeds available stock for ${selectedInventory.product?.name || 'selected item'}`);
+        toast.error(
+          `Quantity exceeds available stock for ${selectedInventory.product?.name || "selected item"}`,
+        );
         return;
       }
-      if (item.discountType === "PERCENTAGE" && Number(item.discountValue || 0) > 100) {
+      if (
+        item.discountType === "PERCENTAGE" &&
+        Number(item.discountValue || 0) > 100
+      ) {
         toast.error("Item discount percentage cannot exceed 100%");
         return;
       }
       const itemCalc = getItemCalculation(item);
-      if (item.discountType === "FIXED" && Number(item.discountValue || 0) > itemCalc.gross) {
+      if (
+        item.discountType === "FIXED" &&
+        Number(item.discountValue || 0) > itemCalc.gross
+      ) {
         toast.error("Item discount cannot exceed item subtotal");
         return;
       }
     }
-    if (form.discountType === "PERCENTAGE" && Number(form.discountValue || 0) > 100) {
+    if (
+      form.discountType === "PERCENTAGE" &&
+      Number(form.discountValue || 0) > 100
+    ) {
       toast.error("Order discount percentage cannot exceed 100%");
       return;
     }
-    if (form.discountType === "FIXED" && Number(form.discountValue || 0) > totals.netSubtotal) {
+    if (
+      form.discountType === "FIXED" &&
+      Number(form.discountValue || 0) > totals.netSubtotal
+    ) {
       toast.error("Order discount cannot exceed subtotal");
       return;
     }
@@ -20126,15 +20738,33 @@ function ManualOrdersModule({ activeModule }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">Manual Orders</h2>
-          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">Record simple offline/manual sales without checkout session or payment gateway.</p>
+          <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+            Manual Orders
+          </h2>
+          <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+            Record simple offline/manual sales without checkout session or
+            payment gateway.
+          </p>
         </div>
-        <Button onClick={() => { resetForm(); setOpen(true); }} className="gap-2"><Plus className="h-4 w-4" /> New Manual Order</Button>
+        <Button
+          onClick={() => {
+            resetForm();
+            setOpen(true);
+          }}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" /> New Manual Order
+        </Button>
       </div>
 
       <div className="relative max-w-md">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input className="pl-8" placeholder="Search manual order, customer, or channel..." value={search} onChange={(event) => setSearch(event.target.value)} />
+        <Input
+          className="pl-8"
+          placeholder="Search manual order, customer, or channel..."
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
       </div>
 
       <Card>
@@ -20142,61 +20772,138 @@ function ManualOrdersModule({ activeModule }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-[#F7F8FA]">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Order #</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Sales Channel</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Total</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Payment</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Order #
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Sales Channel
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Customer
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  Total
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Payment
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">No manual orders found.</td></tr>
-              ) : items.map((order) => (
-                <tr key={order.id} className="border-b hover:bg-[#F7F8FA]/80 cursor-pointer" onClick={() => openDetail(order)}>
-                  <td className="px-4 py-3 font-mono text-xs">{order.orderNumber}</td>
-                  <td className="px-4 py-3">{order.salesChannel?.channelName || "—"}</td>
-                  <td className="px-4 py-3">{order.customer?.customerName || "Walk-in Customer"}</td>
-                  <td className="px-4 py-3 text-right font-semibold">{fmt(order.total)}</td>
-                  <td className="px-4 py-3">{order.paymentMethod}</td>
-                  <td className="px-4 py-3"><Badge className="bg-emerald-500/10 text-emerald-600">{order.status}</Badge></td>
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-4 py-12 text-center text-muted-foreground"
+                  >
+                    No manual orders found.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                items.map((order) => (
+                  <tr
+                    key={order.id}
+                    className="border-b hover:bg-[#F7F8FA]/80 cursor-pointer"
+                    onClick={() => openDetail(order)}
+                  >
+                    <td className="px-4 py-3 font-mono text-xs">
+                      {order.orderNumber}
+                    </td>
+                    <td className="px-4 py-3">
+                      {order.salesChannel?.channelName || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {order.customer?.customerName || "Walk-in Customer"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold">
+                      {fmt(order.total)}
+                    </td>
+                    <td className="px-4 py-3">{order.paymentMethod}</td>
+                    <td className="px-4 py-3">
+                      <Badge className="bg-emerald-500/10 text-emerald-600">
+                        {order.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </Card>
 
-      <Dialog open={open} onOpenChange={(value) => !submitting && setOpen(value)}>
+      <Dialog
+        open={open}
+        onOpenChange={(value) => !submitting && setOpen(value)}
+      >
         <DialogContent className="max-w-5xl max-h-[88vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Manual Order</DialogTitle>
-            <DialogDescription>Create a paid manual sale. Inventory and finance posting are processed atomically.</DialogDescription>
+            <DialogDescription>
+              Create a paid manual sale. Inventory and finance posting are
+              processed atomically.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>Sales Channel</Label>
-                <Select value={form.salesChannelId} onValueChange={(value) => setForm((current) => ({ ...current, salesChannelId: value }))}>
-                  <SelectTrigger><SelectValue placeholder="Select channel" /></SelectTrigger>
-                  <SelectContent>{salesChannels.map((channel) => <SelectItem key={channel.id} value={channel.id}>{channel.channelName}</SelectItem>)}</SelectContent>
+                <Select
+                  value={form.salesChannelId}
+                  onValueChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      salesChannelId: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select channel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {salesChannels.map((channel) => (
+                      <SelectItem key={channel.id} value={channel.id}>
+                        {channel.channelName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Customer</Label>
-                <Select value={form.customerId} onValueChange={(value) => setForm((current) => ({ ...current, customerId: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={form.customerId}
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, customerId: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="walk-in">Walk-in Customer</SelectItem>
-                    {customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.customerName}</SelectItem>)}
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.customerName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Payment Method</Label>
-                <Select value={form.paymentMethod} onValueChange={(value) => setForm((current) => ({ ...current, paymentMethod: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={form.paymentMethod}
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, paymentMethod: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Cash">Cash</SelectItem>
                     <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
@@ -20210,69 +20917,362 @@ function ManualOrdersModule({ activeModule }) {
 
             <div className="flex items-center justify-between">
               <Label>Items</Label>
-              <Button variant="outline" size="sm" onClick={addItem}>Add Item</Button>
+              <Button variant="outline" size="sm" onClick={addItem}>
+                Add Item
+              </Button>
             </div>
             <div className="overflow-x-auto rounded-xl border">
               <table className="w-full text-sm">
-                <thead><tr className="border-b bg-[#F7F8FA]"><th className="px-3 py-2 text-left">Product / Variant</th><th className="px-3 py-2 text-left w-24">Qty</th><th className="px-3 py-2 text-left w-36">Unit Price</th><th className="px-3 py-2 text-left w-56">Discount</th><th className="px-3 py-2 text-right w-32">Subtotal</th><th className="w-10" /></tr></thead>
+                <thead>
+                  <tr className="border-b bg-[#F7F8FA]">
+                    <th className="px-3 py-2 text-left">Product / Variant</th>
+                    <th className="px-3 py-2 text-left w-24">Qty</th>
+                    <th className="px-3 py-2 text-left w-36">Unit Price</th>
+                    <th className="px-3 py-2 text-left w-56">Discount</th>
+                    <th className="px-3 py-2 text-right w-32">Subtotal</th>
+                    <th className="w-10" />
+                  </tr>
+                </thead>
                 <tbody>
                   {form.items.map((item, index) => {
                     const itemCalc = getItemCalculation(item);
-                    const selectedInventory = inventoryOptions.find((row) => row.id === item.inventoryId);
-                    const quantityInvalid = selectedInventory && Number(item.quantity || 0) > Number(selectedInventory.quantity || 0);
+                    const selectedInventory = inventoryOptions.find(
+                      (row) => row.id === item.inventoryId,
+                    );
+                    const quantityInvalid =
+                      selectedInventory &&
+                      Number(item.quantity || 0) >
+                        Number(selectedInventory.quantity || 0);
                     return (
                       <tr key={index} className="border-b last:border-b-0">
-                        <td className="px-3 py-2 min-w-[320px]"><Select value={item.inventoryId} onValueChange={(value) => handleInventorySelect(index, value)}><SelectTrigger><SelectValue placeholder="Select product variant" /></SelectTrigger><SelectContent>{inventoryOptions.map((option) => <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>)}</SelectContent></Select></td>
-                        <td className="px-3 py-2"><Input type="number" min="1" max={selectedInventory?.quantity || undefined} value={item.quantity} className={quantityInvalid ? "border-rose-500" : ""} onChange={(event) => updateItem(index, { quantity: Number(event.target.value || 0) })} />{quantityInvalid ? <p className="text-[11px] text-rose-500 mt-1">Max {selectedInventory.quantity}</p> : null}</td>
-                        <td className="px-3 py-2"><Input type="number" min="0" value={item.unitPrice} onChange={(event) => updateItem(index, { unitPrice: Number(event.target.value || 0) })} /></td>
-                        <td className="px-3 py-2"><div className="flex items-center gap-2"><Select value={item.discountType || "FIXED"} onValueChange={(value) => updateItem(index, { discountType: value, discountValue: 0 })}><SelectTrigger className="w-24"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="FIXED">Fixed</SelectItem><SelectItem value="PERCENTAGE">%</SelectItem></SelectContent></Select><Input type="number" min="0" max={(item.discountType || "FIXED") === "PERCENTAGE" ? 100 : itemCalc.gross} value={item.discountValue || 0} onChange={(event) => updateItem(index, { discountValue: Number(event.target.value || 0) })} /></div>{itemCalc.discount > 0 ? <p className="text-[11px] text-muted-foreground mt-1">-{fmt(itemCalc.discount)}</p> : null}</td>
-                        <td className="px-3 py-2 text-right font-medium"><p>{fmt(itemCalc.net)}</p>{itemCalc.gross !== itemCalc.net ? <p className="text-[11px] text-muted-foreground">Gross {fmt(itemCalc.gross)}</p> : null}</td>
-                        <td className="px-3 py-2"><Button variant="ghost" size="icon" className="text-rose-500" onClick={() => removeItem(index)}><Trash2 className="h-4 w-4" /></Button></td>
+                        <td className="px-3 py-2 min-w-[320px]">
+                          <Select
+                            value={item.inventoryId}
+                            onValueChange={(value) =>
+                              handleInventorySelect(index, value)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select product variant" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {inventoryOptions.map((option) => (
+                                <SelectItem key={option.id} value={option.id}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            max={selectedInventory?.quantity || undefined}
+                            value={item.quantity}
+                            className={quantityInvalid ? "border-rose-500" : ""}
+                            onChange={(event) =>
+                              updateItem(index, {
+                                quantity: Number(event.target.value || 0),
+                              })
+                            }
+                          />
+                          {quantityInvalid ? (
+                            <p className="text-[11px] text-rose-500 mt-1">
+                              Max {selectedInventory.quantity}
+                            </p>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={item.unitPrice}
+                            onChange={(event) =>
+                              updateItem(index, {
+                                unitPrice: Number(event.target.value || 0),
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={item.discountType || "FIXED"}
+                              onValueChange={(value) =>
+                                updateItem(index, {
+                                  discountType: value,
+                                  discountValue: 0,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="FIXED">Fixed</SelectItem>
+                                <SelectItem value="PERCENTAGE">%</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="number"
+                              min="0"
+                              max={
+                                (item.discountType || "FIXED") === "PERCENTAGE"
+                                  ? 100
+                                  : itemCalc.gross
+                              }
+                              value={item.discountValue || 0}
+                              onChange={(event) =>
+                                updateItem(index, {
+                                  discountValue: Number(
+                                    event.target.value || 0,
+                                  ),
+                                })
+                              }
+                            />
+                          </div>
+                          {itemCalc.discount > 0 ? (
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                              -{fmt(itemCalc.discount)}
+                            </p>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-2 text-right font-medium">
+                          <p>{fmt(itemCalc.net)}</p>
+                          {itemCalc.gross !== itemCalc.net ? (
+                            <p className="text-[11px] text-muted-foreground">
+                              Gross {fmt(itemCalc.gross)}
+                            </p>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-rose-500"
+                            onClick={() => removeItem(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </td>
                       </tr>
                     );
                   })}
-                  {form.items.length === 0 ? <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">No items added.</td></tr> : null}
+                  {form.items.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-3 py-8 text-center text-muted-foreground"
+                      >
+                        No items added.
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5"><Label>Notes</Label><Textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={3} /></div>
+              <div className="space-y-1.5">
+                <Label>Notes</Label>
+                <Textarea
+                  value={form.notes}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      notes: event.target.value,
+                    }))
+                  }
+                  rows={3}
+                />
+              </div>
               <div className="rounded-xl border bg-[#F7F8FA] p-4 space-y-3">
-                <div className="flex justify-between"><span>Gross Subtotal</span><span>{fmt(totals.grossSubtotal)}</span></div>
-                {totals.itemDiscount > 0 ? <div className="flex justify-between text-rose-500"><span>Item Discount</span><span>-{fmt(totals.itemDiscount)}</span></div> : null}
-                <div className="flex justify-between"><span>Net Item Subtotal</span><span>{fmt(totals.netSubtotal)}</span></div>
+                <div className="flex justify-between">
+                  <span>Gross Subtotal</span>
+                  <span>{fmt(totals.grossSubtotal)}</span>
+                </div>
+                {totals.itemDiscount > 0 ? (
+                  <div className="flex justify-between text-rose-500">
+                    <span>Item Discount</span>
+                    <span>-{fmt(totals.itemDiscount)}</span>
+                  </div>
+                ) : null}
+                <div className="flex justify-between">
+                  <span>Net Item Subtotal</span>
+                  <span>{fmt(totals.netSubtotal)}</span>
+                </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>Order Discount</span>
                   <div className="flex items-center gap-2">
-                    <Select value={form.discountType || "FIXED"} onValueChange={(value) => setForm((current) => ({ ...current, discountType: value, discountValue: 0 }))}>
-                      <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectItem value="FIXED">Fixed</SelectItem><SelectItem value="PERCENTAGE">%</SelectItem></SelectContent>
+                    <Select
+                      value={form.discountType || "FIXED"}
+                      onValueChange={(value) =>
+                        setForm((current) => ({
+                          ...current,
+                          discountType: value,
+                          discountValue: 0,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FIXED">Fixed</SelectItem>
+                        <SelectItem value="PERCENTAGE">%</SelectItem>
+                      </SelectContent>
                     </Select>
-                    <Input className="w-32" type="number" min="0" max={(form.discountType || "FIXED") === "PERCENTAGE" ? 100 : totals.netSubtotal} value={form.discountValue || 0} onChange={(event) => setForm((current) => ({ ...current, discountValue: Number(event.target.value || 0) }))} />
+                    <Input
+                      className="w-32"
+                      type="number"
+                      min="0"
+                      max={
+                        (form.discountType || "FIXED") === "PERCENTAGE"
+                          ? 100
+                          : totals.netSubtotal
+                      }
+                      value={form.discountValue || 0}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          discountValue: Number(event.target.value || 0),
+                        }))
+                      }
+                    />
                   </div>
                 </div>
-                {totals.orderDiscount > 0 ? <div className="flex justify-between text-rose-500"><span>Order Discount Amount</span><span>-{fmt(totals.orderDiscount)}</span></div> : null}
-                <div className="flex justify-between font-semibold text-lg border-t pt-3"><span>Total</span><span>{fmt(totals.total)}</span></div>
+                {totals.orderDiscount > 0 ? (
+                  <div className="flex justify-between text-rose-500">
+                    <span>Order Discount Amount</span>
+                    <span>-{fmt(totals.orderDiscount)}</span>
+                  </div>
+                ) : null}
+                <div className="flex justify-between font-semibold text-lg border-t pt-3">
+                  <span>Total</span>
+                  <span>{fmt(totals.total)}</span>
+                </div>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>Cancel</Button>
-            <Button onClick={submit} disabled={submitting}>{submitting ? "Creating Manual Order..." : "Create Manual Order"}</Button>
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button onClick={submit} disabled={submitting}>
+              {submitting ? "Creating Manual Order..." : "Create Manual Order"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{detail?.orderNumber || "Manual Order"}</DialogTitle><DialogDescription>Manual order detail, stock movement, and finance posting references.</DialogDescription></DialogHeader>
-          {detail ? <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-muted-foreground">Sales Channel</p><p className="font-medium">{detail.salesChannel?.channelName}</p></div><div><p className="text-muted-foreground">Customer</p><p className="font-medium">{detail.customer?.customerName || "Walk-in Customer"}</p></div><div><p className="text-muted-foreground">Payment</p><p className="font-medium">{detail.paymentMethod} · {detail.paymentStatus}</p></div><div><p className="text-muted-foreground">Total</p><p className="font-semibold">{fmt(detail.total)}</p></div></div>
-            <div className="rounded-xl border overflow-hidden"><table className="w-full text-sm"><thead><tr className="border-b bg-[#F7F8FA]"><th className="text-left px-3 py-2">Item</th><th className="text-right px-3 py-2">Qty</th><th className="text-right px-3 py-2">Subtotal</th></tr></thead><tbody>{detail.items?.map((item) => <tr key={item.id} className="border-b last:border-b-0"><td className="px-3 py-2">{item.productName}<p className="text-xs text-muted-foreground">{item.color} / {item.size}</p></td><td className="px-3 py-2 text-right">{item.quantity}</td><td className="px-3 py-2 text-right">{fmt(item.subtotal)}</td></tr>)}</tbody></table></div>
-            <div><p className="text-sm font-semibold mb-2">System Journals</p><div className="space-y-2">{detail.journals?.map((journal) => <div key={journal.id} className="rounded-lg border p-3 text-sm"><p className="font-medium">{journal.journalNumber} · {journal.journalSource}</p><p className="text-muted-foreground">{fmt(journal.totalDebit)}</p></div>)}</div></div>
-            <div><p className="text-sm font-semibold mb-2">Stock Movements</p><div className="space-y-2">{detail.stockMovements?.map((movement) => <div key={movement.id} className="rounded-lg border p-3 text-sm"><p className="font-medium">{movement.movementType} · {movement.color}/{movement.size}</p><p className="text-muted-foreground">Qty {movement.quantityChanged}</p></div>)}</div></div>
-          </div> : null}
+          <DialogHeader>
+            <DialogTitle>{detail?.orderNumber || "Manual Order"}</DialogTitle>
+            <DialogDescription>
+              Manual order detail, stock movement, and finance posting
+              references.
+            </DialogDescription>
+          </DialogHeader>
+          {detail ? (
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Sales Channel</p>
+                  <p className="font-medium">
+                    {detail.salesChannel?.channelName}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Customer</p>
+                  <p className="font-medium">
+                    {detail.customer?.customerName || "Walk-in Customer"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Payment</p>
+                  <p className="font-medium">
+                    {detail.paymentMethod} · {detail.paymentStatus}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Total</p>
+                  <p className="font-semibold">{fmt(detail.total)}</p>
+                </div>
+              </div>
+              <div className="rounded-xl border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-[#F7F8FA]">
+                      <th className="text-left px-3 py-2">Item</th>
+                      <th className="text-right px-3 py-2">Qty</th>
+                      <th className="text-right px-3 py-2">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detail.items?.map((item) => (
+                      <tr key={item.id} className="border-b last:border-b-0">
+                        <td className="px-3 py-2">
+                          {item.productName}
+                          <p className="text-xs text-muted-foreground">
+                            {item.color} / {item.size}
+                          </p>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {item.quantity}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {fmt(item.subtotal)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-2">System Journals</p>
+                <div className="space-y-2">
+                  {detail.journals?.map((journal) => (
+                    <div
+                      key={journal.id}
+                      className="rounded-lg border p-3 text-sm"
+                    >
+                      <p className="font-medium">
+                        {journal.journalNumber} · {journal.journalSource}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {fmt(journal.totalDebit)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-2">Stock Movements</p>
+                <div className="space-y-2">
+                  {detail.stockMovements?.map((movement) => (
+                    <div
+                      key={movement.id}
+                      className="rounded-lg border p-3 text-sm"
+                    >
+                      <p className="font-medium">
+                        {movement.movementType} · {movement.color}/
+                        {movement.size}
+                      </p>
+                      <p className="text-muted-foreground">
+                        Qty {movement.quantityChanged}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>
