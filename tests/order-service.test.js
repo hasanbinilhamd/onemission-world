@@ -11,6 +11,8 @@ function createExistingOrder({
   shipmentService = '',
   trackingNumber = '',
   shippingDate = null,
+  customerReceivedAt = null,
+  returnRequest = null,
   timelines = [],
 } = {}) {
   return {
@@ -50,6 +52,7 @@ function createExistingOrder({
     shipmentService,
     trackingNumber,
     shippingDate,
+    customerReceivedAt,
     currency: 'IDR',
     subtotal: 500000,
     discount: 0,
@@ -90,6 +93,7 @@ function createExistingOrder({
       },
     ],
     timelines,
+    returnRequest,
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
     _count: { items: 1 },
@@ -253,6 +257,19 @@ function createOrderService({
       return false;
     }
 
+    if (where.customerId && order.customerId !== where.customerId) {
+      return false;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(where, 'customerReceivedAt')) {
+      if (where.customerReceivedAt === null && order.customerReceivedAt !== null && order.customerReceivedAt !== undefined) {
+        return false;
+      }
+      if (where.customerReceivedAt !== null && where.customerReceivedAt !== order.customerReceivedAt) {
+        return false;
+      }
+    }
+
     if (where.trackingNumber && !matchesStringFilter(order.trackingNumber, where.trackingNumber)) {
       return false;
     }
@@ -388,6 +405,26 @@ function createOrderService({
         store.existingOrder = updated;
         store.orders = store.orders.map((order) => (order.id === updated.id ? updated : order));
         return updated;
+      },
+      updateMany: async ({ where, data }) => {
+        let count = 0;
+        store.orders = store.orders.map((order) => {
+          if (!matchesOrderWhere(order, where)) {
+            return order;
+          }
+
+          count += 1;
+          const updated = {
+            ...order,
+            ...data,
+            updatedAt: new Date('2026-07-01T00:10:00.000Z'),
+          };
+          if (store.existingOrder?.id === updated.id) {
+            store.existingOrder = updated;
+          }
+          return updated;
+        });
+        return { count };
       },
     },
     orderTimeline: {
@@ -802,7 +839,7 @@ test('stores shipment information when the order is shipped', async () => {
   assert.equal(order.timeline[1].eventName, 'ORDER_STATUS_SHIPPED');
 });
 
-test('synchronizes the business status to completed when the order is delivered', async () => {
+test('keeps customer-facing status delivered when admin marks the shipment delivered', async () => {
   const existingOrder = createExistingOrder({
     status: 'SHIPPED',
     fulfillmentStatus: 'SHIPPED',
@@ -811,7 +848,7 @@ test('synchronizes the business status to completed when the order is delivered'
     trackingNumber: 'JNE-123456789',
     shippingDate: new Date('2026-07-02T10:00:00.000Z'),
   });
-  const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+  const { service, store } = createOrderService({ existingOrder, listOrders: [existingOrder] });
   const order = await service.updateFulfillmentStatus({
     orderId: 'order-1',
     fulfillmentStatus: 'DELIVERED',
@@ -820,10 +857,160 @@ test('synchronizes the business status to completed when the order is delivered'
   });
 
   assert.equal(order.fulfillmentStatus, 'DELIVERED');
-  assert.equal(order.status, 'COMPLETED');
+  assert.equal(order.status, 'DELIVERED');
+  assert.equal(store.existingOrder.status, 'COMPLETED');
+  assert.equal(order.customerReceivedAt, null);
   assert.equal(order.timeline[0].eventName, 'ORDER_DELIVERED');
   assert.match(order.timeline[0].notes, /Notes: Delivered to customer\./);
   assert.equal(order.timeline[1].eventName, 'ORDER_STATUS_COMPLETED');
+});
+
+test('customer confirms receipt for a delivered owned order', async () => {
+  const deliveredAt = new Date('2026-07-01T00:00:00.000Z');
+  const existingOrder = createExistingOrder({
+    status: 'COMPLETED',
+    fulfillmentStatus: 'DELIVERED',
+    timelines: [{
+      id: 'timeline-delivered',
+      eventName: 'ORDER_DELIVERED',
+      updatedBy: 'Warehouse Admin',
+      notes: 'Delivered to customer.',
+      createdAt: deliveredAt,
+    }],
+  });
+  const { service, store } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+
+  const order = await service.confirmOrderReceivedByCustomer({
+    orderId: 'order-1',
+    customerId: 'customer-1',
+    actor: 'John Doe',
+  });
+
+  assert.equal(order.status, 'COMPLETED');
+  assert.ok(order.customerReceivedAt);
+  assert.equal(order.actions.canConfirmReceived, false);
+  assert.equal(store.timelineCreateCalls.length, 1);
+  assert.equal(store.timelineCreateCalls[0].eventName, 'CUSTOMER_CONFIRMED_RECEIPT');
+});
+
+test('customer receipt confirmation rejects a different customer', async () => {
+  const existingOrder = createExistingOrder({
+    status: 'COMPLETED',
+    fulfillmentStatus: 'DELIVERED',
+  });
+  const { service, store } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+
+  await assert.rejects(
+    service.confirmOrderReceivedByCustomer({
+      orderId: 'order-1',
+      customerId: 'customer-2',
+      actor: 'Jane Doe',
+    }),
+    (error) => error.code === 'ORDER_CUSTOMER_RECEIPT_FORBIDDEN' && error.statusCode === 403,
+  );
+
+  assert.equal(store.existingOrder.customerReceivedAt, null);
+  assert.equal(store.timelineCreateCalls.length, 0);
+});
+
+test('customer receipt confirmation rejects orders that are not delivered yet', async () => {
+  for (const [status, fulfillmentStatus] of [
+    ['READY_FOR_FULFILLMENT', 'PENDING'],
+    ['PROCESSING', 'PACKING'],
+    ['SHIPPED', 'SHIPPED'],
+  ]) {
+    const existingOrder = createExistingOrder({ status, fulfillmentStatus });
+    const { service, store } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+
+    await assert.rejects(
+      service.confirmOrderReceivedByCustomer({
+        orderId: 'order-1',
+        customerId: 'customer-1',
+        actor: 'John Doe',
+      }),
+      (error) => error.code === 'ORDER_CUSTOMER_RECEIPT_STATUS_INVALID',
+    );
+
+    assert.equal(store.existingOrder.customerReceivedAt, null);
+    assert.equal(store.timelineCreateCalls.length, 0);
+  }
+});
+
+test('customer receipt confirmation is idempotent for already completed confirmation', async () => {
+  const confirmedAt = new Date('2026-07-01T00:00:00.000Z');
+  const existingOrder = createExistingOrder({
+    status: 'COMPLETED',
+    fulfillmentStatus: 'DELIVERED',
+    customerReceivedAt: confirmedAt,
+    timelines: [{
+      id: 'timeline-received',
+      eventName: 'CUSTOMER_CONFIRMED_RECEIPT',
+      updatedBy: 'John Doe',
+      notes: 'Customer confirmed order receipt.',
+      createdAt: confirmedAt,
+    }],
+  });
+  const { service, store } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+
+  const order = await service.confirmOrderReceivedByCustomer({
+    orderId: 'order-1',
+    customerId: 'customer-1',
+    actor: 'John Doe',
+  });
+
+  assert.equal(order.status, 'COMPLETED');
+  assert.equal(new Date(order.customerReceivedAt).getTime(), confirmedAt.getTime());
+  assert.equal(store.timelineCreateCalls.length, 0);
+});
+
+test('customer receipt confirmation handles double requests without duplicate side effects', async () => {
+  const existingOrder = createExistingOrder({
+    status: 'COMPLETED',
+    fulfillmentStatus: 'DELIVERED',
+  });
+  const { service, store } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+
+  const first = await service.confirmOrderReceivedByCustomer({
+    orderId: 'order-1',
+    customerId: 'customer-1',
+    actor: 'John Doe',
+  });
+  const second = await service.confirmOrderReceivedByCustomer({
+    orderId: 'order-1',
+    customerId: 'customer-1',
+    actor: 'John Doe',
+  });
+
+  assert.equal(first.status, 'COMPLETED');
+  assert.equal(second.status, 'COMPLETED');
+  assert.ok(second.customerReceivedAt);
+  assert.equal(store.timelineCreateCalls.length, 1);
+});
+
+test('customer receipt confirmation keeps return eligibility available after completion', async () => {
+  const deliveredAt = new Date();
+  const existingOrder = createExistingOrder({
+    status: 'COMPLETED',
+    fulfillmentStatus: 'DELIVERED',
+    timelines: [{
+      id: 'timeline-delivered',
+      eventName: 'ORDER_DELIVERED',
+      updatedBy: 'Warehouse Admin',
+      notes: 'Delivered to customer.',
+      createdAt: deliveredAt,
+    }],
+  });
+  const { service } = createOrderService({ existingOrder, listOrders: [existingOrder] });
+
+  const order = await service.confirmOrderReceivedByCustomer({
+    orderId: 'order-1',
+    customerId: 'customer-1',
+    actor: 'John Doe',
+  });
+
+  assert.equal(order.status, 'COMPLETED');
+  assert.equal(order.actions.canRequestReturn, true);
+  assert.equal(order.returnPolicy.deliveredAt.getTime(), deliveredAt.getTime());
 });
 
 test('auto-fills shipping date when the order is marked as shipped without one', async () => {

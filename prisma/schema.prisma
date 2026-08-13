@@ -1218,6 +1218,7 @@ model Order {
   grandTotal                   Float            @default(0)
   promotionSnapshot            Json?
   orderConfirmationEmailSentAt DateTime?
+  customerReceivedAt           DateTime?
   createdAt                    DateTime         @default(now())
   updatedAt                    DateTime         @updatedAt
   items                        OrderItem[]
