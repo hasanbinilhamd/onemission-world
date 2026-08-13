@@ -996,6 +996,21 @@ enum NewsletterSubscriberSource {
   FOOTER
 }
 
+model Faq {
+  id          String   @id
+  question    String
+  answer      String
+  category    String   @default("")
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublished])
+  @@index([sortOrder])
+}
+
 model NewsletterSubscriber {
   id             String                     @id
   email          String                     @unique

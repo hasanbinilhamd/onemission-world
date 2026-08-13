@@ -158,6 +158,13 @@ const NewsletterModule = dynamic(
     ),
   { loading: () => <TableSkeleton rows={8} cols={6} /> },
 );
+const FaqModule = dynamic(
+  () =>
+    import("@/components/onemission/faq-module").then(
+      (module) => module.FaqModule,
+    ),
+  { loading: () => <TableSkeleton rows={8} cols={6} /> },
+);
 const LaunchSubscribersModule = dynamic(
   () =>
     import("@/components/onemission/launch-subscribers-module").then(
@@ -613,6 +620,7 @@ const NAV_GROUPS = [
     children: [
       { id: "promotions", label: "Promotions", icon: TicketPercent },
       { id: "newsletter", label: "Newsletter", icon: Mail },
+      { id: "faq", label: "FAQ", icon: MessageCircle },
       { id: "launchsubscribers", label: "Launch Subscribers", icon: Users },
       { id: "productreviews", label: "Product Reviews", icon: MessageCircle },
       { id: "content", label: "Content", icon: CalendarDays },
@@ -21837,6 +21845,7 @@ function App() {
     planning: () => <PlanningModule activeModule={active} />,
     content: () => <ContentModule activeModule={active} />,
     newsletter: () => <NewsletterModule />,
+    faq: () => <FaqModule />,
     launchsubscribers: () => <LaunchSubscribersModule />,
     productreviews: () => <ProductReviewsModule />,
     creators: () => <CreatorCRM activeModule={active} />,
