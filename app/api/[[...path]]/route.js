@@ -1817,7 +1817,10 @@ async function handle(request, { params }) {
     if (segs[0] === 'system-settings') {
       if (method === 'GET' && segs.length === 1) {
         const settings = await getCachedValue(buildMasterDataCacheKey('system-settings'), MASTER_DATA_CACHE_TTL_MS, async () => (
-          prisma.systemSetting.findMany({ orderBy: [{ section: 'asc' }, { label: 'asc' }] })
+          prisma.systemSetting.findMany({
+            where: { settingKey: { not: 'early_access_password_hash' } },
+            orderBy: [{ section: 'asc' }, { label: 'asc' }],
+          })
         ));
         return NextResponse.json(settings);
       }

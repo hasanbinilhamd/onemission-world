@@ -143,6 +143,13 @@ const WebsiteSettingsModule = dynamic(
     ),
   { loading: () => <ListSkeleton count={6} /> },
 );
+const EarlyAccessModule = dynamic(
+  () =>
+    import("@/components/onemission/early-access-module").then(
+      (module) => module.EarlyAccessModule,
+    ),
+  { loading: () => <ListSkeleton count={4} /> },
+);
 
 const ContentPlannerModule = dynamic(
   () =>
@@ -665,6 +672,7 @@ const NAV_GROUPS = [
       },
       { id: "systemconfig", label: "System Configuration", icon: SettingsIcon },
       { id: "website", label: "Website", icon: Globe },
+      { id: "earlyaccess", label: "Early Access", icon: Lock },
     ],
   },
 ];
@@ -22960,6 +22968,7 @@ function App() {
     notificationsettings: () => <NotificationSettingsModule user={user} />,
     systemconfig: () => <SystemConfigurationModule user={user} />,
     website: () => <WebsiteSettingsModule user={user} />,
+    earlyaccess: () => <EarlyAccessModule />,
   }[active];
 
   const logout = async () => {
