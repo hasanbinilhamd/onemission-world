@@ -123,11 +123,11 @@ export function EarlyAccessModule() {
                   <p className="text-sm text-muted-foreground">When enabled, Ecommerce requires the current chapter password.</p>
                 </div>
                 <Button
-                  variant={config.enabled ? "default" : "outline"}
+                  variant={config.enabled ? "outline" : "default"}
                   onClick={() => void saveConfig(!config.enabled)}
                   disabled={saving}
                 >
-                  {config.enabled ? "Enabled" : "Disabled"}
+                  {config.enabled ? "Disabled" : "Enabled"}
                 </Button>
               </div>
 
