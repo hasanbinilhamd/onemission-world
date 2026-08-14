@@ -56,28 +56,3 @@ export async function PATCH(request) {
     }
   });
 }
-
-export async function POST(request) {
-  return withDevTiming(request, async () => {
-    let authContext;
-    try {
-      authContext = await requireHqPermission(request, 'settings', 'manage_configuration');
-    } catch (error) {
-      return NextResponse.json({ error: error.message, code: error.code }, { status: error.statusCode || 403 });
-    }
-
-    try {
-      const response = await earlyAccessService.generatePassword();
-      await writeAuditLog({
-        user: authContext.user,
-        module: 'SETTINGS',
-        action: 'EARLY_ACCESS_PASSWORD_GENERATED',
-        description: `Early Access password generated for ${response.chapter}.`,
-        metadata: { chapter: response.chapter, revision: response.revision },
-      });
-      return NextResponse.json(response);
-    } catch (error) {
-      return errorResponse(error);
-    }
-  });
-}
