@@ -112,54 +112,66 @@ function drawSlip(commands, order, cellX, cellY) {
   const left = cellX + CELL_PADDING;
   const right = cellX + CELL_WIDTH - CELL_PADDING;
   const footerY = cellY + CELL_PADDING;
+  const contentWidth = right - left;
+  const columnGap = 8;
+  const columnWidth = (contentWidth - columnGap) / 2;
+  const fromX = left;
+  const toX = left + columnWidth + columnGap;
+  const dividerX = left + columnWidth + columnGap / 2;
   let y = cellY + CELL_HEIGHT - CELL_PADDING - 8;
 
   addRect(commands, cellX, cellY, CELL_WIDTH, CELL_HEIGHT);
   addText(commands, 'ONEMISSION', left, y, 9.2, { bold: true });
   addText(commands, formatPdfDate(order.orderDate), right - 54, y, 6.2);
-  y -= 11;
+  y -= 10.5;
   addText(commands, `ORDER #${order.publicOrderNumber || order.orderNumber}`, left, y, 8.1, { bold: true });
   y -= 6;
   addLine(commands, left, y, right, y);
-  y -= 9;
+  y -= 8.5;
 
-  addText(commands, 'SHIP FROM', left, y, 5.9, { bold: true });
-  y -= 7;
-  addText(commands, 'Onemission', left, y, 6.7, { bold: true });
-  y -= 7;
-  addText(commands, '6287785339770', left, y, 6.4);
-  y -= 7;
-  addText(commands, 'Kab Bandung', left, y, 6.4);
-  y -= 9;
+  const shippingLabelY = y;
+  addText(commands, 'SHIP FROM', fromX, shippingLabelY, 5.8, { bold: true });
+  addText(commands, 'SHIP TO', toX, shippingLabelY, 5.8, { bold: true });
+
+  let fromY = shippingLabelY - 7.4;
+  addText(commands, 'Onemission', fromX, fromY, 6.3, { bold: true });
+  fromY -= 6.8;
+  addText(commands, '6287785339770', fromX, fromY, 5.9);
+  fromY -= 6.8;
+  addText(commands, 'Kab Bandung', fromX, fromY, 5.9);
+  fromY -= 3;
 
   const recipient = order.recipient || {};
-  addText(commands, 'SHIP TO', left, y, 5.9, { bold: true });
-  y -= 7.5;
-  addText(commands, truncateText(recipient.name, 42), left, y, 7.6, { bold: true });
-  y -= 7.5;
-  addText(commands, truncateText(recipient.phone, 40), left, y, 6.4);
-  y -= 7;
-  const addressLines = wrapText(recipient.address, 58, 6, { truncateLast: false });
+  let toY = shippingLabelY - 7.4;
+  addText(commands, truncateText(recipient.name, 24), toX, toY, 6.3, { bold: true });
+  toY -= 6.8;
+  addText(commands, truncateText(recipient.phone, 24), toX, toY, 5.9);
+  toY -= 6.6;
+  const addressLines = wrapText(recipient.address, 29, 7, { truncateLast: false });
   for (const line of addressLines) {
-    if (y <= footerY + 42) break;
-    addText(commands, line, left, y, 5.9);
-    y -= 6.5;
+    if (toY <= footerY + 42) break;
+    addText(commands, line, toX, toY, 5.35);
+    toY -= 5.7;
   }
-  y -= 2;
 
-  if (y > footerY + 30) {
+  const shippingBottomY = Math.min(fromY, toY) - 3;
+  addLine(commands, dividerX, shippingLabelY + 2, dividerX, shippingBottomY + 2);
+  addLine(commands, left, shippingBottomY, right, shippingBottomY);
+
+  y = shippingBottomY - 8.5;
+  if (y > footerY + 28) {
     addText(commands, 'ITEMS', left, y, 5.9, { bold: true });
-    y -= 7.5;
-    const maxItemLines = Math.max(1, Math.floor((y - footerY - 14) / 13.5));
+    y -= 7.4;
+    const maxItemLines = Math.max(1, Math.floor((y - footerY - 13) / 12.8));
     const visibleItems = (order.items || []).slice(0, maxItemLines);
     for (const item of visibleItems) {
-      addText(commands, truncateText(item.productName, 46), left, y, 6.4, { bold: true });
+      addText(commands, truncateText(item.productName, 50), left, y, 6.25, { bold: true });
+      y -= 6.4;
+      addText(commands, `${truncateText(item.variantName || 'Default', 44)} x ${item.quantity}`, left, y, 5.95);
       y -= 6.6;
-      addText(commands, `${truncateText(item.variantName || 'Default', 42)} x ${item.quantity}`, left, y, 6.1);
-      y -= 7;
     }
     if ((order.items || []).length > visibleItems.length && y > footerY + 12) {
-      addText(commands, `+ ${(order.items || []).length - visibleItems.length} more item(s)`, left, y, 5.9);
+      addText(commands, `+ ${(order.items || []).length - visibleItems.length} more item(s)`, left, y, 5.7);
     }
   }
 
