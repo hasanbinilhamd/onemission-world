@@ -111,6 +111,14 @@ const ordersApi = {
     const response = await fetch(`/api/orders/${id}`);
     return response.json();
   },
+  async cancelOrder(id, payload) {
+    const response = await fetch(`/api/admin/orders/${id}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
   async updateFulfillment(id, payload) {
     const response = await fetch(`/api/orders/${id}/fulfillment`, {
       method: "PUT",
@@ -521,6 +529,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [shippingDate, setShippingDate] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+  const [adminCancelReason, setAdminCancelReason] = useState("");
   const [refundStatus, setRefundStatus] = useState("NONE");
   const [saving, setSaving] = useState(false);
 
@@ -534,6 +543,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
     setTrackingNumber(order.shipment?.trackingNumber || "");
     setShippingDate(toDatetimeLocalInputValue(order.shipment?.shippingDate));
     setRejectReason("");
+    setAdminCancelReason("");
     setRefundStatus(order.returnRequest?.refundStatus || "NONE");
   }, [order, open, userName]);
 
@@ -550,6 +560,9 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   const shouldShowShipmentInformation = shipmentLocked || [FULFILLMENT_STATUS.SHIPPED, FULFILLMENT_STATUS.DELIVERED].includes(fulfillmentStatus);
   const trackShipmentUrl = buildShipmentTrackingUrl(shipmentCourier || order.shipment?.courier, trackingNumber || order.shipment?.trackingNumber);
   const showTrackShipmentButton = Boolean(trackingNumber || order.shipment?.trackingNumber);
+  const adminCancellableStatuses = new Set([FULFILLMENT_STATUS.WAITING_PAYMENT, FULFILLMENT_STATUS.PENDING, FULFILLMENT_STATUS.PICKING, FULFILLMENT_STATUS.PACKING, FULFILLMENT_STATUS.READY_TO_SHIP]);
+  const currentFulfillmentStatus = String(order.fulfillmentStatus || '').trim().toUpperCase();
+  const canAdminCancelOrder = !order.returnRequest && order.status !== 'CANCELLED' && adminCancellableStatuses.has(currentFulfillmentStatus);
 
   const approveReturn = async () => {
     if (!order?.returnRequest?.id) return;
@@ -597,6 +610,29 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
         return;
       }
       toast.success("Refund status updated successfully.");
+      onUpdated?.(result);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelOrder = async () => {
+    if (!order?.id) return;
+    if (!adminCancelReason.trim()) {
+      toast.error("Cancellation reason is required.");
+      return;
+    }
+    const confirmed = window.confirm(`Cancel order ${order.publicOrderNumber || order.orderNumber}?\n\nThis will cancel the order, release inventory if it was reserved, and create the existing refund workflow when required.`);
+    if (!confirmed) return;
+
+    setSaving(true);
+    try {
+      const result = await ordersApi.cancelOrder(order.id, { reason: adminCancelReason });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Order cancelled successfully.");
       onUpdated?.(result);
     } finally {
       setSaving(false);
@@ -909,6 +945,16 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
             ) : null}
           </DetailSection>
 
+          {canAdminCancelOrder ? (
+            <DetailSection title="Admin Cancellation">
+              <div className="space-y-2 py-2">
+                <Label>Cancellation Reason</Label>
+                <Textarea value={adminCancelReason} onChange={(event) => setAdminCancelReason(event.target.value)} placeholder="Required before cancelling this order from HQ..." rows={3} />
+                <p className="text-xs text-muted-foreground">Admin cancellation is available before SHIPPED. Inventory release and refund request use the existing cancellation workflow.</p>
+              </div>
+            </DetailSection>
+          ) : null}
+
           <DetailSection title="Order Timeline">
             {order.timeline?.length ? (
               <div className="space-y-3 py-3">
@@ -943,6 +989,11 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
 
         <DialogFooter className="mt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          {canAdminCancelOrder ? (
+            <Button variant="destructive" onClick={cancelOrder} disabled={saving || !adminCancelReason.trim()}>
+              Cancel Order
+            </Button>
+          ) : null}
           <Button onClick={saveFulfillment} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Save Fulfillment Update
