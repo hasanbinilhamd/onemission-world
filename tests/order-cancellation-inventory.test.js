@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const orderServiceSource = fs.readFileSync(new URL('../lib/order/service.js', import.meta.url), 'utf8');
 const inventoryServiceSource = fs.readFileSync(new URL('../lib/order/inventory-service.js', import.meta.url), 'utf8');
 const adminCancelRouteSource = fs.readFileSync(new URL('../app/api/admin/orders/[id]/cancel/route.js', import.meta.url), 'utf8');
+const financePostingSource = fs.readFileSync(new URL('../lib/finance-posting/service.js', import.meta.url), 'utf8');
 
 function getMethodSource(source, methodName, nextMethodName = '') {
   const start = source.indexOf(`  async ${methodName}`);
@@ -31,14 +32,25 @@ test('admin cancellation allows pre-shipped fulfillment statuses and rejects shi
 test('cancellation releases inventory and reject restore re-reserves released inventory', () => {
   const perform = getMethodSource(orderServiceSource, 'performOrderCancellation', 'cancelOrderByAdmin');
   assert.match(perform, /releaseForOrder\(order\.id, \{ prismaClient: tx \}\)/);
+  assert.match(perform, /postCogsCancellationReversal\(order, tx\)/);
   assert.match(inventoryServiceSource, /async releaseForOrder/);
   assert.match(inventoryServiceSource, /INVENTORY_MOVEMENT_TYPE\.RELEASED/);
   assert.match(inventoryServiceSource, /buildReleaseMovementId/);
   assert.match(inventoryServiceSource, /async reReserveReleasedInventoryForOrder/);
   assert.match(orderServiceSource, /reReserveReleasedInventoryForOrder\(returnRequest\.orderId, \{ prismaClient: tx \}\)/);
+  assert.match(orderServiceSource, /postCogsCancellationRestore\(orderForRestore/);
 });
 
 test('admin cancellation endpoint is HQ-authorized and uses existing order service', () => {
   assert.match(adminCancelRouteSource, /requireHqPermission\(request, 'sales', 'fulfillment'\)/);
   assert.match(adminCancelRouteSource, /orderService\.cancelOrderByAdmin/);
+});
+
+
+test('finance posting supports idempotent COGS reversal and sales-refund accounting', () => {
+  assert.match(financePostingSource, /COGS_REVERSAL_JOURNAL_SOURCE = 'COGS Reversal'/);
+  assert.match(financePostingSource, /async postCogsCancellationReversal/);
+  assert.match(financePostingSource, /async postCogsCancellationRestore/);
+  assert.match(orderServiceSource, /accountType: 'Revenue'[\s\S]*Sales Return/);
+  assert.doesNotMatch(orderServiceSource, /accountType: 'Expense'[\s\S]*Refund/);
 });
