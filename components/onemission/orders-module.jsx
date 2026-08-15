@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Loader2,
   PackageCheck,
+  Printer,
   RefreshCw,
   Search,
   Truck,
@@ -125,6 +126,22 @@ const ordersApi = {
       body: JSON.stringify(payload),
     });
     return response.json();
+  },
+  async printSelected(orderIds) {
+    const response = await fetch('/api/orders/print-selected', {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderIds }),
+    });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.error || 'Packing slip PDF could not be generated.');
+    }
+    return {
+      blob: await response.blob(),
+      rejectedCount: Number(response.headers.get('X-Rejected-Count') || 0),
+      printableCount: Number(response.headers.get('X-Printable-Count') || 0),
+    };
   },
   async exportTrackingTemplate(orderIds) {
     const params = new URLSearchParams({ orderIds: orderIds.join(',') });
@@ -937,6 +954,17 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
 }
 
 
+function downloadPackingSlipPdf(blob) {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `onemission-packing-slips-${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 function buildBulkResultTitle(result) {
   if (!result?.summary) return 'Bulk Update Completed';
   const { successful = 0, failed = 0, skipped = 0 } = result.summary;
@@ -1272,6 +1300,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   const [showBulkStatus, setShowBulkStatus] = useState(false);
   const [showBulkTracking, setShowBulkTracking] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [printLoading, setPrintLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
   const [showBulkResult, setShowBulkResult] = useState(false);
   const [showImportTracking, setShowImportTracking] = useState(false);
@@ -1281,6 +1310,8 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   const currentPageOrderIds = useMemo(() => items.map((order) => order.id), [items]);
   const selectedOrders = useMemo(() => items.filter((order) => selectedOrderIds.has(order.id)), [items, selectedOrderIds]);
   const selectedCount = selectedOrderIds.size;
+  const selectedPackingCount = useMemo(() => selectedOrders.filter((order) => String(order.fulfillmentStatus || order.fulfillmentStatusLabel || '').trim().toUpperCase() === FULFILLMENT_STATUS.PACKING).length, [selectedOrders]);
+  const selectedNonPackingCount = Math.max(0, selectedCount - selectedPackingCount);
   const allCurrentPageSelected = currentPageOrderIds.length > 0 && currentPageOrderIds.every((orderId) => selectedOrderIds.has(orderId));
 
   const load = useCallback(async () => {
@@ -1430,6 +1461,29 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
     setShowBulkResult(true);
     setSelectedOrderIds(new Set());
     await load();
+  };
+
+  const handlePrintSelected = async () => {
+    const orderIds = Array.from(selectedOrderIds);
+    if (orderIds.length === 0) {
+      toast.error('Select at least one order to print.');
+      return;
+    }
+
+    setPrintLoading(true);
+    try {
+      const result = await ordersApi.printSelected(orderIds);
+      if (result.rejectedCount > 0) {
+        toast.warning(`${result.rejectedCount} selected order(s) are not in PACKING status and were excluded from PDF.`);
+      }
+
+      downloadPackingSlipPdf(result.blob);
+      toast.success(`Packing slip PDF downloaded for ${result.printableCount} order(s).`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Packing slips could not be printed.');
+    } finally {
+      setPrintLoading(false);
+    }
   };
 
   const exportTrackingTemplate = async () => {
@@ -1688,8 +1742,15 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
         <Card>
           <CardContent className="py-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <p className="text-sm font-medium text-[#111827]">{selectedCount} order{selectedCount === 1 ? "" : "s"} selected</p>
+              <div>
+                <p className="text-sm font-medium text-[#111827]">{selectedCount} order{selectedCount === 1 ? "" : "s"} selected</p>
+                <p className="text-xs text-muted-foreground">{selectedPackingCount} can be printed. {selectedNonPackingCount} not in PACKING status.</p>
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="outline" className="gap-2" onClick={handlePrintSelected} disabled={selectedCount === 0 || printLoading}>
+                  <Printer className="h-4 w-4" />
+                  {printLoading ? 'Preparing…' : `Print Selected (${selectedCount})`}
+                </Button>
                 <Button variant="outline" className="gap-2" onClick={exportTrackingTemplate} disabled={exportingTemplate}>
                   {exportingTemplate ? 'Exporting…' : `Export Tracking Template (${selectedCount})`}
                 </Button>
