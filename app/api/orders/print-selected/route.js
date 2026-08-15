@@ -74,7 +74,7 @@ function truncateText(value = '', maxLength = 80) {
   return normalized.length > maxLength ? `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…` : normalized;
 }
 
-function wrapText(value = '', maxChars = 45, maxLines = 3) {
+function wrapText(value = '', maxChars = 45, maxLines = 3, { truncateLast = true } = {}) {
   const words = String(value || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
   const lines = [];
   let current = '';
@@ -89,7 +89,7 @@ function wrapText(value = '', maxChars = 45, maxLines = 3) {
     }
   }
   if (current && lines.length < maxLines) lines.push(current);
-  if (lines.length === maxLines && words.join(' ').length > lines.join(' ').length) {
+  if (truncateLast && lines.length === maxLines && words.join(' ').length > lines.join(' ').length) {
     lines[lines.length - 1] = truncateText(lines[lines.length - 1], Math.max(8, maxChars - 1));
   }
   return lines;
@@ -111,49 +111,61 @@ function addRect(commands, x, y, width, height) {
 function drawSlip(commands, order, cellX, cellY) {
   const left = cellX + CELL_PADDING;
   const right = cellX + CELL_WIDTH - CELL_PADDING;
-  let y = cellY + CELL_HEIGHT - CELL_PADDING - 10;
+  const footerY = cellY + CELL_PADDING;
+  let y = cellY + CELL_HEIGHT - CELL_PADDING - 8;
 
   addRect(commands, cellX, cellY, CELL_WIDTH, CELL_HEIGHT);
-  addText(commands, 'ONEMISSION', left, y, 10, { bold: true });
-  addText(commands, formatPdfDate(order.orderDate), right - 54, y, 6.5);
-  y -= 12;
-  addText(commands, `ORDER #${order.publicOrderNumber || order.orderNumber}`, left, y, 8.5, { bold: true });
-  y -= 7;
+  addText(commands, 'ONEMISSION', left, y, 9.2, { bold: true });
+  addText(commands, formatPdfDate(order.orderDate), right - 54, y, 6.2);
+  y -= 11;
+  addText(commands, `ORDER #${order.publicOrderNumber || order.orderNumber}`, left, y, 8.1, { bold: true });
+  y -= 6;
   addLine(commands, left, y, right, y);
-  y -= 12;
+  y -= 9;
+
+  addText(commands, 'SHIP FROM', left, y, 5.9, { bold: true });
+  y -= 7;
+  addText(commands, 'Onemission', left, y, 6.7, { bold: true });
+  y -= 7;
+  addText(commands, '6287785339770', left, y, 6.4);
+  y -= 7;
+  addText(commands, 'Kab Bandung', left, y, 6.4);
+  y -= 9;
 
   const recipient = order.recipient || {};
-  addText(commands, 'SHIP TO', left, y, 6.5, { bold: true });
-  y -= 10;
-  addText(commands, truncateText(recipient.name, 36), left, y, 8.5, { bold: true });
-  y -= 9;
-  addText(commands, truncateText(recipient.phone, 36), left, y, 7);
-  y -= 9;
-  for (const line of wrapText(recipient.address, 54, 3)) {
-    addText(commands, line, left, y, 6.7);
-    y -= 8;
+  addText(commands, 'SHIP TO', left, y, 5.9, { bold: true });
+  y -= 7.5;
+  addText(commands, truncateText(recipient.name, 42), left, y, 7.6, { bold: true });
+  y -= 7.5;
+  addText(commands, truncateText(recipient.phone, 40), left, y, 6.4);
+  y -= 7;
+  const addressLines = wrapText(recipient.address, 58, 6, { truncateLast: false });
+  for (const line of addressLines) {
+    if (y <= footerY + 42) break;
+    addText(commands, line, left, y, 5.9);
+    y -= 6.5;
   }
   y -= 2;
 
-  addText(commands, 'ITEMS', left, y, 6.5, { bold: true });
-  y -= 10;
-  const maxItemLines = Math.max(1, Math.floor((y - cellY - 24) / 16));
-  const visibleItems = (order.items || []).slice(0, maxItemLines);
-  for (const item of visibleItems) {
-    addText(commands, truncateText(item.productName, 42), left, y, 7.2, { bold: true });
-    y -= 8;
-    addText(commands, `${truncateText(item.variantName || 'Default', 38)} x ${item.quantity}`, left, y, 6.7);
-    y -= 9;
-  }
-  if ((order.items || []).length > visibleItems.length) {
-    addText(commands, `+ ${(order.items || []).length - visibleItems.length} more item(s)`, left, y, 6.5);
+  if (y > footerY + 30) {
+    addText(commands, 'ITEMS', left, y, 5.9, { bold: true });
+    y -= 7.5;
+    const maxItemLines = Math.max(1, Math.floor((y - footerY - 14) / 13.5));
+    const visibleItems = (order.items || []).slice(0, maxItemLines);
+    for (const item of visibleItems) {
+      addText(commands, truncateText(item.productName, 46), left, y, 6.4, { bold: true });
+      y -= 6.6;
+      addText(commands, `${truncateText(item.variantName || 'Default', 42)} x ${item.quantity}`, left, y, 6.1);
+      y -= 7;
+    }
+    if ((order.items || []).length > visibleItems.length && y > footerY + 12) {
+      addText(commands, `+ ${(order.items || []).length - visibleItems.length} more item(s)`, left, y, 5.9);
+    }
   }
 
-  const footerY = cellY + CELL_PADDING;
-  addLine(commands, left, footerY + 10, right, footerY + 10);
-  addText(commands, `TOTAL ITEMS: ${order.totalItems}`, left, footerY, 6.7, { bold: true });
+  addLine(commands, left, footerY + 9, right, footerY + 9);
   const shipmentLabel = [order.shipment?.courier, order.shipment?.service].filter(Boolean).join(' / ');
-  addText(commands, truncateText(shipmentLabel, 28), right - 92, footerY, 6.7, { bold: true });
+  addText(commands, truncateText(shipmentLabel, 32), right - 78, footerY, 6.7, { bold: true });
 }
 
 function buildPdfPageContent(orders) {
