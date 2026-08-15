@@ -133,7 +133,15 @@ const ordersApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderIds }),
     });
-    return response.json();
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.error || 'Packing slip PDF could not be generated.');
+    }
+    return {
+      blob: await response.blob(),
+      rejectedCount: Number(response.headers.get('X-Rejected-Count') || 0),
+      printableCount: Number(response.headers.get('X-Printable-Count') || 0),
+    };
   },
   async exportTrackingTemplate(orderIds) {
     const params = new URLSearchParams({ orderIds: orderIds.join(',') });
@@ -946,140 +954,15 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
 }
 
 
-function escapePrintHtml(value = '') {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function formatPrintDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function chunkPrintPages(items, pageSize = 8) {
-  const pages = [];
-  for (let index = 0; index < items.length; index += pageSize) {
-    pages.push(items.slice(index, index + pageSize));
-  }
-  return pages;
-}
-
-function buildPackingSlipPrintHtml(orders = []) {
-  const pages = chunkPrintPages(orders, 8);
-  const pageMarkup = pages.map((pageOrders) => {
-    const slips = Array.from({ length: 8 }).map((_, index) => {
-      const order = pageOrders[index];
-      if (!order) return '<section class="slip empty-slip" aria-hidden="true"></section>';
-      const recipient = order.recipient || {};
-      const shipment = order.shipment || {};
-      const itemRows = (order.items || []).map((item) => `
-        <li>
-          <div class="item-name">${escapePrintHtml(item.productName)}</div>
-          <div class="item-meta">${escapePrintHtml(item.variantName || 'Default')} <strong>× ${escapePrintHtml(item.quantity)}</strong></div>
-        </li>
-      `).join('');
-
-      return `
-        <section class="slip">
-          <header class="slip-header">
-            <div>
-              <div class="brand">ONEMISSION</div>
-              <div class="order-number">ORDER #${escapePrintHtml(order.publicOrderNumber || order.orderNumber)}</div>
-            </div>
-            <div class="date">${escapePrintHtml(formatPrintDate(order.orderDate))}</div>
-          </header>
-          <section class="block ship-block">
-            <div class="label">SHIP TO</div>
-            <div class="recipient-name">${escapePrintHtml(recipient.name)}</div>
-            <div class="recipient-phone">${escapePrintHtml(recipient.phone)}</div>
-            <div class="address">${escapePrintHtml(recipient.address)}</div>
-          </section>
-          <section class="block items-block">
-            <div class="label">ITEMS</div>
-            <ul>${itemRows}</ul>
-          </section>
-          <footer class="slip-footer">
-            <span>TOTAL ITEMS: ${escapePrintHtml(order.totalItems)}</span>
-            <span>${escapePrintHtml([shipment.courier, shipment.service].filter(Boolean).join(' / '))}</span>
-          </footer>
-        </section>
-      `;
-    }).join('');
-    return `<main class="sheet">${slips}</main>`;
-  }).join('');
-
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>ONEMISSION Packing Slips</title>
-  <style>
-    @page { size: A4 portrait; margin: 0; }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #111827; }
-    .sheet {
-      width: 210mm;
-      height: 297mm;
-      display: grid;
-      grid-template-columns: repeat(2, 105mm);
-      grid-template-rows: repeat(4, 74.25mm);
-      page-break-after: always;
-      break-after: page;
-    }
-    .sheet:last-child { page-break-after: auto; break-after: auto; }
-    .slip {
-      width: 105mm;
-      height: 74.25mm;
-      border: 0.2mm solid #d1d5db;
-      padding: 4mm;
-      overflow: hidden;
-      page-break-inside: avoid;
-      break-inside: avoid;
-      display: flex;
-      flex-direction: column;
-      gap: 2.2mm;
-    }
-    .empty-slip { background: #fff; }
-    .slip-header { display: flex; justify-content: space-between; gap: 3mm; border-bottom: 0.2mm solid #111827; padding-bottom: 2mm; }
-    .brand { font-size: 10pt; font-weight: 800; letter-spacing: 0.08em; }
-    .order-number { margin-top: 1mm; font-size: 8.5pt; font-weight: 700; }
-    .date { font-size: 7pt; text-align: right; white-space: nowrap; }
-    .block { min-width: 0; }
-    .label { font-size: 6.5pt; font-weight: 800; letter-spacing: 0.14em; color: #6b7280; margin-bottom: 1mm; }
-    .recipient-name { font-size: 8.5pt; font-weight: 800; line-height: 1.15; }
-    .recipient-phone, .address { font-size: 7.2pt; line-height: 1.25; }
-    .address { max-height: 12mm; overflow: hidden; }
-    .items-block { flex: 1; min-height: 0; overflow: hidden; }
-    ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 1.2mm; }
-    li { display: grid; gap: 0.4mm; }
-    .item-name { font-size: 7.4pt; font-weight: 800; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .item-meta { font-size: 7pt; line-height: 1.1; color: #374151; }
-    .slip-footer { display: flex; justify-content: space-between; gap: 2mm; border-top: 0.2mm solid #e5e7eb; padding-top: 1.5mm; font-size: 6.7pt; font-weight: 800; }
-    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-  </style>
-</head>
-<body>${pageMarkup}</body>
-</html>`;
-}
-
-function printPackingSlips(orders) {
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-  if (!printWindow) {
-    throw new Error('Print preview could not be opened. Please allow pop-ups for HQ.');
-  }
-  printWindow.document.open();
-  printWindow.document.write(buildPackingSlipPrintHtml(orders));
-  printWindow.document.close();
-  printWindow.focus();
-  window.setTimeout(() => {
-    printWindow.print();
-  }, 250);
+function downloadPackingSlipPdf(blob) {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `onemission-packing-slips-${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 function buildBulkResultTitle(result) {
@@ -1590,16 +1473,12 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
     setPrintLoading(true);
     try {
       const result = await ordersApi.printSelected(orderIds);
-      if (result?.error) {
-        toast.error(result.error);
-        return;
+      if (result.rejectedCount > 0) {
+        toast.warning(`${result.rejectedCount} selected order(s) are not in PACKING status and were excluded from PDF.`);
       }
 
-      if (Array.isArray(result.rejected) && result.rejected.length > 0) {
-        toast.warning(`${result.rejected.length} selected order(s) are not in PACKING status and were excluded from print.`);
-      }
-
-      printPackingSlips(result.printable || []);
+      downloadPackingSlipPdf(result.blob);
+      toast.success(`Packing slip PDF downloaded for ${result.printableCount} order(s).`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Packing slips could not be printed.');
     } finally {
