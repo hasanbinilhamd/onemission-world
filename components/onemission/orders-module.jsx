@@ -1427,6 +1427,8 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   const currentPageOrderIds = useMemo(() => items.map((order) => order.id), [items]);
   const selectedOrders = useMemo(() => items.filter((order) => selectedOrderIds.has(order.id)), [items, selectedOrderIds]);
   const selectedCount = selectedOrderIds.size;
+  const selectedPackingCount = useMemo(() => selectedOrders.filter((order) => String(order.fulfillmentStatus || order.fulfillmentStatusLabel || '').trim().toUpperCase() === FULFILLMENT_STATUS.PACKING).length, [selectedOrders]);
+  const selectedNonPackingCount = Math.max(0, selectedCount - selectedPackingCount);
   const allCurrentPageSelected = currentPageOrderIds.length > 0 && currentPageOrderIds.every((orderId) => selectedOrderIds.has(orderId));
 
   const load = useCallback(async () => {
@@ -1594,7 +1596,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
       }
 
       if (Array.isArray(result.rejected) && result.rejected.length > 0) {
-        toast.warning(`${result.rejected.length} selected order(s) were not READY_TO_SHIP and were excluded from print.`);
+        toast.warning(`${result.rejected.length} selected order(s) are not in PACKING status and were excluded from print.`);
       }
 
       printPackingSlips(result.printable || []);
@@ -1861,7 +1863,10 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
         <Card>
           <CardContent className="py-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <p className="text-sm font-medium text-[#111827]">{selectedCount} order{selectedCount === 1 ? "" : "s"} selected</p>
+              <div>
+                <p className="text-sm font-medium text-[#111827]">{selectedCount} order{selectedCount === 1 ? "" : "s"} selected</p>
+                <p className="text-xs text-muted-foreground">{selectedPackingCount} can be printed. {selectedNonPackingCount} not in PACKING status.</p>
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Button variant="outline" className="gap-2" onClick={handlePrintSelected} disabled={selectedCount === 0 || printLoading}>
                   <Printer className="h-4 w-4" />

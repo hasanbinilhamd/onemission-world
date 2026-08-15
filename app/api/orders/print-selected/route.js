@@ -85,13 +85,13 @@ export async function POST(request) {
         fulfillmentStatus: order.fulfillmentStatus,
       });
 
-      if (fulfillmentStatus !== FULFILLMENT_STATUS.READY_TO_SHIP) {
+      if (fulfillmentStatus !== FULFILLMENT_STATUS.PACKING) {
         rejected.push({
           orderId,
           orderNumber: order.orderNumber,
           publicOrderNumber: order.publicOrderNumber,
           fulfillmentStatus,
-          reason: 'ORDER_NOT_READY_TO_SHIP',
+          reason: 'ORDER_NOT_PACKING',
         });
         continue;
       }
@@ -101,7 +101,7 @@ export async function POST(request) {
 
     if (printable.length === 0) {
       return NextResponse.json({
-        error: 'No selected orders are eligible for printing. Only READY_TO_SHIP orders can be printed.',
+        error: 'No selected orders are eligible for printing. Only PACKING orders can be printed.',
         printable,
         rejected,
       }, { status: 409 });
@@ -114,7 +114,7 @@ export async function POST(request) {
         requested: orderIds.length,
         printable: printable.length,
         rejected: rejected.length,
-        eligibleFulfillmentStatus: FULFILLMENT_STATUS.READY_TO_SHIP,
+        eligibleFulfillmentStatus: FULFILLMENT_STATUS.PACKING,
       },
     });
   });
