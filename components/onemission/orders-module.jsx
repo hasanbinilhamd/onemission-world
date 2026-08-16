@@ -528,6 +528,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   const [shipmentService, setShipmentService] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [shippingDate, setShippingDate] = useState("");
+  const [actualShippingCost, setActualShippingCost] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [adminCancelReason, setAdminCancelReason] = useState("");
   const [refundStatus, setRefundStatus] = useState("NONE");
@@ -542,6 +543,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
     setShipmentService(order.shipment?.service || "");
     setTrackingNumber(order.shipment?.trackingNumber || "");
     setShippingDate(toDatetimeLocalInputValue(order.shipment?.shippingDate));
+    setActualShippingCost(order.shipment?.actualShippingCost ?? "");
     setRejectReason("");
     setAdminCancelReason("");
     setRefundStatus(order.returnRequest?.refundStatus || "NONE");
@@ -665,6 +667,11 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
       }
     }
 
+    if (actualShippingCost !== "" && (!Number.isFinite(Number(actualShippingCost)) || Number(actualShippingCost) < 0)) {
+      toast.error("Actual Shipping Cost must be a numeric amount greater than or equal to 0.");
+      return;
+    }
+
     setSaving(true);
     try {
       const result = await ordersApi.updateFulfillment(order.id, {
@@ -675,6 +682,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
         shipmentService,
         trackingNumber,
         shippingDate: shippingDate ? new Date(shippingDate).toISOString() : null,
+        actualShippingCost: actualShippingCost === "" ? null : Number(actualShippingCost),
       });
 
       if (result?.error) {
@@ -721,7 +729,8 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
             <DetailRow label="Address" value={`${order.shipping?.streetAddress || ""}, ${order.shipping?.districtName || ""}, ${order.shipping?.cityName || ""}, ${order.shipping?.provinceName || ""} ${order.shipping?.postalCode || ""}`.replace(/^,\s*/, "")} />
             <DetailRow label="Courier" value={order.shipping?.courier} />
             <DetailRow label="Service" value={order.shipping?.courierService} />
-            <DetailRow label="Shipping Cost" value={fmtCurrency(order.shippingCost)} />
+            <DetailRow label="Customer Shipping Fee" value={fmtCurrency(order.shippingCost)} />
+            <DetailRow label="Actual Shipping Cost" value={order.shipment?.actualShippingCost !== null && order.shipment?.actualShippingCost !== undefined ? fmtCurrency(order.shipment.actualShippingCost) : "—"} />
             <DetailRow label="Tracking Number" value={order.shipment?.trackingNumber} />
             <DetailRow label="Shipping Date" value={fmtDateTime(order.shipment?.shippingDate)} />
           </DetailSection>
@@ -937,8 +946,12 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
                     <Input value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} placeholder="Tracking number" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Shipping Date</Label>
+                    <Label>Shipping Date & Time</Label>
                     <Input type="datetime-local" value={shippingDate} onChange={(event) => setShippingDate(event.target.value)} disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Actual Shipping Cost</Label>
+                    <Input type="number" min="0" value={actualShippingCost} onChange={(event) => setActualShippingCost(event.target.value)} placeholder="15000" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
                   </div>
                 </div>
               </div>
@@ -1123,6 +1136,7 @@ function BulkTrackingDialog({ open, onOpenChange, selectedOrders, onSubmit, load
   const [shipmentCourier, setShipmentCourier] = useState('');
   const [shipmentService, setShipmentService] = useState('');
   const [shippingDate, setShippingDate] = useState('');
+  const [actualShippingCost, setActualShippingCost] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -1135,15 +1149,17 @@ function BulkTrackingDialog({ open, onOpenChange, selectedOrders, onSubmit, load
       shipmentCourier: '',
       shipmentService: '',
       shippingDate: '',
+      actualShippingCost: '',
     })));
     setShipmentCourier('');
     setShipmentService('');
     setShippingDate('');
+    setActualShippingCost('');
     setNotes('');
   }, [open, selectedOrders]);
 
-  const updateEntry = (orderId, value) => {
-    setEntries((current) => current.map((entry) => entry.orderId === orderId ? { ...entry, trackingNumber: value } : entry));
+  const updateEntry = (orderId, key, value) => {
+    setEntries((current) => current.map((entry) => entry.orderId === orderId ? { ...entry, [key]: value } : entry));
   };
 
   const submit = () => {
@@ -1152,14 +1168,25 @@ function BulkTrackingDialog({ open, onOpenChange, selectedOrders, onSubmit, load
       toast.error(`Tracking number is required for ${missing.length} selected order${missing.length === 1 ? '' : 's'}.`);
       return;
     }
+    if (actualShippingCost !== '' && (!Number.isFinite(Number(actualShippingCost)) || Number(actualShippingCost) < 0)) {
+      toast.error('Actual Shipping Cost default must be a numeric amount greater than or equal to 0.');
+      return;
+    }
+    const invalidCostEntries = entries.filter((entry) => entry.actualShippingCost !== '' && (!Number.isFinite(Number(entry.actualShippingCost)) || Number(entry.actualShippingCost) < 0));
+    if (invalidCostEntries.length > 0) {
+      toast.error(`Actual Shipping Cost must be valid for ${invalidCostEntries.length} selected order${invalidCostEntries.length === 1 ? '' : 's'}.`);
+      return;
+    }
     onSubmit({
       entries: entries.map((entry) => ({
         orderId: entry.orderId,
         trackingNumber: entry.trackingNumber,
+        actualShippingCost: entry.actualShippingCost === '' ? undefined : Number(entry.actualShippingCost),
       })),
       shipmentCourier,
       shipmentService,
       shippingDate: shippingDate ? new Date(shippingDate).toISOString() : null,
+      actualShippingCost: actualShippingCost === '' ? undefined : Number(actualShippingCost),
       notes,
     });
   };
@@ -1174,7 +1201,8 @@ function BulkTrackingDialog({ open, onOpenChange, selectedOrders, onSubmit, load
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="space-y-1.5"><Label>Courier Override</Label><Input value={shipmentCourier} onChange={(event) => setShipmentCourier(event.target.value)} placeholder="Use existing if empty" /></div>
           <div className="space-y-1.5"><Label>Service Override</Label><Input value={shipmentService} onChange={(event) => setShipmentService(event.target.value)} placeholder="Use existing if empty" /></div>
-          <div className="space-y-1.5"><Label>Shipping Date</Label><Input type="datetime-local" value={shippingDate} onChange={(event) => setShippingDate(event.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Shipping Date & Time</Label><Input type="datetime-local" value={shippingDate} onChange={(event) => setShippingDate(event.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Actual Shipping Cost Default</Label><Input type="number" min="0" value={actualShippingCost} onChange={(event) => setActualShippingCost(event.target.value)} placeholder="Use per-order if empty" /></div>
         </div>
         <div className="space-y-2 mt-4">
           {entries.map((entry) => {
@@ -1189,7 +1217,10 @@ function BulkTrackingDialog({ open, onOpenChange, selectedOrders, onSubmit, load
                     {locked ? 'Shipment locked after dispatch' : notReadyToShip ? 'Must be Ready To Ship' : 'Will update tracking and mark as Shipped'}
                   </p>
                 </div>
-                <Input value={entry.trackingNumber} onChange={(event) => updateEntry(entry.orderId, event.target.value)} placeholder="Tracking number" disabled={disabled} className={disabled ? 'opacity-70' : ''} />
+                <div className="grid gap-2 md:grid-cols-2">
+                  <Input value={entry.trackingNumber} onChange={(event) => updateEntry(entry.orderId, 'trackingNumber', event.target.value)} placeholder="Tracking number" disabled={disabled} className={disabled ? 'opacity-70' : ''} />
+                  <Input type="number" min="0" value={entry.actualShippingCost} onChange={(event) => updateEntry(entry.orderId, 'actualShippingCost', event.target.value)} placeholder="Actual shipping cost" disabled={disabled} className={disabled ? 'opacity-70' : ''} />
+                </div>
               </div>
             );
           })}
@@ -1293,7 +1324,8 @@ function TrackingImportDialog({ open, onOpenChange, onCompleted }) {
                     <Badge className={row.status === 'valid' ? 'bg-emerald-500/10 text-emerald-600' : row.status === 'skipped' ? 'bg-amber-500/10 text-amber-700' : 'bg-rose-500/10 text-rose-600'}>{row.status}</Badge>
                   </div>
                   <p className="mt-2 text-muted-foreground">Tracking: {row.trackingNumber || '—'}</p>
-                  {row.shippingDate ? <p className="mt-1 text-muted-foreground">Shipping Date: {fmtDateTime(row.shippingDate)}</p> : null}
+                  {row.shippingDate ? <p className="mt-1 text-muted-foreground">Shipping Date & Time: {fmtDateTime(row.shippingDate)}</p> : null}
+                  {row.actualShippingCost !== null && row.actualShippingCost !== undefined ? <p className="mt-1 text-muted-foreground">Actual Shipping Cost: {fmtCurrency(row.actualShippingCost)}</p> : null}
                   {row.currentTrackingNumber && row.currentTrackingNumber !== row.trackingNumber ? <p className="mt-1 text-amber-700">Current: {row.currentTrackingNumber} · New: {row.trackingNumber}</p> : null}
                   {Array.isArray(row.warnings) && row.warnings.length > 0 ? <p className="mt-1 text-amber-700">{row.warnings.join(' · ')}</p> : null}
                   {row.reason ? <p className="mt-1 text-rose-600">{row.reason}</p> : null}

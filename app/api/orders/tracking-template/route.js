@@ -4,8 +4,8 @@ import { withDevTiming } from '@/lib/dev-timing';
 import { requireHqPermission } from '@/lib/hq-security';
 import { prisma } from '@/lib/prisma';
 
-const TEMPLATE_HEADERS = ['Order Number', 'Order Date', 'Customer', 'Courier', 'Service', 'Tracking Number', 'Shipping Date'];
-const TEXT_COLUMN_INDEXES = [0, 2, 3, 4, 5, 6];
+const TEMPLATE_HEADERS = ['Order ID', 'Order Number', 'Order Date', 'Customer', 'Courier', 'Service', 'Tracking Number', 'Shipping Date & Time', 'Actual Shipping Cost'];
+const TEXT_COLUMN_INDEXES = [0, 1, 3, 4, 5, 6, 7];
 const TRACKING_TEMPLATE_SHEET_NAME = 'Tracking Template';
 
 function normalizeOrderIds(value = '') {
@@ -23,7 +23,7 @@ function pad2(value) {
   return String(value).padStart(2, '0');
 }
 
-function formatTemplateDate(value) {
+function formatTemplateDateTime(value) {
   if (!value) return '';
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -32,9 +32,12 @@ function formatTemplateDate(value) {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
   }).formatToParts(date);
   const partMap = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${pad2(partMap.day)}-${pad2(partMap.month)}-${partMap.year}`;
+  return `${pad2(partMap.day)}-${pad2(partMap.month)}-${partMap.year} ${pad2(partMap.hour)}:${pad2(partMap.minute)}`;
 }
 
 function ensureTextCell(worksheet, rowIndex, columnIndex, value = '') {
@@ -50,7 +53,8 @@ function buildInstructionsSheet() {
   const rows = [
     ['Field', 'How to fill', 'Example'],
     ['Tracking Number', 'Always keep this column as Text so leading zeros are preserved.', '00088127637'],
-    ['Shipping Date', 'Use DD-MM-YYYY format. Do not use MM-DD-YYYY.', '10-08-2026'],
+    ['Shipping Date & Time', 'Use DD-MM-YYYY HH:mm format in 24-hour time. Do not use AM/PM.', '16-08-2026 14:30'],
+    ['Actual Shipping Cost', 'Numeric amount paid by OneMission to courier. Use plain number, no Rp formatting.', '15000'],
     ['Courier / Service', 'Leave blank to use the existing order shipment details from HQ.', 'JNE / REG'],
   ];
   const worksheet = XLSX.utils.aoa_to_sheet(rows);
@@ -60,26 +64,30 @@ function buildInstructionsSheet() {
 
 function buildWorkbookBuffer(orders) {
   const rows = orders.map((order) => ([
+    order.orderNumber,
     order.publicOrderNumber || order.orderNumber,
     order.createdAt ? new Date(order.createdAt).toISOString() : '',
     order.customerName || '',
     order.shipmentCourier || order.courier || '',
     order.shipmentService || order.courierService || '',
     order.trackingNumber || '',
-    formatTemplateDate(order.shippingDate),
+    formatTemplateDateTime(order.shippingDate),
+    order.actualShippingCost ?? '',
   ]));
 
   const worksheet = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS, ...rows]);
   worksheet['!cols'] = [
+    { wch: 18 },
     { wch: 24 },
     { wch: 26 },
     { wch: 28 },
     { wch: 16 },
     { wch: 18 },
     { wch: 24 },
-    { wch: 18 },
+    { wch: 22 },
+    { wch: 20 },
   ];
-  worksheet['!autofilter'] = { ref: `A1:G${Math.max(rows.length + 1, 1)}` };
+  worksheet['!autofilter'] = { ref: `A1:I${Math.max(rows.length + 1, 1)}` };
   worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
 
   for (let rowIndex = 1; rowIndex <= rows.length; rowIndex += 1) {
@@ -88,8 +96,9 @@ function buildWorkbookBuffer(orders) {
     });
   }
 
-  worksheet.F1.c = [{ a: 'OneMission', t: 'Tracking Number is text. Example: 00088127637. Do not let Excel convert it to a number.' }];
-  worksheet.G1.c = [{ a: 'OneMission', t: 'Shipping Date format: DD-MM-YYYY. Example: 10-08-2026.' }];
+  worksheet.G1.c = [{ a: 'OneMission', t: 'Tracking Number is text. Example: 00088127637. Do not let Excel convert it to a number.' }];
+  worksheet.H1.c = [{ a: 'OneMission', t: 'Shipping Date & Time format: DD-MM-YYYY HH:mm. Example: 16-08-2026 14:30.' }];
+  worksheet.I1.c = [{ a: 'OneMission', t: 'Actual Shipping Cost is a numeric amount, for example 15000.' }];
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, TRACKING_TEMPLATE_SHEET_NAME);
@@ -125,6 +134,7 @@ export async function GET(request) {
         shipmentService: true,
         trackingNumber: true,
         shippingDate: true,
+        actualShippingCost: true,
       },
       orderBy: [{ createdAt: 'desc' }],
     });

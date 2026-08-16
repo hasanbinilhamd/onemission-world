@@ -47,6 +47,7 @@ async function getOrderReference(orderId) {
       shipmentService: true,
       trackingNumber: true,
       shippingDate: true,
+      actualShippingCost: true,
     },
   });
   return order;
@@ -158,6 +159,7 @@ async function processTrackingBulk({ entries, payload, authContext }) {
         shipmentService: entry.shipmentService || payload.shipmentService || order.shipmentService || order.courierService || '',
         trackingNumber: entry.trackingNumber,
         shippingDate: entry.shippingDate || payload.shippingDate || order.shippingDate || null,
+        actualShippingCost: entry.actualShippingCost ?? payload.actualShippingCost ?? order.actualShippingCost ?? undefined,
       });
 
       await writeAuditLog({
@@ -168,6 +170,7 @@ async function processTrackingBulk({ entries, payload, authContext }) {
         metadata: {
           orderId,
           trackingNumber: entry.trackingNumber,
+          actualShippingCost: entry.actualShippingCost ?? payload.actualShippingCost ?? null,
           bulkOperation: BULK_OPERATION.TRACKING,
         },
       });
@@ -178,6 +181,7 @@ async function processTrackingBulk({ entries, payload, authContext }) {
         status: 'success',
         fulfillmentStatus: response.fulfillmentStatus,
         trackingNumber: response.shipment?.trackingNumber || entry.trackingNumber,
+        actualShippingCost: response.shipment?.actualShippingCost ?? entry.actualShippingCost ?? payload.actualShippingCost ?? null,
       });
     } catch (error) {
       results.push(buildResultFromError({ orderId, order, error }));
