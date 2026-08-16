@@ -17,6 +17,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { FaqModule } from "@/components/onemission/faq-module";
 
 const websiteApi = {
   async get(path) {
@@ -318,6 +319,7 @@ export function WebsiteSettingsModule({ user }) {
           <TabsTrigger value="collection">Collection</TabsTrigger>
           <TabsTrigger value="brand-video">Brand Video</TabsTrigger>
           <TabsTrigger value="product-story">Product Story</TabsTrigger>
+          <TabsTrigger value="faq">FAQ</TabsTrigger>
         </TabsList>
 
         <TabsContent value="hero" className="space-y-4 mt-0">
@@ -718,6 +720,10 @@ export function WebsiteSettingsModule({ user }) {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="faq" className="space-y-4 mt-0">
+          <FaqModule />
         </TabsContent>
       </Tabs>
     </div>
