@@ -1225,6 +1225,7 @@ model Order {
   shipmentService              String           @default("")
   trackingNumber               String           @default("")
   shippingDate                 DateTime?
+  actualShippingCost           Float?
   currency                     String           @default("IDR")
   subtotal                     Float            @default(0)
   discount                     Float            @default(0)

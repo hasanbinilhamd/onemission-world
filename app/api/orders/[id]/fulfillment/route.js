@@ -32,6 +32,7 @@ export async function PUT(request, { params }) {
         shipmentService: payload.shipmentService,
         trackingNumber: payload.trackingNumber,
         shippingDate: payload.shippingDate,
+        actualShippingCost: payload.actualShippingCost,
       });
 
       await writeAuditLog({
