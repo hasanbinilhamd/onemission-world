@@ -165,13 +165,6 @@ const NewsletterModule = dynamic(
     ),
   { loading: () => <TableSkeleton rows={8} cols={6} /> },
 );
-const FaqModule = dynamic(
-  () =>
-    import("@/components/onemission/faq-module").then(
-      (module) => module.FaqModule,
-    ),
-  { loading: () => <TableSkeleton rows={8} cols={6} /> },
-);
 const LaunchSubscribersModule = dynamic(
   () =>
     import("@/components/onemission/launch-subscribers-module").then(
@@ -606,16 +599,7 @@ const NAV_GROUPS = [
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "financialaccounts", label: "Accounts", icon: DollarSign },
-    ],
-  },
-  {
-    id: "finance-reports",
-    label: "Reports",
-    icon: FileBarChart2,
-    children: [
-      { id: "profitloss", label: "Profit & Loss", icon: BarChart2 },
-      { id: "balancesheet", label: "Balance Sheet", icon: Landmark },
-      { id: "cashflowstatement", label: "Cash Flow", icon: Layers },
+      { id: "financereports", label: "Reports", icon: FileBarChart2 },
     ],
   },
   {
@@ -625,7 +609,6 @@ const NAV_GROUPS = [
     children: [
       { id: "promotions", label: "Promotions", icon: TicketPercent },
       { id: "newsletter", label: "Newsletter", icon: Mail },
-      { id: "faq", label: "FAQ", icon: MessageCircle },
       { id: "launchsubscribers", label: "Launch Subscribers", icon: Users },
       { id: "productreviews", label: "Product Reviews", icon: MessageCircle },
       { id: "content", label: "Content", icon: CalendarDays },
@@ -6228,6 +6211,55 @@ function FinanceModule({ activeModule }) {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+
+function FinanceReportsModule({ activeModule, onNavigateToLedger, onNavigateToCashIn, onNavigateToCashOut }) {
+  const [reportTab, setReportTab] = useState("profitloss");
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
+          Finance Reports
+        </h2>
+        <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
+          Review profit, balance sheet, and cash flow without changing the accounting engine.
+        </p>
+      </div>
+      <Tabs value={reportTab} onValueChange={setReportTab} className="space-y-4">
+        <TabsList className="flex flex-wrap h-auto">
+          <TabsTrigger value="profitloss">Profit & Loss</TabsTrigger>
+          <TabsTrigger value="balancesheet">Balance Sheet</TabsTrigger>
+          <TabsTrigger value="cashflowstatement">Cash Flow</TabsTrigger>
+        </TabsList>
+        <TabsContent value="profitloss" className="space-y-4 mt-0">
+          {reportTab === "profitloss" ? (
+            <ProfitLossModule activeModule="profitloss" onNavigateToLedger={onNavigateToLedger} />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="balancesheet" className="space-y-4 mt-0">
+          {reportTab === "balancesheet" ? (
+            <BalanceSheetModule
+              activeModule="balancesheet"
+              onNavigateToLedger={onNavigateToLedger}
+              onNavigateToPL={() => setReportTab("profitloss")}
+            />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="cashflowstatement" className="space-y-4 mt-0">
+          {reportTab === "cashflowstatement" ? (
+            <CashFlowStatementModule
+              activeModule="cashflowstatement"
+              onNavigateToCashIn={onNavigateToCashIn}
+              onNavigateToCashOut={onNavigateToCashOut}
+              onNavigateToLedger={onNavigateToLedger}
+            />
+          ) : null}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -22834,7 +22866,6 @@ function App() {
     planning: () => <PlanningModule activeModule={active} />,
     content: () => <ContentModule activeModule={active} />,
     newsletter: () => <NewsletterModule />,
-    faq: () => <FaqModule />,
     launchsubscribers: () => <LaunchSubscribersModule />,
     productreviews: () => <ProductReviewsModule />,
     creators: () => <CreatorCRM activeModule={active} />,
@@ -22847,6 +22878,17 @@ function App() {
     profitallocation: () => <ProfitAllocationModule activeModule={active} />,
     cashin: () => <CashTransactionModule type="IN" activeModule={active} />,
     cashout: () => <CashTransactionModule type="OUT" activeModule={active} />,
+    financereports: () => (
+      <FinanceReportsModule
+        activeModule={active}
+        onNavigateToCashIn={() => handleNavClick("cashin")}
+        onNavigateToCashOut={() => handleNavClick("cashout")}
+        onNavigateToLedger={(id) => {
+          if (id) setGlInitialAccount(id);
+          handleNavClick("generalledger");
+        }}
+      />
+    ),
     journalentries: () => <JournalEntriesModule activeModule={active} />,
     generalledger: () => (
       <GeneralLedgerModule
