@@ -602,19 +602,17 @@ const NAV_GROUPS = [
     label: "Finance",
     icon: Wallet,
     children: [
-      { id: "chartofaccounts", label: "Chart of Accounts", icon: BookOpen },
-      {
-        id: "financialaccounts",
-        label: "Financial Accounts",
-        icon: DollarSign,
-      },
-      { id: "expensecategories", label: "Expense Categories", icon: FileText },
-      { id: "profitallocation", label: "Profit Allocation", icon: Target },
+      { id: "finance", label: "Overview", icon: Wallet },
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
-      { id: "journalentries", label: "Journal Entries", icon: ClipboardList },
-      { id: "generalledger", label: "General Ledger", icon: BookOpen },
-      { id: "trialbalance", label: "Trial Balance", icon: Scale },
+      { id: "financialaccounts", label: "Accounts", icon: DollarSign },
+    ],
+  },
+  {
+    id: "finance-reports",
+    label: "Reports",
+    icon: FileBarChart2,
+    children: [
       { id: "profitloss", label: "Profit & Loss", icon: BarChart2 },
       { id: "balancesheet", label: "Balance Sheet", icon: Landmark },
       { id: "cashflowstatement", label: "Cash Flow", icon: Layers },
@@ -635,8 +633,8 @@ const NAV_GROUPS = [
     ],
   },
   {
-    id: "reportsgroup",
-    label: "Reports",
+    id: "analyticsgroup",
+    label: "Analytics",
     icon: FileBarChart2,
     children: [
       { id: "productanalytics", label: "Product Analytics", icon: BarChart2 },
@@ -663,6 +661,8 @@ const NAV_GROUPS = [
     label: "Settings",
     icon: SettingsIcon,
     children: [
+      { id: "chartofaccounts", label: "Chart of Accounts", icon: BookOpen },
+      { id: "expensecategories", label: "Expense Categories", icon: FileText },
       { id: "users", label: "Users", icon: Users },
       { id: "rolespermissions", label: "Roles & Permissions", icon: Shield },
       {
@@ -5846,6 +5846,7 @@ function FinanceModule({ activeModule }) {
   const [finance, setFinance] = useState([]);
   const [inventoryValuation, setInventoryValuation] = useState(null);
   const [profitability, setProfitability] = useState(null);
+  const [cashFlow, setCashFlow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scenario, setScenario] = useState("Normal");
 
@@ -5856,15 +5857,17 @@ function FinanceModule({ activeModule }) {
       to: today,
     });
 
-    const [financeRows, valuation, profitloss] = await Promise.all([
+    const [financeRows, valuation, profitloss, cashflow] = await Promise.all([
       api.get("finance"),
       api.get("inventoryvaluation"),
       api.get("profitloss?" + profitLossParams.toString()),
+      api.get("cashflow?" + profitLossParams.toString()),
     ]);
 
     setFinance(Array.isArray(financeRows) ? financeRows : []);
     setInventoryValuation(valuation?.error ? null : valuation);
     setProfitability(profitloss?.error ? null : profitloss);
+    setCashFlow(cashflow?.error ? null : cashflow);
     setLoading(false);
   };
 
@@ -5904,9 +5907,12 @@ function FinanceModule({ activeModule }) {
   const currentInventoryValue = Number(
     inventoryValuation?.totalInventoryValue || 0,
   );
+  const revenueThisMonth = Number(profitability?.totalRevenue || 0);
   const cogsThisMonth = Number(profitability?.totalCogs || 0);
   const grossProfit = Number(profitability?.grossProfit || 0);
+  const operatingExpenses = Number(profitability?.totalOperatingExpenses || 0);
   const netProfit = Number(profitability?.netProfit || 0);
+  const cashBalance = Number(cashFlow?.closingCashPosition ?? cashFlow?.calculatedClosing ?? 0);
 
   if (loading)
     return (
@@ -5924,10 +5930,10 @@ function FinanceModule({ activeModule }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[1.5rem] font-bold tracking-[0.04em] uppercase text-[#111827] leading-tight">
-            Finance Center
+            Finance Overview
           </h2>
           <p className="text-sm text-[#5F6B7A] mt-1.5 font-medium">
-            Revenue, COGS, inventory value, and profitability overview
+            A simple owner dashboard for revenue, costs, profit, and available cash.
           </p>
         </div>
         <Select value={scenario} onValueChange={setScenario}>
@@ -5945,69 +5951,44 @@ function FinanceModule({ activeModule }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Forecast Revenue
-            </p>
-            <p className="text-2xl font-semibold mt-2">
-              {fmtShort(forecastRevenue)}
-            </p>
-            <p className="text-xs text-emerald-400 mt-1">
-              {((scenarioMultiplier - 1) * 100).toFixed(0)}% vs base
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Revenue</p>
+            <p className="text-2xl font-semibold mt-2 text-emerald-500">{fmtShort(revenueThisMonth)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Sales recognized this month.</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Forecast Expenses
-            </p>
-            <p className="text-2xl font-semibold mt-2">
-              {fmtShort(forecastExpenses)}
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">COGS</p>
+            <p className="text-2xl font-semibold mt-2 text-amber-500">{fmtShort(cogsThisMonth)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Cost of products sold.</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Current Inventory Value
-            </p>
-            <p className="text-2xl font-semibold mt-2 text-blue-500">
-              {fmtShort(currentInventoryValue)}
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Gross Profit</p>
+            <p className={`text-2xl font-semibold mt-2 ${grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>{fmtShort(grossProfit)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Revenue after deducting the cost of products sold.</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              COGS This Month
-            </p>
-            <p className="text-2xl font-semibold mt-2 text-amber-500">
-              {fmtShort(cogsThisMonth)}
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Operating Expenses</p>
+            <p className="text-2xl font-semibold mt-2 text-rose-400">{fmtShort(operatingExpenses)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Business expenses outside product cost.</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Gross Profit
-            </p>
-            <p
-              className={`text-2xl font-semibold mt-2 ${grossProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
-            >
-              {fmtShort(grossProfit)}
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Net Profit</p>
+            <p className={`text-2xl font-semibold mt-2 ${netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}>{fmtShort(netProfit)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Gross profit after operating expenses.</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Net Profit
-            </p>
-            <p
-              className={`text-2xl font-semibold mt-2 ${netProfit >= 0 ? "text-emerald-500" : "text-rose-400"}`}
-            >
-              {fmtShort(netProfit)}
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Cash Balance</p>
+            <p className="text-2xl font-semibold mt-2 text-blue-500">{fmtShort(cashBalance)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Money currently available in your financial accounts.</p>
           </CardContent>
         </Card>
       </div>
