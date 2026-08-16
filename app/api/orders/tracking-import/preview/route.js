@@ -5,11 +5,11 @@ import { requireHqPermission } from '@/lib/hq-security';
 import { prisma } from '@/lib/prisma';
 import { FULFILLMENT_STATUS, getSynchronizedFulfillmentStatus } from '@/lib/order/lifecycle';
 
-const REQUIRED_COLUMNS = ['Order Number', 'Tracking Number'];
-const OPTIONAL_COLUMNS = ['Courier', 'Service', 'Shipping Date'];
-const ALL_COLUMNS = [...REQUIRED_COLUMNS, 'Order Date', 'Customer', ...OPTIONAL_COLUMNS];
+const REQUIRED_COLUMNS = ['Tracking Number'];
+const OPTIONAL_COLUMNS = ['Order ID', 'Order Number', 'Order Date', 'Customer', 'Courier', 'Service', 'Shipping Date & Time', 'Shipping Date', 'Actual Shipping Cost'];
+const ALL_COLUMNS = [...REQUIRED_COLUMNS, ...OPTIONAL_COLUMNS];
 const TRACKING_TEMPLATE_SHEET_NAME = 'Tracking Template';
-const SHIPPING_DATE_FORMAT_HINT = 'Use DD-MM-YYYY format, for example 10-08-2026.';
+const SHIPPING_DATE_FORMAT_HINT = 'Use DD-MM-YYYY HH:mm format, for example 16-08-2026 14:30.';
 const BUSINESS_TIMEZONE_OFFSET_MINUTES = 7 * 60;
 
 function buildSummary(rows) {
@@ -46,39 +46,36 @@ function isValidDateParts(day, month, year) {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
-function buildBusinessDateIso(day, month, year) {
-  const timestamp = Date.UTC(year, month - 1, day, 0, 0, 0) - (BUSINESS_TIMEZONE_OFFSET_MINUTES * 60 * 1000);
+function buildBusinessDateTimeIso(day, month, year, hour = 0, minute = 0) {
+  const timestamp = Date.UTC(year, month - 1, day, hour, minute, 0) - (BUSINESS_TIMEZONE_OFFSET_MINUTES * 60 * 1000);
   return new Date(timestamp).toISOString();
 }
 
-function parseDateParts(dayValue, monthValue, yearValue) {
+function parseDateTimeParts(dayValue, monthValue, yearValue, hourValue = 0, minuteValue = 0) {
   const day = Number(dayValue);
   const month = Number(monthValue);
   const year = normalizeYear(yearValue);
+  const hour = Number(hourValue);
+  const minute = Number(minuteValue);
   if (!isValidDateParts(day, month, year)) return null;
-  return buildBusinessDateIso(day, month, year);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) return null;
+  return buildBusinessDateTimeIso(day, month, year, hour, minute);
 }
 
 function parseExcelSerialDate(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   const parsed = XLSX.SSF.parse_date_code(value);
   if (!parsed) return null;
-  return parseDateParts(parsed.d, parsed.m, parsed.y);
+  return parseDateTimeParts(parsed.d, parsed.m, parsed.y, parsed.H || 0, parsed.M || 0);
 }
 
 function parseShippingDateText(value) {
   const normalized = normalizeCell(value).replace(/^'/, '');
   if (!normalized) return { value: '', error: '' };
 
-  const dateOnlyIso = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (dateOnlyIso) {
-    const parsed = parseDateParts(dateOnlyIso[3], dateOnlyIso[2], dateOnlyIso[1]);
-    return parsed ? { value: parsed, error: '' } : { value: '', error: SHIPPING_DATE_FORMAT_HINT };
-  }
-
-  const dayFirst = normalized.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/);
-  if (dayFirst) {
-    const parsed = parseDateParts(dayFirst[1], dayFirst[2], dayFirst[3]);
+  const dayFirstDateTime = normalized.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})\s+(\d{1,2}):(\d{2})$/);
+  if (dayFirstDateTime) {
+    const parsed = parseDateTimeParts(dayFirstDateTime[1], dayFirstDateTime[2], dayFirstDateTime[3], dayFirstDateTime[4], dayFirstDateTime[5]);
     return parsed ? { value: parsed, error: '' } : { value: '', error: SHIPPING_DATE_FORMAT_HINT };
   }
 
@@ -112,6 +109,9 @@ function validateRequiredColumns(headers) {
   if (missing.length > 0) {
     return `Required column missing: ${missing.join(', ')}`;
   }
+  if (!headers.includes('Order ID') && !headers.includes('Order Number')) {
+    return 'Required column missing: Order ID or Order Number';
+  }
   return '';
 }
 
@@ -127,7 +127,7 @@ function getShippingDateCellValue(cell) {
   if (!cell) return '';
   if (cell.t === 'n' && typeof cell.v === 'number') {
     const parsed = XLSX.SSF.parse_date_code(cell.v);
-    if (parsed) return `${pad2(parsed.d)}-${pad2(parsed.m)}-${parsed.y}`;
+    if (parsed) return `${pad2(parsed.d)}-${pad2(parsed.m)}-${parsed.y} ${pad2(parsed.H || 0)}:${pad2(parsed.M || 0)}`;
   }
   if (cell.t === 'd' && cell.v instanceof Date) return cell.v;
   return getCellDisplayValue(cell);
@@ -153,7 +153,7 @@ function parseWorksheetRows(worksheet) {
     headers.forEach(({ header, columnIndex }) => {
       const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
       const cell = worksheet[address];
-      const value = header === 'Shipping Date' ? getShippingDateCellValue(cell) : getCellDisplayValue(cell);
+      const value = header === 'Shipping Date' || header === 'Shipping Date & Time' ? getShippingDateCellValue(cell) : getCellDisplayValue(cell);
       row[header] = value;
 
       if (header === 'Tracking Number' && cell?.t === 'n') {
@@ -230,6 +230,7 @@ async function buildOrderMap(orderNumbers) {
       shipmentService: true,
       trackingNumber: true,
       shippingDate: true,
+      actualShippingCost: true,
     },
   });
 
@@ -242,12 +243,14 @@ async function buildOrderMap(orderNumbers) {
 }
 
 function validateRow({ row, rowNumber, order, duplicateOrderNumbers, duplicateTrackingNumbers }) {
-  const orderNumber = normalizeCell(row['Order Number']);
+  const orderNumber = normalizeCell(row['Order ID'] || row['Order Number']);
   const trackingNumber = normalizeCell(row['Tracking Number']);
   const courier = normalizeCell(row.Courier);
   const service = normalizeCell(row.Service);
-  const shippingDateResult = normalizeDateCell(row['Shipping Date']);
+  const shippingDateResult = normalizeDateCell(row['Shipping Date & Time'] || row['Shipping Date']);
   const shippingDate = shippingDateResult.value;
+  const actualShippingCostRaw = normalizeCell(row['Actual Shipping Cost']);
+  const actualShippingCost = actualShippingCostRaw ? Number(actualShippingCostRaw) : null;
   const warnings = [];
 
   if (!orderNumber) {
@@ -258,6 +261,9 @@ function validateRow({ row, rowNumber, order, duplicateOrderNumbers, duplicateTr
   }
   if (!order) {
     return { rowNumber, orderNumber, trackingNumber, status: 'invalid', reason: 'Order not found.' };
+  }
+  if (actualShippingCostRaw && (!Number.isFinite(actualShippingCost) || actualShippingCost < 0)) {
+    return { rowNumber, orderId: order.id, orderNumber, trackingNumber, status: 'invalid', reason: 'Actual Shipping Cost must be a numeric amount greater than or equal to 0.' };
   }
   if (!trackingNumber) {
     return { rowNumber, orderId: order.id, orderNumber, trackingNumber, status: 'invalid', reason: 'Tracking number is required.' };
@@ -341,6 +347,7 @@ function validateRow({ row, rowNumber, order, duplicateOrderNumbers, duplicateTr
     courier,
     service,
     shippingDate,
+    actualShippingCost,
     currentTrackingNumber: order.trackingNumber || '',
     warnings,
   };
@@ -380,7 +387,7 @@ export async function POST(request) {
         nextRow.__trackingNumberWasNumeric = Boolean(row.__trackingNumberWasNumeric);
         return nextRow;
       });
-      const orderNumbers = canonicalRows.map((row) => normalizeCell(row['Order Number']));
+      const orderNumbers = canonicalRows.map((row) => normalizeCell(row['Order ID'] || row['Order Number']));
       const trackingNumbers = canonicalRows.map((row) => normalizeCell(row['Tracking Number']));
       const duplicateOrderNumbers = buildDuplicateSet(orderNumbers);
       const duplicateTrackingNumbers = buildDuplicateSet(trackingNumbers);
@@ -389,7 +396,7 @@ export async function POST(request) {
       const rows = canonicalRows.map((row, index) => validateRow({
         row,
         rowNumber: index + 2,
-        order: orderMap.get(normalizeCell(row['Order Number'])),
+        order: orderMap.get(normalizeCell(row['Order ID'] || row['Order Number'])),
         duplicateOrderNumbers,
         duplicateTrackingNumbers,
       }));

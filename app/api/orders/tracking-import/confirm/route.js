@@ -51,6 +51,7 @@ async function findOrder(orderNumber) {
       shipmentService: true,
       trackingNumber: true,
       shippingDate: true,
+      actualShippingCost: true,
     },
   });
 }
@@ -141,6 +142,7 @@ export async function POST(request) {
           shipmentService: row.service || order.shipmentService || order.courierService || '',
           trackingNumber: row.trackingNumber,
           shippingDate: row.shippingDate || order.shippingDate || null,
+          actualShippingCost: row.actualShippingCost ?? order.actualShippingCost ?? undefined,
         });
 
         await writeAuditLog({
@@ -152,6 +154,7 @@ export async function POST(request) {
             orderId: order.id,
             orderNumber: order.publicOrderNumber || order.orderNumber,
             trackingNumber: row.trackingNumber,
+            actualShippingCost: row.actualShippingCost ?? null,
           },
         });
 

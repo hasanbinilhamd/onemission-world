@@ -1,0 +1,2 @@
+ALTER TABLE "Order"
+  ADD COLUMN "actualShippingCost" DOUBLE PRECISION;
