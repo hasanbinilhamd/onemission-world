@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Camera,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -10,9 +11,11 @@ import {
   Loader2,
   PackageCheck,
   Printer,
+  RotateCcw,
   RefreshCw,
   Search,
   Truck,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -180,6 +183,26 @@ const ordersApi = {
       body: JSON.stringify({ rows }),
     });
     return response.json();
+  },
+  async listScanModeReadyOrders() {
+    const response = await fetch('/api/orders/scan-mode?limit=100');
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.error || 'Scan Mode ready orders could not be loaded.');
+    }
+    return result;
+  },
+  async confirmScanModeShipment(payload) {
+    const response = await fetch('/api/orders/scan-mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.error || 'Scanned shipment could not be confirmed.');
+    }
+    return result;
   },
   async approveReturn(id) {
     const response = await fetch(`/api/admin/returns/${id}/approve`, {
@@ -1343,6 +1366,376 @@ function TrackingImportDialog({ open, onOpenChange, onCompleted }) {
   );
 }
 
+
+function normalizeScannedTrackingNumber(value) {
+  return String(value || '').trim().replace(/\s+/g, '').toUpperCase();
+}
+
+function getDisplayOrderNumber(order) {
+  return order?.publicOrderNumber || order?.orderNumber || '—';
+}
+
+function ScanModeDialog({ open, onOpenChange, onCompleted }) {
+  const videoRef = useRef(null);
+  const scannerControlsRef = useRef(null);
+  const scanLockedRef = useRef(false);
+  const [readyOrders, setReadyOrders] = useState([]);
+  const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [scanResult, setScanResult] = useState('');
+  const [manualEntry, setManualEntry] = useState(false);
+  const [shippingDate, setShippingDate] = useState('');
+  const [actualShippingCost, setActualShippingCost] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [successCount, setSuccessCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
+  const [lastResult, setLastResult] = useState(null);
+  const [initialReadyCount, setInitialReadyCount] = useState(0);
+
+  const selectedOrder = useMemo(
+    () => readyOrders.find((order) => order.id === selectedOrderId) || readyOrders[0] || null,
+    [readyOrders, selectedOrderId],
+  );
+
+  const remainingCount = readyOrders.length;
+  const scannedCount = successCount + failedCount;
+  const totalProgressCount = Math.max(initialReadyCount, successCount + remainingCount);
+
+  const stopCamera = useCallback(() => {
+    scanLockedRef.current = false;
+    if (scannerControlsRef.current?.stop) {
+      scannerControlsRef.current.stop();
+    }
+    scannerControlsRef.current = null;
+    if (videoRef.current?.srcObject) {
+      videoRef.current.srcObject.getTracks?.().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+    setCameraLoading(false);
+  }, []);
+
+  const resetScanResult = useCallback(() => {
+    scanLockedRef.current = false;
+    setScanResult('');
+    setManualEntry(false);
+    setCameraError('');
+    setShippingDate(toDatetimeLocalInputValue(new Date()));
+  }, []);
+
+  const loadReadyOrders = useCallback(async () => {
+    setLoadingOrders(true);
+    try {
+      const result = await ordersApi.listScanModeReadyOrders();
+      const orders = Array.isArray(result?.data) ? result.data : [];
+      setReadyOrders(orders);
+      setSelectedOrderId((current) => (orders.some((order) => order.id === current) ? current : (orders[0]?.id || '')));
+      setInitialReadyCount((current) => current || Number(result?.summary?.readyToShip || orders.length || 0));
+    } catch (error) {
+      toast.error(error.message || 'Scan Mode ready orders could not be loaded.');
+      setReadyOrders([]);
+      setSelectedOrderId('');
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      stopCamera();
+      return;
+    }
+    setSuccessCount(0);
+    setFailedCount(0);
+    setLastResult(null);
+    setInitialReadyCount(0);
+    resetScanResult();
+    loadReadyOrders();
+  }, [loadReadyOrders, open, resetScanResult, stopCamera]);
+
+  useEffect(() => () => stopCamera(), [stopCamera]);
+
+  useEffect(() => {
+    if (!open || !selectedOrder) return;
+    setActualShippingCost(selectedOrder.actualShippingCost ?? '');
+    setShippingDate(toDatetimeLocalInputValue(new Date()));
+    setScanResult('');
+    setManualEntry(false);
+    setCameraError('');
+  }, [open, selectedOrder?.id]);
+
+  const startCamera = async () => {
+    if (!selectedOrder) {
+      toast.error('No Ready To Ship order is available for Scan Mode.');
+      return;
+    }
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      setCameraError('Camera is not available in this browser. Use manual tracking entry instead.');
+      return;
+    }
+
+    stopCamera();
+    setCameraError('');
+    setCameraLoading(true);
+    scanLockedRef.current = false;
+
+    try {
+      const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      const reader = new BrowserMultiFormatReader();
+      const controls = await reader.decodeFromConstraints(
+        {
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        },
+        videoRef.current,
+        (result) => {
+          const decodedText = normalizeScannedTrackingNumber(result?.getText?.() || result?.text || '');
+          if (!decodedText || scanLockedRef.current) return;
+          scanLockedRef.current = true;
+          setScanResult(decodedText);
+          setManualEntry(false);
+          setCameraError('');
+          toast.success('Barcode detected. Review and confirm shipment.');
+          stopCamera();
+        },
+      );
+      scannerControlsRef.current = controls;
+      setCameraActive(true);
+    } catch (error) {
+      const message = error?.name === 'NotAllowedError'
+        ? 'Camera permission was denied. Allow camera access or enter the tracking number manually.'
+        : (error?.message || 'Camera could not be started. Enter the tracking number manually if needed.');
+      setCameraError(message);
+      stopCamera();
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+
+  const selectOrder = (orderId) => {
+    stopCamera();
+    setSelectedOrderId(orderId);
+    resetScanResult();
+    setLastResult(null);
+  };
+
+  const handleManualEntry = () => {
+    stopCamera();
+    setManualEntry(true);
+    setScanResult('');
+    setCameraError('');
+  };
+
+  const confirmShipment = async () => {
+    const normalizedTrackingNumber = normalizeScannedTrackingNumber(scanResult);
+    if (!selectedOrder) {
+      toast.error('Select a Ready To Ship order first.');
+      return;
+    }
+    if (!normalizedTrackingNumber) {
+      toast.error('Tracking number is required before confirming shipment.');
+      return;
+    }
+    if (actualShippingCost !== '' && (!Number.isFinite(Number(actualShippingCost)) || Number(actualShippingCost) < 0)) {
+      toast.error('Actual Shipping Cost must be a numeric amount greater than or equal to 0.');
+      return;
+    }
+
+    setConfirming(true);
+    try {
+      const result = await ordersApi.confirmScanModeShipment({
+        orderId: selectedOrder.id,
+        trackingNumber: normalizedTrackingNumber,
+        shippingDate: shippingDate ? new Date(shippingDate).toISOString() : new Date().toISOString(),
+        actualShippingCost: actualShippingCost === '' ? undefined : Number(actualShippingCost),
+      });
+      const shippedOrder = result.order;
+      const nextReadyOrders = readyOrders.filter((order) => order.id !== selectedOrder.id);
+      const nextOrder = nextReadyOrders[0] || null;
+      setReadyOrders(nextReadyOrders);
+      setSelectedOrderId(nextOrder?.id || '');
+      setSuccessCount((count) => count + 1);
+      setLastResult({ status: 'success', order: shippedOrder, trackingNumber: normalizedTrackingNumber });
+      resetScanResult();
+      toast.success(`Shipment confirmed for ${getDisplayOrderNumber(selectedOrder)}.`);
+      await onCompleted?.(result);
+    } catch (error) {
+      setFailedCount((count) => count + 1);
+      setLastResult({ status: 'error', message: error.message || 'Shipment was not updated.', trackingNumber: normalizedTrackingNumber, order: selectedOrder });
+      toast.error(error.message || 'Shipment was not updated.');
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Camera className="h-5 w-5" />
+            Scan Mode
+          </DialogTitle>
+          <DialogDescription>
+            Select a Ready To Ship order, scan the courier barcode or QR code, review details, then confirm shipment.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-2xl border p-3 bg-cyan-500/5"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Ready To Ship</p><p className="text-2xl font-semibold text-cyan-700">{remainingCount}</p></div>
+          <div className="rounded-2xl border p-3 bg-emerald-500/5"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Successful</p><p className="text-2xl font-semibold text-emerald-700">{successCount}</p></div>
+          <div className="rounded-2xl border p-3 bg-rose-500/5"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Failed</p><p className="text-2xl font-semibold text-rose-700">{failedCount}</p></div>
+          <div className="rounded-2xl border p-3"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Progress</p><p className="text-2xl font-semibold">{successCount} / {totalProgressCount}</p><p className="text-[11px] text-muted-foreground mt-1">Scanned: {scannedCount}</p></div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-4 mt-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Select Order</p>
+              <Button variant="outline" size="sm" className="gap-2" onClick={loadReadyOrders} disabled={loadingOrders}>
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingOrders ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+            <div className="space-y-2 max-h-[58vh] overflow-y-auto pr-1">
+              {loadingOrders ? (
+                <div className="rounded-2xl border p-5 text-sm text-muted-foreground text-center">Loading Ready To Ship orders…</div>
+              ) : readyOrders.length === 0 ? (
+                <div className="rounded-2xl border p-5 text-sm text-muted-foreground text-center">No Ready To Ship orders waiting.</div>
+              ) : readyOrders.map((order) => {
+                const active = selectedOrder?.id === order.id;
+                return (
+                  <button
+                    key={order.id}
+                    type="button"
+                    onClick={() => selectOrder(order.id)}
+                    className={`w-full text-left rounded-2xl border p-3 transition-colors ${active ? 'border-[#111827] bg-[#111827] text-white' : 'border-border hover:bg-muted/50'}`}
+                  >
+                    <p className="font-mono text-sm font-semibold">{getDisplayOrderNumber(order)}</p>
+                    <p className={`text-sm mt-1 ${active ? 'text-white/80' : 'text-muted-foreground'}`}>{order.customerName || order.recipientName || 'Customer'}</p>
+                    <p className={`text-xs mt-2 ${active ? 'text-white/75' : 'text-muted-foreground'}`}>Courier: {order.shipmentCourier || '—'} · Service: {order.shipmentService || '—'}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {selectedOrder ? (
+              <div className="rounded-3xl border border-border/80 p-4 sm:p-5 bg-white shadow-sm">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Current Order</p>
+                    <p className="font-mono text-lg font-semibold mt-1">{getDisplayOrderNumber(selectedOrder)}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{selectedOrder.customerName || selectedOrder.recipientName || 'Customer'}</p>
+                  </div>
+                  {fulfillmentStatusBadge(FULFILLMENT_STATUS.READY_TO_SHIP)}
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
+                  <div className="rounded-2xl bg-muted/40 p-3"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Courier</p><p className="font-semibold mt-1">{selectedOrder.shipmentCourier || '—'}</p></div>
+                  <div className="rounded-2xl bg-muted/40 p-3"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Service</p><p className="font-semibold mt-1">{selectedOrder.shipmentService || '—'}</p></div>
+                  <div className="rounded-2xl bg-muted/40 p-3"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Customer Shipping Fee</p><p className="font-semibold mt-1">{fmtCurrency(selectedOrder.customerShippingCost)}</p></div>
+                  <div className="rounded-2xl bg-muted/40 p-3"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Items</p><p className="font-semibold mt-1">{selectedOrder.totalItems || 0}</p></div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="rounded-3xl border border-border/80 p-4 sm:p-5 bg-[#0B1120] text-white overflow-hidden">
+              <div className="relative aspect-[4/3] sm:aspect-video rounded-2xl bg-black overflow-hidden flex items-center justify-center">
+                <video ref={videoRef} className={`h-full w-full object-cover ${cameraActive ? 'block' : 'hidden'}`} muted playsInline />
+                {!cameraActive ? (
+                  <div className="text-center px-6">
+                    <Camera className="h-12 w-12 mx-auto text-white/40 mb-3" />
+                    <p className="font-semibold">Camera Preview</p>
+                    <p className="text-sm text-white/60 mt-1">Rear camera will be requested when scanning starts.</p>
+                  </div>
+                ) : null}
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="w-[72%] max-w-sm aspect-[1.7/1] rounded-2xl border-2 border-white shadow-[0_0_0_999px_rgba(0,0,0,0.25)]" />
+                </div>
+                {cameraLoading ? <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-sm"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Initializing camera…</div> : null}
+              </div>
+              <p className="text-sm text-white/70 text-center mt-3">Align courier barcode or QR code inside the frame.</p>
+              {cameraError ? <div className="mt-3 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">{cameraError}</div> : null}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+                <Button className="gap-2 bg-white text-[#111827] hover:bg-white/90 h-12" onClick={startCamera} disabled={!selectedOrder || cameraLoading || confirming}>
+                  <Camera className="h-4 w-4" />
+                  {cameraActive ? 'Scanning…' : 'Start Camera'}
+                </Button>
+                <Button variant="outline" className="gap-2 h-12 border-white/30 bg-transparent text-white hover:bg-white/10" onClick={handleManualEntry} disabled={!selectedOrder || confirming}>
+                  Enter Tracking Manually
+                </Button>
+                <Button variant="outline" className="gap-2 h-12 border-white/30 bg-transparent text-white hover:bg-white/10" onClick={stopCamera} disabled={!cameraActive && !cameraLoading}>
+                  Stop Camera
+                </Button>
+              </div>
+            </div>
+
+            {manualEntry ? (
+              <div className="rounded-2xl border p-4 space-y-2">
+                <Label>Manual Tracking Number</Label>
+                <Input value={scanResult} onChange={(event) => setScanResult(normalizeScannedTrackingNumber(event.target.value))} placeholder="Enter tracking number if camera is unavailable" className="font-mono text-base" />
+              </div>
+            ) : null}
+
+            {scanResult ? (
+              <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/5 p-4 sm:p-5 space-y-4">
+                <div className="flex items-center gap-2 text-emerald-700 font-semibold"><CheckCircle2 className="h-5 w-5" /> Barcode detected</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5 sm:col-span-2"><Label>Tracking Number</Label><Input value={scanResult} onChange={(event) => setScanResult(normalizeScannedTrackingNumber(event.target.value))} className="font-mono text-base" /></div>
+                  <div className="space-y-1.5"><Label>Courier</Label><Input value={selectedOrder?.shipmentCourier || ''} disabled /></div>
+                  <div className="space-y-1.5"><Label>Service</Label><Input value={selectedOrder?.shipmentService || ''} disabled /></div>
+                  <div className="space-y-1.5"><Label>Shipping Date & Time</Label><Input type="datetime-local" value={shippingDate} onChange={(event) => setShippingDate(event.target.value)} /></div>
+                  <div className="space-y-1.5"><Label>Actual Shipping Cost</Label><Input type="number" min="0" value={actualShippingCost} onChange={(event) => setActualShippingCost(event.target.value)} placeholder="Real courier cost" /></div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button className="h-12 gap-2" onClick={confirmShipment} disabled={confirming}>{confirming ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Confirm Shipment</Button>
+                  <Button variant="outline" className="h-12 gap-2" onClick={resetScanResult} disabled={confirming}><RotateCcw className="h-4 w-4" /> Scan Again</Button>
+                </div>
+              </div>
+            ) : null}
+
+            {lastResult ? (
+              <div className={`rounded-3xl border p-4 ${lastResult.status === 'success' ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/5'}`}>
+                {lastResult.status === 'success' ? (
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-700 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-emerald-800">Shipment confirmed</p>
+                      <p className="font-mono text-sm mt-1">{lastResult.order?.publicOrderNumber || lastResult.order?.orderNumber}</p>
+                      <p className="text-sm text-muted-foreground mt-1">Tracking: {lastResult.trackingNumber}</p>
+                      <p className="text-sm text-muted-foreground">{lastResult.order?.shipment?.courier} · {lastResult.order?.shipment?.service}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <XCircle className="h-5 w-5 text-rose-700 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-rose-800">Shipment was not updated</p>
+                      <p className="text-sm text-muted-foreground mt-1">{lastResult.message}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close Scan Mode</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function OrdersModule({ user, initialReferenceSelection = null, onReferenceSelectionHandled = () => {} }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1387,6 +1780,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   const [bulkResult, setBulkResult] = useState(null);
   const [showBulkResult, setShowBulkResult] = useState(false);
   const [showImportTracking, setShowImportTracking] = useState(false);
+  const [showScanMode, setShowScanMode] = useState(false);
   const [exportingTemplate, setExportingTemplate] = useState(false);
 
   const [sortBy, sortOrder] = useMemo(() => sortValue.split(":"), [sortValue]);
@@ -1681,7 +2075,12 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
             Review incoming paid orders and manage internal fulfillment workflow
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <Button className="gap-2 bg-[#111827] hover:bg-[#111827]/90" onClick={() => setShowScanMode(true)}>
+            <Camera className="h-4 w-4" />
+            Scan Mode
+            <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px]">{summary.packed || 0}</span>
+          </Button>
           <Button variant="outline" size="icon" onClick={load} title="Refresh Orders">
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -1954,6 +2353,11 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
         open={showImportTracking}
         onOpenChange={setShowImportTracking}
         onCompleted={handleBulkCompleted}
+      />
+      <ScanModeDialog
+        open={showScanMode}
+        onOpenChange={setShowScanMode}
+        onCompleted={async () => { await load(); }}
       />
       <BulkResultDialog
         open={showBulkResult}
