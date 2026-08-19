@@ -1226,6 +1226,13 @@ model Order {
   trackingNumber               String           @default("")
   shippingDate                 DateTime?
   actualShippingCost           Float?
+  shippingProvider             String           @default("manual")
+  shippingProviderOrderId      String           @default("")
+  shippingProviderTrackingId   String           @default("")
+  shippingProviderStatus       String           @default("")
+  shippingProviderStatusAt     DateTime?
+  shippingLabelUrl             String           @default("")
+  shippingProviderPayload      Json?
   currency                     String           @default("IDR")
   subtotal                     Float            @default(0)
   discount                     Float            @default(0)
@@ -1247,6 +1254,9 @@ model Order {
   @@index([salesChannelId])
   @@index([status])
   @@index([fulfillmentStatus])
+  @@index([shippingProvider])
+  @@index([shippingProviderOrderId])
+  @@index([shippingProviderTrackingId])
 }
 
 model OrderItem {

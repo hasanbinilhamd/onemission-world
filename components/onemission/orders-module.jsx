@@ -133,6 +133,14 @@ const ordersApi = {
     });
     return response.json();
   },
+  async createBiteshipShipment(id, payload) {
+    const response = await fetch(`/api/orders/${id}/biteship-shipment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
   async bulkFulfillment(payload) {
     const response = await fetch('/api/orders/bulk-fulfillment', {
       method: "POST",
@@ -555,6 +563,9 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [shippingDate, setShippingDate] = useState("");
   const [actualShippingCost, setActualShippingCost] = useState("");
+  const [biteshipCourierCompany, setBiteshipCourierCompany] = useState("");
+  const [biteshipCourierType, setBiteshipCourierType] = useState("");
+  const [biteshipLoading, setBiteshipLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [adminCancelReason, setAdminCancelReason] = useState("");
   const [refundStatus, setRefundStatus] = useState("NONE");
@@ -570,6 +581,8 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
     setTrackingNumber(order.shipment?.trackingNumber || "");
     setShippingDate(toDatetimeLocalInputValue(order.shipment?.shippingDate));
     setActualShippingCost(order.shipment?.actualShippingCost ?? "");
+    setBiteshipCourierCompany((order.shipment?.courier || order.shipping?.courier || "").toLowerCase());
+    setBiteshipCourierType((order.shipment?.service || order.shipping?.courierService || "").toLowerCase());
     setRejectReason("");
     setAdminCancelReason("");
     setRefundStatus(order.returnRequest?.refundStatus || "NONE");
@@ -590,6 +603,8 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   const showTrackShipmentButton = Boolean(trackingNumber || order.shipment?.trackingNumber);
   const adminCancellableStatuses = new Set([FULFILLMENT_STATUS.WAITING_PAYMENT, FULFILLMENT_STATUS.PENDING, FULFILLMENT_STATUS.PICKING, FULFILLMENT_STATUS.PACKING, FULFILLMENT_STATUS.READY_TO_SHIP]);
   const currentFulfillmentStatus = String(order.fulfillmentStatus || '').trim().toUpperCase();
+  const hasBiteshipShipment = String(order.shipment?.provider || '').trim().toLowerCase() === 'biteship' && Boolean(order.shipment?.providerOrderId);
+  const canCreateBiteshipShipment = currentFulfillmentStatus === FULFILLMENT_STATUS.PACKING && order.status !== 'CANCELLED' && !hasBiteshipShipment;
   const canAdminCancelOrder = !order.returnRequest && order.status !== 'CANCELLED' && adminCancellableStatuses.has(currentFulfillmentStatus);
 
   const approveReturn = async () => {
@@ -664,6 +679,32 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
       onUpdated?.(result);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const createBiteshipShipment = async () => {
+    if (!order?.id) return;
+    if (!biteshipCourierCompany.trim() || !biteshipCourierType.trim()) {
+      toast.error("Biteship courier company and service type are required.");
+      return;
+    }
+    const confirmed = window.confirm(`Create Biteship shipment for ${order.publicOrderNumber || order.orderNumber}?\n\nThis will request AWB/label from Biteship and move the order to Ready To Ship when successful.`);
+    if (!confirmed) return;
+
+    setBiteshipLoading(true);
+    try {
+      const result = await ordersApi.createBiteshipShipment(order.id, {
+        courierCompany: biteshipCourierCompany,
+        courierType: biteshipCourierType,
+      });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Biteship shipment created. Order is Ready To Ship.");
+      onUpdated?.(result.order || result);
+    } finally {
+      setBiteshipLoading(false);
     }
   };
 
@@ -759,6 +800,18 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
             <DetailRow label="Actual Shipping Cost" value={order.shipment?.actualShippingCost !== null && order.shipment?.actualShippingCost !== undefined ? fmtCurrency(order.shipment.actualShippingCost) : "—"} />
             <DetailRow label="Tracking Number" value={order.shipment?.trackingNumber} />
             <DetailRow label="Shipping Date" value={fmtDateTime(order.shipment?.shippingDate)} />
+            <DetailRow label="Shipping Provider" value={order.shipment?.provider} />
+            <DetailRow label="Provider Status" value={order.shipment?.providerStatus} />
+            <DetailRow label="Provider Order ID" value={order.shipment?.providerOrderId} />
+            <DetailRow label="Provider Tracking ID" value={order.shipment?.providerTrackingId} />
+            {order.shipment?.labelUrl ? (
+              <div className="pt-2">
+                <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => window.open(order.shipment.labelUrl, "_blank", "noopener,noreferrer")}>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  View / Print Biteship Label
+                </Button>
+              </div>
+            ) : null}
           </DetailSection>
 
           <DetailSection title="Purchased Items">
@@ -980,6 +1033,51 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
                     <Input type="number" min="0" value={actualShippingCost} onChange={(event) => setActualShippingCost(event.target.value)} placeholder="15000" disabled={shipmentLocked} className={shipmentLocked ? "opacity-70" : ""} />
                   </div>
                 </div>
+              </div>
+            ) : null}
+
+            {(canCreateBiteshipShipment || hasBiteshipShipment) ? (
+              <div className="rounded-2xl border border-border/40 bg-muted/10 p-4 space-y-4 mt-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Biteship Shipment</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Create an official courier shipment after packing. RajaOngkir checkout rates remain unchanged.
+                    </p>
+                  </div>
+                  {order.shipment?.labelUrl ? (
+                    <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => window.open(order.shipment.labelUrl, "_blank", "noopener,noreferrer")}>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      View / Print Label
+                    </Button>
+                  ) : null}
+                </div>
+
+                {hasBiteshipShipment ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl border bg-white p-3"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Provider Order ID</p><p className="font-mono text-xs mt-1 break-all">{order.shipment?.providerOrderId || '—'}</p></div>
+                    <div className="rounded-xl border bg-white p-3"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Provider Status</p><p className="font-semibold mt-1">{order.shipment?.providerStatus || '—'}</p></div>
+                    <div className="rounded-xl border bg-white p-3"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">AWB</p><p className="font-mono text-xs mt-1">{order.shipment?.trackingNumber || 'Pending'}</p></div>
+                    <div className="rounded-xl border bg-white p-3"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Actual Shipping Cost</p><p className="font-semibold mt-1">{order.shipment?.actualShippingCost !== null && order.shipment?.actualShippingCost !== undefined ? fmtCurrency(order.shipment.actualShippingCost) : 'Pending'}</p></div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label>Biteship Courier Company</Label>
+                        <Input value={biteshipCourierCompany} onChange={(event) => setBiteshipCourierCompany(event.target.value)} placeholder="jne / jnt / lion" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Biteship Courier Type</Label>
+                        <Input value={biteshipCourierType} onChange={(event) => setBiteshipCourierType(event.target.value)} placeholder="reg / ez / etc" />
+                      </div>
+                    </div>
+                    <Button type="button" className="gap-2" onClick={createBiteshipShipment} disabled={biteshipLoading || saving}>
+                      {biteshipLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
+                      Create Biteship Shipment
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : null}
           </DetailSection>
