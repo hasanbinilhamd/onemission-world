@@ -638,6 +638,8 @@ test('keeps the paid order when inventory reservation fails and allows retry', a
   );
 
   assert.equal(initial.store.existingOrder?.orderNumber, 'ORD-202607-00001');
+  assert.equal(initial.store.salesJournals.length, 1);
+  assert.equal(initial.store.cogsJournals.length, 0);
   assert.equal(initial.store.inventory.quantity, 20);
   assert.equal(initial.store.stockMovements.length, 0);
 
