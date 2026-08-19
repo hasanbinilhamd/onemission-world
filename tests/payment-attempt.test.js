@@ -723,7 +723,7 @@ test('recovers order creation when payment is already paid but the order is stil
   assert.equal(store.existingOrder?.orderNumber, 'ORD-202607-00001');
 });
 
-test('keeps duplicate paid callbacks idempotent while refreshing audit fields', async () => {
+test('recovers idempotent order side effects on duplicate paid callbacks while refreshing audit fields', async () => {
   const existingOrder = {
     id: 'order-1',
     paymentAttemptId: 'attempt-1',
@@ -782,7 +782,7 @@ test('keeps duplicate paid callbacks idempotent while refreshing audit fields', 
   assert.equal(result.issuer, 'linkaja');
   assert.equal(result.acquirer, 'gopay');
   assert.equal(result.fraudStatus, 'accept');
-  assert.equal(store.confirmedCount, 0);
+  assert.equal(store.confirmedCount, 1);
   assert.equal(store.publishedEvents.length, 0);
   assert.equal(store.checkoutUpdateCalls.length, 0);
 });
