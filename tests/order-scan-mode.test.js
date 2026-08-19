@@ -10,6 +10,7 @@ import {
 
 const scanRouteSource = fs.readFileSync(new URL('../app/api/orders/scan-mode/route.js', import.meta.url), 'utf8');
 const ordersModuleSource = fs.readFileSync(new URL('../components/onemission/orders-module.jsx', import.meta.url), 'utf8');
+const scanModeUiSource = ordersModuleSource.slice(ordersModuleSource.indexOf('function ScanModeDialog'), ordersModuleSource.indexOf('export function OrdersModule'));
 
 function createOrder(overrides = {}) {
   return {
@@ -115,11 +116,40 @@ test('Scan Mode endpoint uses existing fulfillment service, permission, audit, a
   assert.match(scanRouteSource, /source: SCAN_MODE_SOURCE/);
 });
 
-test('Scan Mode UI keeps existing workflows and adds camera plus manual fallback', () => {
+test('Scan Mode UI keeps existing camera workflow and manual fallback', () => {
   assert.match(ordersModuleSource, /@zxing\/browser/);
   assert.match(ordersModuleSource, /facingMode: \{ ideal: 'environment' \}/);
+  assert.match(ordersModuleSource, /Scan with Camera/);
+  assert.match(ordersModuleSource, /Start Camera/);
   assert.match(ordersModuleSource, /Enter Tracking Manually/);
   assert.match(ordersModuleSource, /Update Tracking Information/);
   assert.match(ordersModuleSource, /Import Tracking Numbers/);
   assert.match(ordersModuleSource, /Scan Mode/);
+});
+
+test('Scan Mode image scanner is wired as client-side input only', () => {
+  assert.match(ordersModuleSource, /type=\"file\" accept=\"image\/\*\"/);
+  assert.match(ordersModuleSource, /Upload \/ Take Photo/);
+  assert.match(ordersModuleSource, /decodeBarcodeFromScanModeImage/);
+  assert.match(ordersModuleSource, /decodeFromImageElement/);
+  assert.match(ordersModuleSource, /Selected Label/);
+  assert.match(ordersModuleSource, /URL\.createObjectURL\(file\)/);
+  assert.doesNotMatch(scanModeUiSource, /FormData\(\)/);
+});
+
+test('image decode success normalizes tracking and reuses existing confirmation flow', () => {
+  assert.match(ordersModuleSource, /const decodedTrackingNumber = normalizeScannedTrackingNumber\(imageDecodeResult\.trackingNumber\)/);
+  assert.match(ordersModuleSource, /setScanResult\(decodedTrackingNumber\)/);
+  assert.match(ordersModuleSource, /confirmScanModeShipment/);
+  assert.match(ordersModuleSource, /fetch\('\/api\/orders\/scan-mode'/);
+});
+
+test('image decode failure and ambiguous images do not submit shipments', () => {
+  assert.match(ordersModuleSource, /Barcode not detected/);
+  assert.match(ordersModuleSource, /Multiple barcodes detected/);
+  assert.match(ordersModuleSource, /Please upload a photo containing only the courier label barcode/);
+  assert.match(ordersModuleSource, /Try Another Image/);
+  assert.match(ordersModuleSource, /Scan with Camera/);
+  assert.match(ordersModuleSource, /Enter Tracking Manually/);
+  assert.doesNotMatch(scanModeUiSource, /imageDecodeResult[\s\S]{0,200}confirmShipment\(\)/);
 });
