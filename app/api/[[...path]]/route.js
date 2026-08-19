@@ -1318,6 +1318,7 @@ async function handle(request, { params }) {
           const costs = await calculateShippingCost({
             originDistrict: body.originDistrict,
             destinationDistrict: body.destinationDistrict,
+            destinationPostalCode: body.destinationPostalCode || body.postalCode,
             weight: body.weight,
             courier: body.courier,
           });

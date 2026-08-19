@@ -1104,6 +1104,9 @@ model CheckoutSession {
   destinationDistrict String
   courier             String
   courierService      String
+  shippingProvider    String                @default("rajaongkir")
+  shippingOriginId    String                @default("")
+  shippingDestinationId String              @default("")
   shippingDescription String                @default("")
   estimatedDelivery   String                @default("")
   provinceId          String
@@ -1227,6 +1230,8 @@ model Order {
   shippingDate                 DateTime?
   actualShippingCost           Float?
   shippingProvider             String           @default("manual")
+  shippingOriginId             String           @default("")
+  shippingDestinationId        String           @default("")
   shippingProviderOrderId      String           @default("")
   shippingProviderTrackingId   String           @default("")
   shippingProviderStatus       String           @default("")
