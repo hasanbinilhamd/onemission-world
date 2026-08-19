@@ -3,10 +3,39 @@ import { withDevTiming } from '@/lib/dev-timing';
 import { requireHqPermission, writeAuditLog } from '@/lib/hq-security';
 import { normalizeOrderError, orderService } from '@/lib/order';
 import { FULFILLMENT_STATUS } from '@/lib/order/lifecycle';
-import { biteshipShipmentService } from '@/lib/shipping/biteship';
+import { BiteshipApiError, biteshipShipmentService } from '@/lib/shipping/biteship';
 
 function buildOrderErrorResponse(error) {
+  if (error instanceof BiteshipApiError) {
+    console.warn('[BiteshipShipmentRoute]', {
+      eventName: 'Biteship Shipment Failed',
+      code: error.code,
+      statusCode: error.statusCode,
+      message: error.message,
+      providerDetails: error.response?.details || null,
+      timestamp: new Date().toISOString(),
+    });
+
+    return NextResponse.json(
+      {
+        error: error.message,
+        code: error.code,
+        provider: 'BITESHIP',
+        providerStatusCode: error.statusCode,
+        providerDetails: error.response?.details || null,
+      },
+      { status: error.statusCode || 502 },
+    );
+  }
+
   const normalized = normalizeOrderError(error);
+  console.warn('[BiteshipShipmentRoute]', {
+    eventName: 'Biteship Shipment Failed',
+    code: normalized.code,
+    statusCode: normalized.statusCode,
+    message: error?.message || normalized.message,
+    timestamp: new Date().toISOString(),
+  });
   return NextResponse.json(
     { error: normalized.message, code: normalized.code },
     { status: normalized.statusCode || 500 },

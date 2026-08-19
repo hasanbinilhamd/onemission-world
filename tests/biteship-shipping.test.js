@@ -39,6 +39,8 @@ test('create shipment route is admin-only, calls Biteship, then transitions to R
   assert.match(createRouteSource, /orderService\.updateFulfillmentStatus\(\{/);
   assert.match(createRouteSource, /fulfillmentStatus: FULFILLMENT_STATUS\.READY_TO_SHIP/);
   assert.match(createRouteSource, /BITESHIP_SHIPMENT_CREATED/);
+  assert.match(createRouteSource, /error instanceof BiteshipApiError/);
+  assert.match(createRouteSource, /provider: 'BITESHIP'/);
 });
 
 test('Biteship service enforces Packing-only creation and duplicate protection', () => {
