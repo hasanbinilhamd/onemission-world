@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   Camera,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Copy,
   ExternalLink,
+  Image as ImageIcon,
   Loader2,
   PackageCheck,
   Printer,
@@ -15,6 +17,7 @@ import {
   RefreshCw,
   Search,
   Truck,
+  Upload,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -1375,8 +1378,83 @@ function getDisplayOrderNumber(order) {
   return order?.publicOrderNumber || order?.orderNumber || '—';
 }
 
+const SCAN_MODE_IMAGE_REGIONS = [
+  { name: 'full', x: 0, y: 0, width: 1, height: 1 },
+  { name: 'center', x: 0.15, y: 0.15, width: 0.7, height: 0.7 },
+  { name: 'left', x: 0, y: 0, width: 0.6, height: 1 },
+  { name: 'right', x: 0.4, y: 0, width: 0.6, height: 1 },
+  { name: 'top', x: 0, y: 0, width: 1, height: 0.6 },
+  { name: 'bottom', x: 0, y: 0.4, width: 1, height: 0.6 },
+];
+
+function loadScanModeImage(imageUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Selected image could not be loaded.'));
+    image.src = imageUrl;
+  });
+}
+
+function buildScanModeRegionImageUrl(image, region) {
+  if (region.name === 'full') return '';
+  const canvas = document.createElement('canvas');
+  const sourceWidth = Math.max(1, Math.floor(image.naturalWidth || image.width || 1));
+  const sourceHeight = Math.max(1, Math.floor(image.naturalHeight || image.height || 1));
+  const sx = Math.floor(sourceWidth * region.x);
+  const sy = Math.floor(sourceHeight * region.y);
+  const sw = Math.max(1, Math.floor(sourceWidth * region.width));
+  const sh = Math.max(1, Math.floor(sourceHeight * region.height));
+  canvas.width = sw;
+  canvas.height = sh;
+  const context = canvas.getContext('2d');
+  context.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+  return canvas.toDataURL('image/png');
+}
+
+async function decodeScanModeImageElement(reader, image) {
+  try {
+    const result = typeof reader.decodeFromImageElement === 'function'
+      ? await reader.decodeFromImageElement(image)
+      : await reader.decodeFromImage(image);
+    return normalizeScannedTrackingNumber(result?.getText?.() || result?.text || '');
+  } catch (_error) {
+    return '';
+  }
+}
+
+async function decodeBarcodeFromScanModeImage(imageUrl) {
+  const { BrowserMultiFormatReader } = await import('@zxing/browser');
+  const reader = new BrowserMultiFormatReader();
+  const sourceImage = await loadScanModeImage(imageUrl);
+  const decodedValues = new Set();
+
+  for (const region of SCAN_MODE_IMAGE_REGIONS) {
+    let regionUrl = '';
+    try {
+      regionUrl = buildScanModeRegionImageUrl(sourceImage, region);
+      const image = regionUrl ? await loadScanModeImage(regionUrl) : sourceImage;
+      const decoded = await decodeScanModeImageElement(reader, image);
+      if (decoded) decodedValues.add(decoded);
+    } finally {
+      if (regionUrl) URL.revokeObjectURL?.(regionUrl);
+    }
+  }
+
+  const trackingNumbers = [...decodedValues];
+  if (trackingNumbers.length > 1) {
+    return { status: 'multiple', trackingNumbers };
+  }
+  if (trackingNumbers.length === 1) {
+    return { status: 'success', trackingNumber: trackingNumbers[0] };
+  }
+  return { status: 'not_found', trackingNumbers: [] };
+}
+
 function ScanModeDialog({ open, onOpenChange, onCompleted }) {
   const videoRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const imagePreviewUrlRef = useRef('');
   const scannerControlsRef = useRef(null);
   const scanLockedRef = useRef(false);
   const [readyOrders, setReadyOrders] = useState([]);
@@ -1385,6 +1463,10 @@ function ScanModeDialog({ open, onOpenChange, onCompleted }) {
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [scanInputMode, setScanInputMode] = useState('camera');
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const [imageDecoding, setImageDecoding] = useState(false);
+  const [imageError, setImageError] = useState('');
   const [scanResult, setScanResult] = useState('');
   const [manualEntry, setManualEntry] = useState(false);
   const [shippingDate, setShippingDate] = useState('');
@@ -1418,13 +1500,28 @@ function ScanModeDialog({ open, onOpenChange, onCompleted }) {
     setCameraLoading(false);
   }, []);
 
+  const clearImageState = useCallback(() => {
+    if (imagePreviewUrlRef.current) {
+      URL.revokeObjectURL(imagePreviewUrlRef.current);
+      imagePreviewUrlRef.current = '';
+    }
+    if (imageInputRef.current) {
+      imageInputRef.current.value = '';
+    }
+    setImagePreviewUrl('');
+    setImageDecoding(false);
+    setImageError('');
+  }, []);
+
   const resetScanResult = useCallback(() => {
     scanLockedRef.current = false;
     setScanResult('');
     setManualEntry(false);
+    setScanInputMode('camera');
     setCameraError('');
+    clearImageState();
     setShippingDate(toDatetimeLocalInputValue(new Date()));
-  }, []);
+  }, [clearImageState]);
 
   const loadReadyOrders = useCallback(async () => {
     setLoadingOrders(true);
@@ -1446,6 +1543,7 @@ function ScanModeDialog({ open, onOpenChange, onCompleted }) {
   useEffect(() => {
     if (!open) {
       stopCamera();
+      clearImageState();
       return;
     }
     setSuccessCount(0);
@@ -1454,9 +1552,12 @@ function ScanModeDialog({ open, onOpenChange, onCompleted }) {
     setInitialReadyCount(0);
     resetScanResult();
     loadReadyOrders();
-  }, [loadReadyOrders, open, resetScanResult, stopCamera]);
+  }, [clearImageState, loadReadyOrders, open, resetScanResult, stopCamera]);
 
-  useEffect(() => () => stopCamera(), [stopCamera]);
+  useEffect(() => () => {
+    stopCamera();
+    clearImageState();
+  }, [clearImageState, stopCamera]);
 
   useEffect(() => {
     if (!open || !selectedOrder) return;
@@ -1464,8 +1565,10 @@ function ScanModeDialog({ open, onOpenChange, onCompleted }) {
     setShippingDate(toDatetimeLocalInputValue(new Date()));
     setScanResult('');
     setManualEntry(false);
+    setScanInputMode('camera');
     setCameraError('');
-  }, [open, selectedOrder?.id]);
+    clearImageState();
+  }, [clearImageState, open, selectedOrder?.id]);
 
   const startCamera = async () => {
     if (!selectedOrder) {
@@ -1478,6 +1581,9 @@ function ScanModeDialog({ open, onOpenChange, onCompleted }) {
     }
 
     stopCamera();
+    clearImageState();
+    setScanInputMode('camera');
+    setManualEntry(false);
     setCameraError('');
     setCameraLoading(true);
     scanLockedRef.current = false;
@@ -1528,9 +1634,68 @@ function ScanModeDialog({ open, onOpenChange, onCompleted }) {
 
   const handleManualEntry = () => {
     stopCamera();
+    clearImageState();
+    setScanInputMode('manual');
     setManualEntry(true);
     setScanResult('');
     setCameraError('');
+  };
+
+  const openImagePicker = () => {
+    if (!selectedOrder) {
+      toast.error('No Ready To Ship order is available for Scan Mode.');
+      return;
+    }
+    stopCamera();
+    clearImageState();
+    setScanInputMode('image');
+    setManualEntry(false);
+    setScanResult('');
+    setCameraError('');
+    imageInputRef.current?.click();
+  };
+
+  const handleImageFileSelected = async (event) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+    if (!String(file.type || '').startsWith('image/')) {
+      setImageError('Please choose an image file containing the courier label barcode.');
+      return;
+    }
+
+    stopCamera();
+    if (imagePreviewUrlRef.current) {
+      URL.revokeObjectURL(imagePreviewUrlRef.current);
+      imagePreviewUrlRef.current = '';
+    }
+    const previewUrl = URL.createObjectURL(file);
+    imagePreviewUrlRef.current = previewUrl;
+    setImagePreviewUrl(previewUrl);
+    setImageDecoding(true);
+    setImageError('');
+    setScanInputMode('image');
+    setManualEntry(false);
+    setScanResult('');
+
+    try {
+      const imageDecodeResult = await decodeBarcodeFromScanModeImage(previewUrl);
+      if (imageDecodeResult.status === 'success') {
+        const decodedTrackingNumber = normalizeScannedTrackingNumber(imageDecodeResult.trackingNumber);
+        setScanResult(decodedTrackingNumber);
+        setImageError('');
+        toast.success('Barcode detected from image. Review and confirm shipment.');
+        return;
+      }
+      if (imageDecodeResult.status === 'multiple') {
+        setImageError('Multiple barcodes detected. Please upload a photo containing only the courier label barcode.');
+        return;
+      }
+      setImageError('Barcode not detected. Make sure the entire barcode is visible, the image is not blurry, lighting is sufficient, and the barcode is not cut off.');
+    } catch (error) {
+      setImageError(error?.message || 'Barcode could not be decoded from the selected image.');
+    } finally {
+      setImageDecoding(false);
+    }
   };
 
   const confirmShipment = async () => {
@@ -1648,34 +1813,106 @@ function ScanModeDialog({ open, onOpenChange, onCompleted }) {
             ) : null}
 
             <div className="rounded-3xl border border-border/80 p-4 sm:p-5 bg-[#0B1120] text-white overflow-hidden">
-              <div className="relative aspect-[4/3] sm:aspect-video rounded-2xl bg-black overflow-hidden flex items-center justify-center">
-                <video ref={videoRef} className={`h-full w-full object-cover ${cameraActive ? 'block' : 'hidden'}`} muted playsInline />
-                {!cameraActive ? (
-                  <div className="text-center px-6">
-                    <Camera className="h-12 w-12 mx-auto text-white/40 mb-3" />
-                    <p className="font-semibold">Camera Preview</p>
-                    <p className="text-sm text-white/60 mt-1">Rear camera will be requested when scanning starts.</p>
+              <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFileSelected} />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  disabled={!selectedOrder || cameraLoading || confirming}
+                  className={`rounded-2xl border p-4 text-left transition-colors ${scanInputMode === 'camera' ? 'border-white bg-white text-[#111827]' : 'border-white/20 bg-white/5 text-white hover:bg-white/10'} disabled:opacity-60`}
+                >
+                  <Camera className="h-5 w-5 mb-3" />
+                  <p className="font-semibold">Scan with Camera</p>
+                  <p className={`text-xs mt-1 ${scanInputMode === 'camera' ? 'text-[#5F6B7A]' : 'text-white/60'}`}>Use live camera scanner</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={openImagePicker}
+                  disabled={!selectedOrder || imageDecoding || confirming}
+                  className={`rounded-2xl border p-4 text-left transition-colors ${scanInputMode === 'image' ? 'border-white bg-white text-[#111827]' : 'border-white/20 bg-white/5 text-white hover:bg-white/10'} disabled:opacity-60`}
+                >
+                  <ImageIcon className="h-5 w-5 mb-3" />
+                  <p className="font-semibold">Upload / Take Photo</p>
+                  <p className={`text-xs mt-1 ${scanInputMode === 'image' ? 'text-[#5F6B7A]' : 'text-white/60'}`}>Scan barcode from an image</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleManualEntry}
+                  disabled={!selectedOrder || confirming}
+                  className={`rounded-2xl border p-4 text-left transition-colors ${scanInputMode === 'manual' ? 'border-white bg-white text-[#111827]' : 'border-white/20 bg-white/5 text-white hover:bg-white/10'} disabled:opacity-60`}
+                >
+                  <Upload className="h-5 w-5 mb-3" />
+                  <p className="font-semibold">Enter Tracking Manually</p>
+                  <p className={`text-xs mt-1 ${scanInputMode === 'manual' ? 'text-[#5F6B7A]' : 'text-white/60'}`}>Fallback when scanning fails</p>
+                </button>
+              </div>
+
+              {scanInputMode === 'camera' ? (
+                <div className="mt-4">
+                  <div className="relative aspect-[4/3] sm:aspect-video rounded-2xl bg-black overflow-hidden flex items-center justify-center">
+                    <video ref={videoRef} className={`h-full w-full object-cover ${cameraActive ? 'block' : 'hidden'}`} muted playsInline />
+                    {!cameraActive ? (
+                      <div className="text-center px-6">
+                        <Camera className="h-12 w-12 mx-auto text-white/40 mb-3" />
+                        <p className="font-semibold">Camera Preview</p>
+                        <p className="text-sm text-white/60 mt-1">Rear camera will be requested when scanning starts.</p>
+                      </div>
+                    ) : null}
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <div className="w-[72%] max-w-sm aspect-[1.7/1] rounded-2xl border-2 border-white shadow-[0_0_0_999px_rgba(0,0,0,0.25)]" />
+                    </div>
+                    {cameraLoading ? <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-sm"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Initializing camera…</div> : null}
                   </div>
-                ) : null}
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="w-[72%] max-w-sm aspect-[1.7/1] rounded-2xl border-2 border-white shadow-[0_0_0_999px_rgba(0,0,0,0.25)]" />
+                  <p className="text-sm text-white/70 text-center mt-3">Align courier barcode or QR code inside the frame.</p>
+                  {cameraError ? <div className="mt-3 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">{cameraError}</div> : null}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+                    <Button className="gap-2 bg-white text-[#111827] hover:bg-white/90 h-12" onClick={startCamera} disabled={!selectedOrder || cameraLoading || confirming}>
+                      <Camera className="h-4 w-4" />
+                      {cameraActive ? 'Scanning…' : 'Start Camera'}
+                    </Button>
+                    <Button variant="outline" className="gap-2 h-12 border-white/30 bg-transparent text-white hover:bg-white/10" onClick={stopCamera} disabled={!cameraActive && !cameraLoading}>
+                      Stop Camera
+                    </Button>
+                  </div>
                 </div>
-                {cameraLoading ? <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-sm"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Initializing camera…</div> : null}
-              </div>
-              <p className="text-sm text-white/70 text-center mt-3">Align courier barcode or QR code inside the frame.</p>
-              {cameraError ? <div className="mt-3 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">{cameraError}</div> : null}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
-                <Button className="gap-2 bg-white text-[#111827] hover:bg-white/90 h-12" onClick={startCamera} disabled={!selectedOrder || cameraLoading || confirming}>
-                  <Camera className="h-4 w-4" />
-                  {cameraActive ? 'Scanning…' : 'Start Camera'}
-                </Button>
-                <Button variant="outline" className="gap-2 h-12 border-white/30 bg-transparent text-white hover:bg-white/10" onClick={handleManualEntry} disabled={!selectedOrder || confirming}>
-                  Enter Tracking Manually
-                </Button>
-                <Button variant="outline" className="gap-2 h-12 border-white/30 bg-transparent text-white hover:bg-white/10" onClick={stopCamera} disabled={!cameraActive && !cameraLoading}>
-                  Stop Camera
-                </Button>
-              </div>
+              ) : null}
+
+              {scanInputMode === 'image' ? (
+                <div className="mt-4 space-y-3">
+                  {imagePreviewUrl ? (
+                    <div className="rounded-2xl border border-white/20 bg-white/5 p-3">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <p className="text-sm font-semibold">Selected Label</p>
+                        {imageDecoding ? <span className="inline-flex items-center gap-2 text-xs text-white/70"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Decoding barcode…</span> : null}
+                      </div>
+                      <img src={imagePreviewUrl} alt="Selected courier label preview" className="max-h-72 w-full rounded-xl object-contain bg-black/30" />
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-white/25 bg-white/5 p-6 text-center">
+                      <ImageIcon className="h-10 w-10 mx-auto text-white/40 mb-3" />
+                      <p className="font-semibold">No label image selected</p>
+                      <p className="text-sm text-white/60 mt-1">Take a clear photo or choose an existing courier label image.</p>
+                    </div>
+                  )}
+
+                  {imageError ? (
+                    <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-50">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-semibold">{imageError.startsWith('Multiple') ? 'Multiple barcodes detected' : 'Barcode not detected'}</p>
+                          <p className="mt-1 text-amber-50/80">{imageError}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+                        <Button variant="outline" className="border-white/30 bg-transparent text-white hover:bg-white/10" onClick={openImagePicker} disabled={imageDecoding}>Try Another Image</Button>
+                        <Button variant="outline" className="border-white/30 bg-transparent text-white hover:bg-white/10" onClick={startCamera}>Scan with Camera</Button>
+                        <Button variant="outline" className="border-white/30 bg-transparent text-white hover:bg-white/10" onClick={handleManualEntry}>Enter Tracking Manually</Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             {manualEntry ? (
