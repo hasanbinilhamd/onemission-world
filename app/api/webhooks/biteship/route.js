@@ -121,14 +121,32 @@ async function applyFulfillmentTransition({ order, fulfillmentStatus, payload })
   return null;
 }
 
+function isEmptyWebhookValidationPayload(payload) {
+  return !payload || (typeof payload === 'object' && !Array.isArray(payload) && Object.keys(payload).length === 0);
+}
+
 export async function POST(request) {
   return withDevTiming(request, async () => {
+    const payload = await request.json().catch(() => ({}));
+
+    if (isEmptyWebhookValidationPayload(payload)) {
+      console.info('[BiteshipWebhook]', {
+        eventName: 'Biteship Webhook Validation Ping',
+        timestamp: new Date().toISOString(),
+      });
+      return NextResponse.json({ success: true, validation: true });
+    }
+
     const verification = verifyWebhookRequest(request);
     if (!verification.ok) {
+      console.warn('[BiteshipWebhook]', {
+        eventName: 'Biteship Webhook Rejected',
+        reason: verification.error,
+        timestamp: new Date().toISOString(),
+      });
       return NextResponse.json({ error: verification.error }, { status: verification.status });
     }
 
-    const payload = await request.json().catch(() => ({}));
     try {
       const result = await biteshipShipmentService.updateFromWebhook(payload);
       const fulfillmentUpdate = await applyFulfillmentTransition({

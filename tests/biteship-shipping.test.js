@@ -114,6 +114,8 @@ test('webhook maps shipment progress to existing fulfillment statuses', () => {
 test('webhook endpoint verifies a secret and uses existing fulfillment service', () => {
   assert.match(biteshipConfigSource, /BITESHIP_WEBHOOK_SECRET/);
   assert.match(webhookRouteSource, /x-biteship-webhook-secret/);
+  assert.match(webhookRouteSource, /isEmptyWebhookValidationPayload/);
+  assert.match(webhookRouteSource, /validation: true/);
   assert.match(webhookRouteSource, /biteshipShipmentService\.updateFromWebhook/);
   assert.match(webhookRouteSource, /orderService\.updateFulfillmentStatus/);
   assert.match(webhookRouteSource, /FULFILLMENT_STATUS\.SHIPPED/);
