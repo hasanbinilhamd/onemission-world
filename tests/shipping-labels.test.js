@@ -43,4 +43,5 @@ test('orders UI exposes single and bulk shipping label print actions', () => {
   assert.match(ordersModuleSource, /printShippingLabels\(orderIds\)/);
   assert.match(ordersModuleSource, /Print Shipping Label/);
   assert.match(ordersModuleSource, /Print Shipping Labels/);
+  assert.match(ordersModuleSource, /selectedShippingLabelReadyCount/);
 });

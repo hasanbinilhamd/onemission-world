@@ -2173,6 +2173,8 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   const selectedCount = selectedOrderIds.size;
   const selectedPackingCount = useMemo(() => selectedOrders.filter((order) => String(order.fulfillmentStatus || order.fulfillmentStatusLabel || '').trim().toUpperCase() === FULFILLMENT_STATUS.PACKING).length, [selectedOrders]);
   const selectedNonPackingCount = Math.max(0, selectedCount - selectedPackingCount);
+  const selectedShippingLabelReadyCount = useMemo(() => selectedOrders.filter((order) => String(order.shippingProvider || '').trim().toLowerCase() === 'biteship' && Boolean(order.shippingProviderOrderId) && Boolean(order.trackingNumber)).length, [selectedOrders]);
+  const selectedShippingLabelNotReadyCount = Math.max(0, selectedCount - selectedShippingLabelReadyCount);
   const allCurrentPageSelected = currentPageOrderIds.length > 0 && currentPageOrderIds.every((orderId) => selectedOrderIds.has(orderId));
 
   const load = useCallback(async () => {
@@ -2632,7 +2634,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <p className="text-sm font-medium text-[#111827]">{selectedCount} order{selectedCount === 1 ? "" : "s"} selected</p>
-                <p className="text-xs text-muted-foreground">{selectedPackingCount} can be printed. {selectedNonPackingCount} not in PACKING status.</p>
+                <p className="text-xs text-muted-foreground">Packing slips: {selectedPackingCount} printable, {selectedNonPackingCount} not PACKING. Shipping labels: {selectedShippingLabelReadyCount} ready, {selectedShippingLabelNotReadyCount} not ready.</p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Button variant="outline" className="gap-2" onClick={handlePrintSelected} disabled={selectedCount === 0 || printLoading}>
