@@ -45,7 +45,9 @@ test('Biteship can be selected as checkout shipping rates provider without remov
   assert.match(shippingIndexSource, /new BiteshipProvider\(\)/);
   assert.match(shippingIndexSource, /new RajaOngkirProvider\(\)/);
   assert.match(biteshipProviderSource, /retrieveRates\(payload\)/);
+  assert.match(biteshipProviderSource, /origin_postal_code/);
   assert.match(biteshipProviderSource, /destination_postal_code/);
+  assert.match(biteshipProviderSource, /SHIPPING_BITESHIP_DESTINATION_POSTAL_INVALID/);
   assert.match(biteshipProviderSource, /courier_service_code/);
   assert.match(biteshipProviderSource, /shippingProvider: 'biteship'/);
 });
