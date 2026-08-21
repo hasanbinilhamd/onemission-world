@@ -131,7 +131,7 @@ test('admin cancellation checks Biteship before local cancellation workflow', ()
 
 test('HQ UI exposes create shipment and label actions without removing manual fulfillment', () => {
   assert.match(ordersModuleSource, /Create Biteship Shipment/);
-  assert.match(ordersModuleSource, /View \/ Print Label/);
+  assert.match(ordersModuleSource, /Print Shipping Label/);
   assert.match(ordersModuleSource, /Save Fulfillment Update/);
   assert.match(ordersModuleSource, /Update Tracking Information/);
   assert.match(ordersModuleSource, /Scan Mode/);

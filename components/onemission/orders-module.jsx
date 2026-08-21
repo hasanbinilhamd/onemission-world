@@ -165,6 +165,34 @@ const ordersApi = {
       printableCount: Number(response.headers.get('X-Printable-Count') || 0),
     };
   },
+  async printShippingLabel(orderId) {
+    const response = await fetch(`/api/orders/${orderId}/shipping-label`);
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.error || 'Shipping label PDF could not be generated.');
+    }
+    return {
+      blob: await response.blob(),
+      rejectedCount: Number(response.headers.get('X-Rejected-Count') || 0),
+      printableCount: Number(response.headers.get('X-Printable-Count') || 0),
+    };
+  },
+  async printShippingLabels(orderIds) {
+    const response = await fetch('/api/orders/shipping-labels', {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderIds }),
+    });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.error || 'Shipping label PDF could not be generated.');
+    }
+    return {
+      blob: await response.blob(),
+      rejectedCount: Number(response.headers.get('X-Rejected-Count') || 0),
+      printableCount: Number(response.headers.get('X-Printable-Count') || 0),
+    };
+  },
   async exportTrackingTemplate(orderIds) {
     const params = new URLSearchParams({ orderIds: orderIds.join(',') });
     const response = await fetch(`/api/orders/tracking-template?${params.toString()}`);
@@ -566,6 +594,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   const [biteshipCourierCompany, setBiteshipCourierCompany] = useState("");
   const [biteshipCourierType, setBiteshipCourierType] = useState("");
   const [biteshipLoading, setBiteshipLoading] = useState(false);
+  const [shippingLabelLoading, setShippingLabelLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [adminCancelReason, setAdminCancelReason] = useState("");
   const [refundStatus, setRefundStatus] = useState("NONE");
@@ -604,6 +633,7 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
   const adminCancellableStatuses = new Set([FULFILLMENT_STATUS.WAITING_PAYMENT, FULFILLMENT_STATUS.PENDING, FULFILLMENT_STATUS.PICKING, FULFILLMENT_STATUS.PACKING, FULFILLMENT_STATUS.READY_TO_SHIP]);
   const currentFulfillmentStatus = String(order.fulfillmentStatus || '').trim().toUpperCase();
   const hasBiteshipShipment = String(order.shipment?.provider || '').trim().toLowerCase() === 'biteship' && Boolean(order.shipment?.providerOrderId);
+  const canPrintShippingLabel = hasBiteshipShipment && Boolean(order.shipment?.trackingNumber) && order.status !== 'CANCELLED';
   const canCreateBiteshipShipment = currentFulfillmentStatus === FULFILLMENT_STATUS.PACKING && order.status !== 'CANCELLED' && !hasBiteshipShipment;
   const canAdminCancelOrder = !order.returnRequest && order.status !== 'CANCELLED' && adminCancellableStatuses.has(currentFulfillmentStatus);
 
@@ -679,6 +709,20 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
       onUpdated?.(result);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const printShippingLabel = async () => {
+    if (!order?.id) return;
+    setShippingLabelLoading(true);
+    try {
+      const result = await ordersApi.printShippingLabel(order.id);
+      downloadPdf(result.blob, 'onemission-shipping-label');
+      toast.success('Shipping label PDF downloaded.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Shipping label could not be printed.');
+    } finally {
+      setShippingLabelLoading(false);
     }
   };
 
@@ -1045,10 +1089,10 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
                       Create an official courier shipment after packing. RajaOngkir checkout rates remain unchanged.
                     </p>
                   </div>
-                  {order.shipment?.labelUrl ? (
-                    <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => window.open(order.shipment.labelUrl, "_blank", "noopener,noreferrer")}>
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      View / Print Label
+                  {canPrintShippingLabel ? (
+                    <Button type="button" variant="outline" size="sm" className="gap-2" onClick={printShippingLabel} disabled={shippingLabelLoading}>
+                      {shippingLabelLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
+                      Print Shipping Label
                     </Button>
                   ) : null}
                 </div>
@@ -1142,15 +1186,19 @@ function OrderDetailDialog({ open, onOpenChange, order, userName, onUpdated }) {
 }
 
 
-function downloadPackingSlipPdf(blob) {
+function downloadPdf(blob, prefix) {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `onemission-packing-slips-${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`;
+  link.download = `${prefix}-${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`;
   document.body.appendChild(link);
   link.click();
   link.remove();
   window.URL.revokeObjectURL(url);
+}
+
+function downloadPackingSlipPdf(blob) {
+  downloadPdf(blob, 'onemission-packing-slips');
 }
 
 function buildBulkResultTitle(result) {
@@ -2112,6 +2160,7 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
   const [showBulkTracking, setShowBulkTracking] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [printLoading, setPrintLoading] = useState(false);
+  const [shippingLabelPrintLoading, setShippingLabelPrintLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
   const [showBulkResult, setShowBulkResult] = useState(false);
   const [showImportTracking, setShowImportTracking] = useState(false);
@@ -2295,6 +2344,28 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
       toast.error(error instanceof Error ? error.message : 'Packing slips could not be printed.');
     } finally {
       setPrintLoading(false);
+    }
+  };
+
+  const handlePrintShippingLabels = async () => {
+    const orderIds = Array.from(selectedOrderIds);
+    if (orderIds.length === 0) {
+      toast.error('Select at least one order to print shipping labels.');
+      return;
+    }
+
+    setShippingLabelPrintLoading(true);
+    try {
+      const result = await ordersApi.printShippingLabels(orderIds);
+      if (result.rejectedCount > 0) {
+        toast.warning(`${result.rejectedCount} selected order(s) are not ready for shipping labels and were excluded from PDF.`);
+      }
+      downloadPdf(result.blob, 'onemission-shipping-labels');
+      toast.success(`Shipping label PDF downloaded for ${result.printableCount} order(s).`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Shipping labels could not be printed.');
+    } finally {
+      setShippingLabelPrintLoading(false);
     }
   };
 
@@ -2567,6 +2638,10 @@ export function OrdersModule({ user, initialReferenceSelection = null, onReferen
                 <Button variant="outline" className="gap-2" onClick={handlePrintSelected} disabled={selectedCount === 0 || printLoading}>
                   <Printer className="h-4 w-4" />
                   {printLoading ? 'Preparing…' : `Print Selected (${selectedCount})`}
+                </Button>
+                <Button variant="outline" className="gap-2" onClick={handlePrintShippingLabels} disabled={selectedCount === 0 || shippingLabelPrintLoading}>
+                  <Printer className="h-4 w-4" />
+                  {shippingLabelPrintLoading ? 'Preparing…' : `Print Shipping Labels (${selectedCount})`}
                 </Button>
                 <Button variant="outline" className="gap-2" onClick={exportTrackingTemplate} disabled={exportingTemplate}>
                   {exportingTemplate ? 'Exporting…' : `Export Tracking Template (${selectedCount})`}
