@@ -10,7 +10,7 @@ const ordersModuleSource = fs.readFileSync(new URL('../components/onemission/ord
 test('shipping label PDF uses 80x100mm thermal format with barcode default', () => {
   assert.match(labelPdfSource, /const LABEL_WIDTH = 80 \* MM_TO_PT/);
   assert.match(labelPdfSource, /const LABEL_HEIGHT = 100 \* MM_TO_PT/);
-  assert.match(labelPdfSource, /drawCode128\(doc, trackingNumber/);
+  assert.match(labelPdfSource, /drawCode128\(page, trackingNumber/);
   assert.match(labelPdfSource, /format = 'barcode'/);
   assert.match(singleRouteSource, /X-Label-Format/);
 });
