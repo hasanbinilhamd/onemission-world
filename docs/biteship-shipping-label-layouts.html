@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OneMission Biteship Shipping Label Layouts — 80x100mm</title>
+<style>
+  :root {
+    --label-w: 80mm;
+    --label-h: 100mm;
+    --ink: #0a0a0a;
+    --muted: #4b5563;
+    --line: #111;
+    --soft: #f3f4f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #eef2f7;
+    font-family: Arial, Helvetica, sans-serif;
+    color: var(--ink);
+  }
+  .page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 24px;
+    flex-wrap: wrap;
+  }
+  .panel { width: var(--label-w); }
+  .panel-title {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 800;
+    color: #111827;
+  }
+  .label {
+    width: var(--label-w);
+    height: var(--label-h);
+    background: #fff;
+    border: 1px solid #111;
+    padding: 2.6mm;
+    display: grid;
+    grid-template-rows: 8mm 22mm 19mm 16mm 9mm 7mm;
+    gap: 1.25mm;
+    overflow: hidden;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  }
+  .section { overflow: hidden; }
+  .border-bottom { border-bottom: 1.1px solid var(--line); padding-bottom: 1mm; }
+  .header {
+    display: grid;
+    grid-template-columns: 1fr 20mm;
+    gap: 2mm;
+    align-items: center;
+  }
+  .brand {
+    font-size: 10.8pt;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: .45pt;
+  }
+  .brand-sub {
+    margin-top: .65mm;
+    font-size: 4.5pt;
+    line-height: 1;
+    color: var(--muted);
+    font-weight: 800;
+    letter-spacing: .5pt;
+    text-transform: uppercase;
+  }
+  .courier-box {
+    border: 1.15px solid #111;
+    border-radius: 1.5mm;
+    text-align: center;
+    padding: .7mm 1mm;
+    min-height: 7mm;
+  }
+  .courier-box .company { font-size: 10.5pt; font-weight: 900; line-height: 1; }
+  .courier-box .service { margin-top: .3mm; font-size: 5.8pt; font-weight: 900; line-height: 1; }
+  .tracking-qr {
+    display: grid;
+    grid-template-columns: 20mm 1fr;
+    gap: 2mm;
+    align-items: center;
+  }
+  .qr-box {
+    width: 20mm;
+    height: 20mm;
+    border: 1px solid #111;
+    padding: .8mm;
+    display: grid;
+    place-items: center;
+  }
+  .qr-box svg { width: 18mm; height: 18mm; display: block; }
+  .tracking-barcode {
+    display: grid;
+    grid-template-rows: 4.2mm 12.5mm 4mm;
+    gap: .5mm;
+    align-items: center;
+  }
+  .barcode-visual {
+    height: 12mm;
+    border-left: 2px solid #111;
+    border-right: 1px solid #111;
+    background:
+      repeating-linear-gradient(90deg,
+        #111 0 1px,
+        #fff 1px 2px,
+        #111 2px 4px,
+        #fff 4px 6px,
+        #111 6px 7px,
+        #fff 7px 9px,
+        #111 9px 12px,
+        #fff 12px 14px);
+  }
+  .kicker {
+    font-size: 4.8pt;
+    color: var(--muted);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .35pt;
+    line-height: 1;
+  }
+  .awb {
+    margin-top: .6mm;
+    font-size: 10.4pt;
+    line-height: 1.05;
+    font-weight: 900;
+    word-break: break-all;
+  }
+  .hint { margin-top: .8mm; font-size: 5pt; font-weight: 700; color: #374151; }
+  .box-title {
+    margin-bottom: .55mm;
+    font-size: 5.5pt;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: .45pt;
+    text-transform: uppercase;
+  }
+  .recipient-name { font-size: 8.2pt; line-height: 1.05; font-weight: 900; }
+  .recipient-phone { margin-top: .35mm; font-size: 6.6pt; line-height: 1; font-weight: 900; }
+  .address {
+    margin-top: .55mm;
+    font-size: 5.7pt;
+    line-height: 1.13;
+  }
+  .items-list {
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+  .items-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 2mm;
+    align-items: center;
+    margin-bottom: .55mm;
+  }
+  .items-count { font-size: 5.2pt; font-weight: 900; color: #111; }
+  .item-line {
+    display: grid;
+    grid-template-columns: 1fr 7mm;
+    gap: 1mm;
+    font-size: 5.35pt;
+    line-height: 1.12;
+    border-top: .6px solid #d1d5db;
+    padding-top: .45mm;
+    margin-top: .45mm;
+  }
+  .item-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-qty { text-align: right; font-weight: 900; }
+  .from-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .35mm;
+  }
+  .from-main { font-size: 6.3pt; line-height: 1; font-weight: 900; }
+  .from-address { font-size: 5pt; line-height: 1.12; }
+  .meta {
+    display: grid;
+    grid-template-columns: 1.2fr .82fr .98fr 1fr;
+    border: 1px solid #111;
+  }
+  .meta > div {
+    border-right: 1px solid #111;
+    padding: .65mm;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .meta > div:last-child { border-right: 0; }
+  .meta-k { font-size: 4.2pt; line-height: 1; color: var(--muted); font-weight: 900; text-transform: uppercase; }
+  .meta-v { margin-top: .55mm; font-size: 5.55pt; line-height: 1.05; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note {
+    margin-top: 10px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #374151;
+  }
+  @page { size: 80mm 100mm; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .page { display: block; padding: 0; }
+    .panel { width: 80mm; page-break-after: always; }
+    .panel-title, .note { display: none; }
+    .label { border: 0; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <section class="panel">
+      <h1 class="panel-title">Version A — QR Code, compact item list</h1>
+      <div class="label" aria-label="OneMission Biteship shipping label QR version 80x100mm">
+        <header class="header border-bottom section">
+          <div>
+            <div class="brand">ONEMISSION</div>
+            <div class="brand-sub">Shipping Label · BDO-CLY</div>
+          </div>
+          <div class="courier-box">
+            <div class="company">JNE</div>
+            <div class="service">REG</div>
+          </div>
+        </header>
+
+        <section class="tracking-qr border-bottom section">
+          <div class="qr-box">
+            <svg viewBox="0 0 29 29" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+              <rect width="29" height="29" fill="#fff"/><path fill="#000" d="M2 2h7v7H2zM20 2h7v7h-7zM2 20h7v7H2zM4 4v3h3V4zM22 4v3h3V4zM4 22v3h3v-3zM11 2h2v2h-2zM15 2h2v2h-2zM11 5h1v2h-1zM14 5h4v1h-4zM12 8h3v2h-3zM16 8h2v3h-2zM20 12h3v1h-3zM25 11h2v2h-2zM10 12h2v3h-2zM13 12h1v1h-1zM15 13h3v2h-3zM19 15h2v3h-2zM23 15h4v1h-4zM11 17h3v2h-3zM15 18h2v1h-2zM20 20h2v2h-2zM23 20h1v3h-1zM25 21h2v2h-2zM11 22h2v5h-2zM14 22h3v1h-3zM18 23h2v2h-2zM21 25h6v2h-6zM14 25h2v2h-2z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="kicker">AWB / Tracking Number</div>
+            <div class="awb">WYB-1787285225256</div>
+            <div class="hint">QR value: AWB only</div>
+          </div>
+        </section>
+
+        <section class="border-bottom section">
+          <div class="box-title">To / Recipient</div>
+          <div class="recipient-name">Dian Israr</div>
+          <div class="recipient-phone">+62 812-3456-7890</div>
+          <div class="address">Jl. Contoh Pengiriman No. 12, Cileunyi Kulon, Kec. Cileunyi, Kab. Bandung, Jawa Barat 40621</div>
+        </section>
+
+        <section class="items-list border-bottom section">
+          <div class="items-head"><div class="box-title">Items</div><div class="items-count">4 pcs</div></div>
+          <div>
+            <div class="item-line"><div class="item-name">UDEL OFF LEGGING · Black / L</div><div class="item-qty">x1</div></div>
+            <div class="item-line"><div class="item-name">PRO SPORT LEGGING · Black / M</div><div class="item-qty">x1</div></div>
+            <div class="item-line"><div class="item-name">ONEMISSION SOCKS · White</div><div class="item-qty">x2</div></div>
+          </div>
+        </section>
+
+        <section class="from-row border-bottom section">
+          <div class="box-title">From / Sender</div>
+          <div class="from-main">OneMission · 6287785339770</div>
+          <div class="from-address">Katapang, Kab. Bandung, Jawa Barat 40921</div>
+        </section>
+
+        <footer class="meta section">
+          <div><div class="meta-k">Order</div><div class="meta-v">OM-DZ2WS-7A76P</div></div>
+          <div><div class="meta-k">Weight</div><div class="meta-v">1 kg</div></div>
+          <div><div class="meta-k">Size</div><div class="meta-v">20x15x5</div></div>
+          <div><div class="meta-k">Method</div><div class="meta-v">Pickup</div></div>
+        </footer>
+      </div>
+      <p class="note">QR version. Logo, QR, recipient section, and padding are compacted to leave a dedicated item list area.</p>
+    </section>
+
+    <section class="panel">
+      <h1 class="panel-title">Version B — Code128 Barcode, compact item list</h1>
+      <div class="label" aria-label="OneMission Biteship shipping label barcode version 80x100mm">
+        <header class="header border-bottom section">
+          <div>
+            <div class="brand">ONEMISSION</div>
+            <div class="brand-sub">Shipping Label · BDO-CLY</div>
+          </div>
+          <div class="courier-box">
+            <div class="company">JNE</div>
+            <div class="service">REG</div>
+          </div>
+        </header>
+
+        <section class="tracking-barcode border-bottom section">
+          <div class="kicker" style="text-align:center;">AWB / Tracking Number</div>
+          <div class="barcode-visual" aria-hidden="true"></div>
+          <div class="awb" style="font-size:9.6pt;text-align:center;margin-top:0;">WYB-1787285225256</div>
+        </section>
+
+        <section class="border-bottom section">
+          <div class="box-title">To / Recipient</div>
+          <div class="recipient-name">Dian Israr</div>
+          <div class="recipient-phone">+62 812-3456-7890</div>
+          <div class="address">Jl. Contoh Pengiriman No. 12, Cileunyi Kulon, Kec. Cileunyi, Kab. Bandung, Jawa Barat 40621</div>
+        </section>
+
+        <section class="items-list border-bottom section">
+          <div class="items-head"><div class="box-title">Items</div><div class="items-count">4 pcs</div></div>
+          <div>
+            <div class="item-line"><div class="item-name">UDEL OFF LEGGING · Black / L</div><div class="item-qty">x1</div></div>
+            <div class="item-line"><div class="item-name">PRO SPORT LEGGING · Black / M</div><div class="item-qty">x1</div></div>
+            <div class="item-line"><div class="item-name">ONEMISSION SOCKS · White</div><div class="item-qty">x2</div></div>
+          </div>
+        </section>
+
+        <section class="from-row border-bottom section">
+          <div class="box-title">From / Sender</div>
+          <div class="from-main">OneMission · 6287785339770</div>
+          <div class="from-address">Katapang, Kab. Bandung, Jawa Barat 40921</div>
+        </section>
+
+        <footer class="meta section">
+          <div><div class="meta-k">Order</div><div class="meta-v">OM-DZ2WS-7A76P</div></div>
+          <div><div class="meta-k">Weight</div><div class="meta-v">1 kg</div></div>
+          <div><div class="meta-k">Size</div><div class="meta-v">20x15x5</div></div>
+          <div><div class="meta-k">Method</div><div class="meta-v">Pickup</div></div>
+        </footer>
+      </div>
+      <p class="note">Barcode version. Code128 area is compacted but remains wide enough for thermal printing tests.</p>
+    </section>
+  </main>
+</body>
+</html>
