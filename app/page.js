@@ -38,6 +38,7 @@ import {
   ChevronRight,
   Sparkles,
   Globe,
+  Home,
   Loader2,
   ExternalLink,
   MessageCircle,
@@ -140,6 +141,14 @@ const WebsiteSettingsModule = dynamic(
   () =>
     import("@/components/onemission/website-settings-module").then(
       (module) => module.WebsiteSettingsModule,
+    ),
+  { loading: () => <ListSkeleton count={6} /> },
+);
+
+const HomeCmsModule = dynamic(
+  () =>
+    import("@/components/onemission/home-cms-module").then(
+      (module) => module.HomeCmsModule,
     ),
   { loading: () => <ListSkeleton count={6} /> },
 );
@@ -655,6 +664,7 @@ const NAV_GROUPS = [
       },
       { id: "systemconfig", label: "System Configuration", icon: SettingsIcon },
       { id: "website", label: "Website", icon: Globe },
+      { id: "homecms", label: "Home", icon: Home },
       { id: "earlyaccess", label: "Early Access", icon: Lock },
     ],
   },
@@ -22991,6 +23001,7 @@ function App() {
     notificationsettings: () => <NotificationSettingsModule user={user} />,
     systemconfig: () => <SystemConfigurationModule user={user} />,
     website: () => <WebsiteSettingsModule user={user} />,
+    homecms: () => <HomeCmsModule user={user} />,
     earlyaccess: () => <EarlyAccessModule />,
   }[active];
 

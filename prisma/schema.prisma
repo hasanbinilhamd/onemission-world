@@ -986,6 +986,37 @@ model WebsiteCollectionHeroMedia {
   @@index([isActive])
 }
 
+// ─── Movement CMS: Home ──────────────────────────────────────────────────────
+
+model HomePage {
+  id                String   @id @default("home")
+  headline          String   @default("")
+  description       String   @default("")
+  ctaLabel          String   @default("")
+  ctaDestination    String   @default("mission")
+  socialProofNumber String   @default("")
+  socialProofText   String   @default("")
+  desktopImage      String   @default("")
+  mobileImage       String   @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model HomePageCard {
+  id           String   @id @default(cuid())
+  title        String   @default("")
+  description  String   @default("")
+  image        String   @default("")
+  destination  String   @default("mission")
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([displayOrder])
+  @@index([isActive])
+}
+
 enum NewsletterSubscriberStatus {
   ACTIVE
   UNSUBSCRIBED
