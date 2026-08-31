@@ -152,6 +152,14 @@ const HomeCmsModule = dynamic(
     ),
   { loading: () => <ListSkeleton count={6} /> },
 );
+
+const MissionCmsModule = dynamic(
+  () =>
+    import("@/components/onemission/mission-cms-module").then(
+      (module) => module.MissionCmsModule,
+    ),
+  { loading: () => <ListSkeleton count={6} /> },
+);
 const EarlyAccessModule = dynamic(
   () =>
     import("@/components/onemission/early-access-module").then(
@@ -665,6 +673,7 @@ const NAV_GROUPS = [
       { id: "systemconfig", label: "System Configuration", icon: SettingsIcon },
       { id: "website", label: "Website", icon: Globe },
       { id: "homecms", label: "Home", icon: Home },
+      { id: "missioncms", label: "Mission", icon: Target },
       { id: "earlyaccess", label: "Early Access", icon: Lock },
     ],
   },
@@ -23002,6 +23011,7 @@ function App() {
     systemconfig: () => <SystemConfigurationModule user={user} />,
     website: () => <WebsiteSettingsModule user={user} />,
     homecms: () => <HomeCmsModule user={user} />,
+    missioncms: () => <MissionCmsModule user={user} />,
     earlyaccess: () => <EarlyAccessModule />,
   }[active];
 

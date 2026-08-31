@@ -1017,6 +1017,66 @@ model HomePageCard {
   @@index([isActive])
 }
 
+// ─── Movement CMS: Mission (voting) ──────────────────────────────────────────
+
+enum MissionStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+model Mission {
+  id          String        @id @default(cuid())
+  eyebrow     String        @default("")
+  title       String        @default("")
+  description String        @default("")
+  status      MissionStatus @default(DRAFT)
+  startDate   DateTime?
+  endDate     DateTime?
+  // DB-level guarantee: at most ONE mission can be OPEN. Set to 'open' when
+  // status = OPEN, null otherwise (multiple NULLs allowed by Postgres unique).
+  openLock    String?       @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  options     MissionOption[]
+  votes       MissionVote[]
+
+  @@index([status])
+}
+
+model MissionOption {
+  id           String        @id @default(cuid())
+  missionId    String
+  mission      Mission       @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  title        String        @default("")
+  description  String        @default("")
+  image        String        @default("")
+  displayOrder Int           @default(0)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  votes        MissionVote[]
+
+  @@index([missionId])
+  @@index([displayOrder])
+  @@index([isActive])
+}
+
+model MissionVote {
+  id             String        @id @default(cuid())
+  missionId      String
+  mission        Mission       @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  missionOptionId String
+  missionOption  MissionOption @relation(fields: [missionOptionId], references: [id], onDelete: Cascade)
+  customerId     String
+  createdAt      DateTime      @default(now())
+
+  // One customer = one vote per mission (duplicate protection at DB level).
+  @@unique([missionId, customerId])
+  @@index([missionOptionId])
+  @@index([createdAt])
+}
+
 enum NewsletterSubscriberStatus {
   ACTIVE
   UNSUBSCRIBED
