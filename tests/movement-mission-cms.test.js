@@ -133,10 +133,14 @@ test('defaults match the approved Mission page content', () => {
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 
-test('vote endpoint authenticates the customer and never trusts client mission ids', () => {
+test('vote endpoint resolves identity server-side and never trusts client mission ids', () => {
   assert.match(voteRouteSource, /authenticateCustomerRequest\(request, \{ optional: true \}\)/);
-  assert.match(voteRouteSource, /MISSION_VOTE_AUTH_REQUIRED/);
+  assert.match(voteRouteSource, /ANONYMOUS_VOTER_COOKIE_NAME/);
+  assert.match(voteRouteSource, /crypto\.randomUUID/);
+  assert.match(voteRouteSource, /httpOnly: true/);
   assert.doesNotMatch(voteRouteSource, /payload\.missionId/);
+  // Authentication is optional — the auth-required error must no longer exist.
+  assert.doesNotMatch(voteRouteSource, /MISSION_VOTE_AUTH_REQUIRED/);
   assert.match(voteRouteSource, /payload\.missionOptionId/);
 });
 

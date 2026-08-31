@@ -1063,16 +1063,21 @@ model MissionOption {
 }
 
 model MissionVote {
-  id             String        @id @default(cuid())
-  missionId      String
-  mission        Mission       @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  missionOptionId String
-  missionOption  MissionOption @relation(fields: [missionOptionId], references: [id], onDelete: Cascade)
-  customerId     String
-  createdAt      DateTime      @default(now())
+  id               String        @id @default(cuid())
+  missionId        String
+  mission          Mission       @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  missionOptionId  String
+  missionOption    MissionOption @relation(fields: [missionOptionId], references: [id], onDelete: Cascade)
+  // Exactly one voter identity is set per vote (server-enforced):
+  //   authenticated → customerId set, anonymousVoterId null
+  //   anonymous     → customerId null, anonymousVoterId set
+  customerId       String?
+  anonymousVoterId String?
+  createdAt        DateTime      @default(now())
 
-  // One customer = one vote per mission (duplicate protection at DB level).
+  // One voter identity = one vote per mission (both identities protected).
   @@unique([missionId, customerId])
+  @@unique([missionId, anonymousVoterId])
   @@index([missionOptionId])
   @@index([createdAt])
 }
