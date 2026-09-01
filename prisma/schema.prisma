@@ -1082,6 +1082,67 @@ model MissionVote {
   @@index([createdAt])
 }
 
+// ─── Movement CMS: Impact (documentation/storytelling) ──────────────────────
+
+enum ImpactStoryStatus {
+  DRAFT
+  COMING_SOON
+  NOW_LIVE
+  CLOSED
+}
+
+enum ImpactBlockType {
+  TEXT
+  IMAGE
+}
+
+model ImpactPageSetting {
+  id          String   @id @default("impact")
+  eyebrow     String   @default("")
+  title       String   @default("")
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ImpactStory {
+  id              String             @id @default(cuid())
+  title           String             @default("")
+  slug            String             @unique
+  category        String             @default("JOURNEY")
+  shortDescription String            @default("")
+  coverImage      String             @default("")
+  status          ImpactStoryStatus  @default(DRAFT)
+  featured        Boolean            @default(false)
+  publishedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  blocks          ImpactContentBlock[]
+
+  @@index([status])
+  @@index([category])
+  @@index([featured])
+}
+
+model ImpactContentBlock {
+  id           String           @id @default(cuid())
+  storyId      String
+  story        ImpactStory      @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  type         ImpactBlockType
+  displayOrder Int              @default(0)
+  // TEXT blocks
+  text         String?
+  // IMAGE blocks (altText required server-side)
+  imageUrl     String?
+  altText      String?
+  caption      String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([storyId])
+  @@index([displayOrder])
+}
+
 enum NewsletterSubscriberStatus {
   ACTIVE
   UNSUBSCRIBED
