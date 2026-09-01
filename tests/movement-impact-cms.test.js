@@ -6,6 +6,7 @@ import {
   IMPACT_CATEGORIES,
   IMPACT_STATUS_PRIORITY,
   sortImpactStoriesForPublic,
+  filterImpactStoriesByStatus,
   slugifyTitle,
   normalizeImpactCategory,
   computeImpactReadingMinutes,
@@ -134,11 +135,57 @@ test('status change to public states sets publishedAt once', () => {
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 
-test('public list performs server-side filtering/ordering and pagination params', () => {
+test('public list performs server-side status filtering, sorting, and pagination', () => {
   assert.match(publicListSource, /getPublicImpactList/);
-  assert.match(publicListSource, /category/);
+  assert.match(publicListSource, /status/);
+  assert.match(publicListSource, /sort/);
   assert.match(publicListSource, /offset/);
   assert.match(publicListSource, /limit/);
+  // Category is no longer the public filter.
+  assert.doesNotMatch(publicListSource, /category/);
+});
+
+test('status filter keeps only the requested public status', () => {
+  const items = [
+    { status: 'NOW_LIVE' },
+    { status: 'CLOSED' },
+    { status: 'COMING_SOON' },
+  ];
+  assert.deepEqual(filterImpactStoriesByStatus(items, 'ALL').map((item) => item.status), [
+    'NOW_LIVE',
+    'CLOSED',
+    'COMING_SOON',
+  ]);
+  assert.deepEqual(filterImpactStoriesByStatus(items, 'CLOSED').map((item) => item.status), ['CLOSED']);
+  assert.deepEqual(filterImpactStoriesByStatus(items, 'NOW_LIVE').map((item) => item.status), ['NOW_LIVE']);
+});
+
+test('sort modes order within status groups (oldest/upcoming ascending)', () => {
+  const items = [
+    { status: 'CLOSED', featured: false, publishedAt: '2026-05-01', createdAt: 'a' },
+    { status: 'CLOSED', featured: false, publishedAt: '2026-01-01', createdAt: 'b' },
+    { status: 'NOW_LIVE', featured: false, publishedAt: '2026-06-01', createdAt: 'c' },
+    { status: 'NOW_LIVE', featured: false, publishedAt: '2026-02-01', createdAt: 'd' },
+  ];
+
+  const latest = sortImpactStoriesForPublic(items, 'latest');
+  assert.deepEqual(latest.map((item) => item.publishedAt), [
+    '2026-06-01',
+    '2026-02-01',
+    '2026-05-01',
+    '2026-01-01',
+  ]);
+
+  const oldest = sortImpactStoriesForPublic(items, 'oldest');
+  assert.deepEqual(oldest.map((item) => item.publishedAt), [
+    '2026-02-01',
+    '2026-06-01',
+    '2026-01-01',
+    '2026-05-01',
+  ]);
+
+  const upcoming = sortImpactStoriesForPublic(items, 'upcoming');
+  assert.deepEqual(upcoming.map((item) => item.publishedAt), oldest.map((item) => item.publishedAt));
 });
 
 test('public detail route is slug-based and never exposes draft', () => {

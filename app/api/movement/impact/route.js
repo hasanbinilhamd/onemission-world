@@ -21,16 +21,17 @@ function buildImpactErrorResponse(error, fallbackCode) {
 
 /**
  * Public Impact listing for the ecommerce frontend.
- * Server performs: DRAFT exclusion, status-priority ordering, category
- * filtering, and offset/limit pagination.
+ * Server performs: DRAFT exclusion, status filtering, status-priority
+ * ordering + sort mode, and offset/limit pagination.
  */
 export async function GET(request) {
   const params = request.nextUrl?.searchParams;
   try {
     const response = await impactContentService.getPublicImpactList({
-      category: params?.get('category') || 'ALL',
+      status: params?.get('status') || 'ALL',
+      sort: params?.get('sort') || 'latest',
       offset: Number(params?.get('offset') || 0),
-      limit: Number(params?.get('limit') || 4),
+      limit: Number(params?.get('limit') || 12),
     });
     return NextResponse.json(response);
   } catch (error) {
