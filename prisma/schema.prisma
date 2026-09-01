@@ -1143,6 +1143,118 @@ model ImpactContentBlock {
   @@index([displayOrder])
 }
 
+// ─── Movement: Donate ────────────────────────────────────────────────────────
+
+enum DonationCampaignStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum DonationTransactionStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+model DonationCampaign {
+  id               String                   @id @default(cuid())
+  title            String                   @default("")
+  slug             String                   @unique
+  shortDescription String                   @default("")
+  coverImage       String                   @default("")
+  storyTitle       String                   @default("")
+  storyContent     String                   @default("")
+  targetAmount     Float                    @default(0)
+  status           DonationCampaignStatus   @default(DRAFT)
+  // DB-level guarantee: at most ONE campaign can be ACTIVE.
+  activeLock       String?                  @unique
+  startedAt        DateTime?
+  endedAt          DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  updates          DonationCampaignUpdate[]
+  disbursements    DonationDisbursement[]
+  partners         DonationPartner[]
+  donations        DonationTransaction[]
+
+  @@index([status])
+}
+
+model DonationCampaignUpdate {
+  id           String           @id @default(cuid())
+  campaignId   String
+  campaign     DonationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  title        String           @default("")
+  date         DateTime         @default(now())
+  image        String           @default("")
+  imageAlt     String           @default("")
+  displayOrder Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([campaignId])
+  @@index([displayOrder])
+}
+
+model DonationDisbursement {
+  id           String           @id @default(cuid())
+  campaignId   String
+  campaign     DonationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  title        String           @default("")
+  date         DateTime         @default(now())
+  amount       Float            @default(0)
+  partnerName  String           @default("")
+  image        String           @default("")
+  imageAlt     String           @default("")
+  displayOrder Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([campaignId])
+  @@index([displayOrder])
+}
+
+model DonationPartner {
+  id           String           @id @default(cuid())
+  campaignId   String
+  campaign     DonationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name         String           @default("")
+  tagline      String           @default("")
+  statement    String           @default("")
+  displayOrder Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([campaignId])
+  @@index([displayOrder])
+}
+
+model DonationTransaction {
+  id                    String                   @id @default(cuid())
+  transactionNumber     String                   @unique
+  campaignId            String
+  campaign              DonationCampaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  amount                Float                    @default(0)
+  donorName             String                   @default("")
+  donorEmail            String                   @default("")
+  donorPhone            String                   @default("")
+  anonymous             Boolean                  @default(false)
+  status                DonationTransactionStatus @default(PENDING)
+  snapToken             String                   @default("")
+  midtransTransactionId String                   @default("")
+  paymentType           String                   @default("")
+  paidAt                DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([campaignId])
+  @@index([status])
+  @@index([createdAt])
+}
+
 enum NewsletterSubscriberStatus {
   ACTIVE
   UNSUBSCRIBED

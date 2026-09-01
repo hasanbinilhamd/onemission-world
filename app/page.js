@@ -39,6 +39,7 @@ import {
   Sparkles,
   Globe,
   Home,
+  HandHeart,
   Loader2,
   ExternalLink,
   MessageCircle,
@@ -165,6 +166,14 @@ const ImpactCmsModule = dynamic(
   () =>
     import("@/components/onemission/impact-cms-module").then(
       (module) => module.ImpactCmsModule,
+    ),
+  { loading: () => <ListSkeleton count={6} /> },
+);
+
+const DonateCmsModule = dynamic(
+  () =>
+    import("@/components/onemission/donate-cms-module").then(
+      (module) => module.DonateCmsModule,
     ),
   { loading: () => <ListSkeleton count={6} /> },
 );
@@ -679,10 +688,18 @@ const NAV_GROUPS = [
         icon: Bell,
       },
       { id: "systemconfig", label: "System Configuration", icon: SettingsIcon },
+    ],
+  },
+  {
+    id: "websitegroup",
+    label: "Website / CMS",
+    icon: Globe,
+    children: [
       { id: "website", label: "Website", icon: Globe },
       { id: "homecms", label: "Home", icon: Home },
       { id: "missioncms", label: "Mission", icon: Target },
       { id: "impactcms", label: "Impact", icon: BookOpen },
+      { id: "donatecms", label: "Donate", icon: HandHeart },
       { id: "earlyaccess", label: "Early Access", icon: Lock },
     ],
   },
@@ -23022,6 +23039,7 @@ function App() {
     homecms: () => <HomeCmsModule user={user} />,
     missioncms: () => <MissionCmsModule user={user} />,
     impactcms: () => <ImpactCmsModule user={user} />,
+    donatecms: () => <DonateCmsModule user={user} />,
     earlyaccess: () => <EarlyAccessModule />,
   }[active];
 
