@@ -144,6 +144,11 @@ test('vote endpoint resolves identity server-side and never trusts client missio
   assert.match(voteRouteSource, /payload\.missionOptionId/);
 });
 
+test('public flow no longer auto-seeds a draft mission', () => {
+  assert.doesNotMatch(serviceSource, /await ensureMissionDefaults\(\)/);
+  // No OPEN mission → empty payload (mission null), never auto-created options.
+  assert.match(serviceSource, /mission: null/);
+});
 test('admin route guards with HQ settings permissions', () => {
   assert.match(adminRouteSource, /requireHqPermission\(request, 'settings', 'view'\)/);
   assert.match(adminRouteSource, /requireHqPermission\(request, 'settings', 'manage_configuration'\)/);

@@ -179,6 +179,11 @@ test('campaign detail rejects DRAFT server-side', () => {
   assert.match(serviceSource, /campaign\.status === DONATION_CAMPAIGN_STATUS\.DRAFT/);
 });
 
+test('public flow no longer auto-seeds/activates a donation campaign', () => {
+  assert.doesNotMatch(serviceSource, /await ensureDonateDefaults\(\)/);
+  // No ACTIVE campaign → campaign null (frontend shows NO ACTIVE CAMPAIGN).
+  assert.match(serviceSource, /campaign: null/);
+});
 test('admin route guards with HQ settings permissions', () => {
   assert.match(adminRouteSource, /requireHqPermission\(request, 'settings', 'view'\)/);
   assert.match(adminRouteSource, /requireHqPermission\(request, 'settings', 'manage_configuration'\)/);

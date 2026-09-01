@@ -193,6 +193,11 @@ test('public detail route is slug-based and never exposes draft', () => {
   assert.match(publicDetailSource, /getPublicImpactStory/);
 });
 
+test('public flow no longer auto-seeds Impact defaults', () => {
+  assert.doesNotMatch(serviceSource, /await ensureImpactDefaults\(\)/);
+  // Empty CMS settings return empty strings — not DEFAULT_PAGE_SETTING copy.
+  assert.match(serviceSource, /eyebrow: settings\?\.eyebrow \|\| ''/);
+});
 test('admin route guards with HQ settings permissions', () => {
   assert.match(adminRouteSource, /requireHqPermission\(request, 'settings', 'view'\)/);
   assert.match(adminRouteSource, /requireHqPermission\(request, 'settings', 'manage_configuration'\)/);

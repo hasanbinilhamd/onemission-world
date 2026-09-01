@@ -74,6 +74,13 @@ test('service seeds the approved Home content as defaults', () => {
   assert.doesNotMatch(serviceSource, /cardNumber|"number"\s*:/);
 });
 
+test('public flow no longer auto-seeds default content', () => {
+  // The ensure* function may still exist as an explicit developer operation,
+  // but the public/admin request flow must never call it automatically.
+  assert.doesNotMatch(serviceSource, /await ensureMovementHomeDefaults\(\)/);
+  // An empty database returns an empty structure, not DEFAULT_* content.
+  assert.match(serviceSource, /home: homePage \? toPublicHomePage\(homePage\) : null/);
+});
 test('admin routes use HQ permission guards', () => {
   assert.match(adminRouteSource, /requireHqPermission\(request, 'settings', 'view'\)/);
   assert.match(adminRouteSource, /requireHqPermission\(request, 'settings', 'manage_configuration'\)/);
