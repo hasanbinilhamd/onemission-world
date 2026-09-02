@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { PageAvailabilityControl } from "@/components/onemission/page-availability-control";
 import { Textarea } from "@/components/ui/textarea";
 
 const impactApi = {
@@ -415,6 +416,10 @@ export function ImpactCmsModule({ user }) {
               rows={2}
             />
           </div>
+          <div className="border-t pt-4">
+            <PageAvailabilityControl page="impact" user={user} />
+          </div>
+
           <div>
             <Button onClick={handleSaveSettings} disabled={!canManage || saving === "settings"}>
               {saving === "settings" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}

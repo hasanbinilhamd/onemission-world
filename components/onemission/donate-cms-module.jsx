@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { PageAvailabilityControl } from "@/components/onemission/page-availability-control";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -311,6 +312,20 @@ export function DonateCmsModule({ user }) {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+      {/* ─── PAGE AVAILABILITY ───────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Page Availability</CardTitle>
+          <CardDescription>
+            Controls whether the public Donate section is live or shows the Coming Soon page.
+            Campaign statuses (DRAFT / ACTIVE / CLOSED) remain separate.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PageAvailabilityControl page="donate" user={user} />
+        </CardContent>
+      </Card>
+
       {/* ─── CAMPAIGNS ─────────────────────────────────────────────────── */}
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">

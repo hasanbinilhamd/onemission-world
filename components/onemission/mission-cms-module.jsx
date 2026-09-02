@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Target, ImagePlus, Loader2, Plus, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { PageAvailabilityControl } from "@/components/onemission/page-availability-control";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -281,6 +282,19 @@ export function MissionCmsModule({ user }) {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+      {/* ─── PAGE AVAILABILITY ───────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Page Availability</CardTitle>
+          <CardDescription>
+            Controls whether the public Mission section is live or shows the Coming Soon page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PageAvailabilityControl page="mission" user={user} />
+        </CardContent>
+      </Card>
+
       {/* ─── MISSIONS OVERVIEW ─────────────────────────────────────────── */}
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
