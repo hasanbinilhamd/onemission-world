@@ -1255,6 +1255,19 @@ model DonationTransaction {
   @@index([createdAt])
 }
 
+// ─── Page Availability (CMS-controlled section visibility) ───────────────────
+
+enum PageAvailability {
+  AVAILABLE
+  COMING_SOON
+}
+
+model PageAvailabilitySetting {
+  id           String           @id
+  availability PageAvailability @default(AVAILABLE)
+  updatedAt    DateTime         @updatedAt
+}
+
 enum NewsletterSubscriberStatus {
   ACTIVE
   UNSUBSCRIBED
