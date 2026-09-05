@@ -23,7 +23,7 @@ import {
   requireHqPermission,
   writeAuditLog,
 } from '@/lib/hq-security';
-import { cashFlowService, inventoryValuationService } from '@/lib/finance-reporting';
+import { cashFlowService, inventoryValuationService, calculateProfitLossForPeriod, isCogsAccount } from '@/lib/finance-reporting';
 import { notificationService, invalidateNotificationSettingsCache } from '@/lib/notifications';
 import { paymentAttemptService, normalizePaymentAttemptError } from '@/lib/payment-attempt';
 import { prisma } from '@/lib/prisma';
@@ -451,11 +451,6 @@ function buildCashTransactionJournalDescription({
   return detail ? `${txnLabel}: ${detail}` : `${txnLabel}: ${financialAccountName?.trim() || txnLabel}`;
 }
 
-function isCogsAccount(account) {
-  const accountCode = String(account?.accountCode || '').trim();
-  const accountName = String(account?.accountName || '').trim().toLowerCase();
-  return accountCode === '5000' || accountName.includes('cost of goods sold') || accountName.includes('cogs');
-}
 
 function isFinishedGoodsInventoryAccount(account) {
   const accountCode = String(account?.accountCode || '').trim();
@@ -845,56 +840,7 @@ async function validateProfitAllocationMappingReferences(payload) {
 }
 
 async function calculateProfitLossForAllocationPeriod({ periodStart, periodEnd }) {
-  const journalFilter = { AND: [{ status: 'Posted' }] };
-  if (periodStart) journalFilter.AND.push({ journalDate: { gte: periodStart } });
-  if (periodEnd) journalFilter.AND.push({ journalDate: { lte: periodEnd } });
-
-  const accounts = await prisma.chartOfAccount.findMany({
-    where: {
-      isActive: true,
-      allowTransaction: true,
-      accountType: { in: ['Revenue', 'Expense'] },
-    },
-    orderBy: { accountCode: 'asc' },
-  });
-
-  if (!accounts.length) {
-    return { totalRevenue: 0, totalCogs: 0, grossProfit: 0, totalOperatingExpenses: 0, totalExpenses: 0, netProfit: 0 };
-  }
-
-  const lines = await prisma.journalEntryLine.findMany({
-    where: {
-      journalEntry: journalFilter,
-      chartOfAccountId: { in: accounts.map((account) => account.id) },
-    },
-    select: { chartOfAccountId: true, debitAmount: true, creditAmount: true },
-  });
-
-  const aggMap = {};
-  for (const line of lines) {
-    if (!aggMap[line.chartOfAccountId]) aggMap[line.chartOfAccountId] = { totalDebit: 0, totalCredit: 0 };
-    aggMap[line.chartOfAccountId].totalDebit += Number(line.debitAmount || 0);
-    aggMap[line.chartOfAccountId].totalCredit += Number(line.creditAmount || 0);
-  }
-
-  let totalRevenue = 0;
-  let totalCogs = 0;
-  let totalOperatingExpenses = 0;
-  for (const account of accounts) {
-    const agg = aggMap[account.id];
-    if (!agg) continue;
-    const amount = account.accountType === 'Revenue'
-      ? agg.totalCredit - agg.totalDebit
-      : agg.totalDebit - agg.totalCredit;
-    if (account.accountType === 'Revenue') totalRevenue += amount;
-    else if (isCogsAccount(account)) totalCogs += amount;
-    else totalOperatingExpenses += amount;
-  }
-
-  const grossProfit = totalRevenue - totalCogs;
-  const totalExpenses = totalCogs + totalOperatingExpenses;
-  const netProfit = grossProfit - totalOperatingExpenses;
-  return { totalRevenue, totalCogs, grossProfit, totalOperatingExpenses, totalExpenses, netProfit };
+  return calculateProfitLossForPeriod({ periodStart, periodEnd, prismaClient: prisma });
 }
 
 async function calculateProfitAllocationActualMap({ periodStart, periodEnd, rules = [] }) {
