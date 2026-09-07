@@ -73,6 +73,7 @@ import {
   ArrowUpDown,
   Paperclip,
   TicketPercent,
+  PieChart as PieChartIcon,
 } from "lucide-react";
 import {
   TableSkeleton,
@@ -633,6 +634,7 @@ const NAV_GROUPS = [
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "financialaccounts", label: "Accounts", icon: DollarSign },
+      { id: "profitallocation", label: "Profit Allocation", icon: PieChartIcon },
       { id: "financereports", label: "Reports", icon: FileBarChart2 },
     ],
   },
@@ -861,7 +863,7 @@ function Dashboard({
   const [summary, setSummary] = useState(null);
   const [details, setDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
-  const [range, setRange] = useState("last30");
+  const [range, setRange] = useState("thisMonth");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
@@ -1000,6 +1002,7 @@ function Dashboard({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="thisMonth">This Month</SelectItem>
                 <SelectItem value="last30">Last 30 Days</SelectItem>
                 <SelectItem value="thisYear">This Year</SelectItem>
                 <SelectItem value="custom">Custom Range</SelectItem>
