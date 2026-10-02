@@ -634,6 +634,7 @@ const NAV_GROUPS = [
       { id: "cashin", label: "Cash In", icon: TrendingUp },
       { id: "cashout", label: "Cash Out", icon: TrendingDown },
       { id: "financialaccounts", label: "Accounts", icon: DollarSign },
+      { id: "journalentries", label: "Journal Entries", icon: FileText },
       { id: "profitallocation", label: "Profit Allocation", icon: PieChartIcon },
       { id: "financereports", label: "Reports", icon: FileBarChart2 },
     ],
