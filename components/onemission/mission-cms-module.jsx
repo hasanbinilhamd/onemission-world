@@ -251,7 +251,7 @@ export function MissionCmsModule({ user }) {
         return;
       }
       onUploaded(result.url);
-      toast.success("Image uploaded to ImageKit.");
+      toast.success("Image uploaded to Cloudflare R2.");
     } catch {
       toast.error("Image upload failed.");
     } finally {
@@ -539,7 +539,7 @@ function ImageUploadField({ label, value, fieldKey, uploading, disabled, onChang
             value={value}
             disabled={disabled}
             onChange={(event) => onChange(event.target.value)}
-            placeholder="ImageKit URL"
+            placeholder="Cloudflare R2 URL"
           />
           <label
             className={`inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -560,7 +560,7 @@ function ImageUploadField({ label, value, fieldKey, uploading, disabled, onChang
               }}
             />
           </label>
-          <span className="text-xs text-muted-foreground">Uploaded via ImageKit · {fieldKey}</span>
+          <span className="text-xs text-muted-foreground">Uploaded via Cloudflare R2 · {fieldKey}</span>
         </div>
       </div>
     </div>
