@@ -3,42 +3,42 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   uploadMovementImage,
-  isImageKitConfigured,
-  IMAGEKIT_ALLOWED_MIME_TYPES,
-  IMAGEKIT_MAX_FILE_BYTES,
-} from '../lib/imagekit.js';
+  isR2Configured,
+  R2_ALLOWED_MIME_TYPES,
+  R2_MAX_FILE_BYTES,
+} from '../lib/r2.js';
 
 /**
  * Movement Home CMS — focused coverage:
- *  - ImageKit upload validation runs before any network call (no creds needed)
- *  - ImageKit private key never appears in client-facing/browser code
+ *  - R2 upload validation runs before any network call (no creds needed)
+ *  - R2 secret key never appears in client-facing/browser code
  *  - service defaults + destination allowlist + route wiring are present
  */
 
 const serviceSource = fs.readFileSync(new URL('../lib/movement-home/service.js', import.meta.url), 'utf8');
-const imagekitSource = fs.readFileSync(new URL('../lib/imagekit.js', import.meta.url), 'utf8');
+const r2Source = fs.readFileSync(new URL('../lib/r2.js', import.meta.url), 'utf8');
 const adminRouteSource = fs.readFileSync(new URL('../app/api/admin/movement/home/route.js', import.meta.url), 'utf8');
 const uploadRouteSource = fs.readFileSync(new URL('../app/api/admin/movement/home/upload/route.js', import.meta.url), 'utf8');
 const publicRouteSource = fs.readFileSync(new URL('../app/api/movement/home/route.js', import.meta.url), 'utf8');
 const pageJsSource = fs.readFileSync(new URL('../app/page.js', import.meta.url), 'utf8');
 const envExampleSource = fs.readFileSync(new URL('../.env.example', import.meta.url), 'utf8');
 
-test('ImageKit upload rejects empty files without touching the network', async () => {
+test('R2 upload rejects empty files without touching the network', async () => {
   await assert.rejects(
     () => uploadMovementImage({ fileBuffer: Buffer.alloc(0), mimeType: 'image/png', field: 'hero-desktop' }),
     (error) => error?.code === 'IMAGE_UPLOAD_FILE_MISSING',
   );
 });
 
-test('ImageKit upload rejects unsupported MIME types', async () => {
+test('R2 upload rejects unsupported MIME types', async () => {
   await assert.rejects(
     () => uploadMovementImage({ fileBuffer: Buffer.from('x'), mimeType: 'text/html', field: 'hero-desktop' }),
     (error) => error?.code === 'IMAGE_UPLOAD_TYPE_NOT_ALLOWED',
   );
 });
 
-test('ImageKit upload rejects oversized files before any network call', async () => {
-  const oversized = Buffer.alloc(IMAGEKIT_MAX_FILE_BYTES + 1, 0);
+test('R2 upload rejects oversized files before any network call', async () => {
+  const oversized = Buffer.alloc(R2_MAX_FILE_BYTES + 1, 0);
   await assert.rejects(
     () => uploadMovementImage({ fileBuffer: oversized, mimeType: 'image/png', field: 'hero-desktop' }),
     (error) => error?.code === 'IMAGE_UPLOAD_TOO_LARGE',
@@ -46,11 +46,11 @@ test('ImageKit upload rejects oversized files before any network call', async ()
 });
 
 test('allowed MIME set covers the web image formats', () => {
-  assert.deepEqual([...IMAGEKIT_ALLOWED_MIME_TYPES].sort(), ['image/jpeg', 'image/png', 'image/webp']);
+  assert.deepEqual([...R2_ALLOWED_MIME_TYPES].sort(), ['image/jpeg', 'image/png', 'image/webp']);
 });
 
-test('ImageKit is not configured without ENV credentials', () => {
-  assert.equal(isImageKitConfigured(), false);
+test('R2 is not configured without ENV credentials', () => {
+  assert.equal(isR2Configured(), false);
 });
 
 test('movement Home destinations are the controlled allowlist', () => {
@@ -87,7 +87,7 @@ test('admin routes use HQ permission guards', () => {
   assert.match(uploadRouteSource, /requireHqPermission\(request, 'settings', 'manage_configuration'\)/);
 });
 
-test('upload endpoint reads multipart file and delegates to server-side ImageKit', () => {
+test('upload endpoint reads multipart file and delegates to server-side R2', () => {
   assert.match(uploadRouteSource, /request\.formData\(\)/);
   assert.match(uploadRouteSource, /uploadMovementImage/);
   assert.match(uploadRouteSource, /fileId/);
@@ -98,12 +98,13 @@ test('public route serves movement Home content', () => {
   assert.match(publicRouteSource, /force-dynamic/);
 });
 
-test('ImageKit private key stays server-only', () => {
-  // Never reference the private key in any client component or public route.
-  assert.doesNotMatch(publicRouteSource, /IMAGEKIT_PRIVATE_KEY/);
-  assert.doesNotMatch(pageJsSource, /IMAGEKIT_PRIVATE_KEY/);
+test('R2 secret key stays server-only', () => {
+  // Never reference the secret key in any client component or public route.
+  assert.doesNotMatch(publicRouteSource, /R2_SECRET_ACCESS_KEY/);
+  assert.doesNotMatch(pageJsSource, /R2_SECRET_ACCESS_KEY/);
   // The helper intentionally returns only public-safe fields.
   assert.match(uploadRouteSource, /fileId|url/);
+  assert.match(r2Source, /CacheControl: 'public, max-age=31536000, immutable'/);
 });
 
 test('dashboard registers the Home CMS nav item and module', () => {
@@ -111,8 +112,10 @@ test('dashboard registers the Home CMS nav item and module', () => {
   assert.match(pageJsSource, /homecms: \(\) => <HomeCmsModule user=\{user\} \/>/);
 });
 
-test('ENV documentation includes ImageKit placeholders only', () => {
-  assert.match(envExampleSource, /IMAGEKIT_PRIVATE_KEY=""/);
-  assert.match(envExampleSource, /IMAGEKIT_PUBLIC_KEY=""/);
-  assert.match(envExampleSource, /IMAGEKIT_URL_ENDPOINT=""/);
+test('ENV documentation includes server-only R2 placeholders', () => {
+  assert.match(envExampleSource, /R2_ENDPOINT=""/);
+  assert.match(envExampleSource, /R2_ACCESS_KEY_ID=""/);
+  assert.match(envExampleSource, /R2_SECRET_ACCESS_KEY=""/);
+  assert.match(envExampleSource, /R2_BUCKET_NAME="onemission-assets"/);
+  assert.match(envExampleSource, /R2_PUBLIC_BASE_URL="https:\/\/assets\.onemissionclo\.com"/);
 });

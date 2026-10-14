@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withDevTiming } from '@/lib/dev-timing';
 import { requireHqPermission } from '@/lib/hq-security';
-import { uploadMovementImage, MovementImageUploadError, MOVEMENT_MISSION_UPLOAD_FOLDER } from '@/lib/imagekit';
+import { uploadMovementImage, MovementImageUploadError, MOVEMENT_MISSION_UPLOAD_FOLDER } from '@/lib/r2';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +21,7 @@ function buildUploadErrorResponse(error, fallbackCode) {
 }
 
 /**
- * HQ server-side ImageKit upload for the movement Mission CMS.
+ * HQ server-side Cloudflare R2 upload for the Movement Mission CMS.
  * Reuses the exact same upload infrastructure as the Home CMS — the private
  * key never reaches the browser.
  */
@@ -64,7 +64,7 @@ export async function POST(request) {
         folder: result.folder,
       });
     } catch (error) {
-      return buildUploadErrorResponse(error, 'IMAGEKIT_UPLOAD_FAILED');
+      return buildUploadErrorResponse(error, 'R2_UPLOAD_FAILED');
     }
   });
 }

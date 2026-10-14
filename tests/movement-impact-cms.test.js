@@ -205,10 +205,10 @@ test('admin route guards with HQ settings permissions', () => {
   assert.match(adminRouteSource, /setStatus/);
 });
 
-test('upload endpoint reuses the shared ImageKit helper with impact folder', () => {
+test('upload endpoint reuses the shared R2 helper with impact folder', () => {
   assert.match(uploadRouteSource, /uploadMovementImage/);
   assert.match(uploadRouteSource, /MOVEMENT_IMPACT_UPLOAD_FOLDER/);
-  assert.doesNotMatch(uploadRouteSource, /IMAGEKIT_PRIVATE_KEY/);
+  assert.doesNotMatch(uploadRouteSource, /R2_SECRET_ACCESS_KEY/);
 });
 
 test('dashboard registers the Impact CMS nav item and module', () => {

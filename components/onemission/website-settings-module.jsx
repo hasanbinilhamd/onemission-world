@@ -336,7 +336,7 @@ export function WebsiteSettingsModule({ user }) {
               <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-border/60 bg-[#F7F8FA] px-4 py-3">
                 <div>
                   <p className="text-sm font-medium">Hero CMS Rules</p>
-                  <p className="text-xs text-muted-foreground mt-1">Maximum 4 active items. URLs must point to ImageKit assets. Upload is not included in Phase 1.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Maximum 4 active items. URLs must point to Cloudflare R2 assets. Upload is not included in Phase 1.</p>
                 </div>
                 <div className="text-sm font-semibold text-[#111827]">Active: {heroActiveCount} / 4</div>
               </div>
@@ -417,7 +417,7 @@ export function WebsiteSettingsModule({ user }) {
                         value={item.desktopUrl || ""}
                         disabled={!canManage}
                         onChange={(event) => updateHeroItem(item.id, "desktopUrl", event.target.value)}
-                        placeholder="https://ik.imagekit.io/..."
+                        placeholder="https://assets.onemissionclo.com/..."
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -426,7 +426,7 @@ export function WebsiteSettingsModule({ user }) {
                         value={item.mobileUrl || ""}
                         disabled={!canManage}
                         onChange={(event) => updateHeroItem(item.id, "mobileUrl", event.target.value)}
-                        placeholder="https://ik.imagekit.io/..."
+                        placeholder="https://assets.onemissionclo.com/..."
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -521,11 +521,11 @@ export function WebsiteSettingsModule({ user }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     <div className="space-y-1.5 xl:col-span-2">
                       <Label>Desktop URL</Label>
-                      <Input value={item.desktopUrl || ""} disabled={!canManage} onChange={(event) => updateCollectionHeroItem(item.id, "desktopUrl", event.target.value)} placeholder="https://ik.imagekit.io/..." />
+                      <Input value={item.desktopUrl || ""} disabled={!canManage} onChange={(event) => updateCollectionHeroItem(item.id, "desktopUrl", event.target.value)} placeholder="https://assets.onemissionclo.com/..." />
                     </div>
                     <div className="space-y-1.5 xl:col-span-2">
                       <Label>Mobile URL (optional)</Label>
-                      <Input value={item.mobileUrl || ""} disabled={!canManage} onChange={(event) => updateCollectionHeroItem(item.id, "mobileUrl", event.target.value)} placeholder="https://ik.imagekit.io/..." />
+                      <Input value={item.mobileUrl || ""} disabled={!canManage} onChange={(event) => updateCollectionHeroItem(item.id, "mobileUrl", event.target.value)} placeholder="https://assets.onemissionclo.com/..." />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Display Order</Label>
@@ -568,7 +568,7 @@ export function WebsiteSettingsModule({ user }) {
             <CardContent className="space-y-4">
               <div className="rounded-xl border border-border/60 bg-[#F7F8FA] px-4 py-3">
                 <p className="text-sm font-medium">Brand Video CMS Rules</p>
-                <p className="text-xs text-muted-foreground mt-1">Use ImageKit URLs only. Upload is not included in Phase 1.</p>
+                <p className="text-xs text-muted-foreground mt-1">Use Cloudflare R2 URLs only. Upload is not included in Phase 1.</p>
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_180px] gap-4 items-end">
@@ -578,7 +578,7 @@ export function WebsiteSettingsModule({ user }) {
                     value={brandVideo.videoUrl || ""}
                     disabled={!canManage}
                     onChange={(event) => setBrandVideo((current) => ({ ...current, videoUrl: event.target.value }))}
-                    placeholder="https://ik.imagekit.io/..."
+                    placeholder="https://assets.onemissionclo.com/..."
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -587,7 +587,7 @@ export function WebsiteSettingsModule({ user }) {
                     value={brandVideo.posterUrl || ""}
                     disabled={!canManage}
                     onChange={(event) => setBrandVideo((current) => ({ ...current, posterUrl: event.target.value }))}
-                    placeholder="https://ik.imagekit.io/..."
+                    placeholder="https://assets.onemissionclo.com/..."
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -692,7 +692,7 @@ export function WebsiteSettingsModule({ user }) {
                       value={item.mediaUrl || ""}
                       disabled={!canManage}
                       onChange={(event) => updateProductStoryItem(item.id, "mediaUrl", event.target.value)}
-                      placeholder="https://ik.imagekit.io/..."
+                      placeholder="https://assets.onemissionclo.com/..."
                     />
                   </div>
 

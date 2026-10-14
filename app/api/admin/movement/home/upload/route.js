@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withDevTiming } from '@/lib/dev-timing';
 import { requireHqPermission } from '@/lib/hq-security';
-import { uploadMovementImage, MovementImageUploadError } from '@/lib/imagekit';
+import { uploadMovementImage, MovementImageUploadError } from '@/lib/r2';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +21,10 @@ function buildUploadErrorResponse(error, fallbackCode) {
 }
 
 /**
- * HQ server-side ImageKit upload for the movement Home CMS.
+ * HQ server-side Cloudflare R2 upload for the Movement Home CMS.
  *
- * The IMAGEKIT_PRIVATE_KEY never reaches the browser: this endpoint receives
- * the multipart file, uploads it to ImageKit server-side, and returns only
+ * R2 credentials never reach the browser: this endpoint receives the
+ * multipart file, uploads it to R2 server-side, and returns only
  * the public URL/fileId for storage in the CMS record.
  */
 export async function POST(request) {
@@ -65,7 +65,7 @@ export async function POST(request) {
         folder: result.folder,
       });
     } catch (error) {
-      return buildUploadErrorResponse(error, 'IMAGEKIT_UPLOAD_FAILED');
+      return buildUploadErrorResponse(error, 'R2_UPLOAD_FAILED');
     }
   });
 }

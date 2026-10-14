@@ -190,10 +190,10 @@ test('admin route guards with HQ settings permissions', () => {
   assert.match(adminRouteSource, /setStatus/);
 });
 
-test('upload endpoint reuses the shared ImageKit helper with donate folder', () => {
+test('upload endpoint reuses the shared R2 helper with donate folder', () => {
   assert.match(uploadRouteSource, /uploadMovementImage/);
   assert.match(uploadRouteSource, /MOVEMENT_DONATE_UPLOAD_FOLDER/);
-  assert.doesNotMatch(uploadRouteSource, /IMAGEKIT_PRIVATE_KEY/);
+  assert.doesNotMatch(uploadRouteSource, /R2_SECRET_ACCESS_KEY/);
 });
 
 // ── HQ sidebar separation ──────────────────────────────────────────────────

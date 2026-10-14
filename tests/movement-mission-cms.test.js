@@ -159,12 +159,12 @@ test('dashboard registers the Mission CMS nav item and module', () => {
   assert.match(pageJsSource, /missioncms: \(\) => <MissionCmsModule user=\{user\} \/>/);
 });
 
-test('mission upload endpoint reuses the shared ImageKit helper with mission folder', () => {
+test('mission upload endpoint reuses the shared R2 helper with mission folder', () => {
   const uploadRouteSource = fs.readFileSync(
     new URL('../app/api/admin/movement/mission/upload/route.js', import.meta.url),
     'utf8',
   );
   assert.match(uploadRouteSource, /uploadMovementImage/);
   assert.match(uploadRouteSource, /MOVEMENT_MISSION_UPLOAD_FOLDER/);
-  assert.doesNotMatch(uploadRouteSource, /IMAGEKIT_PRIVATE_KEY/);
+  assert.doesNotMatch(uploadRouteSource, /R2_SECRET_ACCESS_KEY/);
 });
