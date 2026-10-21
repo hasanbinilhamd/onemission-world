@@ -105,7 +105,7 @@ function UserFormDialog({ open, onOpenChange, initial, roles, onSave, loading = 
 
   useEffect(() => {
     setForm(initial ? { ...empty, ...initial, password: "" } : { ...empty, role: roles[0]?.name || "Super Admin" });
-  }, [initial, open, roles]);
+  }, [open, initial?.id]);
 
   const submit = async () => {
     if (!form.name.trim() || !form.email.trim() || !form.role) {

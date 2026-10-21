@@ -529,12 +529,20 @@ function readFileAsDataUrl(file) {
   });
 }
 
+let hqSessionWarningShown = false;
+
 async function handleApiResponse(response) {
   const result = await response.json();
   if (response.status === 401 && String(result?.code || "").startsWith("HQ_")) {
-    localStorage.removeItem("om_user");
-    if (typeof window !== "undefined") {
-      window.location.reload();
+    // An API request (including the notification poll) must NEVER reload the
+    // page or unmount an unfinished form. The server still rejects requests
+    // with invalid sessions; the user can copy their draft before logging in.
+    if (!hqSessionWarningShown && !response.url?.includes("/auth/")) {
+      hqSessionWarningShown = true;
+      toast.error(
+        "Your HQ session is no longer valid. Please copy any unsaved form data before signing in again.",
+        { id: "hq-session-warning", duration: 12000 },
+      );
     }
   }
   return result;
@@ -549,6 +557,7 @@ const api = {
     });
     const result = await handleApiResponse(response);
     if (!response.ok) throw new Error(result.error || "Invalid credentials");
+    hqSessionWarningShown = false;
     return result;
   },
   async me() {
@@ -1712,7 +1721,8 @@ function ProductsModule({ activeModule }) {
     [],
   );
 
-  const empty = {
+  // Keep new-record defaults stable through background notification updates.
+  const empty = useMemo(() => ({
     name: "",
     sku: "",
     category: "Two-In-One Shorts",
@@ -1732,7 +1742,7 @@ function ProductsModule({ activeModule }) {
     imageUrl: "",
     hoverImageUrl: "",
     gallery: [],
-  };
+  }), []);
 
   const save = async (data) => {
     if (editing?.id) {
@@ -2352,7 +2362,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
 
   useEffect(() => {
     setForm(normalizeProductFormState(initial));
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const update = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -4438,7 +4448,8 @@ function PlanningModule({ activeModule }) {
     [],
   );
 
-  const empty = {
+  // Keep new-record defaults stable through background notification updates.
+  const empty = useMemo(() => ({
     level: "Quarterly",
     title: "",
     objective: "",
@@ -4449,7 +4460,7 @@ function PlanningModule({ activeModule }) {
     notes: "",
     keyResults: [],
     actionItems: [],
-  };
+  }), []);
   const save = async (data) => {
     if (editing?.id) await api.put("plans/" + editing.id, data);
     else await api.post("plans", data);
@@ -4615,7 +4626,7 @@ function PlanningModule({ activeModule }) {
 
 function PlanModal({ open, onOpenChange, initial, onSave }) {
   const [form, setForm] = useState(initial);
-  useEffect(() => setForm(initial), [initial, open]);
+  useEffect(() => setForm(initial), [open, initial?.id]);
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -4839,7 +4850,8 @@ function CreatorCRM({ activeModule }) {
     await load();
   };
 
-  const empty = {
+  // Keep new-record defaults stable through background notification updates.
+  const empty = useMemo(() => ({
     name: "",
     username: "",
     platform: "Instagram",
@@ -4852,7 +4864,7 @@ function CreatorCRM({ activeModule }) {
     fee: 0,
     status: "Not Contacted",
     notes: "",
-  };
+  }), []);
 
   const save = async (data) => {
     if (editing?.id) {
@@ -5231,7 +5243,7 @@ function CreatorCRM({ activeModule }) {
 
 function CreatorModal({ open, onOpenChange, initial, onSave }) {
   const [form, setForm] = useState(initial);
-  useEffect(() => setForm(initial), [initial, open]);
+  useEffect(() => setForm(initial), [open, initial?.id]);
   const update = (key, value) =>
     setForm((currentForm) => ({ ...currentForm, [key]: value }));
   const canSave = Boolean(
@@ -5412,7 +5424,8 @@ function SchoolCRM({ activeModule }) {
     );
   };
 
-  const empty = {
+  // Keep new-record defaults stable through background notification updates.
+  const empty = useMemo(() => ({
     name: "",
     city: "",
     province: "",
@@ -5423,7 +5436,7 @@ function SchoolCRM({ activeModule }) {
     value: 0,
     status: "Prospect",
     notes: "",
-  };
+  }), []);
   const save = async (data) => {
     if (editing?.id) {
       await api.put("schools/" + editing.id, data);
@@ -5615,7 +5628,7 @@ const SCHOOL_SEGMENTS = [
 
 function SchoolModal({ open, onOpenChange, initial, onSave }) {
   const [form, setForm] = useState(initial);
-  useEffect(() => setForm(initial), [initial, open]);
+  useEffect(() => setForm(initial), [open, initial?.id]);
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -8918,7 +8931,8 @@ function FinancialAccountModule({ activeModule }) {
     [],
   );
 
-  const emptyForm = {
+  // Keep new-record defaults stable through background notification updates.
+  const emptyForm = useMemo(() => ({
     name: "",
     type: "Cash",
     accountNumber: "",
@@ -8927,7 +8941,7 @@ function FinancialAccountModule({ activeModule }) {
     description: "",
     isActive: true,
     linkedCoaId: "",
-  };
+  }), []);
 
   const save = async (data) => {
     if (editing?.id) {
@@ -9283,7 +9297,7 @@ function FinancialAccountModal({
   useEffect(() => {
     setForm(initial);
     setErrors({});
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const update = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -9903,7 +9917,7 @@ function ExpenseCategoryFormDialog({ open, onOpenChange, initial, onSave }) {
 
   useEffect(() => {
     setForm(initial ? { ...empty, ...initial } : empty);
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const submit = async () => {
     if (!form.name?.trim()) {
@@ -11495,7 +11509,7 @@ function ProfitAllocationPolicyDialog({
     } else {
       setForm(buildEmpty());
     }
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const total = calculateAllocationTotal(form.rules);
   const totalIsValid = Math.abs(total - 100) < 0.0001;
@@ -11886,21 +11900,27 @@ function CashTransactionModule({ type, activeModule }) {
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const buildEmptyForm = () => ({
-    transactionDate: new Date().toISOString().split("T")[0],
-    transactionType: type,
-    financialAccountId: "",
-    chartOfAccountId: "",
-    expenseCategoryId: "",
-    amount: 0,
-    referenceNumber: "",
-    description: "",
-    vendor: "",
-    paymentMethod: isExpenseMode ? "Other" : "",
-    attachment: "",
-    notes: "",
-    createdBy: resolveCashTransactionActor(),
-  });
+  // Keep the draft's initial values referentially stable while an API poll
+  // triggers unrelated parent renders. Otherwise CashTransactionModal's
+  // [initial, open] effect mistakes each render for a new form and wipes input.
+  const emptyForm = useMemo(
+    () => ({
+      transactionDate: new Date().toISOString().split("T")[0],
+      transactionType: type,
+      financialAccountId: "",
+      chartOfAccountId: "",
+      expenseCategoryId: "",
+      amount: 0,
+      referenceNumber: "",
+      description: "",
+      vendor: "",
+      paymentMethod: isExpenseMode ? "Other" : "",
+      attachment: "",
+      notes: "",
+      createdBy: resolveCashTransactionActor(),
+    }),
+    [type, isExpenseMode],
+  );
 
   const load = async () => {
     setLoading(true);
@@ -12558,7 +12578,7 @@ function CashTransactionModule({ type, activeModule }) {
           setOpen(value);
           if (!value) setEditing(null);
         }}
-        initial={editing || buildEmptyForm()}
+        initial={editing || emptyForm}
         financialAccounts={financialAccounts}
         coaAccounts={coaAccounts}
         expenseCategories={expenseCategories}
@@ -12622,7 +12642,7 @@ function CashTransactionModal({
     setForm(initial);
     setErrors({});
     setAttachmentBusy(false);
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const update = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -13217,7 +13237,8 @@ function ChartOfAccountsModule({ activeModule }) {
     [],
   );
 
-  const emptyForm = {
+  // Keep new-record defaults stable through background notification updates.
+  const emptyForm = useMemo(() => ({
     accountCode: "",
     accountName: "",
     accountType: "Asset",
@@ -13226,7 +13247,7 @@ function ChartOfAccountsModule({ activeModule }) {
     isActive: true,
     allowTransaction: true,
     parentId: null,
-  };
+  }), []);
 
   const save = async (data) => {
     if (editing?.id) {
@@ -13612,7 +13633,7 @@ function ChartOfAccountModal({
   useEffect(() => {
     setForm(initial);
     setErrors({});
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const update = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -13864,7 +13885,8 @@ function RawMaterialModule({ activeModule }) {
     [],
   );
 
-  const empty = {
+  // Keep new-record defaults stable through background notification updates.
+  const empty = useMemo(() => ({
     name: "",
     color: "",
     weight: 0,
@@ -13878,7 +13900,7 @@ function RawMaterialModule({ activeModule }) {
     supplierName: "",
     notes: "",
     status: "Active",
-  };
+  }), []);
 
   const save = async (data) => {
     // Sync supplierName from linked supplier for backward compatibility
@@ -14265,7 +14287,7 @@ function RawMaterialModal({
   suppliers = [],
 }) {
   const [form, setForm] = useState(initial);
-  useEffect(() => setForm(initial), [initial, open]);
+  useEffect(() => setForm(initial), [open, initial?.id]);
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const SectionHeader = ({ children }) => (
@@ -14611,7 +14633,8 @@ function JournalEntriesModule({ activeModule }) {
   const draftCount = items.filter((j) => j.status === "Draft").length;
   const postedCount = items.filter((j) => j.status === "Posted").length;
 
-  const emptyForm = {
+  // Keep new-record defaults stable through background notification updates.
+  const emptyForm = useMemo(() => ({
     journalDate: new Date().toISOString().split("T")[0],
     description: "",
     referenceNumber: "",
@@ -14631,7 +14654,7 @@ function JournalEntriesModule({ activeModule }) {
         creditAmount: 0,
       },
     ],
-  };
+  }), []);
 
   if (loading)
     return (
@@ -15055,7 +15078,7 @@ function JournalEntryModal({
   useEffect(() => {
     setForm(initial);
     setErrors({});
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const updateHeader = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -16961,7 +16984,7 @@ function SupplierFormDialog({ open, onOpenChange, initial, onSave }) {
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     setForm(initial ? { ...empty, ...initial } : empty);
-  }, [initial, open]);
+  }, [open, initial?.id]);
   const up = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const SH = ({ children }) => (
@@ -17336,7 +17359,7 @@ function BOMFormDialog({
       );
       setErr("");
     }
-  }, [open, initial]);
+  }, [open, initial?.id]);
 
   const addItem = () =>
     setForm((f) => ({
@@ -17731,7 +17754,7 @@ function ProductionOrderFormDialog({
       }
       setErr("");
     }
-  }, [open, initial]);
+  }, [open, initial?.id]);
 
   useEffect(() => {
     if (!form.productId || initial) {
@@ -17937,7 +17960,7 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
       });
       setErr("");
     }
-  }, [open, order]);
+  }, [open, order?.id]);
 
   const handleComplete = async () => {
     setErr("");
@@ -19950,7 +19973,7 @@ function SalesChannelFormDialog({ open, onOpenChange, initial, onSave }) {
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     setForm(initial ? { ...empty, ...initial } : empty);
-  }, [initial, open]);
+  }, [open, initial?.id]);
   const up = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async () => {
@@ -21396,7 +21419,7 @@ function CustomerFormDialog({
           }
         : empty,
     );
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const up = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -22763,10 +22786,13 @@ function App() {
     setNotificationSummaryLoading(true);
     try {
       const result = await api.get("notifications/summary");
+      if (result?.error) return;
       setNotificationSummary({
         unreadCount: Number(result?.unreadCount || 0),
         recent: Array.isArray(result?.recent) ? result.recent : [],
       });
+    } catch {
+      // Notification failures must not affect an unfinished transaction form.
     } finally {
       setNotificationSummaryLoading(false);
     }
@@ -22834,22 +22860,24 @@ function App() {
     if (!user) return;
 
     let mounted = true;
+    let inFlight = false;
     const run = async () => {
-      if (
-        typeof document !== "undefined" &&
-        document.visibilityState === "hidden"
-      ) {
-        return;
-      }
+      // Polling must be passive: no overlapping calls, forced reload, or
+      // state reset when an API/network request cannot be completed.
+      if (document.visibilityState === "hidden" || inFlight) return;
 
+      inFlight = true;
       try {
         const result = await api.get("notifications/summary");
-        if (!mounted) return;
+        if (!mounted || result?.error) return;
         setNotificationSummary({
           unreadCount: Number(result?.unreadCount || 0),
           recent: Array.isArray(result?.recent) ? result.recent : [],
         });
+      } catch {
+        // Keep the last known notification summary and the current form intact.
       } finally {
+        inFlight = false;
         if (mounted) setNotificationSummaryLoading(false);
       }
     };
