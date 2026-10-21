@@ -529,12 +529,20 @@ function readFileAsDataUrl(file) {
   });
 }
 
+let hqSessionWarningShown = false;
+
 async function handleApiResponse(response) {
   const result = await response.json();
   if (response.status === 401 && String(result?.code || "").startsWith("HQ_")) {
-    localStorage.removeItem("om_user");
-    if (typeof window !== "undefined") {
-      window.location.reload();
+    // An API request (including the notification poll) must NEVER reload the
+    // page or unmount an unfinished form. The server still rejects requests
+    // with invalid sessions; the user can copy their draft before logging in.
+    if (!hqSessionWarningShown && !response.url?.includes("/auth/")) {
+      hqSessionWarningShown = true;
+      toast.error(
+        "Your HQ session is no longer valid. Please copy any unsaved form data before signing in again.",
+        { id: "hq-session-warning", duration: 12000 },
+      );
     }
   }
   return result;
@@ -549,6 +557,7 @@ const api = {
     });
     const result = await handleApiResponse(response);
     if (!response.ok) throw new Error(result.error || "Invalid credentials");
+    hqSessionWarningShown = false;
     return result;
   },
   async me() {
@@ -11886,21 +11895,27 @@ function CashTransactionModule({ type, activeModule }) {
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const buildEmptyForm = () => ({
-    transactionDate: new Date().toISOString().split("T")[0],
-    transactionType: type,
-    financialAccountId: "",
-    chartOfAccountId: "",
-    expenseCategoryId: "",
-    amount: 0,
-    referenceNumber: "",
-    description: "",
-    vendor: "",
-    paymentMethod: isExpenseMode ? "Other" : "",
-    attachment: "",
-    notes: "",
-    createdBy: resolveCashTransactionActor(),
-  });
+  // Keep the draft's initial values referentially stable while an API poll
+  // triggers unrelated parent renders. Otherwise CashTransactionModal's
+  // [initial, open] effect mistakes each render for a new form and wipes input.
+  const emptyForm = useMemo(
+    () => ({
+      transactionDate: new Date().toISOString().split("T")[0],
+      transactionType: type,
+      financialAccountId: "",
+      chartOfAccountId: "",
+      expenseCategoryId: "",
+      amount: 0,
+      referenceNumber: "",
+      description: "",
+      vendor: "",
+      paymentMethod: isExpenseMode ? "Other" : "",
+      attachment: "",
+      notes: "",
+      createdBy: resolveCashTransactionActor(),
+    }),
+    [type, isExpenseMode],
+  );
 
   const load = async () => {
     setLoading(true);
@@ -12558,7 +12573,7 @@ function CashTransactionModule({ type, activeModule }) {
           setOpen(value);
           if (!value) setEditing(null);
         }}
-        initial={editing || buildEmptyForm()}
+        initial={editing || emptyForm}
         financialAccounts={financialAccounts}
         coaAccounts={coaAccounts}
         expenseCategories={expenseCategories}
@@ -22763,10 +22778,13 @@ function App() {
     setNotificationSummaryLoading(true);
     try {
       const result = await api.get("notifications/summary");
+      if (result?.error) return;
       setNotificationSummary({
         unreadCount: Number(result?.unreadCount || 0),
         recent: Array.isArray(result?.recent) ? result.recent : [],
       });
+    } catch {
+      // Notification failures must not affect an unfinished transaction form.
     } finally {
       setNotificationSummaryLoading(false);
     }
@@ -22834,22 +22852,24 @@ function App() {
     if (!user) return;
 
     let mounted = true;
+    let inFlight = false;
     const run = async () => {
-      if (
-        typeof document !== "undefined" &&
-        document.visibilityState === "hidden"
-      ) {
-        return;
-      }
+      // Polling must be passive: no overlapping calls, forced reload, or
+      // state reset when an API/network request cannot be completed.
+      if (document.visibilityState === "hidden" || inFlight) return;
 
+      inFlight = true;
       try {
         const result = await api.get("notifications/summary");
-        if (!mounted) return;
+        if (!mounted || result?.error) return;
         setNotificationSummary({
           unreadCount: Number(result?.unreadCount || 0),
           recent: Array.isArray(result?.recent) ? result.recent : [],
         });
+      } catch {
+        // Keep the last known notification summary and the current form intact.
       } finally {
+        inFlight = false;
         if (mounted) setNotificationSummaryLoading(false);
       }
     };
