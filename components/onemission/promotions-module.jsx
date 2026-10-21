@@ -411,7 +411,7 @@ function PromotionFormDialog({ open, onOpenChange, initial, promotionType, onSav
       startDate: normalizeDateForInput(initial.startDate),
       endDate: normalizeDateForInput(initial.endDate),
     } : buildEmptyPromotion(nextType));
-  }, [initial, open, promotionType]);
+  }, [open, initial?.id, promotionType]);
 
   const shouldLoadTargetData = open && supportsProductTargeting && form.targetScope !== "ENTIRE_STORE";
 

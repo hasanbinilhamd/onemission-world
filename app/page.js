@@ -1721,7 +1721,8 @@ function ProductsModule({ activeModule }) {
     [],
   );
 
-  const empty = {
+  // Keep new-record defaults stable through background notification updates.
+  const empty = useMemo(() => ({
     name: "",
     sku: "",
     category: "Two-In-One Shorts",
@@ -1741,7 +1742,7 @@ function ProductsModule({ activeModule }) {
     imageUrl: "",
     hoverImageUrl: "",
     gallery: [],
-  };
+  }), []);
 
   const save = async (data) => {
     if (editing?.id) {
@@ -2361,7 +2362,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
 
   useEffect(() => {
     setForm(normalizeProductFormState(initial));
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const update = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -4447,7 +4448,8 @@ function PlanningModule({ activeModule }) {
     [],
   );
 
-  const empty = {
+  // Keep new-record defaults stable through background notification updates.
+  const empty = useMemo(() => ({
     level: "Quarterly",
     title: "",
     objective: "",
@@ -4458,7 +4460,7 @@ function PlanningModule({ activeModule }) {
     notes: "",
     keyResults: [],
     actionItems: [],
-  };
+  }), []);
   const save = async (data) => {
     if (editing?.id) await api.put("plans/" + editing.id, data);
     else await api.post("plans", data);
@@ -4624,7 +4626,7 @@ function PlanningModule({ activeModule }) {
 
 function PlanModal({ open, onOpenChange, initial, onSave }) {
   const [form, setForm] = useState(initial);
-  useEffect(() => setForm(initial), [initial, open]);
+  useEffect(() => setForm(initial), [open, initial?.id]);
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -4848,7 +4850,8 @@ function CreatorCRM({ activeModule }) {
     await load();
   };
 
-  const empty = {
+  // Keep new-record defaults stable through background notification updates.
+  const empty = useMemo(() => ({
     name: "",
     username: "",
     platform: "Instagram",
@@ -4861,7 +4864,7 @@ function CreatorCRM({ activeModule }) {
     fee: 0,
     status: "Not Contacted",
     notes: "",
-  };
+  }), []);
 
   const save = async (data) => {
     if (editing?.id) {
@@ -5240,7 +5243,7 @@ function CreatorCRM({ activeModule }) {
 
 function CreatorModal({ open, onOpenChange, initial, onSave }) {
   const [form, setForm] = useState(initial);
-  useEffect(() => setForm(initial), [initial, open]);
+  useEffect(() => setForm(initial), [open, initial?.id]);
   const update = (key, value) =>
     setForm((currentForm) => ({ ...currentForm, [key]: value }));
   const canSave = Boolean(
@@ -5421,7 +5424,8 @@ function SchoolCRM({ activeModule }) {
     );
   };
 
-  const empty = {
+  // Keep new-record defaults stable through background notification updates.
+  const empty = useMemo(() => ({
     name: "",
     city: "",
     province: "",
@@ -5432,7 +5436,7 @@ function SchoolCRM({ activeModule }) {
     value: 0,
     status: "Prospect",
     notes: "",
-  };
+  }), []);
   const save = async (data) => {
     if (editing?.id) {
       await api.put("schools/" + editing.id, data);
@@ -5624,7 +5628,7 @@ const SCHOOL_SEGMENTS = [
 
 function SchoolModal({ open, onOpenChange, initial, onSave }) {
   const [form, setForm] = useState(initial);
-  useEffect(() => setForm(initial), [initial, open]);
+  useEffect(() => setForm(initial), [open, initial?.id]);
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -8927,7 +8931,8 @@ function FinancialAccountModule({ activeModule }) {
     [],
   );
 
-  const emptyForm = {
+  // Keep new-record defaults stable through background notification updates.
+  const emptyForm = useMemo(() => ({
     name: "",
     type: "Cash",
     accountNumber: "",
@@ -8936,7 +8941,7 @@ function FinancialAccountModule({ activeModule }) {
     description: "",
     isActive: true,
     linkedCoaId: "",
-  };
+  }), []);
 
   const save = async (data) => {
     if (editing?.id) {
@@ -9292,7 +9297,7 @@ function FinancialAccountModal({
   useEffect(() => {
     setForm(initial);
     setErrors({});
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const update = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -9912,7 +9917,7 @@ function ExpenseCategoryFormDialog({ open, onOpenChange, initial, onSave }) {
 
   useEffect(() => {
     setForm(initial ? { ...empty, ...initial } : empty);
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const submit = async () => {
     if (!form.name?.trim()) {
@@ -11504,7 +11509,7 @@ function ProfitAllocationPolicyDialog({
     } else {
       setForm(buildEmpty());
     }
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const total = calculateAllocationTotal(form.rules);
   const totalIsValid = Math.abs(total - 100) < 0.0001;
@@ -12637,7 +12642,7 @@ function CashTransactionModal({
     setForm(initial);
     setErrors({});
     setAttachmentBusy(false);
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const update = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -13232,7 +13237,8 @@ function ChartOfAccountsModule({ activeModule }) {
     [],
   );
 
-  const emptyForm = {
+  // Keep new-record defaults stable through background notification updates.
+  const emptyForm = useMemo(() => ({
     accountCode: "",
     accountName: "",
     accountType: "Asset",
@@ -13241,7 +13247,7 @@ function ChartOfAccountsModule({ activeModule }) {
     isActive: true,
     allowTransaction: true,
     parentId: null,
-  };
+  }), []);
 
   const save = async (data) => {
     if (editing?.id) {
@@ -13627,7 +13633,7 @@ function ChartOfAccountModal({
   useEffect(() => {
     setForm(initial);
     setErrors({});
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const update = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -13879,7 +13885,8 @@ function RawMaterialModule({ activeModule }) {
     [],
   );
 
-  const empty = {
+  // Keep new-record defaults stable through background notification updates.
+  const empty = useMemo(() => ({
     name: "",
     color: "",
     weight: 0,
@@ -13893,7 +13900,7 @@ function RawMaterialModule({ activeModule }) {
     supplierName: "",
     notes: "",
     status: "Active",
-  };
+  }), []);
 
   const save = async (data) => {
     // Sync supplierName from linked supplier for backward compatibility
@@ -14280,7 +14287,7 @@ function RawMaterialModal({
   suppliers = [],
 }) {
   const [form, setForm] = useState(initial);
-  useEffect(() => setForm(initial), [initial, open]);
+  useEffect(() => setForm(initial), [open, initial?.id]);
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const SectionHeader = ({ children }) => (
@@ -14626,7 +14633,8 @@ function JournalEntriesModule({ activeModule }) {
   const draftCount = items.filter((j) => j.status === "Draft").length;
   const postedCount = items.filter((j) => j.status === "Posted").length;
 
-  const emptyForm = {
+  // Keep new-record defaults stable through background notification updates.
+  const emptyForm = useMemo(() => ({
     journalDate: new Date().toISOString().split("T")[0],
     description: "",
     referenceNumber: "",
@@ -14646,7 +14654,7 @@ function JournalEntriesModule({ activeModule }) {
         creditAmount: 0,
       },
     ],
-  };
+  }), []);
 
   if (loading)
     return (
@@ -15070,7 +15078,7 @@ function JournalEntryModal({
   useEffect(() => {
     setForm(initial);
     setErrors({});
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const updateHeader = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -16976,7 +16984,7 @@ function SupplierFormDialog({ open, onOpenChange, initial, onSave }) {
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     setForm(initial ? { ...empty, ...initial } : empty);
-  }, [initial, open]);
+  }, [open, initial?.id]);
   const up = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const SH = ({ children }) => (
@@ -17351,7 +17359,7 @@ function BOMFormDialog({
       );
       setErr("");
     }
-  }, [open, initial]);
+  }, [open, initial?.id]);
 
   const addItem = () =>
     setForm((f) => ({
@@ -17746,7 +17754,7 @@ function ProductionOrderFormDialog({
       }
       setErr("");
     }
-  }, [open, initial]);
+  }, [open, initial?.id]);
 
   useEffect(() => {
     if (!form.productId || initial) {
@@ -17952,7 +17960,7 @@ function CompleteProductionDialog({ open, onOpenChange, order, onComplete }) {
       });
       setErr("");
     }
-  }, [open, order]);
+  }, [open, order?.id]);
 
   const handleComplete = async () => {
     setErr("");
@@ -19965,7 +19973,7 @@ function SalesChannelFormDialog({ open, onOpenChange, initial, onSave }) {
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     setForm(initial ? { ...empty, ...initial } : empty);
-  }, [initial, open]);
+  }, [open, initial?.id]);
   const up = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async () => {
@@ -21411,7 +21419,7 @@ function CustomerFormDialog({
           }
         : empty,
     );
-  }, [initial, open]);
+  }, [open, initial?.id]);
 
   const up = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
