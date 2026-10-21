@@ -2359,6 +2359,7 @@ function normalizeProductFormState(initial = {}) {
 
 function ProductModal({ open, onOpenChange, initial, onSave }) {
   const [form, setForm] = useState(() => normalizeProductFormState(initial));
+  const [reviewUploadBusy, setReviewUploadBusy] = useState(false);
 
   useEffect(() => {
     setForm(normalizeProductFormState(initial));
@@ -2401,21 +2402,75 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
   const moveGalleryItem = (itemId, direction) => {
     updateGallery((items) => {
       const currentIndex = items.findIndex((item) => item.id === itemId);
-      if (currentIndex === -1) {
-        return items;
+      if (currentIndex === -1) return items;
+      const step = direction === "up" ? -1 : 1;
+      let targetIndex = currentIndex + step;
+      // Review videos have their own editor, so reorder within the same type.
+      while (targetIndex >= 0 && targetIndex < items.length &&
+        items[targetIndex].mediaType !== items[currentIndex].mediaType) {
+        targetIndex += step;
       }
-
-      const targetIndex =
-        direction === "up" ? currentIndex - 1 : currentIndex + 1;
-      if (targetIndex < 0 || targetIndex >= items.length) {
-        return items;
-      }
-
+      if (targetIndex < 0 || targetIndex >= items.length) return items;
       const nextItems = [...items];
-      const [movedItem] = nextItems.splice(currentIndex, 1);
-      nextItems.splice(targetIndex, 0, movedItem);
+      [nextItems[currentIndex], nextItems[targetIndex]] =
+        [nextItems[targetIndex], nextItems[currentIndex]];
       return nextItems;
     });
+  };
+
+  const handleReviewVideoUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const limit = 20 * 1024 * 1024;
+    const allowed = (file.type === "video/mp4" && /\.mp4$/i.test(file.name)) ||
+      (file.type === "video/webm" && /\.webm$/i.test(file.name));
+    if (!allowed) {
+      toast.error("Only MP4 or WebM video files are supported.");
+      return;
+    }
+    if (!file.size || file.size > limit) {
+      toast.error("Each review video must be 20 MB or smaller.");
+      return;
+    }
+
+    setReviewUploadBusy(true);
+    try {
+      const signResponse = await fetch("/api/admin/products/review-videos/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+        }),
+      });
+      const upload = await signResponse.json();
+      if (!signResponse.ok || !upload.uploadUrl || !upload.url) {
+        throw new Error(upload.error || "Unable to prepare the video upload.");
+      }
+      const r2Response = await fetch(upload.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": upload.contentType },
+        body: file,
+      });
+      if (!r2Response.ok) {
+        throw new Error("Upload to R2 failed. Check the R2 bucket CORS settings and retry.");
+      }
+      // Gallery VIDEO records supply the separate storefront review slider.
+      updateGallery((items) => [...items, {
+        id: createProductGalleryFormItem(items.length + 1).id,
+        mediaUrl: upload.url,
+        mediaType: "VIDEO",
+        sortOrder: items.length + 1,
+      }]);
+      toast.success("Review video uploaded. Save the product to publish it.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Review upload failed.");
+    } finally {
+      setReviewUploadBusy(false);
+    }
   };
 
   const updateShowcase = (updater) => {
@@ -2654,9 +2709,9 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                 Down.
               </p>
             </div>
-            {form.gallery?.length > 0 ? (
+            {form.gallery?.some((item) => item.mediaType !== "VIDEO") ? (
               <div className="space-y-3">
-                {form.gallery.map((item, index) => (
+                {form.gallery.filter((item) => item.mediaType !== "VIDEO").map((item, index) => (
                   <div
                     key={item.id}
                     className="rounded-xl border border-border/70 p-4 space-y-3 bg-muted/10"
@@ -2685,7 +2740,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                           variant="ghost"
                           size="sm"
                           onClick={() => moveGalleryItem(item.id, "down")}
-                          disabled={index === form.gallery.length - 1}
+                          disabled={index === form.gallery.filter((item) => item.mediaType !== "VIDEO").length - 1}
                         >
                           Move Down
                         </Button>
@@ -2782,6 +2837,46 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
                 <Plus className="h-4 w-4 mr-2" /> Add Media
               </Button>
             </div>
+          </div>
+          <div className="col-span-2 space-y-3 rounded-xl border border-border/70 bg-muted/10 p-4">
+            <div>
+              <Label className="font-semibold">Product Review Videos</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Upload portrait review videos for the horizontal slider below the
+                Product Detail accordions. MP4 or WebM, maximum 20 MB per video.
+                Videos are stored on Cloudflare R2 and published when you save
+                the product.
+              </p>
+            </div>
+            {form.gallery?.filter((item) => item.mediaType === "VIDEO").map((item, index, allVideos) => (
+              <div key={item.id} className="rounded-lg border bg-background p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium">Review Video {index + 1}</p>
+                  <div className="flex gap-1">
+                    <Button type="button" variant="outline" size="sm"
+                      disabled={index === 0 || reviewUploadBusy}
+                      onClick={() => moveGalleryItem(item.id, "up")}>Up</Button>
+                    <Button type="button" variant="outline" size="sm"
+                      disabled={index === allVideos.length - 1 || reviewUploadBusy}
+                      onClick={() => moveGalleryItem(item.id, "down")}>Down</Button>
+                    <Button type="button" variant="destructive" size="sm"
+                      disabled={reviewUploadBusy}
+                      onClick={() => removeGalleryItem(item.id)}>Remove</Button>
+                  </div>
+                </div>
+                <video src={item.mediaUrl} controls playsInline preload="metadata"
+                  className="h-52 max-w-full rounded-lg bg-black object-contain" />
+                <p className="break-all text-[11px] text-muted-foreground">{item.mediaUrl}</p>
+              </div>
+            ))}
+            <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold ${reviewUploadBusy ? "pointer-events-none opacity-60" : "hover:bg-muted"}`}>
+              {reviewUploadBusy ? "Uploading video..." : "+ Upload Review Video"}
+              <input type="file" className="sr-only" accept=".mp4,.webm,video/mp4,video/webm"
+                disabled={reviewUploadBusy} onChange={handleReviewVideoUpload} />
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Upload directly to R2. Do not close the form during the upload.
+            </p>
           </div>
           <div className="col-span-2 space-y-3">
             <div>
@@ -2997,6 +3092,7 @@ function ProductModal({ open, onOpenChange, initial, onSave }) {
             Cancel
           </Button>
           <Button
+            disabled={reviewUploadBusy}
             onClick={() =>
               onSave({
                 ...form,
